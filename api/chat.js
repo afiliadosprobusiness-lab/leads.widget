@@ -1,4 +1,4 @@
-const BACKEND_URL = (process.env.BACKEND_URL || "https://leads-widget-backend-g4edrnuqha-uc.a.run.app").replace(/\/$/, "");
+const BACKEND_URL = (process.env.BACKEND_URL || "https://leads-widget-backend-319905500449.us-central1.run.app").replace(/\/$/, "");
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
