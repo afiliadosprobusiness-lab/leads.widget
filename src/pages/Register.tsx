@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useAuth } from '@/lib/auth';
+import { useAuth, isSuperAdminEmail } from '@/lib/auth';
 import { MessageCircle, Loader2, ArrowLeft, Check, Mail, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from 'react-i18next';
@@ -37,7 +37,7 @@ export default function Register() {
       setLoading(false);
     } else {
       if (data) {
-        navigate('/app');
+        navigate(isSuperAdminEmail(email) ? '/superadmin' : '/app');
       } else {
         setIsSubmitted(true);
         setLoading(false);

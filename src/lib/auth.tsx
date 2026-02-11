@@ -13,6 +13,17 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 
+export const SUPERADMIN_EMAILS = [
+  'afiliadosprobusiness@gmail.com',
+  'superadmin@leadwidget.pe',
+  'superadmin2@leadwidget.pe',
+];
+
+export function isSuperAdminEmail(email?: string | null): boolean {
+  if (!email) return false;
+  return SUPERADMIN_EMAILS.includes(email.toLowerCase());
+}
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
@@ -37,6 +48,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(currentUser);
 
       if (currentUser) {
+        if (isSuperAdminEmail(currentUser.email)) {
+          setIsSuperAdmin(true);
+          setLoading(false);
+          return;
+        }
+
         try {
           // Check for superadmin role in Firestore
           // Structure: collection 'user_roles', docId = userId, field 'role' = 'superadmin'
@@ -82,6 +99,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ai_model: 'gpt-4o-mini', // Default configuration
         referred_by: referredBy, // Track who referred this user
       });
+
+      if (isSuperAdminEmail(user.email)) {
+        await setDoc(doc(db, "user_roles", user.uid), { role: 'superadmin' }, { merge: true });
+      }
 
       // Default role is handled by absence of doc or default rules
       /* 
@@ -150,6 +171,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           referred_by: referredBy,
         });
 
+        if (isSuperAdminEmail(user.email)) {
+          await setDoc(doc(db, "user_roles", user.uid), { role: 'superadmin' }, { merge: true });
+        }
+
         toast({
           title: "¡Bienvenido!",
           description: "Tu cuenta ha sido creada exitosamente con Google.",
@@ -193,6 +218,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ai_model: 'gpt-4o-mini',
           referred_by: referredBy,
         });
+
+        if (isSuperAdminEmail(user.email)) {
+          await setDoc(doc(db, "user_roles", user.uid), { role: 'superadmin' }, { merge: true });
+        }
 
         toast({
           title: "¡Bienvenido!",

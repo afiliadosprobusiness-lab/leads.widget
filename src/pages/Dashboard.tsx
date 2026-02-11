@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '@/lib/auth';
-import { db, storage } from '@/lib/firebase';
+import { useAuth, isSuperAdminEmail } from '@/lib/auth';
+import { db } from '@/lib/firebase';
 import {
   collection,
   doc,
@@ -16,7 +16,6 @@ import {
   addDoc,
   onSnapshot
 } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -33,7 +32,7 @@ import {
   ShieldCheck, ShieldAlert, TrendingUp, Info, MessageCircle, Copy, Check, Download,
   ExternalLink, Settings, History, Lock, AlertCircle, LogOut, Loader2, Sparkles,
   Layout, Palette, Code, BarChart as BarChartIcon, BarChart3, Users, CreditCard,
-  Eye, Target, Upload, Clock, Bot, Key, Shield, X, Smartphone, EyeOff, MoreHorizontal, Globe,
+  Eye, Target, Clock, Bot, Key, Shield, X, Smartphone, EyeOff, MoreHorizontal, Globe,
   ShoppingBag, HeartPulse, Wrench, Home, Utensils, Banknote, Calculator, HandCoins, BookOpen, Rocket
 } from 'lucide-react';
 import {
@@ -202,6 +201,18 @@ export default function Dashboard() {
 
   // Real Affiliate Data Hooks
   const [realAffiliatesCount, setRealAffiliatesCount] = useState(0);
+  const supportPhoneDigits = '51924464410';
+
+  const planLabel = selectedPlan === 'plus' ? 'PLUS' : 'PRO';
+
+  const buildWhatsappLink = (reference?: string) => {
+    const referenceText = (reference || '').trim();
+    const message = referenceText
+      ? `Hola lead widget, ya pague mi plan ${planLabel}. Codigo de transaccion: ${referenceText}. Adjunto captura`
+      : `Hola lead widget, ya pague mi plan ${planLabel}, adjunto captura`;
+    return `https://wa.me/${supportPhoneDigits}?text=${encodeURIComponent(message)}`;
+  };
+
   useEffect(() => {
     if (!user?.uid) return;
     const fetchAffiliates = async () => {
@@ -323,12 +334,20 @@ export default function Dashboard() {
 
 
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (authLoading) return;
+
+    if (!user) {
       navigate('/login');
-    } else if (user) {
-      loadData();
+      return;
     }
-  }, [user, authLoading, navigate]);
+
+    if (isSuperAdmin || isSuperAdminEmail(user.email)) {
+      navigate('/superadmin');
+      return;
+    }
+
+    loadData();
+  }, [user, authLoading, isSuperAdmin, navigate]);
 
 
 
@@ -634,72 +653,6 @@ export default function Dashboard() {
     }
   };
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleUploadProof = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-
-    // Optional: Check file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast({
-        title: 'Archivo muy grande',
-        description: 'La imagen no debe superar los 5MB.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setUploading(true);
-    console.log('Iniciando subida de comprobante...');
-
-    try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.uid}-${Math.floor(Date.now() / 1000)}.${fileExt}`;
-      const storageRef = ref(storage, `proofs/${fileName}`);
-
-      // Upload to Firebase Storage
-      console.log('Subiendo a Storage:', fileName);
-      await uploadBytes(storageRef, file);
-      const publicUrl = await getDownloadURL(storageRef);
-      console.log('URL obtenida:', publicUrl);
-
-      // Add to payments collection
-      console.log('Guardando en Firestore...');
-      await addDoc(collection(db, 'payments'), {
-        user_id: user.uid,
-        amount: 30,
-        payment_method: 'Yape/Plin',
-        description: 'Suscripción Mensual Lead Widget',
-        proof_url: publicUrl,
-        status: 'pending',
-        created_at: new Date().toISOString()
-      });
-
-      toast({
-        title: '¡Comprobante enviado!',
-        description: 'Revisaremos tu pago pronto para activar tu cuenta.',
-      });
-
-      console.log('Actualizando datos del dashboard...');
-      await loadData();
-    } catch (error: any) {
-      console.error('Error detallado de subida:', error);
-      toast({
-        title: 'Error de subida',
-        description: error.code === 'storage/unauthorized'
-          ? 'No tienes permiso para subir. Revisa las reglas de Storage.'
-          : 'No se pudo subir el archivo. Verifica tu conexión.',
-        variant: 'destructive',
-      });
-    } finally {
-      console.log('Proceso de subida finalizado.');
-      setUploading(false);
-      // Reset input
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
-
   const copyEmbedCode = () => {
     // Generate the widget URL 
     const currentDomain = window.location.origin;
@@ -954,7 +907,7 @@ export default function Dashboard() {
                   </div>
                   <div className="p-2 bg-purple-50 rounded border border-purple-100">
                     <span className="font-bold block text-purple-700">Yape/Plin</span>
-                    902 105 668
+                    +51 924 464 410
                     <p className="text-[10px] opacity-70">Kenneth Herrera</p>
                   </div>
                 </div>
@@ -980,6 +933,16 @@ export default function Dashboard() {
                       } catch (e) { toast({ title: "Error", variant: "destructive" }); }
                     }}>Enviar</Button>
                   </div>
+                  <p className="text-[11px] text-center mt-2">
+                    <a
+                      href={buildWhatsappLink((document.getElementById('blocked-ref') as HTMLInputElement)?.value)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="underline text-primary"
+                    >
+                      Luego de pagar, escribe al soporte por WhatsApp para activar tu plan
+                    </a>
+                  </p>
                 </div>
               </div>
             )}
@@ -2540,7 +2503,7 @@ export default function Dashboard() {
                           <div className="space-y-2 text-sm text-purple-800 dark:text-purple-200">
                             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center border-b border-purple-200 dark:border-purple-800 pb-1">
                               <span className="text-xs opacity-70 uppercase tracking-wider">Número Celular</span>
-                              <span className="font-bold text-xl select-all">902 105 668</span>
+                              <span className="font-bold text-xl select-all">+51 924 464 410</span>
                             </div>
                             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center pt-1">
                               <span className="text-xs opacity-70 uppercase tracking-wider">Titular</span>
@@ -2582,7 +2545,7 @@ export default function Dashboard() {
                                 await addDoc(collection(db, 'payments'), {
                                   user_id: user?.uid,
                                   amount: selectedPlan === 'plus' ? 60 : 30,
-                                  payment_method: 'Yape/Plin/BCP',
+                                  payment_method: 'Yape/Plin',
                                   description: `Plan ${selectedPlan === 'plus' ? 'PLUS' : 'Estándar'} Lead Widget`,
                                   operation_ref: reference,
                                   status: 'pending',
@@ -2607,9 +2570,14 @@ export default function Dashboard() {
                             {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : t('dashboard.billing_section.report_btn')}
                           </Button>
 
-                          <p className="text-[10px] text-muted-foreground mt-2">
-                            {t('dashboard.billing_section.wa_hint')} <a href="https://wa.me/51902105668" target="_blank" className="underline text-primary">WhatsApp</a>.
-                          </p>
+                          <a
+                            href={buildWhatsappLink((document.getElementById('payment-ref') as HTMLInputElement)?.value)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-block text-[11px] text-primary underline mt-2"
+                          >
+                            Luego de pagar, escribe al +51 924 464 410 para activar tu plan
+                          </a>
                         </div>
                       </div>
                     </TabsContent>

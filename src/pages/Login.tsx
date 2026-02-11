@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useAuth } from '@/lib/auth';
+import { useAuth, isSuperAdminEmail } from '@/lib/auth';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { MessageCircle, Loader2, ArrowLeft, Eye, EyeOff } from 'lucide-react';
@@ -27,7 +27,7 @@ export default function Login() {
       console.log('Login useEffect:', { userEmail: user.email, isSuperAdmin });
 
       // Check role OR specific email hardcoded fallback (for instant feedback)
-      if (isSuperAdmin || user.email === 'superadmin2@leadwidget.pe' || user.email === 'superadmin@leadwidget.pe') {
+      if (isSuperAdmin || isSuperAdminEmail(user.email)) {
         console.log('Redirecting to SUPERADMIN');
         navigate('/superadmin');
       } else {

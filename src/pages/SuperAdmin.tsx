@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, getDocs, getDoc, doc, updateDoc, setDoc, where, limit, onSnapshot, deleteDoc } from 'firebase/firestore';
-import { useAuth } from '@/lib/auth';
+import { useAuth, isSuperAdminEmail } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -109,7 +109,7 @@ export default function SuperAdmin() {
       if (!user) {
         navigate('/login');
       } else if (!isSuperAdmin) {
-        if (user.email !== 'superadmin@leadwidget.pe' && user.email !== 'superadmin2@leadwidget.pe') {
+        if (!isSuperAdminEmail(user.email)) {
           navigate('/app');
         }
       }
