@@ -4,13 +4,14 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
+// Leads Widget is pinned to a single Firebase project to avoid runtime env mismatches.
 const firebaseConfig = {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-    appId: import.meta.env.VITE_FIREBASE_APP_ID
+    apiKey: "AIzaSyCXNFoeg1nrYcFHzU9TEKNnDPg1mHU3_tA",
+    authDomain: "leads-widget.firebaseapp.com",
+    projectId: "leads-widget",
+    storageBucket: "leads-widget.firebasestorage.app",
+    messagingSenderId: "638272160098",
+    appId: "1:638272160098:web:235439322b85e67b9d2c3b"
 };
 
 const app = initializeApp(firebaseConfig);

@@ -108,7 +108,7 @@ export default async function handler(req, res) {
         if (widgetId === 'demo-landing') {
             aiConfig = {
                 ai_enabled: true,
-                ai_api_key: process.env.OPENAI_API_KEY,
+                ai_api_key: (process.env.OPENAI_API_KEY || '').trim(),
                 ai_model: 'gpt-4o-mini',
                 ai_temperature: 0.7,
                 ai_system_prompt: `You are the Commercial Assistant of 'Lead Widget'.
@@ -275,7 +275,7 @@ When you have the user's data (Name and interest) and they confirm they want to 
         // BYOK Policy: Only demo uses system key, clients must provide their own
         let apiKey;
         if (widgetId === 'demo-landing') {
-            apiKey = process.env.OPENAI_API_KEY;
+            apiKey = (process.env.OPENAI_API_KEY || '').trim();
         } else {
             apiKey = aiConfig.ai_api_key;
         }

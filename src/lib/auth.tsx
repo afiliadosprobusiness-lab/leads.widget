@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+ï»¿import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import {
   User,
   onAuthStateChanged,
@@ -48,18 +48,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(currentUser);
 
       if (currentUser) {
-        if (isSuperAdminEmail(currentUser.email)) {
-          setIsSuperAdmin(true);
-          setLoading(false);
-          return;
-        }
-
         try {
-          const roleDoc = await getDoc(doc(db, 'user_roles', currentUser.uid));
-          setIsSuperAdmin(roleDoc.exists() && roleDoc.data().role === 'superadmin');
+          const bootstrap = await bootstrapUserProfile(currentUser, currentUser.displayName || '');
+          if (isSuperAdminEmail(currentUser.email) || bootstrap.role === 'superadmin') {
+            setIsSuperAdmin(true);
+          } else {
+            const roleDoc = await getDoc(doc(db, 'user_roles', currentUser.uid));
+            setIsSuperAdmin(roleDoc.exists() && roleDoc.data().role === 'superadmin');
+          }
         } catch (err) {
           console.error('Error fetching roles:', err);
-          setIsSuperAdmin(false);
+          setIsSuperAdmin(isSuperAdminEmail(currentUser.email));
         }
       } else {
         setIsSuperAdmin(false);
@@ -102,21 +101,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const humanError = (error: any, fallback: string) => {
     let message = fallback;
-    if (error.code === 'auth/email-already-in-use') message = 'El correo ya está registrado';
-    if (error.code === 'auth/weak-password') message = 'La contraseña es muy débil';
+    if (error.code === 'auth/email-already-in-use') message = 'El correo ya estÃ¡ registrado';
+    if (error.code === 'auth/weak-password') message = 'La contraseÃ±a es muy dÃ©bil';
     if (error.code === 'auth/invalid-credential') message = 'Credenciales incorrectas';
     if (error.code === 'auth/user-not-found') message = 'Usuario no encontrado';
-    if (error.code === 'auth/wrong-password') message = 'Contraseña incorrecta';
-    if (error.code === 'auth/popup-closed-by-user') message = 'Ventana de inicio de sesión cerrada';
+    if (error.code === 'auth/wrong-password') message = 'ContraseÃ±a incorrecta';
+    if (error.code === 'auth/popup-closed-by-user') message = 'Ventana de inicio de sesiÃ³n cerrada';
     if (error.code === 'auth/popup-blocked') message = 'Popup bloqueado. Permite popups para este sitio';
     if (error.code === 'auth/cancelled-popup-request') message = 'Solicitud cancelada';
     if (error.code === 'auth/account-exists-with-different-credential') {
-      message = 'Ya existe una cuenta con este correo usando otro método de inicio de sesión';
+      message = 'Ya existe una cuenta con este correo usando otro mÃ©todo de inicio de sesiÃ³n';
     }
 
     const raw = String(error?.message || '');
     if (raw.includes('ERR_BLOCKED_BY_CLIENT')) {
-      message = 'Tu navegador está bloqueando Firebase. Desactiva AdBlock/Shield para este sitio.';
+      message = 'Tu navegador estÃ¡ bloqueando Firebase. Desactiva AdBlock/Shield para este sitio.';
     }
 
     return message;
@@ -138,7 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       toast({
-        title: '¡Bienvenido!',
+        title: 'Â¡Bienvenido!',
         description: 'Tu cuenta ha sido creada exitosamente.',
       });
 
@@ -155,7 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: null };
     } catch (error: any) {
       console.error('Sign In Error:', error);
-      return { error: { ...error, message: humanError(error, 'Error al iniciar sesión') } };
+      return { error: { ...error, message: humanError(error, 'Error al iniciar sesiÃ³n') } };
     }
   };
 
@@ -179,7 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (bootstrap.created) {
         toast({
-          title: '¡Bienvenido!',
+          title: 'Â¡Bienvenido!',
           description: 'Tu cuenta ha sido creada exitosamente con Google.',
         });
       }
@@ -187,7 +186,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: null };
     } catch (error: any) {
       console.error('Google Sign In Error:', error);
-      return { error: { ...error, message: humanError(error, 'Error al iniciar sesión con Google') } };
+      return { error: { ...error, message: humanError(error, 'Error al iniciar sesiÃ³n con Google') } };
     }
   };
 
@@ -209,7 +208,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (bootstrap.created) {
         toast({
-          title: '¡Bienvenido!',
+          title: 'Â¡Bienvenido!',
           description: 'Tu cuenta ha sido creada exitosamente con Facebook.',
         });
       }
@@ -217,7 +216,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: null };
     } catch (error: any) {
       console.error('Facebook Sign In Error:', error);
-      return { error: { ...error, message: humanError(error, 'Error al iniciar sesión con Facebook') } };
+      return { error: { ...error, message: humanError(error, 'Error al iniciar sesiÃ³n con Facebook') } };
     }
   };
 
