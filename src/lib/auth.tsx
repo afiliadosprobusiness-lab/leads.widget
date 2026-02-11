@@ -117,6 +117,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (raw.includes('ERR_BLOCKED_BY_CLIENT')) {
       message = 'Tu navegador está bloqueando Firebase. Desactiva AdBlock/Shield para este sitio.';
     }
+    if (raw.includes('auth/unauthorized-domain') || raw.includes('Illegal url for new iframe')) {
+      message = 'Dominio no autorizado en Firebase Auth. Agrega este dominio en Firebase > Authentication > Settings > Authorized domains.';
+    }
 
     return message;
   };
