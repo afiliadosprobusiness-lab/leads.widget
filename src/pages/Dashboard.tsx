@@ -630,7 +630,8 @@ export default function Dashboard() {
           ? formConfig.quick_replies.split('\n').filter((m: string) => m.trim() !== '')
           : formConfig.quick_replies,
         testimonials_json: JSON.stringify(testimonials),
-        launcher_icon: formConfig.launcher_icon || ''
+        launcher_icon: formConfig.launcher_icon || '',
+        updated_at: new Date().toISOString(),
       });
 
       // Update business name in profile
@@ -656,15 +657,8 @@ export default function Dashboard() {
   const copyEmbedCode = () => {
     // Generate the widget URL 
     const currentDomain = window.location.origin;
-    const widgetUrl = `${currentDomain}/widget-embed.js`;
-
-    // SaaS Style: Only ID is needed. Config is fetched remotely.
-    const configScript = `
-<script>
-  window.LEADWIDGET_CLIENT_ID = '${user?.uid}';
-</script>
-<script src="${widgetUrl}" async></script>
-`.trim();
+    const publicWidgetId = widgetConfig?.widget_id || widgetConfig?.id || user?.uid || '';
+    const configScript = `<script src="${currentDomain}/api/w/${publicWidgetId}.js" async></script>`;
 
     navigator.clipboard.writeText(configScript);
     toast({
@@ -1895,6 +1889,7 @@ export default function Dashboard() {
                         business_description: aiConfig.business_description,
                         ai_system_prompt: aiConfig.ai_system_prompt,
                         ai_security_prompt: aiConfig.ai_security_prompt,
+                        updated_at: new Date().toISOString(),
                       });
 
                       toast({
