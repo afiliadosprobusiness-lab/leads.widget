@@ -56,6 +56,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { WidgetPreview } from '@/components/WidgetPreview';
 import { AffiliateCard } from '@/components/AffiliateCard';
 import { useToast } from '@/hooks/use-toast';
@@ -89,6 +90,7 @@ interface WidgetConfig {
   testimonials_json?: string;
   launcher_icon?: string;
   hide_branding?: boolean;
+  branding_text?: string;
 }
 
 const STATIC_ICONS = [
@@ -364,6 +366,7 @@ export default function Dashboard() {
     quick_replies: '¿Cómo funciona?\nQuiero más información\nVer precios',
     launcher_icon: '',
     hide_branding: false,
+    branding_text: '',
   });
 
   const [showApiKey, setShowApiKey] = useState(false);
@@ -463,6 +466,8 @@ export default function Dashboard() {
             'Quiero más información',
             'Ver precios'
           ],
+          hide_branding: false,
+          branding_text: '',
           created_at: new Date().toISOString()
         };
         await setDoc(newWidgetRef, defaultConfig);
@@ -503,6 +508,7 @@ export default function Dashboard() {
             : (configData.quick_replies || '¿Cómo funciona?\nQuiero más información\nVer precios'),
           launcher_icon: configData.launcher_icon || '',
           hide_branding: configData.hide_branding || false,
+          branding_text: configData.branding_text || '',
         });
 
         if (configData.testimonials_json) {
@@ -680,6 +686,8 @@ export default function Dashboard() {
           : formConfig.quick_replies,
         testimonials_json: JSON.stringify(testimonials),
         launcher_icon: formConfig.launcher_icon || '',
+        hide_branding: Boolean(formConfig.hide_branding),
+        branding_text: (formConfig.branding_text || '').trim(),
         updated_at: new Date().toISOString(),
       });
 
@@ -1495,8 +1503,19 @@ export default function Dashboard() {
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
                             <Label className="cursor-pointer font-semibold text-emerald-900" htmlFor="hide-branding">
-                              🎁 Ocultar Marca de Agua
+                              Ocultar marca de agua
                             </Label>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="text-emerald-700 hover:text-emerald-900 cursor-help" aria-label="Que es la marca de agua">
+                                  <Info className="w-4 h-4" />
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs text-xs leading-relaxed">
+                                La marca de agua se muestra en el pie del chat como "CREA TU WIDGET GRATIS AQUI".
+                                En Plan PRO se mantiene para promocion automatica. En Plan PLUS puedes ocultarla o reemplazarla por tu texto de marca.
+                              </TooltipContent>
+                            </Tooltip>
                             {profile?.plan_type === 'plus' && (
                               <span className="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-bold">
                                 PLAN PLUS
@@ -1505,7 +1524,7 @@ export default function Dashboard() {
                           </div>
                           <p className="text-xs text-emerald-700">
                             {profile?.plan_type === 'plus'
-                              ? 'Activa esta opción para remover "⚡ Tecnología LeadWidget" del pie de tu chat.'
+                              ? 'Activa esta opcion para remover la promo del pie del chat.'
                               : 'Actualiza al Plan PLUS (S/ 60/mes) para remover la marca de agua y tener un widget 100% tuyo.'
                             }
                           </p>
@@ -1518,6 +1537,19 @@ export default function Dashboard() {
                           className={profile?.plan_type !== 'plus' ? 'opacity-50' : ''}
                         />
                       </div>
+                      {profile?.plan_type === 'plus' && !formConfig.hide_branding && (
+                        <div className="space-y-2">
+                          <Label className="text-xs text-emerald-900">Texto de marca (opcional)</Label>
+                          <Input
+                            value={formConfig.branding_text || ''}
+                            onChange={(e) => setFormConfig({ ...formConfig, branding_text: e.target.value })}
+                            placeholder="Ejemplo: Potenciado por MiMarca"
+                          />
+                          <p className="text-[11px] text-emerald-700">
+                            Si lo dejas vacio, se mostrara el texto promocional por defecto.
+                          </p>
+                        </div>
+                      )}
                       {profile?.plan_type !== 'plus' && (
                         <Button
                           variant="outline"
@@ -2314,7 +2346,17 @@ export default function Dashboard() {
                     <div className="space-y-2 text-sm">
                       <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-200">
                         <Check className="w-4 h-4 text-emerald-600" />
-                        <span className="font-semibold">🎁 Sin marca de agua</span>
+                        <span className="font-semibold">Sin marca de agua</span>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-emerald-700 hover:text-emerald-900 cursor-help" aria-label="Detalle de marca de agua">
+                              <Info className="w-3.5 h-3.5" />
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs text-xs leading-relaxed">
+                            Remueve el pie promocional del chat o te permite poner texto de marca propio.
+                          </TooltipContent>
+                        </Tooltip>
                       </div>
                       <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-200">
                         <Check className="w-4 h-4 text-emerald-600" />
@@ -2411,8 +2453,18 @@ export default function Dashboard() {
                             {currency === 'USD' ? '$29' : 'S/ 60'}
                           </div>
                           <div className="text-[10px] text-emerald-600 mt-1">/mes</div>
-                          <div className="mt-3 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                            🎁 Sin marca de agua
+                          <div className="mt-3 text-xs font-semibold text-emerald-700 dark:text-emerald-400 flex items-center justify-center gap-1">
+                            <span>Sin marca de agua</span>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="text-emerald-700 hover:text-emerald-900 cursor-help" aria-label="Detalle de marca de agua">
+                                  <Info className="w-3.5 h-3.5" />
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs text-xs leading-relaxed">
+                                Esta opcion quita el texto promocional del pie del chat. Tambien puedes reemplazarlo por texto propio desde Configurar Widget.
+                              </TooltipContent>
+                            </Tooltip>
                           </div>
                         </div>
                       </button>

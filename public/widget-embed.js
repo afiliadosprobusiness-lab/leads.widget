@@ -18,6 +18,8 @@
     exitIntentDescription: '¿Tienes alguna pregunta antes de irte?',
     exitIntentCta: 'Chatear Ahora',
     testimonials: [],
+    hideBranding: false,
+    brandingText: '',
     projectId: 'leads-widget',
     apiKey: 'AIzaSyCXNFoeg1nrYcFHzU9TEKNnDPg1mHU3_tA'
   };
@@ -196,6 +198,7 @@
           clientId: resolvedClientId,
           widgetId: resolvedWidgetId,
           hideBranding: fields.hide_branding?.booleanValue === true,
+          brandingText: fields.branding_text?.stringValue || '',
           // AI Configuration (now stored in widget_configs for public access)
           ai_enabled: fields.ai_enabled?.booleanValue === true,
           ai_provider: fields.ai_provider?.stringValue || 'openai',
@@ -674,8 +677,13 @@
     ];
     const viralTextEl = document.getElementById('lw-viral-text');
     if (viralTextEl) {
-      const randomText = viralTexts[Math.floor(Math.random() * viralTexts.length)];
-      viralTextEl.textContent = randomText;
+      const customBranding = (config.brandingText || '').trim();
+      if (customBranding) {
+        viralTextEl.textContent = customBranding;
+      } else {
+        const randomText = viralTexts[Math.floor(Math.random() * viralTexts.length)];
+        viralTextEl.textContent = randomText;
+      }
     }
 
     // Render quick replies
@@ -988,7 +996,7 @@
         'primaryColor', 'businessName', 'welcomeMessage',
         'whatsappDestination', 'quickReplies', 'teaserMessages',
         'chatPlaceholder', 'exitIntentTitle', 'exitIntentDescription', 'exitIntentCta',
-        'vibrationIntensity', 'testimonials', 'launcherIcon'
+        'vibrationIntensity', 'testimonials', 'launcherIcon', 'hideBranding', 'brandingText'
       ];
 
       let hasVisualChanges = false;
