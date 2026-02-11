@@ -1,0 +1,3 @@
+# Translation files will go here
+msgid ""
+msgstr ""

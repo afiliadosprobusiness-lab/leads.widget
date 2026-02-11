@@ -1,0 +1,27 @@
+{
+    "name": "LeadWidget WordPress Plugin",
+    "version": "1.0.0",
+    "description": "WordPress plugin package for local testing and deployment",
+    "files": [
+        "leadwidget-official/**/*"
+    ],
+    "notes": {
+        "testing": "Copy leadwidget-official folder to wp-content/plugins/",
+        "production_url": "Update URL in includes/widget-injector.php before WordPress.org submission",
+        "assets_needed": [
+            "icon-128x128.png",
+            "icon-256x256.png",
+            "banner-772x250.png",
+            "screenshot-1.png (settings page)",
+            "screenshot-2.png (widget active)",
+            "screenshot-3.png (mobile view)"
+        ]
+    },
+    "wordpress_org": {
+        "plugin_slug": "leadwidget",
+        "min_wp_version": "5.0",
+        "tested_up_to": "6.4",
+        "min_php_version": "7.0",
+        "license": "GPL-2.0-or-later"
+    }
+}

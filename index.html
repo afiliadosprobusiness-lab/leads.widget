@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Lead Widget</title>
+  <meta name="description"
+    content="Lead Widget - Captura leads de WhatsApp automáticamente con inteligencia artificial. Optimizado para negocios en Perú." />
+  <meta name="author" content="LeadWidget" />
+
+  <!-- PWA Meta Tags -->
+  <meta name="theme-color" content="#00C185" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="LeadWidget" />
+
+  <!-- Icons -->
+  <link rel="icon" type="image/svg+xml"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💬</text></svg>" />
+  <link rel="apple-touch-icon" href="/assets/icon-192.png" />
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.json" />
+
+  <meta property="og:title" content="Lead Widget | Captura Leads con IA" />
+  <meta property="og:description"
+    content="Convierte tus visitas web en ventas reales por WhatsApp. Widget inteligente auto-gestionado con IA." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="/og-image.png" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Lead Widget | Captura Leads con IA" />
+  <meta name="twitter:description" content="Convierte tus visitas web en ventas reales por WhatsApp." />
+  <meta name="twitter:image" content="/og-image.png" />
+
+  <!-- Meta Pixel Code -->
+  <script>
+    !function (f, b, e, v, n, t, s) {
+      if (f.fbq) return; n = f.fbq = function () {
+        n.callMethod ?
+          n.callMethod.apply(n, arguments) : n.queue.push(arguments)
+      };
+      if (!f._fbq) f._fbq = n; n.push = n; n.loaded = !0; n.version = '2.0';
+      n.queue = []; t = b.createElement(e); t.async = !0;
+      t.src = v; s = b.getElementsByTagName(e)[0];
+      s.parentNode.insertBefore(t, s)
+    }(window, document, 'script',
+      'https://connect.facebook.net/en_US/fbevents.js');
+    fbq('init', '1382773023045365');
+    fbq('track', 'PageView');
+  </script>
+  <!-- End Meta Pixel Code -->
+</head>
+
+<body>
+  <!-- Meta Pixel NoScript -->
+  <noscript><img height="1" width="1" style="display:none"
+      src="https://www.facebook.com/tr?id=1382773023045365&ev=PageView&noscript=1" /></noscript>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+
+  <!-- Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(reg => console.log('LeadWidget SW registered:', reg.scope))
+          .catch(err => console.log('LeadWidget SW registration failed:', err));
+      });
+    }
+  </script>
+</body>
+
+</html>

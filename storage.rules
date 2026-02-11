@@ -1,0 +1,14 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bubble}/o {
+    match /proofs/{fileName} {
+      // Allow authenticated users to upload their own proofs
+      // The file name convention we used is: userId-timestamp.ext
+      allow write: if request.auth != null && 
+                     fileName.startsWith(request.auth.uid);
+      
+      // Allow the owner and superadmin to read the proof
+      allow read: if request.auth != null;
+    }
+  }
+}

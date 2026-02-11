@@ -1,0 +1,18 @@
+{% if block.settings.widget_id != blank %}
+  <script src="https://whatsapp-leads-peru.vercel.app/api/w/{{ block.settings.widget_id }}.js" async></script>
+{% endif %}
+
+{% schema %}
+{
+  "name": "Lead Widget WhatsApp",
+  "target": "body",
+  "settings": [
+    {
+      "type": "text",
+      "id": "widget_id",
+      "label": "Widget ID",
+      "info": "Pega aquí tu ID único visible en el Dashboard de LeadWidget."
+    }
+  ]
+}
+{% endschema %}
