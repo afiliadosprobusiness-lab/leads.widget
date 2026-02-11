@@ -18,8 +18,8 @@
     exitIntentDescription: '¿Tienes alguna pregunta antes de irte?',
     exitIntentCta: 'Chatear Ahora',
     testimonials: [],
-    projectId: 'whatsapp-leads-peru',
-    apiKey: 'AIzaSyDoUHZtRvgEwhEUhZj6x4xEZvVmxliMCJo'
+    projectId: 'leads-widget',
+    apiKey: 'AIzaSyCXNFoeg1nrYcFHzU9TEKNnDPg1mHU3_tA'
   };
 
   // State
@@ -52,37 +52,102 @@
     teaserStartTimeout = null;
   }
 
+  function getBackendApiBase() {
+    try {
+      const scripts = document.getElementsByTagName('script');
+      for (const s of scripts) {
+        if (s.src && s.src.includes('widget-embed.js')) {
+          const parsed = new URL(s.src);
+          return `${parsed.origin}/api`;
+        }
+      }
+    } catch (e) {
+      console.warn('LeadWidget: Could not detect backend API base', e);
+    }
+    return '/api';
+  }
+
   // Get widget config from Firestore
-  async function getWidgetConfig(clientId) {
-    if (!clientId) return null;
+  async function getWidgetConfig(identity) {
+    if (!identity) return null;
+
+    const backendApi = getBackendApiBase();
+
+    // Primary source: backend public endpoint (avoids browser blockers/permission edge cases)
+    try {
+      const backendResponse = await fetch(`${backendApi}/widget-config/${encodeURIComponent(identity)}`, {
+        method: 'GET',
+        cache: 'no-store'
+      });
+
+      if (backendResponse.ok) {
+        const payload = await backendResponse.json();
+        if (payload && payload.config) {
+          return {
+            ...payload.config,
+            clientId: payload.config.clientId || config.clientId || identity,
+            widgetId: payload.config.widgetId || identity
+          };
+        }
+      }
+    } catch (e) {
+      console.warn('LeadWidget: Backend config lookup failed, using Firestore fallback', e);
+    }
 
     try {
-      const url = `https://firestore.googleapis.com/v1/projects/${defaultConfig.projectId}/databases/(default)/documents:runQuery?key=${defaultConfig.apiKey}`;
+      const projectId = config.projectId || defaultConfig.projectId;
+      const apiKey = config.apiKey || defaultConfig.apiKey;
+      const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:runQuery?key=${apiKey}`;
 
-      const query = {
+      const queryByWidgetId = {
         structuredQuery: {
           from: [{ collectionId: "widget_configs" }],
           where: {
             fieldFilter: {
-              field: { fieldPath: "user_id" },
+              field: { fieldPath: "widget_id" },
               op: "EQUAL",
-              value: { stringValue: clientId }
+              value: { stringValue: identity }
             }
           },
           limit: 1
         }
       };
 
-      const response = await fetch(url, {
+      let response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(query)
+        body: JSON.stringify(queryByWidgetId)
       });
 
-      const data = await response.json();
+      let data = await response.json();
+
+      if (!(data && data[0] && data[0].document)) {
+        const queryByUserId = {
+          structuredQuery: {
+            from: [{ collectionId: "widget_configs" }],
+            where: {
+              fieldFilter: {
+                field: { fieldPath: "user_id" },
+                op: "EQUAL",
+                value: { stringValue: identity }
+              }
+            },
+            limit: 1
+          }
+        };
+
+        response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(queryByUserId)
+        });
+        data = await response.json();
+      }
 
       if (data && data[0] && data[0].document) {
         const fields = data[0].document.fields;
+        const resolvedClientId = fields.user_id?.stringValue || config.clientId || identity;
+        const resolvedWidgetId = fields.widget_id?.stringValue || identity;
 
         // Parse quick replies (array or string)
         let quickReplies = defaultConfig.quickReplies;
@@ -128,7 +193,8 @@
           exitIntentTitle: fields.exit_intent_title?.stringValue || defaultConfig.exitIntentTitle,
           exitIntentDescription: fields.exit_intent_description?.stringValue || defaultConfig.exitIntentDescription,
           exitIntentCta: fields.exit_intent_cta?.stringValue || defaultConfig.exitIntentCta,
-          clientId: clientId,
+          clientId: resolvedClientId,
+          widgetId: resolvedWidgetId,
           hideBranding: fields.hide_branding?.booleanValue === true,
           // AI Configuration (now stored in widget_configs for public access)
           ai_enabled: fields.ai_enabled?.booleanValue === true,
@@ -175,7 +241,7 @@
         body: JSON.stringify({
           message: userMessage,
           history: conversationHistory,
-          widgetId: config.clientId
+          widgetId: config.widgetId || config.clientId
         })
       });
 
@@ -915,7 +981,7 @@
 
   // Refresh config periodically (every 30 seconds)
   async function refreshConfig() {
-    const newConfig = await getWidgetConfig(config.clientId);
+    const newConfig = await getWidgetConfig(config.widgetId || config.clientId);
     if (newConfig) {
       // Check for visual changes that require re-render
       const visualKeys = [
@@ -957,17 +1023,20 @@
 
   // Main Initialization
   async function initialize() {
-    const clientId = window.LEADWIDGET_CLIENT_ID || window.LEADWIDGET_CONFIG?.clientId;
+    const bootstrapConfig = window.LEADWIDGET_CONFIG || {};
+    const clientId = window.LEADWIDGET_CLIENT_ID || bootstrapConfig.clientId;
+    const widgetId = bootstrapConfig.widgetId || window.LEADWIDGET_WIDGET_ID || clientId;
 
     console.log('LeadWidget: Initializing with client ID:', clientId);
 
     if (clientId) {
       config.clientId = clientId;
-      config.projectId = defaultConfig.projectId;
-      config.apiKey = defaultConfig.apiKey;
+      config.widgetId = widgetId;
+      config.projectId = window.LEADWIDGET_CONFIG?.projectId || defaultConfig.projectId;
+      config.apiKey = window.LEADWIDGET_CONFIG?.apiKey || defaultConfig.apiKey;
 
       // Load widget config
-      const remoteConfig = await getWidgetConfig(clientId);
+      const remoteConfig = await getWidgetConfig(widgetId || clientId);
       if (remoteConfig) {
         Object.assign(config, remoteConfig);
         console.log('LeadWidget: Loaded configuration for', config.businessName);

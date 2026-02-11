@@ -221,7 +221,7 @@ export default function Dashboard() {
         const snapshot = await getDocs(q);
         setRealAffiliatesCount(snapshot.size);
       } catch (e) {
-        console.error("Error fetching affiliates", e);
+        setRealAffiliatesCount(0);
       }
     };
     fetchAffiliates();
