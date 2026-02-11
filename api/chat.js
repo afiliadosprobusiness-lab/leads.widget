@@ -282,6 +282,14 @@ When you have the user's data (Name and interest) and they confirm they want to 
 
         if (!apiKey) {
             console.error('Missing OpenAI API Key for widget:', widgetId);
+            if (widgetId === 'demo-landing') {
+                return res.status(200).json({
+                    response: WIDGET_LANG === 'en'
+                        ? "I can help you qualify leads and send them to WhatsApp. In this demo, ask about pricing, setup time, or how filtering works."
+                        : "Puedo ayudarte a calificar leads y enviarlos a WhatsApp. En esta demo pregúntame por precios, tiempo de implementación o cómo funciona el filtro."
+                });
+            }
+
             return res.status(200).json({
                 response: WIDGET_LANG === 'en'
                     ? "⚙️ To enable responses, you need to configure your OpenAI API Key in the Dashboard → AI Tab."
