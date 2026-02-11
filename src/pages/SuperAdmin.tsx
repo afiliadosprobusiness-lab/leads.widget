@@ -297,8 +297,8 @@ export default function SuperAdmin() {
       }
 
       toast({
-        title: status === 'verified' ? 'âœ… Pago verificado' : 'âŒ Pago rechazado',
-        description: status === 'verified' ? 'Cliente activado automÃ¡ticamente' : 'Se notificarÃ¡ al cliente',
+        title: status === 'verified' ? 'Pago verificado' : 'Pago rechazado',
+        description: status === 'verified' ? 'Cliente activado automaticamente' : 'Se notificara al cliente',
       });
 
     } catch (error: any) {
@@ -345,7 +345,7 @@ export default function SuperAdmin() {
     navigator.clipboard.writeText(link);
     toast({
       title: "Link copiado",
-      description: "EnvÃ­a este link al cliente para que se registre",
+      description: "Envia este link al cliente para que se registre",
     });
     setIsCreateOpen(false);
   };
@@ -540,7 +540,7 @@ export default function SuperAdmin() {
               <CardHeader>
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
-                    <CardTitle>GestiÃ³n de Clientes</CardTitle>
+                    <CardTitle>Gestion de Clientes</CardTitle>
                     <CardDescription>{clients.length} clientes registrados</CardDescription>
                   </div>
                   <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
@@ -564,7 +564,7 @@ export default function SuperAdmin() {
                         <DialogHeader>
                           <DialogTitle>Invitar Nuevo Cliente</DialogTitle>
                           <DialogDescription>
-                            Comparte este enlace Ãºnico para que el cliente se registre.
+                            Comparte este enlace unico para que el cliente se registre.
                           </DialogDescription>
                         </DialogHeader>
                         <div className="py-4">
@@ -690,7 +690,7 @@ export default function SuperAdmin() {
           <TabsContent value="payments">
             <Card>
               <CardHeader>
-                <CardTitle>Pagos Pendientes de VerificaciÃ³n</CardTitle>
+                <CardTitle>Pagos Pendientes de Verificacion</CardTitle>
                 <CardDescription>Revisa los comprobantes y activa cuentas</CardDescription>
               </CardHeader>
               <CardContent>
@@ -888,8 +888,8 @@ export default function SuperAdmin() {
                 <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl flex gap-3">
                   <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
                   <p className="text-sm text-amber-800 dark:text-amber-200">
-                    Estas IPs fueron bloqueadas automÃ¡ticamente por intentar manipular el chat demo de tu landing page.
-                    Si crees que algÃºn bloqueo fue un error, puedes rehabilitar manualmente.
+                    Estas IPs fueron bloqueadas automaticamente por intentar manipular el chat demo de tu landing page.
+                    Si crees que algun bloqueo fue un error, puedes rehabilitar manualmente.
                   </p>
                 </div>
 
@@ -897,17 +897,17 @@ export default function SuperAdmin() {
                   <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-2xl">
                     <ShieldCheck className="w-12 h-12 mx-auto mb-4 opacity-10" />
                     <p>No hay IPs bloqueadas en el widget demo actualmente</p>
-                    <p className="text-sm mt-1">El sistema de seguridad estÃ¡ activo y vigilando.</p>
+                    <p className="text-sm mt-1">El sistema de seguridad esta activo y vigilando.</p>
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead>
                         <tr className="border-b text-xs uppercase tracking-wider text-muted-foreground">
-                          <th className="text-left py-3 px-4 font-medium">DirecciÃ³n IP</th>
+                          <th className="text-left py-3 px-4 font-medium">Direccion IP</th>
                           <th className="text-left py-3 px-4 font-medium">Motivo</th>
                           <th className="text-left py-3 px-4 font-medium">Fecha de Bloqueo</th>
-                          <th className="text-right py-3 px-4 font-medium">AcciÃ³n</th>
+                          <th className="text-right py-3 px-4 font-medium">Accion</th>
                         </tr>
                       </thead>
                       <tbody className="text-sm">
@@ -948,7 +948,7 @@ export default function SuperAdmin() {
               <CardHeader>
                 <CardTitle>Sistema de Referidos y Comisiones</CardTitle>
                 <CardDescription>
-                  Tracking completo de afiliados - 20% de comisiÃ³n o 1 mes gratis por cada referido activo
+                  Tracking completo de afiliados - 20% de comision o 1 mes gratis por cada referido activo
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -988,10 +988,10 @@ export default function SuperAdmin() {
                       <thead className="bg-slate-50">
                         <tr>
                           <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">Referido (Cliente Nuevo)</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">Afiliado (QuiÃ©n RefiriÃ³)</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">Afiliado (Quien refirio)</th>
                           <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">Plan</th>
                           <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">Estado</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">ComisiÃ³n/Mes</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">Comision/Mes</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y">
@@ -1031,7 +1031,7 @@ export default function SuperAdmin() {
                                     ? 'bg-purple-100 text-purple-700'
                                     : 'bg-blue-100 text-blue-700'
                                     }`}>
-                                    {plan === 'plus' ? 'ðŸ‘‘ PLUS' : 'EstÃ¡ndar'}
+                                    {plan === 'plus' ? 'PLUS' : 'Estandar'}
                                   </span>
                                 </td>
                                 <td className="px-4 py-3">
@@ -1042,7 +1042,7 @@ export default function SuperAdmin() {
                                     S/ {commission}
                                   </div>
                                   <div className="text-xs text-slate-500">
-                                    {isActive ? 'ðŸŽ Activo' : 'â¸ï¸ Inactivo'}
+                                    {isActive ? 'Activo' : 'Inactivo'}
                                   </div>
                                 </td>
                               </tr>
@@ -1052,7 +1052,7 @@ export default function SuperAdmin() {
                           <tr>
                             <td colSpan={5} className="px- py-8 text-center text-slate-500">
                               <Gift className="w-12 h-12 mx-auto mb-2 text-slate-300" />
-                              <p>AÃºn no hay referidos en el sistema</p>
+                              <p>Aun no hay referidos en el sistema</p>
                             </td>
                           </tr>
                         )}
@@ -1068,13 +1068,13 @@ export default function SuperAdmin() {
                           <Gift className="w-6 h-6 text-emerald-600" />
                         </div>
                         <div>
-                          <h4 className="font-bold text-emerald-900 mb-2">CÃ³mo Funciona el Sistema de Afiliados</h4>
+                          <h4 className="font-bold text-emerald-900 mb-2">Como funciona el sistema de afiliados</h4>
                           <ul className="space-y-1 text-sm text-emerald-800">
-                            <li>âœ… Cada cliente activo genera un 20% de comisiÃ³n mensual para su afiliado</li>
-                            <li>âœ… Alternativamente, puede otorgarse 1 mes gratis por referido activo</li>
-                            <li>âœ… Plan EstÃ¡ndar (S/ 30) = S/ 6 comisiÃ³n/mes</li>
-                            <li>âœ… Plan PLUS (S/ 60) = S/ 12 comisiÃ³n/mes</li>
-                            <li>âœ… El tracking es automÃ¡tico via parÃ¡metro `?ref=USER_ID`</li>
+                            <li>Cada cliente activo genera un 20% de comision mensual para su afiliado.</li>
+                            <li>Alternativamente, puede otorgarse 1 mes gratis por referido activo.</li>
+                            <li>Plan Estandar (S/ 30) = S/ 6 de comision al mes.</li>
+                            <li>Plan PLUS (S/ 60) = S/ 12 de comision al mes.</li>
+                            <li>El tracking es automatico via parametro `?ref=USER_ID`.</li>
                           </ul>
                         </div>
                       </div>
@@ -1101,7 +1101,7 @@ export default function SuperAdmin() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>TelÃ©fono WhatsApp</Label>
+                <Label>Telefono WhatsApp</Label>
                 <Input
                   value={editForm.phone}
                   onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
