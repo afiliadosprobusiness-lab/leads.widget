@@ -9,7 +9,7 @@ import {
   FacebookAuthProvider,
   signInWithPopup
 } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 
@@ -55,16 +55,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         try {
-          // Check for superadmin role in Firestore
-          // Structure: collection 'user_roles', docId = userId, field 'role' = 'superadmin'
-          const roleDoc = await getDoc(doc(db, "user_roles", currentUser.uid));
-          if (roleDoc.exists() && roleDoc.data().role === 'superadmin') {
-            setIsSuperAdmin(true);
-          } else {
-            setIsSuperAdmin(false);
-          }
+          const roleDoc = await getDoc(doc(db, 'user_roles', currentUser.uid));
+          setIsSuperAdmin(roleDoc.exists() && roleDoc.data().role === 'superadmin');
         } catch (err) {
-          console.error("Error fetching roles:", err);
+          console.error('Error fetching roles:', err);
           setIsSuperAdmin(false);
         }
       } else {
@@ -77,53 +71,81 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, []);
 
+  const bootstrapUserProfile = async (
+    user: User,
+    businessName?: string,
+    referredBy?: string | null
+  ): Promise<{ created: boolean; role: string }> => {
+    const token = await user.getIdToken();
+    const response = await fetch('/api/users/bootstrap', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        businessName: businessName || '',
+        referredBy: referredBy || null,
+      }),
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload?.error || 'No se pudo sincronizar el perfil');
+    }
+
+    return {
+      created: Boolean(payload?.created),
+      role: payload?.role || 'client',
+    };
+  };
+
+  const humanError = (error: any, fallback: string) => {
+    let message = fallback;
+    if (error.code === 'auth/email-already-in-use') message = 'El correo ya est· registrado';
+    if (error.code === 'auth/weak-password') message = 'La contraseÒa es muy dÈbil';
+    if (error.code === 'auth/invalid-credential') message = 'Credenciales incorrectas';
+    if (error.code === 'auth/user-not-found') message = 'Usuario no encontrado';
+    if (error.code === 'auth/wrong-password') message = 'ContraseÒa incorrecta';
+    if (error.code === 'auth/popup-closed-by-user') message = 'Ventana de inicio de sesiÛn cerrada';
+    if (error.code === 'auth/popup-blocked') message = 'Popup bloqueado. Permite popups para este sitio';
+    if (error.code === 'auth/cancelled-popup-request') message = 'Solicitud cancelada';
+    if (error.code === 'auth/account-exists-with-different-credential') {
+      message = 'Ya existe una cuenta con este correo usando otro mÈtodo de inicio de sesiÛn';
+    }
+
+    const raw = String(error?.message || '');
+    if (raw.includes('ERR_BLOCKED_BY_CLIENT')) {
+      message = 'Tu navegador est· bloqueando Firebase. Desactiva AdBlock/Shield para este sitio.';
+    }
+
+    return message;
+  };
+
   const signUp = async (email: string, password: string, businessName?: string) => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Check for referral
       const referredBy = localStorage.getItem('leadwidget_ref') || null;
       if (referredBy) {
         console.log('New user referred by:', referredBy);
-        localStorage.removeItem('leadwidget_ref'); // Clean up
       }
 
-      // Create user profile in Firestore
-      await setDoc(doc(db, "profiles", user.uid), {
-        email: user.email,
-        business_name: businessName || '',
-        created_at: new Date().toISOString(),
-        subscription_status: 'trial',
-        ai_enabled: false,
-        ai_model: 'gpt-4o-mini', // Default configuration
-        referred_by: referredBy, // Track who referred this user
-      });
-
-      if (isSuperAdminEmail(user.email)) {
-        await setDoc(doc(db, "user_roles", user.uid), { role: 'superadmin' }, { merge: true });
+      await bootstrapUserProfile(user, businessName || '', referredBy);
+      if (referredBy) {
+        localStorage.removeItem('leadwidget_ref');
       }
-
-      // Default role is handled by absence of doc or default rules
-      /* 
-      await setDoc(doc(db, "user_roles", user.uid), {
-        role: 'client'
-      });
-      */
 
       toast({
-        title: "¬°Bienvenido!",
-        description: "Tu cuenta ha sido creada exitosamente.",
+        title: '°Bienvenido!',
+        description: 'Tu cuenta ha sido creada exitosamente.',
       });
 
       return { error: null, data: user };
     } catch (error: any) {
-      console.error("Sign Up Error:", error);
-      let message = "Error al registrarse";
-      if (error.code === 'auth/email-already-in-use') message = "El correo ya est√° registrado";
-      if (error.code === 'auth/weak-password') message = "La contrase√±a es muy d√©bil";
-
-      return { error: { ...error, message } };
+      console.error('Sign Up Error:', error);
+      return { error: { ...error, message: humanError(error, 'Error al registrarse') } };
     }
   };
 
@@ -132,115 +154,70 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await signInWithEmailAndPassword(auth, email, password);
       return { error: null };
     } catch (error: any) {
-      console.error("Sign In Error:", error);
-      let message = "Error al iniciar sesi√≥n";
-      if (error.code === 'auth/invalid-credential') message = "Credenciales incorrectas";
-      if (error.code === 'auth/user-not-found') message = "Usuario no encontrado";
-      if (error.code === 'auth/wrong-password') message = "Contrase√±a incorrecta";
-
-      return { error: { ...error, message } };
+      console.error('Sign In Error:', error);
+      return { error: { ...error, message: humanError(error, 'Error al iniciar sesiÛn') } };
     }
   };
 
   const signInWithGoogle = async () => {
     try {
       const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({
-        prompt: 'select_account'
-      });
+      provider.setCustomParameters({ prompt: 'select_account' });
 
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
-      // Check if user profile exists, if not create it
-      const profileDoc = await getDoc(doc(db, "profiles", user.uid));
-      if (!profileDoc.exists()) {
-        const referredBy = localStorage.getItem('leadwidget_ref') || null;
-        if (referredBy) {
-          console.log('New user referred by:', referredBy);
-          localStorage.removeItem('leadwidget_ref');
-        }
+      const referredBy = localStorage.getItem('leadwidget_ref') || null;
+      if (referredBy) {
+        console.log('New user referred by:', referredBy);
+      }
 
-        await setDoc(doc(db, "profiles", user.uid), {
-          email: user.email,
-          business_name: user.displayName || '',
-          created_at: new Date().toISOString(),
-          subscription_status: 'trial',
-          ai_enabled: false,
-          ai_model: 'gpt-4o-mini',
-          referred_by: referredBy,
-        });
+      const bootstrap = await bootstrapUserProfile(user, user.displayName || '', referredBy);
+      if (referredBy) {
+        localStorage.removeItem('leadwidget_ref');
+      }
 
-        if (isSuperAdminEmail(user.email)) {
-          await setDoc(doc(db, "user_roles", user.uid), { role: 'superadmin' }, { merge: true });
-        }
-
+      if (bootstrap.created) {
         toast({
-          title: "¬°Bienvenido!",
-          description: "Tu cuenta ha sido creada exitosamente con Google.",
+          title: '°Bienvenido!',
+          description: 'Tu cuenta ha sido creada exitosamente con Google.',
         });
       }
 
       return { error: null };
     } catch (error: any) {
-      console.error("Google Sign In Error:", error);
-      let message = "Error al iniciar sesi√≥n con Google";
-      if (error.code === 'auth/popup-closed-by-user') message = "Ventana de inicio de sesi√≥n cerrada";
-      if (error.code === 'auth/popup-blocked') message = "Popup bloqueado. Por favor, permite popups para este sitio";
-      if (error.code === 'auth/cancelled-popup-request') message = "Solicitud cancelada";
-
-      return { error: { ...error, message } };
+      console.error('Google Sign In Error:', error);
+      return { error: { ...error, message: humanError(error, 'Error al iniciar sesiÛn con Google') } };
     }
   };
 
   const signInWithFacebook = async () => {
     try {
       const provider = new FacebookAuthProvider();
-
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
-      // Check if user profile exists, if not create it
-      const profileDoc = await getDoc(doc(db, "profiles", user.uid));
-      if (!profileDoc.exists()) {
-        const referredBy = localStorage.getItem('leadwidget_ref') || null;
-        if (referredBy) {
-          console.log('New user referred by:', referredBy);
-          localStorage.removeItem('leadwidget_ref');
-        }
+      const referredBy = localStorage.getItem('leadwidget_ref') || null;
+      if (referredBy) {
+        console.log('New user referred by:', referredBy);
+      }
 
-        await setDoc(doc(db, "profiles", user.uid), {
-          email: user.email,
-          business_name: user.displayName || '',
-          created_at: new Date().toISOString(),
-          subscription_status: 'trial',
-          ai_enabled: false,
-          ai_model: 'gpt-4o-mini',
-          referred_by: referredBy,
-        });
+      const bootstrap = await bootstrapUserProfile(user, user.displayName || '', referredBy);
+      if (referredBy) {
+        localStorage.removeItem('leadwidget_ref');
+      }
 
-        if (isSuperAdminEmail(user.email)) {
-          await setDoc(doc(db, "user_roles", user.uid), { role: 'superadmin' }, { merge: true });
-        }
-
+      if (bootstrap.created) {
         toast({
-          title: "¬°Bienvenido!",
-          description: "Tu cuenta ha sido creada exitosamente con Facebook.",
+          title: '°Bienvenido!',
+          description: 'Tu cuenta ha sido creada exitosamente con Facebook.',
         });
       }
 
       return { error: null };
     } catch (error: any) {
-      console.error("Facebook Sign In Error:", error);
-      let message = "Error al iniciar sesi√≥n con Facebook";
-      if (error.code === 'auth/popup-closed-by-user') message = "Ventana de inicio de sesi√≥n cerrada";
-      if (error.code === 'auth/popup-blocked') message = "Popup bloqueado. Por favor, permite popups para este sitio";
-      if (error.code === 'auth/cancelled-popup-request') message = "Solicitud cancelada";
-      if (error.code === 'auth/account-exists-with-different-credential') {
-        message = "Ya existe una cuenta con este correo usando otro m√©todo de inicio de sesi√≥n";
-      }
-
-      return { error: { ...error, message } };
+      console.error('Facebook Sign In Error:', error);
+      return { error: { ...error, message: humanError(error, 'Error al iniciar sesiÛn con Facebook') } };
     }
   };
 
