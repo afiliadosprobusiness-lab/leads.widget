@@ -22,6 +22,10 @@ service cloud.firestore {
     function isLeadOwner(docData) {
       return request.auth != null && docData.client_id == request.auth.uid;
     }
+
+    function hasLegacyCustomTrackingCode(docData) {
+      return ('custom_tracking_code' in docData) || ('custom_code' in docData);
+    }
     
     // User Roles - Highly sensitive
     match /user_roles/{userId} {
@@ -41,7 +45,9 @@ service cloud.firestore {
     // Widget Configs
     match /widget_configs/{configId} {
       allow read: if true; // Public for the widget to load
-      allow create, update: if request.auth != null && (isDocOwner(request.resource.data) || isSuperAdmin());
+      allow create, update: if request.auth != null
+        && (isDocOwner(request.resource.data) || isSuperAdmin())
+        && !hasLegacyCustomTrackingCode(request.resource.data);
       allow delete: if false;
     }
     

@@ -11,6 +11,7 @@ import {
   where,
   setDoc,
   updateDoc,
+  deleteField,
   deleteDoc,
   orderBy,
   addDoc,
@@ -100,10 +101,9 @@ interface WidgetConfig {
   launcher_icon?: string;
   hide_branding?: boolean;
   branding_text?: string;
-  facebook_pixel_id?: string;
-  tiktok_pixel_id?: string;
-  google_tag_id?: string;
-  custom_tracking_code?: string;
+  facebook_pixel_id?: string | null;
+  tiktok_pixel_id?: string | null;
+  google_tag_id?: string | null;
 }
 
 const STATIC_ICONS = [
@@ -425,7 +425,6 @@ export default function Dashboard() {
     facebook_pixel_id: '',
     tiktok_pixel_id: '',
     google_tag_id: '',
-    custom_tracking_code: '',
   });
 
   const [showApiKey, setShowApiKey] = useState(false);
@@ -533,10 +532,9 @@ export default function Dashboard() {
           ],
           hide_branding: false,
           branding_text: '',
-          facebook_pixel_id: '',
-          tiktok_pixel_id: '',
-          google_tag_id: '',
-          custom_tracking_code: '',
+          facebook_pixel_id: null,
+          tiktok_pixel_id: null,
+          google_tag_id: null,
           created_at: new Date().toISOString()
         };
         await setDoc(newWidgetRef, defaultConfig);
@@ -581,7 +579,6 @@ export default function Dashboard() {
           facebook_pixel_id: configData.facebook_pixel_id || '',
           tiktok_pixel_id: configData.tiktok_pixel_id || '',
           google_tag_id: configData.google_tag_id || '',
-          custom_tracking_code: configData.custom_tracking_code || '',
         });
 
         if (configData.testimonials_json) {
@@ -741,7 +738,6 @@ export default function Dashboard() {
         facebookPixelId: formConfig.facebook_pixel_id,
         tiktokPixelId: formConfig.tiktok_pixel_id,
         googleTagId: formConfig.google_tag_id,
-        customCode: formConfig.custom_tracking_code,
       });
       const trackingErrors = validateTrackingPixels(trackingConfig);
       if (trackingErrors.length > 0) {
@@ -785,7 +781,8 @@ export default function Dashboard() {
         facebook_pixel_id: trackingConfig.facebookPixelId,
         tiktok_pixel_id: trackingConfig.tiktokPixelId,
         google_tag_id: trackingConfig.googleTagId,
-        custom_tracking_code: trackingConfig.customCode,
+        custom_tracking_code: deleteField(),
+        custom_code: deleteField(),
         updated_at: new Date().toISOString(),
       });
 
@@ -1581,10 +1578,10 @@ export default function Dashboard() {
                   <div className="space-y-4 pt-4 border-t">
                     <h4 className="font-semibold text-sm flex items-center gap-2">
                       <Code className="w-4 h-4" />
-                      Píxeles y código personalizado
+                      Píxeles de conversión
                     </h4>
                     <p className="text-xs text-muted-foreground">
-                      Estos códigos se inyectan en el script embebido del widget. Déjalos vacíos si no los usas.
+                      Configura solo IDs oficiales. Si no usas algún pixel, déjalo vacío.
                     </p>
 
                     <div className="space-y-2">
@@ -1618,21 +1615,6 @@ export default function Dashboard() {
                       />
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="custom-tracking-code">Código personalizado</Label>
-                      <textarea
-                        id="custom-tracking-code"
-                        value={formConfig.custom_tracking_code}
-                        onChange={(e) => setFormConfig({ ...formConfig, custom_tracking_code: e.target.value })}
-                        className="w-full min-h-[120px] rounded-md border border-input bg-background px-3 py-2 font-mono text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                        placeholder="<script>/* tu código */</script> o JavaScript plano"
-                        maxLength={5000}
-                      />
-                      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                        <span>Se ejecuta tal cual. Úsalo solo con scripts confiables.</span>
-                        <span>{formConfig.custom_tracking_code.length}/5000</span>
-                      </div>
-                    </div>
                   </div>
 
                   {/* Testimonial Management Section */}
