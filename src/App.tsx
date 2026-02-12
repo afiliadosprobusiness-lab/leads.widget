@@ -11,7 +11,9 @@ import Dashboard from "./pages/Dashboard";
 import SuperAdmin from "./pages/SuperAdmin";
 import InstallationGuide from "./pages/InstallationGuide";
 import CreateNow from "./pages/CreateNow";
-import AffiliatesLanding from "./pages/AffiliatesLanding";
+import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
+import TermsOfServicePage from "./pages/TermsOfServicePage";
+import ClaimsBookPage from "./pages/ClaimsBookPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,7 +33,9 @@ const App = () => (
             <Route path="/superadmin" element={<SuperAdmin />} />
             <Route path="/installation-guide" element={<InstallationGuide />} />
             <Route path="/crear-ahora" element={<CreateNow />} />
-            <Route path="/afiliados" element={<AffiliatesLanding />} />
+            <Route path="/legal/privacy" element={<PrivacyPolicyPage />} />
+            <Route path="/legal/terms" element={<TermsOfServicePage />} />
+            <Route path="/legal/claims" element={<ClaimsBookPage />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

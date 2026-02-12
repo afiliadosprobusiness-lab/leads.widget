@@ -38,6 +38,8 @@ Lead Widget convierte tráfico en leads: un widget embebible (chat + formularios
 - Landing:
   - Se retiraron los bloques promocionales de instalación nativa en WordPress y de integración nativa con Shopify.
   - Se agregó una sección de testimonios con carrusel responsive e i18n (`landing_testimonials`).
+  - Se eliminó la ruta/página pública de afiliados (`/afiliados`) en este proyecto.
+  - Footer legal enlazado a páginas dedicadas: `/legal/privacy`, `/legal/terms`, `/legal/claims`.
 
 ## Convenciones de código
 - TypeScript (evitar `any`).

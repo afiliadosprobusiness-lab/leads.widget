@@ -973,19 +973,27 @@ export default function Landing() {
                 <li><button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="hover:text-primary transition-colors">{t('footer.about')}</button></li>
                 <li><button className="hover:text-primary transition-colors opacity-50 cursor-not-allowed">{t('footer.success_stories')}</button></li>
                 <li><button className="hover:text-primary transition-colors opacity-50 cursor-not-allowed">{t('footer.blog')}</button></li>
-                <li><Link to="/afiliados" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400 transition-colors font-medium relative group flex items-center gap-2 w-fit">
-                  Afiliados
-                  <span className="bg-emerald-500/20 text-emerald-400 text-[10px] px-1.5 py-0.5 rounded-full border border-emerald-500/30 group-hover:bg-emerald-500 group-hover:text-white transition-all">Socio</span>
-                </Link></li>
                 <li><button onClick={() => window.dispatchEvent(new Event('open-lead-widget'))} className="hover:text-primary transition-colors">{t('footer.support')}</button></li>
               </ul>
             </div>
             <div>
               <h4 className="font-bold mb-6 text-sm uppercase tracking-widest text-white">{t('footer.legal')}</h4>
               <ul className="space-y-4 text-sm text-slate-400">
-                <li className="hover:text-primary transition-colors cursor-pointer">{t('footer.privacy')}</li>
-                <li className="hover:text-primary transition-colors cursor-pointer">{t('footer.terms')}</li>
-                <li className="hover:text-primary transition-colors cursor-pointer">{t('footer.claims')}</li>
+                <li>
+                  <Link to="/legal/privacy" className="hover:text-primary transition-colors">
+                    {t('footer.privacy')}
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/legal/terms" className="hover:text-primary transition-colors">
+                    {t('footer.terms')}
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/legal/claims" className="hover:text-primary transition-colors">
+                    {t('footer.claims')}
+                  </Link>
+                </li>
               </ul>
             </div>
           </div>
