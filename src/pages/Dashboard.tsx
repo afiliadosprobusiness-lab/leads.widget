@@ -700,9 +700,14 @@ export default function Dashboard() {
 
     } catch (error: any) {
       console.error('CRITICAL: Error loading dashboard data:', error);
+      const raw = String(error?.message || '');
+      const helpful =
+        raw.includes('Missing or insufficient permissions')
+          ? 'Tu Firestore está bloqueando lecturas. Revisa y publica las reglas correctas del proyecto leads-widget.'
+          : null;
       toast({
         title: 'Error al cargar datos',
-        description: `Error: ${error.message || 'Error desconocido'}`,
+        description: helpful ? helpful : `Error: ${error.message || 'Error desconocido'}`,
         variant: 'destructive',
       });
     } finally {
@@ -1057,18 +1062,18 @@ export default function Dashboard() {
   // BLOCKING OVERLAY
   if (isTrialExpired) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <Card className="max-w-md w-full shadow-2xl border-primary/20">
+      <div className="min-h-screen bg-muted/40 dark:bg-slate-950 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full shadow-2xl border-border bg-background">
           <CardHeader className="text-center pb-2">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <LogOut className="w-8 h-8 text-red-600 ml-1" />
+            <div className="w-16 h-16 bg-rose-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-rose-500/20">
+              <LogOut className="w-8 h-8 text-rose-600 dark:text-rose-300 ml-1" />
             </div>
-            <CardTitle className="text-2xl font-black text-slate-800">¡Tu prueba ha terminado!</CardTitle>
-            <CardDescription className="text-base mt-2">
-              Esperamos que Lead Widget haya sido útil. Para seguir capturando leads ilimitadamente, activa tu plan hoy.
+            <CardTitle className="text-2xl font-black text-slate-900 dark:text-white">¡Tu prueba ha terminado!</CardTitle>
+            <CardDescription className="text-base mt-2 text-slate-600 dark:text-slate-300">
+              Para seguir capturando leads ilimitadamente, activa tu plan hoy.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6 pt-6 animate-in fade-in slide-in-from-bottom-4">
+          <CardContent className="space-y-4 pt-6 animate-in fade-in slide-in-from-bottom-4">
             <PayPalPaymentButton
               amount="9.90"
               currency="USD"
@@ -1107,10 +1112,30 @@ export default function Dashboard() {
                 }
               }}
             />
-            <p className="text-xs text-center text-muted-foreground mt-4">Secure payment via PayPal</p>
+            <div className="rounded-xl border border-border bg-muted/30 p-4 text-left">
+              <p className="text-sm font-bold text-slate-900 dark:text-white">Pago local (Yape / Plin)</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Envía el monto y luego confirma por WhatsApp para activar tu plan.
+              </p>
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground">Número</p>
+                  <p className="font-mono font-bold text-slate-900 dark:text-white">+51 924 464 410</p>
+                </div>
+                <Button asChild className="shrink-0 bg-emerald-600 hover:bg-emerald-700 text-white font-bold">
+                  <a href={buildWhatsappLink()} target="_blank" rel="noreferrer">
+                    Escribir a WhatsApp
+                  </a>
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-2">
+                Mensaje sugerido: “Hola lead widget, ya pagué mi plan PRO y estoy adjuntando captura. Por favor activar mi plan.”
+              </p>
+            </div>
+            <p className="text-xs text-center text-muted-foreground">Pago seguro con PayPal</p>
           </CardContent>
           <CardContent className="space-y-6 pt-6">
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
+            <div className="bg-muted/20 p-4 rounded-xl border border-border shadow-sm text-center">
               <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold mb-1">Plan Mensual</p>
               <div className="flex items-center justify-center gap-1">
                 <span className="text-3xl font-black text-primary">S/ 30.00</span>
