@@ -68,6 +68,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { WidgetPreview } from '@/components/WidgetPreview';
 import { AffiliateCard } from '@/components/AffiliateCard';
 import { useToast } from '@/hooks/use-toast';
+import { normalizeTrackingPixels, validateTrackingPixels } from '@/lib/trackingPixels';
 
 interface Lead {
   id: string;
@@ -99,6 +100,10 @@ interface WidgetConfig {
   launcher_icon?: string;
   hide_branding?: boolean;
   branding_text?: string;
+  facebook_pixel_id?: string;
+  tiktok_pixel_id?: string;
+  google_tag_id?: string;
+  custom_tracking_code?: string;
 }
 
 const STATIC_ICONS = [
@@ -417,6 +422,10 @@ export default function Dashboard() {
     launcher_icon: '',
     hide_branding: false,
     branding_text: '',
+    facebook_pixel_id: '',
+    tiktok_pixel_id: '',
+    google_tag_id: '',
+    custom_tracking_code: '',
   });
 
   const [showApiKey, setShowApiKey] = useState(false);
@@ -524,6 +533,10 @@ export default function Dashboard() {
           ],
           hide_branding: false,
           branding_text: '',
+          facebook_pixel_id: '',
+          tiktok_pixel_id: '',
+          google_tag_id: '',
+          custom_tracking_code: '',
           created_at: new Date().toISOString()
         };
         await setDoc(newWidgetRef, defaultConfig);
@@ -565,6 +578,10 @@ export default function Dashboard() {
           launcher_icon: configData.launcher_icon || '',
           hide_branding: configData.hide_branding || false,
           branding_text: configData.branding_text || '',
+          facebook_pixel_id: configData.facebook_pixel_id || '',
+          tiktok_pixel_id: configData.tiktok_pixel_id || '',
+          google_tag_id: configData.google_tag_id || '',
+          custom_tracking_code: configData.custom_tracking_code || '',
         });
 
         if (configData.testimonials_json) {
@@ -720,6 +737,22 @@ export default function Dashboard() {
 
     setSaving(true);
     try {
+      const trackingConfig = normalizeTrackingPixels({
+        facebookPixelId: formConfig.facebook_pixel_id,
+        tiktokPixelId: formConfig.tiktok_pixel_id,
+        googleTagId: formConfig.google_tag_id,
+        customCode: formConfig.custom_tracking_code,
+      });
+      const trackingErrors = validateTrackingPixels(trackingConfig);
+      if (trackingErrors.length > 0) {
+        toast({
+          title: 'Píxeles inválidos',
+          description: trackingErrors[0],
+          variant: 'destructive',
+        });
+        return;
+      }
+
       // Update widget config
       const widgetRef = doc(db, 'widget_configs', widgetConfig.id);
       await updateDoc(widgetRef, {
@@ -749,6 +782,10 @@ export default function Dashboard() {
         launcher_icon: formConfig.launcher_icon || '',
         hide_branding: Boolean(formConfig.hide_branding),
         branding_text: (formConfig.branding_text || '').trim(),
+        facebook_pixel_id: trackingConfig.facebookPixelId,
+        tiktok_pixel_id: trackingConfig.tiktokPixelId,
+        google_tag_id: trackingConfig.googleTagId,
+        custom_tracking_code: trackingConfig.customCode,
         updated_at: new Date().toISOString(),
       });
 
@@ -1539,6 +1576,63 @@ export default function Dashboard() {
                       onChange={(e) => setFormConfig({ ...formConfig, whatsapp_destination: e.target.value })}
                       placeholder="+51 987 654 321"
                     />
+                  </div>
+
+                  <div className="space-y-4 pt-4 border-t">
+                    <h4 className="font-semibold text-sm flex items-center gap-2">
+                      <Code className="w-4 h-4" />
+                      Píxeles y código personalizado
+                    </h4>
+                    <p className="text-xs text-muted-foreground">
+                      Estos códigos se inyectan en el script embebido del widget. Déjalos vacíos si no los usas.
+                    </p>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="facebook-pixel-id">Facebook Pixel ID</Label>
+                      <Input
+                        id="facebook-pixel-id"
+                        value={formConfig.facebook_pixel_id}
+                        onChange={(e) => setFormConfig({ ...formConfig, facebook_pixel_id: e.target.value })}
+                        placeholder="Ej: 123456789012345"
+                        inputMode="numeric"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="tiktok-pixel-id">TikTok Pixel ID</Label>
+                      <Input
+                        id="tiktok-pixel-id"
+                        value={formConfig.tiktok_pixel_id}
+                        onChange={(e) => setFormConfig({ ...formConfig, tiktok_pixel_id: e.target.value })}
+                        placeholder="Ej: C8A1BC2DE3FG4H5"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="google-tag-id">Google Tag ID</Label>
+                      <Input
+                        id="google-tag-id"
+                        value={formConfig.google_tag_id}
+                        onChange={(e) => setFormConfig({ ...formConfig, google_tag_id: e.target.value.toUpperCase() })}
+                        placeholder="Ej: G-ABC123XYZ o AW-123456789"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="custom-tracking-code">Código personalizado</Label>
+                      <textarea
+                        id="custom-tracking-code"
+                        value={formConfig.custom_tracking_code}
+                        onChange={(e) => setFormConfig({ ...formConfig, custom_tracking_code: e.target.value })}
+                        className="w-full min-h-[120px] rounded-md border border-input bg-background px-3 py-2 font-mono text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        placeholder="<script>/* tu código */</script> o JavaScript plano"
+                        maxLength={5000}
+                      />
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                        <span>Se ejecuta tal cual. Úsalo solo con scripts confiables.</span>
+                        <span>{formConfig.custom_tracking_code.length}/5000</span>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Testimonial Management Section */}

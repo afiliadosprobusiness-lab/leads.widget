@@ -16,6 +16,9 @@ Lead Widget convierte tráfico en leads: un widget embebible (chat + formularios
 - Configuración centralizada:
   - Los ajustes del widget (branding, colores, prompts, testimonios, etc.) se guardan en Firestore.
   - El script embebible se sirve desde el backend externo (`leads.widget.backend`) para mantener compatibilidad con múltiples CMS y controlar el payload.
+- Tracking:
+  - El dashboard permite configurar `facebook_pixel_id`, `tiktok_pixel_id`, `google_tag_id` y `custom_tracking_code` en `widget_configs`.
+  - Estos campos se sanitizan/validan en frontend y backend antes de inyectarse en el script embebido.
 - IA:
   - El frontend nunca debe llamar directo a OpenAI.
   - El chat del widget consume el backend (`/api/chat`) que usa `OPENAI_API_KEY`.
@@ -46,4 +49,3 @@ Lead Widget convierte tráfico en leads: un widget embebible (chat + formularios
 - Backend URL pública: `VITE_BACKEND_URL` (o equivalente)
 - Firestore rules:
   - Separan permisos usuario vs superadmin (ver `firestore.rules`).
-
