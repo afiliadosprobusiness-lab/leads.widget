@@ -596,8 +596,8 @@
             ${!config.hideBranding ? `
             <div id="lw-footer" style="text-align:center; padding:8px 0; background:white; font-size:10px;">
               <a href="https://leads-widget.vercel.app/crear-ahora?ref=${config.clientId}" target="_blank" style="color:${config.primaryColor}; text-decoration:none; font-weight:600; display:flex; align-items:center; justify-content:center; gap:4px;">
-                <span style="background:rgba(0,0,0,0.05); padding:2px 6px; border-radius:4px; font-weight:800;">âš¡</span>
-                <span id="lw-viral-text">TecnologÃ­a LeadWidget</span>
+                <span style="background:rgba(0,0,0,0.05); padding:2px 6px; border-radius:4px; font-weight:800;">LW</span>
+                <span id="lw-viral-text">Tecnologia LeadWidget</span>
               </a>
             </div>
             ` : ''}
@@ -671,9 +671,9 @@
 
     // Viral Loop A/B Testing
     const viralTexts = [
-      'âš¡ TecnologÃ­a LeadWidget',
-      'Â¿Quieres un chat asÃ­ en tu web?',
-      'Crea tu Widget GRATIS aquÃ­'
+      'Tecnologia LeadWidget',
+      'Quieres un chat asi en tu web?',
+      'Crea tu Widget GRATIS aqui'
     ];
     const viralTextEl = document.getElementById('lw-viral-text');
     if (viralTextEl) {
