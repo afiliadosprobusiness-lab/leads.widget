@@ -727,44 +727,65 @@ export default function SuperAdmin() {
                                     <Settings className="w-4 h-4" />
                                   </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-52">
+                                <DropdownMenuContent align="end" className="w-72">
                                   <DropdownMenuItem
                                     onClick={() => activateClientWithPlan(client.id, 'pro')}
                                     className="cursor-pointer"
                                   >
-                                    <Check className="w-4 h-4 mr-2 text-green-600" /> Activar PRO
+                                    <Check className="w-4 h-4 mr-3 text-green-600 shrink-0" />
+                                    <div className="flex flex-col">
+                                      <span className="font-semibold">Activar plan PRO</span>
+                                      <span className="text-xs text-muted-foreground">Pasa el estado a Activo y asigna PRO.</span>
+                                    </div>
                                   </DropdownMenuItem>
                                   <DropdownMenuItem
                                     onClick={() => activateClientWithPlan(client.id, 'plus')}
                                     className="cursor-pointer"
                                   >
-                                    <Check className="w-4 h-4 mr-2 text-blue-600" /> Activar PLUS
+                                    <Check className="w-4 h-4 mr-3 text-blue-600 shrink-0" />
+                                    <div className="flex flex-col">
+                                      <span className="font-semibold">Activar plan PLUS</span>
+                                      <span className="text-xs text-muted-foreground">Pasa el estado a Activo y asigna PLUS.</span>
+                                    </div>
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem
                                     onClick={() => updateClientPlan(client.id, 'pro')}
                                     className="cursor-pointer"
                                   >
-                                    Cambiar a PRO (sin tocar estado)
+                                    <div className="flex flex-col">
+                                      <span className="font-semibold">Cambiar plan a PRO</span>
+                                      <span className="text-xs text-muted-foreground">Solo cambia el plan. No cambia Trial/Activo/Suspendido.</span>
+                                    </div>
                                   </DropdownMenuItem>
                                   <DropdownMenuItem
                                     onClick={() => updateClientPlan(client.id, 'plus')}
                                     className="cursor-pointer"
                                   >
-                                    Cambiar a PLUS (sin tocar estado)
+                                    <div className="flex flex-col">
+                                      <span className="font-semibold">Cambiar plan a PLUS</span>
+                                      <span className="text-xs text-muted-foreground">Solo cambia el plan. No cambia Trial/Activo/Suspendido.</span>
+                                    </div>
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem
                                     onClick={() => updateClientStatus(client.id, 'trial')}
                                     className="cursor-pointer"
                                   >
-                                    Marcar como Trial
+                                    <div className="flex flex-col">
+                                      <span className="font-semibold">Marcar como Trial</span>
+                                      <span className="text-xs text-muted-foreground">Cambia el estado a Trial. El plan queda igual.</span>
+                                    </div>
                                   </DropdownMenuItem>
                                   <DropdownMenuItem
                                     onClick={() => updateClientStatus(client.id, 'suspended')}
                                     className="cursor-pointer text-red-600 focus:text-red-600"
                                   >
-                                    <X className="w-4 h-4 mr-2" /> Suspender
+                                    <X className="w-4 h-4 mr-3 shrink-0" />
+                                    <div className="flex flex-col">
+                                      <span className="font-semibold">Suspender acceso</span>
+                                      <span className="text-xs text-red-600/80">Bloquea el acceso sin eliminar la cuenta.</span>
+                                    </div>
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
