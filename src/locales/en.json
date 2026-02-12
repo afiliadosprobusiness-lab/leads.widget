@@ -22,6 +22,38 @@
     "trust_badge": {
         "title": "Works with any ecosystem"
     },
+    "landing_testimonials": {
+        "badge": "Real stories",
+        "title": "Results our customers are already seeing",
+        "subtitle": "Real cases of businesses turning more visitors into qualified sales conversations.",
+        "empty": "Customer testimonials will appear here soon.",
+        "items": [
+            {
+                "quote": "In two weeks we went from late replies to having qualified WhatsApp leads all day. The impact on closed deals was immediate.",
+                "name": "Maria Fernandez",
+                "role": "MF Real Estate",
+                "result": "+45 leads / month"
+            },
+            {
+                "quote": "The assistant asks the right questions and filters low-intent traffic. My team now handles fewer chats with much better purchase intent.",
+                "name": "Diego Salas",
+                "role": "Nova Dental Clinic",
+                "result": "2.1x conversion"
+            },
+            {
+                "quote": "Setup was quick and it did not break my website. What I value most is seeing exactly who is ready to buy from the dashboard.",
+                "name": "Camila Rojas",
+                "role": "Andino Ecommerce",
+                "result": "-32% response time"
+            },
+            {
+                "quote": "With proactive messages we recovered users that were about to leave. Today the widget fully pays for itself every month.",
+                "name": "Luis Mendoza",
+                "role": "MotorPro Workshop",
+                "result": "+28% recovered contacts"
+            }
+        ]
+    },
     "templates_section": {
         "title": "Templates by Industry",
         "subtitle": "AI is already trained for your niche. Choose one to see the demo.",

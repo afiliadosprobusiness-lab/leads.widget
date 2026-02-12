@@ -35,6 +35,9 @@ Lead Widget convierte tráfico en leads: un widget embebible (chat + formularios
   - Carga, error de permisos (Firestore rules), y vacíos con mensajes accionables.
 - Accesibilidad:
   - Labels/inputs correctos, foco visible, contraste AA.
+- Landing:
+  - Se retiraron los bloques promocionales de instalación nativa en WordPress y de integración nativa con Shopify.
+  - Se agregó una sección de testimonios con carrusel responsive e i18n (`landing_testimonials`).
 
 ## Convenciones de código
 - TypeScript (evitar `any`).

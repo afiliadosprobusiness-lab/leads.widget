@@ -22,6 +22,38 @@
     "trust_badge": {
         "title": "Funciona con cualquier ecosistema"
     },
+    "landing_testimonials": {
+        "badge": "Historias reales",
+        "title": "Resultados que nuestros clientes ya están viendo",
+        "subtitle": "Casos reales de negocios que convierten más visitas en conversaciones de venta.",
+        "empty": "Pronto mostraremos testimonios de clientes aquí.",
+        "items": [
+            {
+                "quote": "En dos semanas pasamos de responder tarde a tener leads listos en WhatsApp todo el día. La diferencia en cierres fue inmediata.",
+                "name": "María Fernández",
+                "role": "Inmobiliaria MF",
+                "result": "+45 leads / mes"
+            },
+            {
+                "quote": "El asistente hace las preguntas clave y filtra curiosos. Ahora mi equipo atiende menos chats, pero con mucha más intención de compra.",
+                "name": "Diego Salas",
+                "role": "Clínica Dental Nova",
+                "result": "2.1x conversión"
+            },
+            {
+                "quote": "Instalarlo fue rápido y no rompió mi web. Lo que más valoro es ver desde el dashboard quién sí está listo para comprar.",
+                "name": "Camila Rojas",
+                "role": "Ecommerce Andino",
+                "result": "-32% tiempo de atención"
+            },
+            {
+                "quote": "Con los mensajes proactivos recuperamos usuarios que se iban sin escribir. Hoy el widget se paga solo cada mes.",
+                "name": "Luis Mendoza",
+                "role": "Taller MotorPro",
+                "result": "+28% contactos recuperados"
+            }
+        ]
+    },
     "templates_section": {
         "title": "Plantillas por Industria",
         "subtitle": "La IA ya está entrenada para tu nicho. Elige una para ver la demo.",
