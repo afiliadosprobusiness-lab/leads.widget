@@ -93,6 +93,7 @@ export default function SuperAdmin() {
   const [clients, setClients] = useState<ClientWithLeads[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [firestoreDenied, setFirestoreDenied] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [updatingClient, setUpdatingClient] = useState<string | null>(null);
   const [verifyingPayment, setVerifyingPayment] = useState<string | null>(null);
@@ -132,9 +133,26 @@ export default function SuperAdmin() {
   useEffect(() => {
     if (!user) return;
 
+    const onFirestoreError = (err: any) => {
+      const code = String(err?.code || '');
+      const msg = String(err?.message || '');
+      if (code === 'permission-denied' || msg.includes('Missing or insufficient permissions')) {
+        setFirestoreDenied(true);
+        toast({
+          title: 'Permisos de Firestore',
+          description: 'Las reglas publicadas no coinciden con Lead Widget. Publica el archivo firestore.rules del proyecto leads.widget.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({ title: 'Error Firestore', description: msg || 'Error desconocido', variant: 'destructive' });
+      }
+    };
+
     // Real-time Profiles subscription
     // Using onSnapshot for real-time updates
-    const unsubProfiles = onSnapshot(query(collection(db, 'profiles'), orderBy('created_at', 'desc')), (snapshot) => {
+    const unsubProfiles = onSnapshot(
+      query(collection(db, 'profiles'), orderBy('created_at', 'desc')),
+      (snapshot) => {
       const profilesData = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as Profile[];
 
       setClients(prev => {
@@ -150,15 +168,23 @@ export default function SuperAdmin() {
           leads_count: currentMap[p.id] || 0
         }));
       });
-    });
+      },
+      onFirestoreError
+    );
 
     // Real-time Payments
-    const unsubPayments = onSnapshot(query(collection(db, 'payments'), orderBy('created_at', 'desc')), (snapshot) => {
-      setPayments(snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as Payment[]);
-    });
+    const unsubPayments = onSnapshot(
+      query(collection(db, 'payments'), orderBy('created_at', 'desc')),
+      (snapshot) => {
+        setPayments(snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as Payment[]);
+      },
+      onFirestoreError
+    );
 
     // Real-time Leads (Counts)
-    const unsubLeads = onSnapshot(collection(db, 'leads'), (snapshot) => {
+    const unsubLeads = onSnapshot(
+      collection(db, 'leads'),
+      (snapshot) => {
       const leadsData = snapshot.docs.map(d => d.data());
       const leadsCounts = leadsData.reduce((acc: Record<string, number>, lead: any) => {
         if (lead.client_id) acc[lead.client_id] = (acc[lead.client_id] || 0) + 1;
@@ -174,13 +200,19 @@ export default function SuperAdmin() {
         ...prev,
         totalLeads: snapshot.size
       }));
-    });
+      },
+      onFirestoreError
+    );
 
     // Real-time Analytics
-    const unsubAnalytics = onSnapshot(collection(db, 'analytics'), (snapshot) => {
-      const totalViews = snapshot.docs.filter(d => d.data().event_type === 'view').length;
-      setStats(prev => ({ ...prev, totalViews }));
-    });
+    const unsubAnalytics = onSnapshot(
+      collection(db, 'analytics'),
+      (snapshot) => {
+        const totalViews = snapshot.docs.filter(d => d.data().event_type === 'view').length;
+        setStats(prev => ({ ...prev, totalViews }));
+      },
+      onFirestoreError
+    );
 
 
 
@@ -196,7 +228,8 @@ export default function SuperAdmin() {
           return dateB - dateA;
         });
         setBlockedDemoIps(docs);
-      }
+      },
+      onFirestoreError
     );
 
 
@@ -449,6 +482,20 @@ export default function SuperAdmin() {
       </header>
 
       <div className="container mx-auto px-4 py-8 max-w-7xl">
+        {firestoreDenied && (
+          <Card className="border-red-200 bg-red-50 mb-6">
+            <CardContent className="pt-6 text-sm text-red-900 space-y-2">
+              <p className="font-bold">Acceso denegado por reglas de Firestore</p>
+              <p>
+                Estás viendo <code>permission-denied</code>. Esto pasa cuando se publican reglas de otro proyecto (por ejemplo, las de ContApp).
+              </p>
+              <p>
+                Solución: en Firebase Console del proyecto <strong>leads-widget</strong>, publica el contenido del archivo <code>leads.widget/firestore.rules</code>.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-8">
           <Card className="stat-card">
