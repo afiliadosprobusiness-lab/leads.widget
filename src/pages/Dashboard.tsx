@@ -443,7 +443,7 @@ export default function Dashboard() {
     if (!user) return;
     setAccountDisplayName((profile?.display_name || user.displayName || '').toString());
     setAccountEmail((user.email || profile?.email || '').toString());
-  }, [user, profile?.display_name, profile?.email, user.displayName, user.email]);
+  }, [user, profile?.display_name, profile?.email]);
 
 
 
