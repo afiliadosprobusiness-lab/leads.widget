@@ -302,7 +302,8 @@
             "data": "Data",
             "more": "More",
             "security": "Security",
-            "billing": "Billing"
+            "billing": "Billing",
+            "account": "Account"
         },
         "widget_config": {
             "title": "Configure Widget",

@@ -43,6 +43,13 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 // Define simple interfaces for TS
 interface Profile {
@@ -268,11 +275,40 @@ export default function SuperAdmin() {
   const updateClientStatus = async (clientId: string, newStatus: 'trial' | 'active' | 'suspended') => {
     setUpdatingClient(clientId);
     try {
-      await updateDoc(doc(db, 'profiles', clientId), { subscription_status: newStatus });
+      await updateDoc(doc(db, 'profiles', clientId), { subscription_status: newStatus, updated_at: new Date().toISOString() } as any);
       toast({
         title: 'Estado actualizado',
         description: `Cliente marcado como ${newStatus}`,
       });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setUpdatingClient(null);
+    }
+  };
+
+  const updateClientPlan = async (clientId: string, planType: 'pro' | 'plus') => {
+    setUpdatingClient(clientId);
+    try {
+      await updateDoc(doc(db, 'profiles', clientId), { plan_type: planType, updated_at: new Date().toISOString() } as any);
+      toast({ title: 'Plan actualizado', description: `Cliente actualizado a ${planType.toUpperCase()}` });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setUpdatingClient(null);
+    }
+  };
+
+  const activateClientWithPlan = async (clientId: string, planType: 'pro' | 'plus') => {
+    setUpdatingClient(clientId);
+    try {
+      await updateDoc(doc(db, 'profiles', clientId), {
+        subscription_status: 'active',
+        plan_type: planType,
+        trial_ends_at: null,
+        updated_at: new Date().toISOString(),
+      } as any);
+      toast({ title: 'Cliente activado', description: `Activado con plan ${planType.toUpperCase()}` });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } finally {
@@ -540,7 +576,7 @@ export default function SuperAdmin() {
               <CardHeader>
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
-                    <CardTitle>Gestion de Clientes</CardTitle>
+                <CardTitle>Gestión de clientes</CardTitle>
                     <CardDescription>{clients.length} clientes registrados</CardDescription>
                   </div>
                   <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
@@ -632,38 +668,59 @@ export default function SuperAdmin() {
                                 <Pencil className="w-4 h-4 text-muted-foreground" />
                               </Button>
 
-                              {/* Action Buttons Logic based on provided states */}
-                              {/* If NOT active, show Activate (Green Check) */}
-                              {client.subscription_status !== 'active' && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => updateClientStatus(client.id, 'active')}
-                                  disabled={updatingClient === client.id}
-                                  className="text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200"
-                                  title="Activar (Pasar a Active)"
-                                >
-                                  {updatingClient === client.id ? (
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                  ) : (
-                                    <Check className="w-4 h-4" />
-                                  )}
-                                </Button>
-                              )}
-
-                              {/* If NOT suspended, show Suspend (Red X) */}
-                              {client.subscription_status !== 'suspended' && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => updateClientStatus(client.id, 'suspended')}
-                                  disabled={updatingClient === client.id}
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                                  title="Suspender"
-                                >
-                                  <X className="w-4 h-4" />
-                                </Button>
-                              )}
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={updatingClient === client.id}
+                                    className="border-slate-200"
+                                    title="Plan y estado"
+                                  >
+                                    <Settings className="w-4 h-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-52">
+                                  <DropdownMenuItem
+                                    onClick={() => activateClientWithPlan(client.id, 'pro')}
+                                    className="cursor-pointer"
+                                  >
+                                    <Check className="w-4 h-4 mr-2 text-green-600" /> Activar PRO
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => activateClientWithPlan(client.id, 'plus')}
+                                    className="cursor-pointer"
+                                  >
+                                    <Check className="w-4 h-4 mr-2 text-blue-600" /> Activar PLUS
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={() => updateClientPlan(client.id, 'pro')}
+                                    className="cursor-pointer"
+                                  >
+                                    Cambiar a PRO (sin tocar estado)
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => updateClientPlan(client.id, 'plus')}
+                                    className="cursor-pointer"
+                                  >
+                                    Cambiar a PLUS (sin tocar estado)
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={() => updateClientStatus(client.id, 'trial')}
+                                    className="cursor-pointer"
+                                  >
+                                    Marcar como Trial
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => updateClientStatus(client.id, 'suspended')}
+                                    className="cursor-pointer text-red-600 focus:text-red-600"
+                                  >
+                                    <X className="w-4 h-4 mr-2" /> Suspender
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
 
                               <Button
                                 size="sm"
@@ -690,7 +747,7 @@ export default function SuperAdmin() {
           <TabsContent value="payments">
             <Card>
               <CardHeader>
-                <CardTitle>Pagos Pendientes de Verificacion</CardTitle>
+                <CardTitle>Pagos pendientes de verificación</CardTitle>
                 <CardDescription>Revisa los comprobantes y activa cuentas</CardDescription>
               </CardHeader>
               <CardContent>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth, isSuperAdminEmail } from '@/lib/auth';
-import { db } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import {
   collection,
   doc,
@@ -16,6 +16,14 @@ import {
   addDoc,
   onSnapshot
 } from 'firebase/firestore';
+import {
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  sendPasswordResetEmail,
+  updateEmail,
+  updatePassword,
+  updateProfile,
+} from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -31,7 +39,7 @@ import {
 import {
   ShieldCheck, ShieldAlert, TrendingUp, Info, MessageCircle, Copy, Check, Download,
   ExternalLink, Settings, History, Lock, AlertCircle, LogOut, Loader2, Sparkles,
-  Layout, Palette, Code, BarChart as BarChartIcon, BarChart3, Users, CreditCard,
+  Layout, Palette, Code, BarChart as BarChartIcon, BarChart3, User, Users, CreditCard,
   Eye, Target, Clock, Bot, Key, Shield, X, Smartphone, EyeOff, MoreHorizontal, Globe,
   ShoppingBag, HeartPulse, Wrench, Home, Utensils, Banknote, Calculator, HandCoins, BookOpen, Rocket
 } from 'lucide-react';
@@ -116,6 +124,7 @@ interface Testimonial {
 interface Profile {
   id: string;
   email: string;
+  display_name?: string;
   business_name: string;
   subscription_status: string;
   status?: string; // Used in UI
@@ -231,8 +240,22 @@ export default function Dashboard() {
   const [payoutMethod, setPayoutMethod] = useState('yape');
   const [payoutAccount, setPayoutAccount] = useState('');
 
+  // Account settings
+  const [accountDisplayName, setAccountDisplayName] = useState('');
+  const [accountEmail, setAccountEmail] = useState('');
+  const [accountEmailPassword, setAccountEmailPassword] = useState('');
+  const [accountPasswordCurrent, setAccountPasswordCurrent] = useState('');
+  const [accountNewPassword, setAccountNewPassword] = useState('');
+  const [accountNewPassword2, setAccountNewPassword2] = useState('');
+  const [accountSavingProfile, setAccountSavingProfile] = useState(false);
+  const [accountSavingEmail, setAccountSavingEmail] = useState(false);
+  const [accountSavingPassword, setAccountSavingPassword] = useState(false);
+
   // Real Affiliate Data Hooks
   const [realAffiliatesCount, setRealAffiliatesCount] = useState(0);
+  const [affiliateNetwork, setAffiliateNetwork] = useState<any>(null);
+  const [affiliateNetworkLoading, setAffiliateNetworkLoading] = useState(false);
+  const [affiliateNetworkIncludeInactive, setAffiliateNetworkIncludeInactive] = useState(false);
   const supportPhoneDigits = '51924464410';
 
   const planLabel = selectedPlan === 'plus' ? 'PLUS' : 'PRO';
@@ -258,6 +281,33 @@ export default function Dashboard() {
     };
     fetchAffiliates();
   }, [user]);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    let cancelled = false;
+
+    const run = async () => {
+      setAffiliateNetworkLoading(true);
+      try {
+        const token = await user.getIdToken();
+        const res = await fetch(`/api/affiliates/network?levels=4&includeInactive=${affiliateNetworkIncludeInactive ? '1' : '0'}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(payload?.error || 'No se pudo cargar tu red');
+        if (!cancelled) setAffiliateNetwork(payload);
+      } catch (e) {
+        if (!cancelled) setAffiliateNetwork(null);
+      } finally {
+        if (!cancelled) setAffiliateNetworkLoading(false);
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, affiliateNetworkIncludeInactive]);
 
   const pendingEarnings = realAffiliatesCount * 30; // Min commission S/ 30
   const minWithdrawal = 100;
@@ -388,6 +438,12 @@ export default function Dashboard() {
 
     loadData();
   }, [user, authLoading, isSuperAdmin, navigate]);
+
+  useEffect(() => {
+    if (!user) return;
+    setAccountDisplayName((profile?.display_name || user.displayName || '').toString());
+    setAccountEmail((user.email || profile?.email || '').toString());
+  }, [user, profile?.display_name, profile?.email, user.displayName, user.email]);
 
 
 
@@ -864,6 +920,129 @@ export default function Dashboard() {
     }
   };
 
+  const hasPasswordProvider = Boolean(user?.providerData?.some((p) => p.providerId === 'password'));
+
+  const handleSaveAccountProfile = async () => {
+    if (!user?.uid) return;
+    const name = accountDisplayName.trim();
+    if (!name) {
+      toast({ title: 'Falta tu nombre', description: 'Ingresa tu nombre de usuario.', variant: 'destructive' });
+      return;
+    }
+
+    setAccountSavingProfile(true);
+    try {
+      await updateDoc(doc(db, 'profiles', user.uid), {
+        display_name: name,
+        updated_at: new Date().toISOString(),
+      });
+
+      if (auth.currentUser) {
+        await updateProfile(auth.currentUser, { displayName: name });
+      }
+
+      toast({ title: 'Perfil actualizado', description: 'Tus cambios se guardaron correctamente.' });
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message || 'No se pudo guardar el perfil', variant: 'destructive' });
+    } finally {
+      setAccountSavingProfile(false);
+    }
+  };
+
+  const handleChangeAccountEmail = async () => {
+    if (!user?.uid) return;
+    if (!hasPasswordProvider) {
+      toast({ title: 'No disponible', description: 'Tu cuenta usa Google/Facebook. El correo se gestiona desde tu proveedor.', variant: 'destructive' });
+      return;
+    }
+
+    const newEmail = accountEmail.trim().toLowerCase();
+    const currentEmail = (user.email || '').trim().toLowerCase();
+    if (!currentEmail || !newEmail) {
+      toast({ title: 'Faltan datos', description: 'Completa tu correo.', variant: 'destructive' });
+      return;
+    }
+    if (newEmail === currentEmail) {
+      toast({ title: 'Sin cambios', description: 'El correo es el mismo.' });
+      return;
+    }
+    if (!accountEmailPassword) {
+      toast({ title: 'Falta tu contraseña', description: 'Confirma tu contraseña actual para cambiar el correo.', variant: 'destructive' });
+      return;
+    }
+
+    setAccountSavingEmail(true);
+    try {
+      if (!auth.currentUser) throw new Error('Sesión inválida. Vuelve a iniciar sesión.');
+      const cred = EmailAuthProvider.credential(currentEmail, accountEmailPassword);
+      await reauthenticateWithCredential(auth.currentUser, cred);
+      await updateEmail(auth.currentUser, newEmail);
+      await updateDoc(doc(db, 'profiles', user.uid), { email: newEmail, updated_at: new Date().toISOString() });
+
+      setAccountEmailPassword('');
+      toast({ title: 'Correo actualizado', description: 'Tu correo se actualizó correctamente.' });
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message || 'No se pudo actualizar el correo', variant: 'destructive' });
+    } finally {
+      setAccountSavingEmail(false);
+    }
+  };
+
+  const handleChangeAccountPassword = async () => {
+    if (!user?.uid) return;
+    if (!hasPasswordProvider) {
+      toast({ title: 'No disponible', description: 'Tu cuenta usa Google/Facebook. La contraseña se gestiona desde tu proveedor.', variant: 'destructive' });
+      return;
+    }
+    const currentEmail = (user.email || '').trim().toLowerCase();
+    if (!currentEmail) {
+      toast({ title: 'Error', description: 'No se encontró tu correo en sesión.', variant: 'destructive' });
+      return;
+    }
+    if (!accountPasswordCurrent) {
+      toast({ title: 'Falta tu contraseña actual', description: 'Ingresa tu contraseña actual para cambiarla.', variant: 'destructive' });
+      return;
+    }
+    if (!accountNewPassword || accountNewPassword.length < 6) {
+      toast({ title: 'Contraseña inválida', description: 'La nueva contraseña debe tener al menos 6 caracteres.', variant: 'destructive' });
+      return;
+    }
+    if (accountNewPassword !== accountNewPassword2) {
+      toast({ title: 'No coincide', description: 'La confirmación no coincide con la nueva contraseña.', variant: 'destructive' });
+      return;
+    }
+
+    setAccountSavingPassword(true);
+    try {
+      if (!auth.currentUser) throw new Error('Sesión inválida. Vuelve a iniciar sesión.');
+      const cred = EmailAuthProvider.credential(currentEmail, accountPasswordCurrent);
+      await reauthenticateWithCredential(auth.currentUser, cred);
+      await updatePassword(auth.currentUser, accountNewPassword);
+      setAccountPasswordCurrent('');
+      setAccountNewPassword('');
+      setAccountNewPassword2('');
+      toast({ title: 'Contraseña actualizada', description: 'Tu contraseña se cambió correctamente.' });
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message || 'No se pudo actualizar la contraseña', variant: 'destructive' });
+    } finally {
+      setAccountSavingPassword(false);
+    }
+  };
+
+  const handleSendPasswordReset = async () => {
+    const email = (user?.email || '').trim();
+    if (!email) {
+      toast({ title: 'Error', description: 'No se encontró tu correo.', variant: 'destructive' });
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, email);
+      toast({ title: 'Correo enviado', description: 'Revisa tu bandeja de entrada para restablecer tu contraseña.' });
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message || 'No se pudo enviar el correo', variant: 'destructive' });
+    }
+  };
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -872,7 +1051,8 @@ export default function Dashboard() {
     );
   }
 
-  const isTrialExpired = getTrialDaysLeft() <= 0 && profile?.subscription_status !== 'active';
+  // Superadmins should never be blocked by the trial paywall.
+  const isTrialExpired = !isSuperAdmin && getTrialDaysLeft() <= 0 && profile?.subscription_status !== 'active';
 
   // BLOCKING OVERLAY
   if (isTrialExpired) {
@@ -1124,7 +1304,7 @@ export default function Dashboard() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className={`flex flex-col items-center justify-center gap-1 min-h-[56px] rounded-xl transition-all duration-300 active:scale-95 ${['security', 'billing'].includes(activeTab) ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-muted-foreground hover:bg-muted/50'}`}
+                  className={`flex flex-col items-center justify-center gap-1 min-h-[56px] rounded-xl transition-all duration-300 active:scale-95 ${['security', 'billing', 'account', 'affiliates'].includes(activeTab) ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-muted-foreground hover:bg-muted/50'}`}
                 >
                   <MoreHorizontal className="w-5 h-5" />
                   <span className="text-[10px] leading-none">{t('dashboard.tabs.more')}</span>
@@ -1137,6 +1317,9 @@ export default function Dashboard() {
                 <DropdownMenuItem onClick={() => setActiveTab('billing')} className="gap-2 h-10 cursor-pointer">
                   <CreditCard className="w-4 h-4" /> {t('dashboard.tabs.billing')}
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setActiveTab('account')} className="gap-2 h-10 cursor-pointer">
+                  <User className="w-4 h-4" /> {t('dashboard.tabs.account')}
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setActiveTab('affiliates')} className="gap-2 h-10 cursor-pointer text-emerald-600 font-bold bg-emerald-50">
                   <Banknote className="w-4 h-4" /> Afiliados
                 </DropdownMenuItem>
@@ -1145,7 +1328,7 @@ export default function Dashboard() {
           </div>
 
           {/* Desktop Navigation */}
-          <TabsList className="hidden sm:grid sm:grid-cols-6 w-full no-scrollbar gap-1 sm:max-w-3xl">
+          <TabsList className="hidden sm:flex sm:flex-wrap w-full no-scrollbar gap-1">
             <TabsTrigger value="config" className="gap-2 flex-shrink-0 px-4">
               <Settings className="w-4 h-4" />
               <span>{t('dashboard.config')}</span>
@@ -1169,6 +1352,10 @@ export default function Dashboard() {
             <TabsTrigger value="billing" className="gap-2 flex-shrink-0 px-4">
               <CreditCard className="w-4 h-4" />
               <span>{t('dashboard.billing')}</span>
+            </TabsTrigger>
+            <TabsTrigger value="account" className="gap-2 flex-shrink-0 px-4">
+              <User className="w-4 h-4" />
+              <span>{t('dashboard.tabs.account')}</span>
             </TabsTrigger>
             <TabsTrigger value="affiliates" className="gap-2 flex-shrink-0 px-4 text-emerald-600 data-[state=active]:text-emerald-700 data-[state=active]:bg-emerald-50">
               <Banknote className="w-4 h-4" />
@@ -2748,6 +2935,137 @@ export default function Dashboard() {
             </Card>
           </TabsContent>
 
+          {/* Account Tab */}
+          <TabsContent value="account" className="space-y-6">
+            <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Configuración de Cuenta</CardTitle>
+                  <CardDescription>Actualiza tu nombre de usuario y tus datos de acceso.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Nombre de usuario</Label>
+                    <Input
+                      value={accountDisplayName}
+                      onChange={(e) => setAccountDisplayName(e.target.value)}
+                      placeholder="Tu nombre"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Correo</Label>
+                    <Input value={user?.email || ''} readOnly className="opacity-80" />
+                    <p className="text-xs text-muted-foreground">
+                      Este correo es el que usarás para iniciar sesión. Si quieres unificar accesos entre plataformas, usa siempre el mismo correo.
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button onClick={handleSaveAccountProfile} disabled={accountSavingProfile}>
+                      {accountSavingProfile ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Guardar cambios'}
+                    </Button>
+                    <Button variant="outline" onClick={handleSignOut}>
+                      Cerrar sesión
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Seguridad</CardTitle>
+                  <CardDescription>Cambia tu correo o contraseña (solo cuentas con email y contraseña).</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="font-semibold text-sm">Cambiar correo</p>
+                        <p className="text-xs text-muted-foreground">Requiere tu contraseña actual.</p>
+                      </div>
+                      {!hasPasswordProvider && (
+                        <span className="text-xs px-2 py-1 rounded bg-slate-100 text-slate-600">Google/Facebook</span>
+                      )}
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-2">
+                      <Input
+                        value={accountEmail}
+                        onChange={(e) => setAccountEmail(e.target.value)}
+                        placeholder="nuevo@correo.com"
+                        disabled={!hasPasswordProvider}
+                      />
+                      <Input
+                        type="password"
+                        value={accountEmailPassword}
+                        onChange={(e) => setAccountEmailPassword(e.target.value)}
+                        placeholder="Contraseña actual"
+                        disabled={!hasPasswordProvider}
+                      />
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={handleChangeAccountEmail}
+                      disabled={!hasPasswordProvider || accountSavingEmail}
+                      className="w-full sm:w-auto"
+                    >
+                      {accountSavingEmail ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Actualizar correo'}
+                    </Button>
+                  </div>
+
+                  <div className="border-t pt-6 space-y-3">
+                    <p className="font-semibold text-sm">Cambiar contraseña</p>
+                    <p className="text-xs text-muted-foreground">Requiere tu contraseña actual.</p>
+                    <div className="grid sm:grid-cols-2 gap-2">
+                      <Input
+                        type="password"
+                        value={accountPasswordCurrent}
+                        onChange={(e) => setAccountPasswordCurrent(e.target.value)}
+                        placeholder="Contraseña actual"
+                        disabled={!hasPasswordProvider}
+                      />
+                      <div className="hidden sm:block" />
+                      <Input
+                        type="password"
+                        value={accountNewPassword}
+                        onChange={(e) => setAccountNewPassword(e.target.value)}
+                        placeholder="Nueva contraseña"
+                        disabled={!hasPasswordProvider}
+                      />
+                      <Input
+                        type="password"
+                        value={accountNewPassword2}
+                        onChange={(e) => setAccountNewPassword2(e.target.value)}
+                        placeholder="Confirmar nueva contraseña"
+                        disabled={!hasPasswordProvider}
+                      />
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <Button
+                        onClick={handleChangeAccountPassword}
+                        disabled={!hasPasswordProvider || accountSavingPassword}
+                      >
+                        {accountSavingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Cambiar contraseña'}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={handleSendPasswordReset}
+                        disabled={!user?.email}
+                      >
+                        Enviar correo de recuperación
+                      </Button>
+                    </div>
+                    {!hasPasswordProvider && (
+                      <p className="text-xs text-muted-foreground">
+                        Si iniciaste sesión con Google/Facebook, la contraseña se gestiona desde tu proveedor.
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
           {/* Affiliate Tab */}
           <TabsContent value="affiliates" className="space-y-6">
             <div className="grid lg:grid-cols-2 gap-8">
@@ -2755,6 +3073,96 @@ export default function Dashboard() {
               <div className="space-y-6 w-full max-w-full overflow-hidden">
                 {/* Fixed Affiliate Card */}
                 <AffiliateCard dismissible={false} className="shadow-xl" />
+
+                {/* Network */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <Users className="w-5 h-5 text-emerald-600" />
+                          Mi Red (4 niveles)
+                        </CardTitle>
+                        <CardDescription>
+                          Por defecto solo mostramos afiliados <strong>activos</strong>. Activa el switch para incluir trial/suspendidos.
+                        </CardDescription>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] text-muted-foreground">Trial/Suspendidos</span>
+                        <Switch
+                          checked={affiliateNetworkIncludeInactive}
+                          onCheckedChange={(v) => setAffiliateNetworkIncludeInactive(Boolean(v))}
+                        />
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {affiliateNetworkLoading ? (
+                      <div className="flex items-center justify-center py-8 text-muted-foreground">
+                        <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                        Cargando red...
+                      </div>
+                    ) : (
+                      <>
+                        <div className="p-3 rounded-xl border bg-slate-50/60 dark:bg-slate-900/30">
+                          <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1">Tu patrocinador</p>
+                          {affiliateNetwork?.upline ? (
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="font-semibold text-sm truncate">
+                                  {affiliateNetwork.upline.display_name || affiliateNetwork.upline.business_name || affiliateNetwork.upline.email || 'Usuario'}
+                                </p>
+                                <p className="text-[11px] text-muted-foreground truncate">{affiliateNetwork.upline.email}</p>
+                              </div>
+                              <div className="shrink-0">
+                                {getStatusBadge(affiliateNetwork.upline.subscription_status || 'trial')}
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">Te uniste sin patrocinador.</p>
+                          )}
+                        </div>
+
+                        <div className="space-y-3">
+                          {(affiliateNetwork?.levels || []).length === 0 ? (
+                            <div className="text-sm text-muted-foreground border-2 border-dashed rounded-xl p-4">
+                              Aún no tienes afiliados. Comparte tu enlace para empezar.
+                            </div>
+                          ) : (
+                            (affiliateNetwork.levels || []).map((lvl: any) => (
+                              <div key={lvl.level} className="border rounded-xl overflow-hidden">
+                                <div className="px-3 py-2 bg-slate-50 dark:bg-slate-900/30 flex items-center justify-between">
+                                  <p className="text-xs font-bold text-slate-700 dark:text-slate-200">Nivel {lvl.level}</p>
+                                  <span className="text-[11px] text-muted-foreground">{(lvl.users || []).length} usuarios</span>
+                                </div>
+                                <div className="divide-y">
+                                  {(lvl.users || []).slice(0, 30).map((u: any) => (
+                                    <div key={u.id} className="px-3 py-2 flex items-center justify-between gap-3">
+                                      <div className="min-w-0">
+                                        <p className="text-sm font-semibold truncate">
+                                          {u.display_name || u.business_name || u.email || u.id?.substring(0, 8)}
+                                        </p>
+                                        <p className="text-[11px] text-muted-foreground truncate">{u.email}</p>
+                                      </div>
+                                      <div className="shrink-0">
+                                        {getStatusBadge(u.subscription_status || 'trial')}
+                                      </div>
+                                    </div>
+                                  ))}
+                                  {(lvl.users || []).length > 30 && (
+                                    <div className="px-3 py-2 text-[11px] text-muted-foreground">
+                                      Mostrando 30 de {(lvl.users || []).length}. (Luego lo expandimos si lo necesitas.)
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
 
                 {/* Terms Box */}
                 <Card>

@@ -25,8 +25,8 @@ export function AffiliateCard({ dismissible = false, className }: AffiliateCardP
 
     if (!isVisible && dismissible) return null;
 
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://whatsapp-leads-peru.vercel.app';
-    const referralLink = `${origin}/crear-ahora?ref=${user?.uid}`;
+    const origin = (import.meta.env.VITE_PUBLIC_URL || (typeof window !== 'undefined' ? window.location.origin : '')).replace(/\/$/, '');
+    const referralLink = user?.uid ? `${origin}/crear-ahora?ref=${user.uid}` : `${origin}/crear-ahora`;
 
     return (
         <Card className={`bg-gradient-to-br from-emerald-600 to-teal-700 border-0 text-white overflow-hidden relative mb-6 ${className || ''}`}>
@@ -70,10 +70,14 @@ export function AffiliateCard({ dismissible = false, className }: AffiliateCardP
                                 variant="secondary"
                                 className="h-9 sm:h-auto w-full sm:w-auto bg-white/10 hover:bg-white/20 text-white border-0 shrink-0"
                                 onClick={() => {
+                                    if (!user?.uid) {
+                                        toast({ title: 'Inicia sesión', description: 'Copia tu enlace desde tu cuenta.', variant: 'destructive' });
+                                        return;
+                                    }
                                     navigator.clipboard.writeText(referralLink);
                                     toast({
-                                        title: '¡Enlace Copiado!',
-                                        description: 'Compártelo con tus amigos dueños de negocio.',
+                                        title: 'Enlace copiado',
+                                        description: 'Compártelo con otros dueños de negocio.',
                                     });
                                 }}
                             >

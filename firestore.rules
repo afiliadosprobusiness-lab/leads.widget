@@ -7,7 +7,7 @@ service cloud.firestore {
       return request.auth != null && (
         (exists(/databases/$(database)/documents/user_roles/$(request.auth.uid)) && 
          get(/databases/$(database)/documents/user_roles/$(request.auth.uid)).data.role == 'superadmin') ||
-        request.auth.token.email == 'bum.acount97@gmail.com'
+        request.auth.token.email == 'afiliadosprobusiness@gmail.com'
       );
     }
     
@@ -26,19 +26,23 @@ service cloud.firestore {
     // User Roles - Highly sensitive
     match /user_roles/{userId} {
       allow read: if isOwner(userId) || isSuperAdmin();
-      allow write: if isSuperAdmin(); 
+      allow create, update: if isSuperAdmin();
+      allow delete: if false;
     }
     
     // Profiles
     match /profiles/{userId} {
       allow read: if isOwner(userId) || isSuperAdmin();
-      allow write: if isOwner(userId) || isSuperAdmin();
+      allow create, update: if isOwner(userId) || isSuperAdmin();
+      // User deletion is handled only by the backend (Admin SDK). This also protects superadmins.
+      allow delete: if false;
     }
     
     // Widget Configs
     match /widget_configs/{configId} {
       allow read: if true; // Public for the widget to load
-      allow write: if request.auth != null && (isDocOwner(request.resource.data) || isSuperAdmin());
+      allow create, update: if request.auth != null && (isDocOwner(request.resource.data) || isSuperAdmin());
+      allow delete: if false;
     }
     
     // Leads
