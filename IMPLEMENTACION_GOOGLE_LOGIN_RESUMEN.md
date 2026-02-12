@@ -72,7 +72,7 @@ Ve a [Firebase Console](https://console.firebase.google.com/):
 ### 2. Verificar el Deploy en Vercel
 
 1. Ve a tu [dashboard de Vercel](https://vercel.com)
-2. Busca el proyecto "whatsapp-leads-peru"
+2. Busca el proyecto "leads-widget"
 3. Verifica que el deploy esté completo (toma ~2-3 minutos)
 4. Visita tu URL de producción para probarlo
 

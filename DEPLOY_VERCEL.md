@@ -6,7 +6,7 @@
 ```bash
 git init
 git add .
-git commit -m "Initial commit - WhatsApp Leads Peru"
+git commit -m "Initial commit - LeadWidget"
 ```
 
 ### 1.2 Crea un repositorio en GitHub
@@ -15,7 +15,7 @@ git commit -m "Initial commit - WhatsApp Leads Peru"
 3. Sigue las instrucciones para subir tu código:
 
 ```bash
-git remote add origin https://github.com/TU-USUARIO/whatsapp-leads-peru.git
+git remote add origin https://github.com/afiliadosprobusiness-lab/leads.widget.git
 git branch -M main
 git push -u origin main
 ```
@@ -30,7 +30,7 @@ git push -u origin main
 
 ### 2.2 Importar el proyecto
 1. Click en "Add New..." → "Project"
-2. Selecciona tu repositorio `whatsapp-leads-peru`
+2. Selecciona tu repositorio `leads.widget`
 3. Click en "Import"
 
 ### 2.3 Configurar el proyecto

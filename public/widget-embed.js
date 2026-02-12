@@ -1,21 +1,21 @@
-(function () {
+﻿(function () {
   'use strict';
 
   // Default Configuration
   const defaultConfig = {
     primaryColor: '#00C185',
     businessName: 'LeadWidget',
-    welcomeMessage: '👋 ¡Hola! Soy tu asistente virtual. ¿En qué puedo ayudarte hoy?',
+    welcomeMessage: 'ðŸ‘‹ Â¡Hola! Soy tu asistente virtual. Â¿En quÃ© puedo ayudarte hoy?',
     whatsappDestination: '',
     template: 'general',
-    chatPlaceholder: 'Escribe tu consulta aquí...',
-    quickReplies: ['¿Cómo funciona?', 'Quiero información', 'Ver precios'],
-    teaserMessages: ['¿Cómo podemos ayudarte? 👋', '¿Tienes alguna duda? ✨', '¡Estamos en línea! 🚀'],
+    chatPlaceholder: 'Escribe tu consulta aquÃ­...',
+    quickReplies: ['Â¿CÃ³mo funciona?', 'Quiero informaciÃ³n', 'Ver precios'],
+    teaserMessages: ['Â¿CÃ³mo podemos ayudarte? ðŸ‘‹', 'Â¿Tienes alguna duda? âœ¨', 'Â¡Estamos en lÃ­nea! ðŸš€'],
     vibrationIntensity: 'soft',
     triggerDelay: 5,
     exitIntentEnabled: true,
-    exitIntentTitle: '¡Espera!',
-    exitIntentDescription: '¿Tienes alguna pregunta antes de irte?',
+    exitIntentTitle: 'Â¡Espera!',
+    exitIntentDescription: 'Â¿Tienes alguna pregunta antes de irte?',
     exitIntentCta: 'Chatear Ahora',
     testimonials: [],
     hideBranding: false,
@@ -257,7 +257,7 @@
     } catch (error) {
       console.error('LeadWidget: Connection Error', error);
       return {
-        response: "Hubo un error de conexión. ¿Te gustaría contactarnos por WhatsApp?",
+        response: "Hubo un error de conexiÃ³n. Â¿Te gustarÃ­a contactarnos por WhatsApp?",
         blocked: false
       };
     }
@@ -595,9 +595,9 @@
             </form>
             ${!config.hideBranding ? `
             <div id="lw-footer" style="text-align:center; padding:8px 0; background:white; font-size:10px;">
-              <a href="https://whatsapp-leads-peru.vercel.app/crear-ahora?ref=${config.clientId}" target="_blank" style="color:${config.primaryColor}; text-decoration:none; font-weight:600; display:flex; align-items:center; justify-content:center; gap:4px;">
-                <span style="background:rgba(0,0,0,0.05); padding:2px 6px; border-radius:4px; font-weight:800;">⚡</span>
-                <span id="lw-viral-text">Tecnología LeadWidget</span>
+              <a href="https://leads-widget.vercel.app/crear-ahora?ref=${config.clientId}" target="_blank" style="color:${config.primaryColor}; text-decoration:none; font-weight:600; display:flex; align-items:center; justify-content:center; gap:4px;">
+                <span style="background:rgba(0,0,0,0.05); padding:2px 6px; border-radius:4px; font-weight:800;">âš¡</span>
+                <span id="lw-viral-text">TecnologÃ­a LeadWidget</span>
               </a>
             </div>
             ` : ''}
@@ -671,9 +671,9 @@
 
     // Viral Loop A/B Testing
     const viralTexts = [
-      '⚡ Tecnología LeadWidget',
-      '¿Quieres un chat así en tu web?',
-      'Crea tu Widget GRATIS aquí'
+      'âš¡ TecnologÃ­a LeadWidget',
+      'Â¿Quieres un chat asÃ­ en tu web?',
+      'Crea tu Widget GRATIS aquÃ­'
     ];
     const viralTextEl = document.getElementById('lw-viral-text');
     if (viralTextEl) {
@@ -751,9 +751,9 @@
       if (aiResult === null) {
         // No AI configured - show helpful message
         if (config.whatsappDestination) {
-          response = `⚠️ El asistente de IA aún no está configurado por el administrador.\n\n¡Pero no te preocupes! Puedes contactarnos directamente por WhatsApp para una atención inmediata. 👇`;
+          response = `âš ï¸ El asistente de IA aÃºn no estÃ¡ configurado por el administrador.\n\nÂ¡Pero no te preocupes! Puedes contactarnos directamente por WhatsApp para una atenciÃ³n inmediata. ðŸ‘‡`;
         } else {
-          response = `⚠️ El asistente de IA aún no está configurado.\n\nEl administrador debe configurar su API Key de OpenAI o Anthropic en el panel de control para activar las respuestas automáticas.`;
+          response = `âš ï¸ El asistente de IA aÃºn no estÃ¡ configurado.\n\nEl administrador debe configurar su API Key de OpenAI o Anthropic en el panel de control para activar las respuestas automÃ¡ticas.`;
         }
       } else {
         response = aiResult.response;
@@ -768,7 +768,7 @@
         // Remove the command from the visible response
         response = response.replace(redirectMatch[0], '').trim();
         // If response became empty, provide a default text
-        if (!response) response = "¡Excelente! Te paso con un asesor en WhatsApp para confirmar los detalles.";
+        if (!response) response = "Â¡Excelente! Te paso con un asesor en WhatsApp para confirmar los detalles.";
       }
       isLoading = false;
       messages.push({ role: 'assistant', content: response });
@@ -780,7 +780,7 @@
         // Save Qualified Lead to Firestore
         let leadName = 'Lead Calificado';
         // Try to extract name from the summary text (e.g. "Soy Juan...")
-        const nameMatch = waRedirectData.match(/soy\s+([A-Za-zÁ-Úá-úñÑ]+)/i) || waRedirectData.match(/nombre\s+es\s+([A-Za-zÁ-Úá-úñÑ]+)/i) || waRedirectData.match(/Cliente\s+([A-Za-zÁ-Úá-úñÑ]+)/i);
+        const nameMatch = waRedirectData.match(/soy\s+([A-Za-zÃ-ÃšÃ¡-ÃºÃ±Ã‘]+)/i) || waRedirectData.match(/nombre\s+es\s+([A-Za-zÃ-ÃšÃ¡-ÃºÃ±Ã‘]+)/i) || waRedirectData.match(/Cliente\s+([A-Za-zÃ-ÃšÃ¡-ÃºÃ±Ã‘]+)/i);
         if (nameMatch) {
           leadName = nameMatch[1];
         }
@@ -872,7 +872,7 @@
 
         if (tImg) tImg.src = t.avatar_url || `https://ui-avatars.com/api/?name=${(t.name || 'C').replace(' ', '+')}&background=random`;
         if (tName) tName.textContent = t.name || 'Cliente';
-        if (tStars) tStars.textContent = '★'.repeat(t.stars || 5);
+        if (tStars) tStars.textContent = 'â˜…'.repeat(t.stars || 5);
         if (tText) tText.textContent = `"${t.text || ''}"`;
 
         tIndex = (tIndex + 1) % config.testimonials.length;

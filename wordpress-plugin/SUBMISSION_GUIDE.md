@@ -64,12 +64,12 @@ AI-powered chat widget that captures leads automatically and sends them directly
 
 **Plugin URL:**
 ```
-https://whatsapp-leads-peru.vercel.app
+https://leads-widget.vercel.app
 ```
 
 **Upload ZIP:**
 - Busca el archivo: `leadwidget-official-FINAL.zip`
-- Ubicación: `C:\Users\Ken Ryzen\Documents\proyectos-sass\whatsapp-leads-peru\wordpress-plugin\`
+- Ubicación: `C:\Users\Ken Ryzen\Documents\proyectos-sass\leads.widget\wordpress-plugin\`
 
 **Checkboxes:**
 - ✅ I have read and agree to the Plugin Guidelines
@@ -149,10 +149,10 @@ C:\svn-leadwidget\
 **Comandos PowerShell:**
 ```powershell
 # Copiar código
-xcopy "C:\Users\Ken Ryzen\Documents\proyectos-sass\whatsapp-leads-peru\wordpress-plugin\leadwidget-official\*" "C:\svn-leadwidget\trunk\" /E /I /Y /EXCLUDE:C:\svn-leadwidget\trunk\assets\images\*
+xcopy "C:\Users\Ken Ryzen\Documents\proyectos-sass\leads.widget\wordpress-plugin\leadwidget-official\*" "C:\svn-leadwidget\trunk\" /E /I /Y /EXCLUDE:C:\svn-leadwidget\trunk\assets\images\*
 
 # Copiar assets
-copy "C:\Users\Ken Ryzen\Documents\proyectos-sass\whatsapp-leads-peru\wordpress-plugin\leadwidget-official\assets\images\*.png" "C:\svn-leadwidget\assets\"
+copy "C:\Users\Ken Ryzen\Documents\proyectos-sass\leads.widget\wordpress-plugin\leadwidget-official\assets\images\*.png" "C:\svn-leadwidget\assets\"
 ```
 
 ### 4.4 Commit Inicial

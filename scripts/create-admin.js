@@ -7,9 +7,9 @@ import { getFirestore, doc, setDoc } from 'firebase/firestore';
 // Usamos los valores que el usuario me pasó en el chat anterior
 const firebaseConfig = {
     apiKey: "AIzaSyDoUHZtRvgEwhEUhZj6x4xEZvVmxliMCJo",
-    authDomain: "whatsapp-leads-peru.firebaseapp.com",
-    projectId: "whatsapp-leads-peru",
-    storageBucket: "whatsapp-leads-peru.firebasestorage.app",
+    authDomain: "leads-widget.firebaseapp.com",
+    projectId: "leads-widget",
+    storageBucket: "leads-widget.firebasestorage.app",
     messagingSenderId: "262135231435",
     appId: "1:262135231435:web:76effdecd25bbb85443c4e"
 };

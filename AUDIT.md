@@ -80,6 +80,6 @@ El sistema ha sido sometido a una auditoría exhaustiva de extremo a extremo (E2
 
 **SISTEMA 100% LISTO PARA PRODUCCIÓN.**
 
-El proyecto `whatsapp-leads-peru` ha madurado de un prototipo a una solución de nivel empresarial. Con la eliminación de dependencias pagas (Storage) y la optimización de la seguridad, el negocio está listo para registrar clientes reales y empezar a facturar de inmediato.
+El proyecto `leads.widget` ha madurado de un prototipo a una solución de nivel empresarial. Con la eliminación de dependencias pagas (Storage) y la optimización de la seguridad, el negocio está listo para registrar clientes reales y empezar a facturar de inmediato.
 
 **Recomendación:** Iniciar campañas de marketing. El producto es sólido.

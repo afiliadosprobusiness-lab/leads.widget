@@ -65,7 +65,7 @@ El código se adaptará automáticamente cuando despliegues en Vercel o tu domin
 
 ### En Vercel
 ```html
-<script src="https://whatsapp-leads-peru.vercel.app/api/w/2877dae4-b990-424b-810b-ea17fa49e673.js" async></script>
+<script src="https://leads-widget.vercel.app/api/w/2877dae4-b990-424b-810b-ea17fa49e673.js" async></script>
 ```
 
 ### Con Dominio Personalizado

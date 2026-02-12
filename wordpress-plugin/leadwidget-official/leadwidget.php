@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: LeadWidget
- * Plugin URI: https://whatsapp-leads-peru.vercel.app
+ * Plugin URI: https://leads-widget.vercel.app
  * Description: AI-powered chat widget that captures leads and sends them directly to WhatsApp. Install in seconds, no coding required.
  * Version: 1.0.0
  * Author: LeadWidget Team

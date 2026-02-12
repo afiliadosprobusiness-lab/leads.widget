@@ -73,7 +73,7 @@ class LeadWidget_Injector
     private static function get_script_url($user_id)
     {
         // Production URL
-        $base_url = 'https://whatsapp-leads-peru.vercel.app';
+        $base_url = 'https://leads-widget.vercel.app';
 
         // Allow filtering for custom domains or staging environments
         $base_url = apply_filters('leadwidget_script_base_url', $base_url);

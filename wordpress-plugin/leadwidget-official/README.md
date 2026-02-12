@@ -63,7 +63,7 @@ That's it! The plugin automatically injects the widget script on all pages.
 
 The plugin currently points to:
 ```
-https://whatsapp-leads-peru.vercel.app/api/w/[USER_ID]
+https://leads-widget.vercel.app/api/w/[USER_ID]
 ```
 
 **Before publishing to WordPress.org**, update the URL in `includes/widget-injector.php` (line 45) to your production domain:
