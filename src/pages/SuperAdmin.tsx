@@ -563,7 +563,11 @@ export default function SuperAdmin() {
         throw new Error(payload?.error || 'No se pudo eliminar el usuario');
       }
 
-      toast({ title: 'Usuario eliminado (Soft Delete)' });
+      setClients((prev) => prev.filter((c) => c.id !== clientId));
+      toast({
+        title: 'Usuario eliminado',
+        description: 'Se eliminó acceso (Firebase Auth) y datos principales.',
+      });
     } catch (error: any) {
       toast({ title: 'Error al eliminar', description: error.message, variant: 'destructive' });
     }
