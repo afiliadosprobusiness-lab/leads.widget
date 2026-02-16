@@ -54,10 +54,8 @@ export default function PartnerDashboard() {
   const [utmSource, setUtmSource] = useState('partner');
   const [utmCampaign, setUtmCampaign] = useState('');
 
-  const [brandingName, setBrandingName] = useState('');
-  const [brandingLogo, setBrandingLogo] = useState('');
-  const [brandingSupportText, setBrandingSupportText] = useState('');
-  const [brandingCta, setBrandingCta] = useState('');
+  const [brandingText, setBrandingText] = useState('');
+  const [brandingLink, setBrandingLink] = useState('');
 
   const isPartnerAdmin = role === 'partner_admin';
 
@@ -83,10 +81,8 @@ export default function PartnerDashboard() {
     setPayouts(p.payouts || []);
 
     const branding = me.partner?.branding || {};
-    setBrandingName(branding.agency_name || '');
-    setBrandingLogo(branding.logo_url || '');
-    setBrandingSupportText(branding.support_text || '');
-    setBrandingCta(branding.cta_text || '');
+    setBrandingText(branding.branding_text || branding.agency_name || '');
+    setBrandingLink(branding.branding_link || branding.cta_url || '');
   };
 
   useEffect(() => {
@@ -157,10 +153,8 @@ export default function PartnerDashboard() {
       await apiRequest('/api/partners/branding', token, {
         method: 'PUT',
         body: JSON.stringify({
-          agency_name: brandingName,
-          logo_url: brandingLogo,
-          support_text: brandingSupportText,
-          cta_text: brandingCta,
+          branding_text: brandingText,
+          branding_link: brandingLink,
         }),
       });
       toast({ title: 'Branding guardado' });
@@ -364,23 +358,39 @@ export default function PartnerDashboard() {
                   Branding de agencia
                 </CardTitle>
                 <CardDescription>
-                  Solo aplica en clientes plan 60 (PLUS). Se refleja en el texto del pie del chat embebido.
+                  Solo aplica en clientes plan 60 (PLUS). Define el texto del pie del chat y el enlace al hacer clic.
                 </CardDescription>
               </CardHeader>
               <CardContent className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-3">
-                  <Input value={brandingName} onChange={(e) => setBrandingName(e.target.value)} placeholder="Nombre de marca" />
-                  <Input value={brandingLogo} onChange={(e) => setBrandingLogo(e.target.value)} placeholder="URL logo" />
-                  <Input value={brandingSupportText} onChange={(e) => setBrandingSupportText(e.target.value)} placeholder="Texto soporte" />
-                  <Input value={brandingCta} onChange={(e) => setBrandingCta(e.target.value)} placeholder="CTA" />
+                  <div className="space-y-1">
+                    <Label htmlFor="partner-branding-text">Texto de marca</Label>
+                    <Input
+                      id="partner-branding-text"
+                      value={brandingText}
+                      onChange={(e) => setBrandingText(e.target.value)}
+                      placeholder="Potenciado por Agencia Wonder"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="partner-branding-link">Enlace de marca</Label>
+                    <Input
+                      id="partner-branding-link"
+                      type="url"
+                      value={brandingLink}
+                      onChange={(e) => setBrandingLink(e.target.value)}
+                      placeholder="https://agenciawonder.com"
+                    />
+                  </div>
                   <Button disabled={!isPartnerAdmin} onClick={saveBranding}>Guardar branding</Button>
                   {!isPartnerAdmin && <p className="text-xs text-muted-foreground">Solo Partner Admin puede editar branding.</p>}
                 </div>
                 <div className="space-y-2 rounded-xl border bg-slate-50 p-4 dark:bg-slate-900">
                   <p className="text-xs uppercase text-muted-foreground">Preview del pie del chat</p>
-                  <p className="text-lg font-black">{brandingName || partner?.name || 'Tu marca'}</p>
-                  <p className="text-sm text-muted-foreground">{brandingSupportText || 'Soporte de agencia'}</p>
-                  <Button variant="outline" size="sm">{brandingCta || 'Contáctanos'}</Button>
+                  <p className="text-lg font-black">{brandingText || partner?.name || 'Tu marca'}</p>
+                  <Button variant="outline" size="sm">
+                    {brandingLink ? 'Ir al enlace de marca' : 'Sin enlace configurado'}
+                  </Button>
                 </div>
               </CardContent>
             </Card>
