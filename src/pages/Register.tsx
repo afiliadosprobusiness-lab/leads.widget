@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,17 +16,23 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const { signUp } = useAuth();
+  const { signUp, user, isSuperAdmin, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   const benefits = t('auth_pages.register.left_panel.benefits', { returnObjects: true }) as string[];
 
+  useEffect(() => {
+    if (user && !authLoading) {
+      navigate(isSuperAdmin || isSuperAdminEmail(user.email) ? '/superadmin' : '/app');
+    }
+  }, [user, authLoading, isSuperAdmin, navigate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    const { error, data } = await signUp(email, password, businessName);
+    const { error } = await signUp(email, password, businessName);
 
     if (error) {
       toast({
@@ -36,12 +42,7 @@ export default function Register() {
       });
       setLoading(false);
     } else {
-      if (data) {
-        navigate(isSuperAdminEmail(email) ? '/superadmin' : '/app');
-      } else {
-        setIsSubmitted(true);
-        setLoading(false);
-      }
+      navigate(isSuperAdminEmail(email) ? '/superadmin' : '/app');
     }
   };
 

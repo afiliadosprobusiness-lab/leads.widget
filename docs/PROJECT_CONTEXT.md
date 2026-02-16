@@ -33,6 +33,7 @@ Lead Widget convierte trafico en leads: un widget embebible (chat + formularios)
 ## Reglas UI/UX
 - Mobile-first con dashboard usable en telefonos.
 - Realtime "sin romper": el usuario no debe reinstalar scripts; solo refrescar para ver cambios.
+- Flujo auth: despues de registro/login exitoso, clientes redirigen a `/app` (dashboard) y superadmins a `/superadmin`.
 - Estados obligatorios:
   - Carga, error de permisos (Firestore rules), y vacios con mensajes accionables.
 - Accesibilidad:
