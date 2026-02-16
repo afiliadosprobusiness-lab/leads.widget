@@ -2,6 +2,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { SalesWidget } from '@/components/SalesWidget';
 import {
   ArrowRight,
   BadgeCheck,
@@ -408,6 +409,7 @@ export default function PartnersLanding() {
           </Card>
         </section>
       </main>
+      <SalesWidget />
     </div>
   );
 }
