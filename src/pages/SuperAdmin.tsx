@@ -1552,7 +1552,7 @@ export default function SuperAdmin() {
                           <td className="py-2 px-3">
                             <div className="flex flex-wrap gap-2">
                               <Button size="sm" variant="outline" onClick={() => loadAgencyClients(agency.id)}>
-                                Ver clientes
+                                Clientes
                               </Button>
                               <Button
                                 size="sm"
@@ -1561,12 +1561,15 @@ export default function SuperAdmin() {
                               >
                                 {agency.status === 'active' ? 'Suspender' : 'Activar'}
                               </Button>
-                              <Button size="sm" onClick={() => createAgencyPayout(agency.id)}>
-                                Aprobar payout
-                              </Button>
-                              <Button size="sm" variant="outline" onClick={() => markLatestAgencyPayoutPaid(agency.id)}>
-                                Marcar pagado
-                              </Button>
+                              {Number(agency.kpis?.pending_payouts || 0) > 0 ? (
+                                <Button size="sm" variant="outline" onClick={() => markLatestAgencyPayoutPaid(agency.id)}>
+                                  Marcar pagado
+                                </Button>
+                              ) : (
+                                <Button size="sm" onClick={() => createAgencyPayout(agency.id)}>
+                                  Aprobar payout
+                                </Button>
+                              )}
                             </div>
                           </td>
                         </tr>
