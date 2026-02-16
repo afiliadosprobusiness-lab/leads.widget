@@ -11,6 +11,8 @@ import Dashboard from "./pages/Dashboard";
 import SuperAdmin from "./pages/SuperAdmin";
 import InstallationGuide from "./pages/InstallationGuide";
 import CreateNow from "./pages/CreateNow";
+import PartnersLanding from "./pages/PartnersLanding";
+import PartnerDashboard from "./pages/PartnerDashboard";
 import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import TermsOfServicePage from "./pages/TermsOfServicePage";
 import ClaimsBookPage from "./pages/ClaimsBookPage";
@@ -33,6 +35,8 @@ const App = () => (
             <Route path="/superadmin" element={<SuperAdmin />} />
             <Route path="/installation-guide" element={<InstallationGuide />} />
             <Route path="/crear-ahora" element={<CreateNow />} />
+            <Route path="/partners" element={<PartnersLanding />} />
+            <Route path="/partner" element={<PartnerDashboard />} />
             <Route path="/legal/privacy" element={<PrivacyPolicyPage />} />
             <Route path="/legal/terms" element={<TermsOfServicePage />} />
             <Route path="/legal/claims" element={<ClaimsBookPage />} />

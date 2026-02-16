@@ -86,6 +86,49 @@ service cloud.firestore {
       allow update, delete: if isSuperAdmin();
     }
 
+    // Partner Program (server-side scoped via backend, restricted on direct client access)
+    match /partners/{partnerId} {
+      allow read: if isSuperAdmin();
+      allow write: if isSuperAdmin();
+    }
+
+    match /partner_users/{uid} {
+      allow read: if isOwner(uid) || isSuperAdmin();
+      allow write: if isSuperAdmin();
+    }
+
+    match /partner_invites/{inviteId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /partner_checkout_links/{docId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /partner_leads/{docId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /partner_client_drafts/{docId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /partner_tickets/{docId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /partner_payouts/{docId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /commission_ledger/{docId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /audit_events/{docId} {
+      allow read, write: if isSuperAdmin();
+    }
+
     // System Settings (Global Config like Landing Widget ID)
     match /system_settings/{docId} {
       allow read: if true; // Public for Landing Page

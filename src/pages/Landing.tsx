@@ -974,6 +974,11 @@ export default function Landing() {
                 <li><button className="hover:text-primary transition-colors opacity-50 cursor-not-allowed">{t('footer.success_stories')}</button></li>
                 <li><button className="hover:text-primary transition-colors opacity-50 cursor-not-allowed">{t('footer.blog')}</button></li>
                 <li><button onClick={() => window.dispatchEvent(new Event('open-lead-widget'))} className="hover:text-primary transition-colors">{t('footer.support')}</button></li>
+                <li>
+                  <Link to="/partners" className="hover:text-primary transition-colors">
+                    {t('footer.partners')}
+                  </Link>
+                </li>
               </ul>
             </div>
             <div>

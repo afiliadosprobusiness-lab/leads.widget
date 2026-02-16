@@ -217,6 +217,7 @@
         "success_stories": "Success Stories",
         "blog": "Blog",
         "support": "Support",
+        "partners": "Lead Widget Partners",
         "legal": "Legal",
         "privacy": "Privacy Policy",
         "terms": "Terms of Service",
@@ -662,3 +663,5 @@
         "footer_rights": "Made for entrepreneurs."
     }
 }
+
+

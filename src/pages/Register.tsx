@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,23 +16,43 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const { signUp, user, isSuperAdmin, loading: authLoading } = useAuth();
+  const { signUp, user, isSuperAdmin, role, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
+  const isPartnerRegistration = searchParams.get('account') === 'partner';
+  const partnerCode = searchParams.get('partner_code');
+  const inviteCode = searchParams.get('invite');
+
+  useEffect(() => {
+    if (partnerCode) localStorage.setItem('leadwidget_partner_code', partnerCode);
+    if (inviteCode) localStorage.setItem('leadwidget_partner_invite', inviteCode);
+  }, [partnerCode, inviteCode]);
 
   const benefits = t('auth_pages.register.left_panel.benefits', { returnObjects: true }) as string[];
 
   useEffect(() => {
     if (user && !authLoading) {
-      navigate(isSuperAdmin || isSuperAdminEmail(user.email) ? '/superadmin' : '/app');
+      if (isSuperAdmin || isSuperAdminEmail(user.email)) {
+        navigate('/superadmin');
+      } else if (role === 'partner_admin' || role === 'partner_staff') {
+        navigate('/partner');
+      } else {
+        navigate('/app');
+      }
     }
-  }, [user, authLoading, isSuperAdmin, navigate]);
+  }, [user, authLoading, isSuperAdmin, role, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await signUp(email, password, businessName);
+    const { error } = await signUp(email, password, businessName, {
+      accountType: isPartnerRegistration ? 'partner' : 'client',
+      partnerCode,
+      partnerName: businessName,
+      inviteCode,
+    });
 
     if (error) {
       toast({
@@ -42,7 +62,13 @@ export default function Register() {
       });
       setLoading(false);
     } else {
-      navigate(isSuperAdminEmail(email) ? '/superadmin' : '/app');
+      if (isSuperAdminEmail(email)) {
+        navigate('/superadmin');
+      } else if (isPartnerRegistration) {
+        navigate('/partner');
+      } else {
+        navigate('/app');
+      }
     }
   };
 
@@ -155,17 +181,23 @@ export default function Register() {
               </div>
               <span className="font-bold text-2xl tracking-tight">Lead <span className="text-primary">Widget</span></span>
             </div>
-            <h1 className="text-3xl font-bold mt-6 tracking-tight">{t('auth_pages.register.title')}</h1>
-            <p className="text-muted-foreground mt-2">{t('auth_pages.register.subtitle')}</p>
+            <h1 className="text-3xl font-bold mt-6 tracking-tight">
+              {isPartnerRegistration ? 'Crear Cuenta Partner' : t('auth_pages.register.title')}
+            </h1>
+            <p className="text-muted-foreground mt-2">
+              {isPartnerRegistration
+                ? 'Activa tu panel de agencia para gestionar clientes y comisiones.'
+                : t('auth_pages.register.subtitle')}
+            </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="businessName">{t('auth_pages.register.business_label')}</Label>
+              <Label htmlFor="businessName">{isPartnerRegistration ? 'Nombre de la agencia' : t('auth_pages.register.business_label')}</Label>
               <Input
                 id="businessName"
                 type="text"
-                placeholder={t('auth_pages.register.placeholders.business')}
+                placeholder={isPartnerRegistration ? 'Ej: Agencia Atlas Growth' : t('auth_pages.register.placeholders.business')}
                 value={businessName}
                 onChange={(e) => setBusinessName(e.target.value)}
                 required
@@ -225,7 +257,7 @@ export default function Register() {
 
           <p className="text-center text-muted-foreground">
             {t('auth_pages.register.has_account')}{' '}
-            <Link to="/login" className="text-primary font-bold hover:underline">
+            <Link to={isPartnerRegistration ? '/login?portal=partner' : '/login'} className="text-primary font-bold hover:underline">
               {t('auth_pages.register.login_link')}
             </Link>
           </p>

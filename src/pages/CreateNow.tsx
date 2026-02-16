@@ -10,8 +10,16 @@ export default function CreateNow() {
 
     useEffect(() => {
         const ref = searchParams.get('ref');
+        const partnerCode = searchParams.get('partner_code');
+        const invite = searchParams.get('invite');
         if (ref) {
             localStorage.setItem('leadwidget_ref', ref);
+        }
+        if (partnerCode) {
+            localStorage.setItem('leadwidget_partner_code', partnerCode);
+        }
+        if (invite) {
+            localStorage.setItem('leadwidget_partner_invite', invite);
         }
 
         // Simple currency detection

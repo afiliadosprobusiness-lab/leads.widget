@@ -31,7 +31,8 @@ import {
   Copy,
   ExternalLink,
   Trash2,
-  Gift
+  Gift,
+  Building2
 } from 'lucide-react';
 import {
   Dialog,
@@ -79,6 +80,22 @@ interface ClientWithLeads extends Profile {
   leads_count: number;
 }
 
+interface Agency {
+  id: string;
+  name: string;
+  code: string;
+  status: 'active' | 'suspended';
+  commission_first_rate: number;
+  commission_recurring_rate: number;
+  kpis?: {
+    clients_total?: number;
+    clients_active?: number;
+    commissions_pending?: number;
+    commissions_paid?: number;
+    pending_payouts?: number;
+  };
+}
+
 const PROTECTED_SUPERADMINS = new Set([
   'afiliadosprobusiness@gmail.com',
   'superadmin@leadwidget.pe',
@@ -103,6 +120,11 @@ export default function SuperAdmin() {
   const [editingClient, setEditingClient] = useState<Profile | null>(null);
   const [editForm, setEditForm] = useState({ business_name: '', phone: '', email: '' });
   const [blockedDemoIps, setBlockedDemoIps] = useState<any[]>([]);
+  const [agencies, setAgencies] = useState<Agency[]>([]);
+  const [agenciesLoading, setAgenciesLoading] = useState(false);
+  const [selectedAgencyId, setSelectedAgencyId] = useState<string>('');
+  const [selectedAgencyClients, setSelectedAgencyClients] = useState<any[]>([]);
+  const [agencyPayoutPeriod, setAgencyPayoutPeriod] = useState(new Date().toISOString().slice(0, 7));
 
 
 
@@ -117,6 +139,91 @@ export default function SuperAdmin() {
     totalViews: 0,
     mrr: 0,
   });
+
+  const adminApi = async (path: string, init?: RequestInit) => {
+    const idToken = await user?.getIdToken();
+    const response = await fetch(path, {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${idToken || ''}`,
+        ...(init?.headers || {}),
+      },
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload?.error || `Request failed (${response.status})`);
+    }
+    return payload;
+  };
+
+  const loadAgencies = async () => {
+    if (!user) return;
+    setAgenciesLoading(true);
+    try {
+      const payload = await adminApi('/api/admin/partners');
+      setAgencies((payload.partners || []) as Agency[]);
+    } catch (error: any) {
+      toast({ title: 'Error cargando agencias', description: error.message, variant: 'destructive' });
+    } finally {
+      setAgenciesLoading(false);
+    }
+  };
+
+  const loadAgencyClients = async (agencyId: string) => {
+    if (!agencyId) return;
+    try {
+      const payload = await adminApi(`/api/admin/partners/${agencyId}/clients`);
+      setSelectedAgencyId(agencyId);
+      setSelectedAgencyClients(payload.clients || []);
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const updateAgencyStatus = async (agencyId: string, status: 'active' | 'suspended') => {
+    try {
+      await adminApi(`/api/admin/partners/${agencyId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      });
+      toast({ title: 'Agencia actualizada', description: `Estado: ${status}` });
+      await loadAgencies();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const createAgencyPayout = async (agencyId: string) => {
+    try {
+      await adminApi('/api/admin/payouts/create', {
+        method: 'POST',
+        body: JSON.stringify({ partner_id: agencyId, period: agencyPayoutPeriod }),
+      });
+      toast({ title: 'Payout aprobado', description: `Periodo ${agencyPayoutPeriod}` });
+      await loadAgencies();
+    } catch (error: any) {
+      toast({ title: 'Error creando payout', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const markLatestAgencyPayoutPaid = async (agencyId: string) => {
+    try {
+      const payload = await adminApi(`/api/partners/payouts?partnerId=${encodeURIComponent(agencyId)}`);
+      const nextPayout = (payload.payouts || []).find((p: any) => String(p.status || '').toLowerCase() !== 'paid');
+      if (!nextPayout?.id) {
+        toast({ title: 'Sin payouts pendientes', description: 'No hay payouts por marcar como pagados.' });
+        return;
+      }
+
+      await adminApi(`/api/admin/payouts/${nextPayout.id}/mark-paid`, { method: 'POST' });
+      toast({ title: 'Payout marcado como pagado', description: `Payout ${nextPayout.id}` });
+      await loadAgencies();
+    } catch (error: any) {
+      toast({ title: 'Error marcando payout', description: error.message, variant: 'destructive' });
+    }
+  };
 
   useEffect(() => {
     if (!authLoading) {
@@ -236,6 +343,7 @@ export default function SuperAdmin() {
 
 
 
+    loadAgencies().catch(() => {});
     setLoading(false);
 
     return () => {
@@ -352,22 +460,23 @@ export default function SuperAdmin() {
   const verifyPayment = async (paymentId: string, status: 'verified' | 'rejected') => {
     setVerifyingPayment(paymentId);
     try {
-      const payment = payments.find(p => p.id === paymentId);
-
-      await updateDoc(doc(db, 'payments', paymentId), {
-        status,
-        verified_at: new Date().toISOString(),
-        verified_by: user?.uid,
+      const idToken = await user?.getIdToken();
+      const response = await fetch(`/api/admin/payments/${paymentId}/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken || ''}`,
+        },
+        body: JSON.stringify({ status }),
       });
-
-      // If verified, activate client
-      if (status === 'verified' && payment) {
-        await updateDoc(doc(db, 'profiles', payment.user_id), { subscription_status: 'active' });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.error || 'No se pudo procesar la verificación');
       }
 
       toast({
         title: status === 'verified' ? 'Pago verificado' : 'Pago rechazado',
-        description: status === 'verified' ? 'Cliente activado automaticamente' : 'Se notificara al cliente',
+        description: status === 'verified' ? 'Cliente activado y comisión registrada' : 'Se notificará al cliente',
       });
 
     } catch (error: any) {
@@ -614,6 +723,13 @@ export default function SuperAdmin() {
             >
               <Gift className="w-4 h-4 stroke-[2.5px]" />
               <span className="text-[9px] font-medium">Afiliados</span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="agencies"
+              className="flex flex-col gap-1 px-3 py-2 h-auto data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-500 data-[state=active]:shadow-none rounded-xl transition-all"
+            >
+              <Building2 className="w-4 h-4 stroke-[2.5px]" />
+              <span className="text-[9px] font-medium">Agencias</span>
             </TabsTrigger>
           </TabsList>
 
@@ -1206,6 +1322,127 @@ export default function SuperAdmin() {
                     </CardContent>
                   </Card>
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="agencies">
+            <Card>
+              <CardHeader>
+                <CardTitle>Agencias (Partners)</CardTitle>
+                <CardDescription>
+                  Gestión de agencias, KPIs, clientes atribuidos y payouts.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button variant="outline" onClick={loadAgencies} disabled={agenciesLoading}>
+                    {agenciesLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                    Recargar agencias
+                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="agency-payout-period">Periodo payout</Label>
+                    <Input
+                      id="agency-payout-period"
+                      value={agencyPayoutPeriod}
+                      onChange={(e) => setAgencyPayoutPeriod(e.target.value)}
+                      className="w-32"
+                      placeholder="YYYY-MM"
+                    />
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-left">
+                        <th className="py-2 px-3">Agencia</th>
+                        <th className="py-2 px-3">Código</th>
+                        <th className="py-2 px-3">Estado</th>
+                        <th className="py-2 px-3">Clientes</th>
+                        <th className="py-2 px-3">Comisión pendiente</th>
+                        <th className="py-2 px-3">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {agencies.map((agency) => (
+                        <tr key={agency.id} className="border-b">
+                          <td className="py-2 px-3">
+                            <p className="font-semibold">{agency.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              1er pago: {Math.round((agency.commission_first_rate || 0) * 100)}% · recurrente: {Math.round((agency.commission_recurring_rate || 0) * 100)}%
+                            </p>
+                          </td>
+                          <td className="py-2 px-3 font-mono text-xs">{agency.code}</td>
+                          <td className="py-2 px-3">
+                            <span className={`px-2 py-1 rounded-full text-xs ${agency.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                              {agency.status}
+                            </span>
+                          </td>
+                          <td className="py-2 px-3">{agency.kpis?.clients_total || 0}</td>
+                          <td className="py-2 px-3">S/ {Number(agency.kpis?.commissions_pending || 0).toFixed(2)}</td>
+                          <td className="py-2 px-3">
+                            <div className="flex flex-wrap gap-2">
+                              <Button size="sm" variant="outline" onClick={() => loadAgencyClients(agency.id)}>
+                                Ver clientes
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant={agency.status === 'active' ? 'destructive' : 'outline'}
+                                onClick={() => updateAgencyStatus(agency.id, agency.status === 'active' ? 'suspended' : 'active')}
+                              >
+                                {agency.status === 'active' ? 'Suspender' : 'Activar'}
+                              </Button>
+                              <Button size="sm" onClick={() => createAgencyPayout(agency.id)}>
+                                Aprobar payout
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={() => markLatestAgencyPayoutPaid(agency.id)}>
+                                Marcar pagado
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {agencies.length === 0 && (
+                  <div className="text-center py-10 text-muted-foreground border-2 border-dashed rounded-xl">
+                    Aún no hay agencias registradas.
+                  </div>
+                )}
+
+                {selectedAgencyId && (
+                  <div className="space-y-3">
+                    <h3 className="font-semibold">Clientes atribuidos: {selectedAgencyId}</h3>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b text-left">
+                            <th className="py-2 px-3">Cliente</th>
+                            <th className="py-2 px-3">Plan</th>
+                            <th className="py-2 px-3">Estado</th>
+                            <th className="py-2 px-3">Creado</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedAgencyClients.map((client: any) => (
+                            <tr key={client.id} className="border-b">
+                              <td className="py-2 px-3">
+                                <p className="font-medium">{client.business_name || client.email || client.id}</p>
+                                <p className="text-xs text-muted-foreground">{client.email || '-'}</p>
+                              </td>
+                              <td className="py-2 px-3 uppercase">{client.plan_type || 'pro'}</td>
+                              <td className="py-2 px-3">{client.subscription_status || 'trial'}</td>
+                              <td className="py-2 px-3">{client.created_at ? new Date(client.created_at).toLocaleDateString('es-PE') : '-'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

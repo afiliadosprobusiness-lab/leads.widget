@@ -217,6 +217,7 @@
         "success_stories": "Casos de Éxito",
         "blog": "Blog",
         "support": "Soporte",
+        "partners": "Partners Leads Widget",
         "legal": "Legal",
         "privacy": "Privacidad",
         "terms": "Términos de servicio",
@@ -662,3 +663,5 @@
         "footer_rights": "Hecho para emprendedores."
     }
 }
+
+

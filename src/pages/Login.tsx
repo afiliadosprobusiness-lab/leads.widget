@@ -9,6 +9,7 @@ import { auth } from '@/lib/firebase';
 import { MessageCircle, Loader2, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 
 export default function Login() {
   const { t } = useTranslation();
@@ -17,25 +18,23 @@ export default function Login() {
   const [localLoading, setLocalLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const { signIn, signInWithGoogle, user, isSuperAdmin, loading: authLoading } = useAuth();
+  const { signIn, signInWithGoogle, user, isSuperAdmin, role, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
+  const portal = searchParams.get('portal');
 
   useEffect(() => {
     if (user && !authLoading) {
-      // DEBUG LOGS
-      console.log('Login useEffect:', { userEmail: user.email, isSuperAdmin });
-
-      // Check role OR specific email hardcoded fallback (for instant feedback)
       if (isSuperAdmin || isSuperAdminEmail(user.email)) {
-        console.log('Redirecting to SUPERADMIN');
         navigate('/superadmin');
+      } else if (role === 'partner_admin' || role === 'partner_staff') {
+        navigate('/partner');
       } else {
-        console.log('Redirecting to APP');
         navigate('/app');
       }
     }
-  }, [user, isSuperAdmin, authLoading, navigate]);
+  }, [user, isSuperAdmin, role, authLoading, navigate]);
 
   const handlePasswordReset = async () => {
     if (!email) {
@@ -131,8 +130,14 @@ export default function Login() {
               </div>
               <span className="font-bold text-2xl tracking-tight">Lead <span className="text-primary">Widget</span></span>
             </div>
-            <h1 className="text-3xl font-bold mt-6 tracking-tight">{t('auth_pages.login.title')}</h1>
-            <p className="text-muted-foreground mt-2">{t('auth_pages.login.subtitle')}</p>
+            <h1 className="text-3xl font-bold mt-6 tracking-tight">
+              {portal === 'partner' ? 'Ingreso para Partners' : t('auth_pages.login.title')}
+            </h1>
+            <p className="text-muted-foreground mt-2">
+              {portal === 'partner'
+                ? 'Accede a tu panel de agencia para gestionar clientes, branding y comisiones.'
+                : t('auth_pages.login.subtitle')}
+            </p>
           </div>
 
           {/* Social Login Buttons */}
@@ -235,7 +240,7 @@ export default function Login() {
 
           <p className="text-center text-muted-foreground">
             {t('auth_pages.login.no_account')}{' '}
-            <Link to="/register" className="text-primary font-bold hover:underline">
+            <Link to={portal === 'partner' ? '/register?account=partner' : '/register'} className="text-primary font-bold hover:underline">
               {t('auth_pages.login.register_link')}
             </Link>
           </p>
