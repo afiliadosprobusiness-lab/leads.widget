@@ -43,6 +43,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
   - Clientes
   - Branding
   - Comisiones
+- En Partners/Clientes, `Prox. renovacion` usa `next_renewal_at` y contempla fallback derivado desde backend para cuentas activas sin dato historico.
 - Dashboard partner prioriza un flujo simple (sin soporte/tickets ni gestion de usuarios internos en UI).
 
 ## Configuracion relevante

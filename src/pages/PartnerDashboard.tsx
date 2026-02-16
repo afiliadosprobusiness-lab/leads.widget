@@ -29,6 +29,14 @@ async function apiRequest<T>(path: string, token: string, init?: RequestInit): P
   return payload as T;
 }
 
+function formatRenewalDate(value: unknown): string {
+  const raw = typeof value === 'string' ? value.trim() : '';
+  if (!raw) return '-';
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return raw;
+  return date.toLocaleDateString('es-PE');
+}
+
 export default function PartnerDashboard() {
   const { user, role, isSuperAdmin, signOut, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -337,7 +345,7 @@ export default function PartnerDashboard() {
                           </td>
                           <td className="py-2 uppercase">{c.plan_type || 'pro'}</td>
                           <td className="py-2">{c.subscription_status || 'trial'}</td>
-                          <td className="py-2">{c.next_renewal_at || '-'}</td>
+                          <td className="py-2">{formatRenewalDate(c.next_renewal_at)}</td>
                         </tr>
                       ))}
                     </tbody>

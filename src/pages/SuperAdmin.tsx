@@ -584,7 +584,14 @@ export default function SuperAdmin() {
   const updateClientStatus = async (clientId: string, newStatus: 'trial' | 'active' | 'suspended') => {
     setUpdatingClient(clientId);
     try {
-      await updateDoc(doc(db, 'profiles', clientId), { subscription_status: newStatus, updated_at: new Date().toISOString() } as any);
+      const nowIso = new Date().toISOString();
+      await updateDoc(doc(db, 'profiles', clientId), {
+        subscription_status: newStatus,
+        next_renewal_at: newStatus === 'active'
+          ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+          : null,
+        updated_at: nowIso,
+      } as any);
       toast({
         title: 'Estado actualizado',
         description: `Cliente marcado como ${newStatus}`,
@@ -599,7 +606,15 @@ export default function SuperAdmin() {
   const updateClientPlan = async (clientId: string, planType: 'pro' | 'plus') => {
     setUpdatingClient(clientId);
     try {
-      await updateDoc(doc(db, 'profiles', clientId), { plan_type: planType, updated_at: new Date().toISOString() } as any);
+      const currentClient = clients.find((c) => c.id === clientId);
+      const isActive = String(currentClient?.subscription_status || '').toLowerCase() === 'active';
+      await updateDoc(doc(db, 'profiles', clientId), {
+        plan_type: planType,
+        ...(isActive
+          ? { next_renewal_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() }
+          : {}),
+        updated_at: new Date().toISOString(),
+      } as any);
       toast({ title: 'Plan actualizado', description: `Cliente actualizado a ${planType.toUpperCase()}` });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -614,6 +629,7 @@ export default function SuperAdmin() {
       await updateDoc(doc(db, 'profiles', clientId), {
         subscription_status: 'active',
         plan_type: planType,
+        next_renewal_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
         trial_ends_at: null,
         updated_at: new Date().toISOString(),
       } as any);
