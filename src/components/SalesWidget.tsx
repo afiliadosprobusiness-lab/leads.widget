@@ -32,7 +32,8 @@ export function SalesWidget() {
     const quickReplies = [
         t('demo_widget.quick_1'),
         t('demo_widget.quick_2'),
-        t('demo_widget.quick_3')
+        t('demo_widget.quick_3'),
+        t('demo_widget.quick_4')
     ];
 
     // Static ID for Demo
