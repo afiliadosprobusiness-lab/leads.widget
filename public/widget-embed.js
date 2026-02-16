@@ -20,6 +20,7 @@
     testimonials: [],
     hideBranding: false,
     brandingText: '',
+    brandingLink: '',
     projectId: 'leads-widget',
     apiKey: 'AIzaSyCXNFoeg1nrYcFHzU9TEKNnDPg1mHU3_tA'
   };
@@ -199,6 +200,7 @@
           widgetId: resolvedWidgetId,
           hideBranding: fields.hide_branding?.booleanValue === true,
           brandingText: fields.branding_text?.stringValue || '',
+          brandingLink: fields.branding_link?.stringValue || '',
           // AI Configuration (now stored in widget_configs for public access)
           ai_enabled: fields.ai_enabled?.booleanValue === true,
           ai_provider: fields.ai_provider?.stringValue || 'openai',
@@ -308,6 +310,26 @@
     const g = Math.max(0, Math.min(255, ((num >> 8) & 0x00FF) + amount));
     const b = Math.max(0, Math.min(255, (num & 0x0000FF) + amount));
     return '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
+  }
+
+  function toSafeBrandingLink(value) {
+    if (typeof value !== 'string') return '';
+    const normalized = value.trim();
+    if (!normalized) return '';
+    try {
+      const parsed = new URL(normalized);
+      if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return '';
+      return parsed.toString();
+    } catch (error) {
+      return '';
+    }
+  }
+
+  function getDefaultBrandingLink() {
+    if (config.clientId) {
+      return `https://leads-widget.vercel.app/crear-ahora?ref=${encodeURIComponent(config.clientId)}`;
+    }
+    return 'https://leads-widget.vercel.app/crear-ahora';
   }
 
   // Render the widget
@@ -512,6 +534,7 @@
       }
       #lw-exit-close:hover { color: #64748b; }
     `;
+    const brandingHref = toSafeBrandingLink(config.brandingLink) || getDefaultBrandingLink();
 
     const html = `
       <div id="lw-root">
@@ -595,7 +618,7 @@
             </form>
             ${!config.hideBranding ? `
             <div id="lw-footer" style="text-align:center; padding:8px 0; background:white; font-size:10px;">
-              <a href="https://leads-widget.vercel.app/crear-ahora?ref=${config.clientId}" target="_blank" style="color:${config.primaryColor}; text-decoration:none; font-weight:600; display:flex; align-items:center; justify-content:center; gap:4px;">
+              <a href="${brandingHref}" target="_blank" rel="noopener noreferrer" style="color:${config.primaryColor}; text-decoration:none; font-weight:600; display:flex; align-items:center; justify-content:center; gap:4px;">
                 <span style="background:rgba(0,0,0,0.05); padding:2px 6px; border-radius:4px; font-weight:800;">LW</span>
                 <span id="lw-viral-text">Tecnologia LeadWidget</span>
               </a>
@@ -996,7 +1019,7 @@
         'primaryColor', 'businessName', 'welcomeMessage',
         'whatsappDestination', 'quickReplies', 'teaserMessages',
         'chatPlaceholder', 'exitIntentTitle', 'exitIntentDescription', 'exitIntentCta',
-        'vibrationIntensity', 'testimonials', 'launcherIcon', 'hideBranding', 'brandingText'
+        'vibrationIntensity', 'testimonials', 'launcherIcon', 'hideBranding', 'brandingText', 'brandingLink'
       ];
 
       let hasVisualChanges = false;

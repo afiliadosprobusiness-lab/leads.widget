@@ -101,6 +101,7 @@ interface WidgetConfig {
   launcher_icon?: string;
   hide_branding?: boolean;
   branding_text?: string;
+  branding_link?: string;
   facebook_pixel_id?: string | null;
   tiktok_pixel_id?: string | null;
   google_tag_id?: string | null;
@@ -426,6 +427,7 @@ export default function Dashboard() {
     launcher_icon: '',
     hide_branding: false,
     branding_text: '',
+    branding_link: '',
     facebook_pixel_id: '',
     tiktok_pixel_id: '',
     google_tag_id: '',
@@ -540,6 +542,7 @@ export default function Dashboard() {
           ],
           hide_branding: false,
           branding_text: '',
+          branding_link: '',
           facebook_pixel_id: null,
           tiktok_pixel_id: null,
           google_tag_id: null,
@@ -584,6 +587,7 @@ export default function Dashboard() {
           launcher_icon: configData.launcher_icon || '',
           hide_branding: configData.hide_branding || false,
           branding_text: configData.branding_text || '',
+          branding_link: configData.branding_link || '',
           facebook_pixel_id: configData.facebook_pixel_id || '',
           tiktok_pixel_id: configData.tiktok_pixel_id || '',
           google_tag_id: configData.google_tag_id || '',
@@ -786,6 +790,7 @@ export default function Dashboard() {
         launcher_icon: formConfig.launcher_icon || '',
         hide_branding: Boolean(formConfig.hide_branding),
         branding_text: (formConfig.branding_text || '').trim(),
+        branding_link: (formConfig.branding_link || '').trim(),
         facebook_pixel_id: trackingConfig.facebookPixelId,
         tiktok_pixel_id: trackingConfig.tiktokPixelId,
         google_tag_id: trackingConfig.googleTagId,
@@ -1847,8 +1852,15 @@ export default function Dashboard() {
                             onChange={(e) => setFormConfig({ ...formConfig, branding_text: e.target.value })}
                             placeholder="Ejemplo: Potenciado por MiMarca"
                           />
+                          <Label className="text-xs text-emerald-900">Enlace del texto de marca (opcional)</Label>
+                          <Input
+                            type="url"
+                            value={formConfig.branding_link || ''}
+                            onChange={(e) => setFormConfig({ ...formConfig, branding_link: e.target.value })}
+                            placeholder="https://tu-agencia.com"
+                          />
                           <p className="text-[11px] text-emerald-700">
-                            Si lo dejas vacio, se mostrara el texto promocional por defecto.
+                            Si dejas el enlace vacio, el clic seguira enviando a la pagina de Lead Widget.
                           </p>
                         </div>
                       )}
