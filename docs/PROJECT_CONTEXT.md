@@ -48,3 +48,4 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 ## Configuracion relevante
 - Front usa rutas `/api/*` (rewrite a backend Cloud Run).
 - Firestore rules ampliadas para colecciones partner, manteniendo mutacion directa restringida a superadmin en cliente web.
+- Superadmin incorpora fallback de compatibilidad a Firestore para modulo de agencias cuando el backend aun no expone `/api/admin/partners*` en el entorno desplegado.

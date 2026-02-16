@@ -96,6 +96,11 @@ interface Agency {
   };
 }
 
+interface AdminApiError extends Error {
+  status?: number;
+  payload?: any;
+}
+
 const PROTECTED_SUPERADMINS = new Set([
   'afiliadosprobusiness@gmail.com',
   'superadmin@leadwidget.pe',
@@ -153,9 +158,66 @@ export default function SuperAdmin() {
 
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(payload?.error || `Request failed (${response.status})`);
+      const error = new Error(payload?.error || `Request failed (${response.status})`) as AdminApiError;
+      error.status = response.status;
+      error.payload = payload;
+      throw error;
     }
     return payload;
+  };
+
+  const isRouteMissing = (error: unknown) => {
+    const candidate = error as AdminApiError;
+    const msg = String(candidate?.message || '').toLowerCase();
+    return candidate?.status === 404 || msg.includes('(404)') || msg.includes('not found');
+  };
+
+  const loadAgenciesFromFirestore = async () => {
+    const [partnersSnap, profilesSnap, ledgerSnap, payoutsSnap] = await Promise.all([
+      getDocs(collection(db, 'partners')),
+      getDocs(collection(db, 'profiles')),
+      getDocs(collection(db, 'commission_ledger')),
+      getDocs(collection(db, 'partner_payouts')),
+    ]);
+
+    const profilesData = profilesSnap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+    const ledgerData = ledgerSnap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+    const payoutsData = payoutsSnap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+
+    const list: Agency[] = partnersSnap.docs.map((d) => {
+      const partner = d.data() as any;
+      const partnerClients = profilesData.filter((p) => p.partner_id === d.id);
+      const partnerLedger = ledgerData.filter((l) => l.partner_id === d.id);
+
+      const commissionsPending = partnerLedger
+        .filter((l) => String(l.status || '').toLowerCase() === 'pending')
+        .reduce((sum, l) => sum + Number(l.commission_amount || 0), 0);
+      const commissionsPaid = partnerLedger
+        .filter((l) => String(l.status || '').toLowerCase() === 'paid')
+        .reduce((sum, l) => sum + Number(l.commission_amount || 0), 0);
+      const pendingPayouts = payoutsData.filter(
+        (p) => p.partner_id === d.id && String(p.status || '').toLowerCase() !== 'paid',
+      ).length;
+
+      return {
+        id: d.id,
+        name: String(partner.name || partner.display_name || partner.email || `Agency ${d.id.slice(0, 6)}`),
+        code: String(partner.code || ''),
+        status: (String(partner.status || 'active').toLowerCase() === 'suspended' ? 'suspended' : 'active'),
+        commission_first_rate: Number(partner.commission_first_rate ?? 0.5),
+        commission_recurring_rate: Number(partner.commission_recurring_rate ?? 0.3),
+        kpis: {
+          clients_total: partnerClients.length,
+          clients_active: partnerClients.filter((c) => String(c.subscription_status || '').toLowerCase() === 'active').length,
+          commissions_pending: Math.round(commissionsPending * 100) / 100,
+          commissions_paid: Math.round(commissionsPaid * 100) / 100,
+          pending_payouts: pendingPayouts,
+        },
+      };
+    });
+
+    list.sort((a, b) => a.name.localeCompare(b.name));
+    return list;
   };
 
   const loadAgencies = async () => {
@@ -165,7 +227,16 @@ export default function SuperAdmin() {
       const payload = await adminApi('/api/admin/partners');
       setAgencies((payload.partners || []) as Agency[]);
     } catch (error: any) {
-      toast({ title: 'Error cargando agencias', description: error.message, variant: 'destructive' });
+      if (isRouteMissing(error)) {
+        const fallbackAgencies = await loadAgenciesFromFirestore();
+        setAgencies(fallbackAgencies);
+        toast({
+          title: 'Modo compatibilidad',
+          description: 'Se cargaron agencias desde Firestore porque el endpoint no está desplegado.',
+        });
+      } else {
+        toast({ title: 'Error cargando agencias', description: error.message, variant: 'destructive' });
+      }
     } finally {
       setAgenciesLoading(false);
     }
@@ -178,7 +249,14 @@ export default function SuperAdmin() {
       setSelectedAgencyId(agencyId);
       setSelectedAgencyClients(payload.clients || []);
     } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      if (isRouteMissing(error)) {
+        const q = query(collection(db, 'profiles'), where('partner_id', '==', agencyId));
+        const snap = await getDocs(q);
+        setSelectedAgencyId(agencyId);
+        setSelectedAgencyClients(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
+      } else {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      }
     }
   };
 
@@ -191,7 +269,16 @@ export default function SuperAdmin() {
       toast({ title: 'Agencia actualizada', description: `Estado: ${status}` });
       await loadAgencies();
     } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      if (isRouteMissing(error)) {
+        await updateDoc(doc(db, 'partners', agencyId), {
+          status,
+          updated_at: new Date().toISOString(),
+        });
+        toast({ title: 'Agencia actualizada', description: `Estado: ${status}` });
+        await loadAgencies();
+      } else {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      }
     }
   };
 
@@ -204,7 +291,49 @@ export default function SuperAdmin() {
       toast({ title: 'Payout aprobado', description: `Periodo ${agencyPayoutPeriod}` });
       await loadAgencies();
     } catch (error: any) {
-      toast({ title: 'Error creando payout', description: error.message, variant: 'destructive' });
+      if (isRouteMissing(error)) {
+        const ledgerQ = query(collection(db, 'commission_ledger'), where('partner_id', '==', agencyId));
+        const ledgerSnap = await getDocs(ledgerQ);
+        const eligible = ledgerSnap.docs.filter((d) => {
+          const data = d.data() as any;
+          const samePeriod = String(data.period || '') === agencyPayoutPeriod;
+          const status = String(data.status || '').toLowerCase();
+          const noPayoutAssigned = !data.payout_id;
+          return samePeriod && (status === 'pending' || status === 'approved') && noPayoutAssigned;
+        });
+
+        if (!eligible.length) {
+          toast({ title: 'Sin registros elegibles', description: 'No hay filas de comisión para este periodo.', variant: 'destructive' });
+          return;
+        }
+
+        const totalAmount = eligible.reduce((sum, d) => sum + Number((d.data() as any).commission_amount || 0), 0);
+        const nowIso = new Date().toISOString();
+        const payoutRef = doc(collection(db, 'partner_payouts'));
+
+        await setDoc(payoutRef, {
+          partner_id: agencyId,
+          period: agencyPayoutPeriod,
+          total_amount: Math.round(totalAmount * 100) / 100,
+          status: 'approved',
+          created_by: user?.uid || null,
+          created_at: nowIso,
+          updated_at: nowIso,
+        });
+
+        await Promise.all(
+          eligible.map((d) => updateDoc(doc(db, 'commission_ledger', d.id), {
+            status: 'approved',
+            payout_id: payoutRef.id,
+            updated_at: nowIso,
+          })),
+        );
+
+        toast({ title: 'Payout aprobado', description: `Periodo ${agencyPayoutPeriod}` });
+        await loadAgencies();
+      } else {
+        toast({ title: 'Error creando payout', description: error.message, variant: 'destructive' });
+      }
     }
   };
 
@@ -221,7 +350,42 @@ export default function SuperAdmin() {
       toast({ title: 'Payout marcado como pagado', description: `Payout ${nextPayout.id}` });
       await loadAgencies();
     } catch (error: any) {
-      toast({ title: 'Error marcando payout', description: error.message, variant: 'destructive' });
+      if (isRouteMissing(error)) {
+        const q = query(collection(db, 'partner_payouts'), where('partner_id', '==', agencyId));
+        const payoutsSnap = await getDocs(q);
+        const sorted = payoutsSnap.docs
+          .map((d) => ({ id: d.id, ...(d.data() as any) }))
+          .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+        const nextPayout = sorted.find((p) => String(p.status || '').toLowerCase() !== 'paid');
+
+        if (!nextPayout?.id) {
+          toast({ title: 'Sin payouts pendientes', description: 'No hay payouts por marcar como pagados.' });
+          return;
+        }
+
+        const nowIso = new Date().toISOString();
+        await updateDoc(doc(db, 'partner_payouts', nextPayout.id), {
+          status: 'paid',
+          paid_at: nowIso,
+          paid_by: user?.uid || null,
+          updated_at: nowIso,
+        });
+
+        const ledgerQ = query(collection(db, 'commission_ledger'), where('payout_id', '==', nextPayout.id));
+        const ledgerSnap = await getDocs(ledgerQ);
+        await Promise.all(
+          ledgerSnap.docs.map((d) => updateDoc(doc(db, 'commission_ledger', d.id), {
+            status: 'paid',
+            paid_at: nowIso,
+            updated_at: nowIso,
+          })),
+        );
+
+        toast({ title: 'Payout marcado como pagado', description: `Payout ${nextPayout.id}` });
+        await loadAgencies();
+      } else {
+        toast({ title: 'Error marcando payout', description: error.message, variant: 'destructive' });
+      }
     }
   };
 
