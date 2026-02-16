@@ -23,6 +23,12 @@ export default function Register() {
   const isPartnerRegistration = searchParams.get('account') === 'partner';
   const partnerCode = searchParams.get('partner_code');
   const inviteCode = searchParams.get('invite');
+  const hasClientReferralContext = Boolean(
+    partnerCode ||
+    searchParams.get('draft') ||
+    searchParams.get('plan') ||
+    searchParams.get('lead_email'),
+  );
 
   useEffect(() => {
     if (partnerCode) localStorage.setItem('leadwidget_partner_code', partnerCode);
@@ -35,13 +41,15 @@ export default function Register() {
     if (user && !authLoading) {
       if (isSuperAdmin || isSuperAdminEmail(user.email)) {
         navigate('/superadmin');
+      } else if (!isPartnerRegistration && hasClientReferralContext) {
+        return;
       } else if (role === 'partner_admin' || role === 'partner_staff') {
         navigate('/partner');
       } else {
         navigate('/app');
       }
     }
-  }, [user, authLoading, isSuperAdmin, role, navigate]);
+  }, [user, authLoading, isSuperAdmin, role, navigate, isPartnerRegistration, hasClientReferralContext]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

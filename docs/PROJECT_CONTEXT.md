@@ -41,9 +41,8 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
   - Ventas/Atribucion
   - Clientes
   - Branding
-  - Soporte
   - Comisiones
-  - Usuarios de agencia
+- Dashboard partner prioriza un flujo simple (sin soporte/tickets ni gestion de usuarios internos en UI).
 
 ## Configuracion relevante
 - Front usa rutas `/api/*` (rewrite a backend Cloud Run).
