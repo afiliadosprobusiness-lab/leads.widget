@@ -36,6 +36,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 ## Reglas UI/UX
 - Mobile-first.
 - Estados de carga/error/vacio en dashboards.
+- Landing `/partners` con bloques de confianza (testimonios en carrusel horizontal) y FAQ en acordeon accesible.
 - Dashboard partner incluye secciones:
   - Ventas/Atribucion
   - Clientes
