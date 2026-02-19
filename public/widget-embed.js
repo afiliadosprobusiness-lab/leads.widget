@@ -818,16 +818,27 @@
         --mx: 50%;
         --my: 50%;
         position: relative;
-        background: color-mix(in srgb, var(--lw-surface) 92%, white 8%);
-        border-bottom: 1px solid var(--lw-border);
+        border: 1px solid transparent;
+        border-radius: 12px;
+        margin: 8px 10px 0;
+        background:
+          linear-gradient(color-mix(in srgb, var(--lw-surface) 94%, white 6%), color-mix(in srgb, var(--lw-surface) 90%, white 10%)) padding-box,
+          linear-gradient(120deg, #f58529, #dd2a7b, #8134af, #515bd4, #feda77, #f58529) border-box;
+        background-size: 100% 100%, 220% 220%;
+        animation: lw-instagramBorderShift 11s linear infinite;
         padding: 9px 12px;
         display: none;
         overflow: hidden;
       }
+      @keyframes lw-instagramBorderShift {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+      }
       #lw-testimonial-bar::before {
         content: "";
         position: absolute;
-        inset: -32%;
+        inset: -26%;
         background:
           radial-gradient(circle at var(--mx) var(--my), rgba(255,255,255,0.48) 0%, rgba(255,255,255,0.02) 44%),
           conic-gradient(from 0deg, rgba(99,102,241,0), rgba(56,189,248,0.22), rgba(16,185,129,0.2), rgba(99,102,241,0));

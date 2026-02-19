@@ -151,6 +151,41 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300 selection:bg-primary/20">
+      <style>{`
+        @keyframes igBorderShift {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        @keyframes igShineSweep {
+          0% { transform: translateX(-140%) skewX(-20deg); opacity: 0; }
+          20% { opacity: 0.4; }
+          60% { opacity: 0.16; }
+          100% { transform: translateX(240%) skewX(-20deg); opacity: 0; }
+        }
+        .ig-testimonial-card {
+          position: relative;
+          overflow: hidden;
+          border: 1px solid transparent;
+          background-image:
+            linear-gradient(hsl(var(--card) / 0.9), hsl(var(--card) / 0.84)),
+            linear-gradient(115deg, #f58529, #dd2a7b, #8134af, #515bd4, #feda77, #f58529);
+          background-origin: border-box;
+          background-clip: padding-box, border-box;
+          background-size: 100% 100%, 220% 220%;
+          animation: igBorderShift 10s linear infinite;
+        }
+        .ig-testimonial-card::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          left: -120%;
+          width: 42%;
+          pointer-events: none;
+          background: linear-gradient(110deg, transparent, rgba(255,255,255,0.2), transparent);
+          animation: igShineSweep 6.2s ease-in-out infinite;
+        }
+      `}</style>
 
       {/* Background Mesh/Grid Effect */}
       <div className="fixed inset-0 z-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05]"
@@ -402,7 +437,7 @@ export default function Landing() {
                       key={`${name}-${idx}`}
                       data-testimonial-card="true"
                       aria-hidden={isDuplicate}
-                      className="min-w-[86%] sm:min-w-[70%] lg:min-w-[42%] xl:min-w-[32%] snap-start rounded-3xl border border-border/60 bg-card/70 backdrop-blur-sm p-6 sm:p-7 shadow-xl shadow-slate-200/20 dark:shadow-black/30 transition-transform duration-300 hover:-translate-y-1"
+                      className="ig-testimonial-card min-w-[86%] sm:min-w-[70%] lg:min-w-[42%] xl:min-w-[32%] snap-start rounded-3xl backdrop-blur-sm p-6 sm:p-7 shadow-xl shadow-slate-200/20 dark:shadow-black/30 transition-transform duration-300 hover:-translate-y-1"
                     >
                       <div className="flex items-start justify-between gap-3 mb-5">
                         <div className="flex items-center gap-1 text-amber-500" aria-label="5 estrellas">

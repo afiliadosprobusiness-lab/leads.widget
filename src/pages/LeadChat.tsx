@@ -1277,6 +1277,21 @@ export default function LeadChat() {
       </div>
     </>
   );
+  const testimonialInstagramStyle = isLightMode
+    ? {
+        backgroundImage:
+          "linear-gradient(rgba(255,255,255,0.92), rgba(248,250,252,0.88)), linear-gradient(120deg, #f58529, #dd2a7b, #8134af, #515bd4, #feda77, #f58529)",
+        backgroundOrigin: "border-box",
+        backgroundClip: "padding-box, border-box",
+        backgroundSize: "100% 100%, 220% 220%",
+      }
+    : {
+        backgroundImage:
+          "linear-gradient(rgba(2,6,23,0.9), rgba(2,6,23,0.86)), linear-gradient(120deg, #f58529, #dd2a7b, #8134af, #515bd4, #feda77, #f58529)",
+        backgroundOrigin: "border-box",
+        backgroundClip: "padding-box, border-box",
+        backgroundSize: "100% 100%, 220% 220%",
+      };
 
   return (
     <main className={`relative min-h-screen overflow-hidden ${isLightMode ? "bg-[#eef3fb] text-slate-900" : "bg-[#050b15] text-slate-100"}`}>
@@ -1306,10 +1321,10 @@ export default function LeadChat() {
               </div>
 
               <div className={`px-4 pb-3 pt-3 sm:px-7 ${isLightMode ? "border-b border-slate-200 bg-white/80" : "border-b border-white/10 bg-white/[0.03]"}`}>
-                <div className="flex flex-col items-center gap-2">
+                <div className="flex flex-col items-center gap-2 lg:flex-row lg:justify-center lg:gap-3">
                   {statusActionRow}
                   {showLiveActivityStrip ? (
-                    <div className={`w-full max-w-[320px] rounded-xl border px-3 py-2 text-xs ${
+                    <div className={`w-full max-w-[320px] rounded-xl border px-3 py-2 text-xs lg:w-auto ${
                       isLightMode
                         ? "border-sky-200 bg-white/95 text-slate-700"
                         : "border-cyan-400/30 bg-slate-950/85 text-slate-100"
@@ -1330,9 +1345,10 @@ export default function LeadChat() {
                   <div
                     className={`relative overflow-hidden rounded-xl border px-3 py-2 text-xs transition-all duration-500 ${
                       isLightMode
-                        ? "border-sky-200 bg-white/90 text-slate-700"
-                        : "border-cyan-400/30 bg-slate-950/85 text-slate-100"
+                        ? "border-transparent text-slate-700"
+                        : "border-transparent text-slate-100"
                     } ${testimonialTransition ? (isLightMode ? "shadow-[0_0_35px_-18px_rgba(14,165,233,0.95)]" : "shadow-[0_0_35px_-16px_rgba(34,211,238,0.9)]") : ""}`}
+                    style={testimonialInstagramStyle}
                   >
                     <div
                       className={`pointer-events-none absolute -inset-16 transition-opacity duration-500 ${testimonialTransition ? "opacity-100" : "opacity-0"}`}

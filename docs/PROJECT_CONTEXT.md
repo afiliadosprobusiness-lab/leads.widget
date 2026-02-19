@@ -64,6 +64,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Landing `/partners` con bloques de confianza (testimonios en carrusel horizontal) y FAQ en acordeon accesible.
 - Landing principal `/` ahora comunica dos modos de producto: widget embebible y Lead Chat como pagina publica sin web.
 - Testimonios de landing principal usan scroll horizontal con autoavance (desktop/mobile), controles prev/next y avatar por caso para reforzar prueba social.
+- Testimonios de landing principal, widget embebido y Lead Chat usan efecto visual tipo Instagram (anillo degradado + glow de transicion) para enfatizar prueba social sin bloquear lectura.
 - Lead Chat (`/lead-chat/:identity`) usa layout inmersivo centrado en el chat (alto casi completo en desktop/mobile), deja espacio inferior para avisos dinamicos y mantiene consentimiento/handoff inline dentro del flujo principal del chat (sin panel lateral de opciones).
 - Lead Chat desktop prioriza UX centrada (ancho contenido acotado), estilo visual premium tipo glass y tarjeta de testimonios con efecto tornasol dinamico al hover.
 - Composer de Lead Chat incluye selector rapido de emojis, entrada por voz (speech-to-text) y control sutil de tema claro/oscuro para mejorar retencion de uso.
