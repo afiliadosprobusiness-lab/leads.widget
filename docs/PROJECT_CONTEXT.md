@@ -72,6 +72,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Lead Chat desktop prioriza UX centrada (ancho contenido acotado), estilo visual premium tipo glass y tarjeta de testimonios con efecto tornasol dinamico al hover.
 - Composer de Lead Chat incluye selector rapido de emojis, entrada por voz (speech-to-text) y control sutil de tema claro/oscuro para mejorar retencion de uso.
 - En Lead Chat desktop, el toggle claro/oscuro se prioriza en el header derecho con realce visual suave para ubicacion rapida.
+- Lead Chat incluye selector manual de idioma `ES/EN` en el header (desktop/mobile); cuando el usuario lo elige, las respuestas se fuerzan en ese idioma durante toda la interaccion.
 - Lead Chat agrega microcopy de reduccion de friccion debajo del input (`Demo real sin costo`, `Llamada en menos de 2 minutos`, `Sin tarjeta de credito`) y una barra superior de prueba social con pulsacion leve y mensajes dinamicos de volumen (cifras creibles).
 - Quick replies de Lead Chat y `SalesWidget` usan una sola fila con scroll horizontal suave (sin wrap) para mantener CTA compactos en todas las resoluciones.
 - Lead Chat consume `language` del widget config para defaults EN/ES (mensaje inicial, quick replies, consentimiento, estados y copys de conversion).

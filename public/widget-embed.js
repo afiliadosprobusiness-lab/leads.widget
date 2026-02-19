@@ -144,6 +144,15 @@
       .trim();
   }
 
+  function escapeHtml(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   function detectMessageLocale(value, fallback = 'en') {
     const raw = String(value || '');
     const normalized = normalizeText(raw);
@@ -924,11 +933,41 @@
       }
       .lw-testimonial-meta {
         margin-top: 2px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
         font-size: 10px;
         color: var(--lw-muted);
-        white-space: nowrap;
+      }
+      .lw-testimonial-author {
+        min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .lw-meta-sep {
+        opacity: 0.55;
+      }
+      .lw-star-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 1px;
+        flex-shrink: 0;
+        padding: 1px 6px;
+        border-radius: 999px;
+        background:
+          linear-gradient(180deg, rgba(255, 244, 170, 0.52), rgba(246, 190, 44, 0.22)),
+          rgba(15, 23, 42, 0.14);
+        border: 1px solid rgba(255, 214, 90, 0.48);
+        box-shadow:
+          0 0 0 1px rgba(255, 243, 181, 0.18) inset,
+          0 4px 12px rgba(255, 183, 28, 0.22);
+      }
+      .lw-star-emoji {
+        font-size: 11px;
+        line-height: 1;
+        filter: drop-shadow(0 0 4px rgba(255, 200, 55, 0.72));
       }
       .lw-fade-in { animation: lw-fadeInT 0.45s ease-in-out; }
       @keyframes lw-fadeInT { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: translateY(0); } }
@@ -1764,9 +1803,16 @@
         }
 
         if (testimonialMetaEl) {
-          const stars = '★'.repeat(Math.max(1, Math.min(5, Number(current.stars || 5))));
+          const starsCount = Math.max(1, Math.min(5, Number(current.stars || 5)));
           const author = (current.name || '').trim();
-          testimonialMetaEl.textContent = author ? `${author} • ${stars}` : stars;
+          const starsMarkup = new Array(starsCount)
+            .fill('<span class="lw-star-emoji" aria-hidden="true">\u2B50</span>')
+            .join('');
+          const starsBadge = `<span class="lw-star-badge" aria-label="${starsCount} stars">${starsMarkup}</span>`;
+
+          testimonialMetaEl.innerHTML = author
+            ? `<span class="lw-testimonial-author">${escapeHtml(author)}</span><span class="lw-meta-sep">\u2022</span>${starsBadge}`
+            : starsBadge;
         }
 
         if (testimonialBar) {

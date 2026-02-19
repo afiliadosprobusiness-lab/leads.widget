@@ -192,6 +192,11 @@ function detectMessageLocale(value: string, fallback: WidgetLocale): WidgetLocal
   return fallback;
 }
 
+function buildWhatsAppStars(value: number) {
+  const total = Math.max(1, Math.min(5, Number(value || 5)));
+  return Array.from({ length: total }, () => "\u2B50").join("");
+}
+
 export function SalesWidget() {
   const inferredLocale: WidgetLocale = "en";
 
@@ -227,6 +232,7 @@ export function SalesWidget() {
   const handleSendFromVoiceRef = useRef<(value: string) => void>(() => {});
 
   const testimonial = copy.testimonials[activeTestimonialIndex % copy.testimonials.length];
+  const testimonialStars = buildWhatsAppStars(testimonial.stars);
 
   const closePaletteAndEmoji = () => {
     setPaletteOpen(false);
@@ -670,9 +676,17 @@ export function SalesWidget() {
           <div className="relative min-w-0">
             <p className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${isLightMode ? "text-sky-700" : "text-cyan-200"}`}>{copy.testimonialLabel}</p>
             <p className="mt-0.5 truncate text-xs">"{testimonial.text}"</p>
-            <p className={`mt-0.5 truncate text-[11px] ${isLightMode ? "text-slate-500" : "text-slate-300"}`}>
-              {testimonial.name} • {"\u2605".repeat(testimonial.stars)}
-            </p>
+            <div className={`mt-1 flex min-w-0 items-center gap-1.5 text-[11px] ${isLightMode ? "text-slate-500" : "text-slate-300"}`}>
+              <span className="truncate">{testimonial.name}</span>
+              <span aria-hidden="true" className="opacity-60">•</span>
+              <span
+                className="inline-flex shrink-0 rounded-full border border-amber-300/70 bg-gradient-to-b from-amber-100/80 to-amber-300/25 px-1.5 py-0.5 text-[10px] leading-none shadow-[0_0_10px_rgba(251,191,36,0.42)]"
+                style={{ textShadow: "0 0 6px rgba(251,191,36,0.75)" }}
+                aria-label={`${testimonial.stars} stars`}
+              >
+                {testimonialStars}
+              </span>
+            </div>
           </div>
         </div>
 

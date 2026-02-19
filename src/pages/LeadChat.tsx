@@ -720,6 +720,7 @@ export default function LeadChat() {
   const [exitIntentShown, setExitIntentShown] = useState(false);
   const [themeMode, setThemeMode] = useState<"dark" | "light">("dark");
   const [locale, setLocale] = useState<ChatLocale>("en");
+  const [languageLocked, setLanguageLocked] = useState(false);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [speechListening, setSpeechListening] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -958,7 +959,9 @@ export default function LeadChat() {
     return liveActivityMessages[activeLiveActivityIndex % liveActivityMessages.length] || "";
   }, [activeLiveActivityIndex, liveActivityMessages]);
   const testimonialStripText = activeTestimonial?.text || copy.offerDescription;
-  const testimonialStripMeta = `${activeTestimonial?.name || copy.defaultBusinessName} • ${"★".repeat(Math.max(1, Math.min(5, Number(activeTestimonial?.stars || 5))))}`;
+  const testimonialStripAuthor = activeTestimonial?.name || copy.defaultBusinessName;
+  const testimonialStarsCount = Math.max(1, Math.min(5, Number(activeTestimonial?.stars || 5)));
+  const testimonialStripStars = Array.from({ length: testimonialStarsCount }, () => "\u2B50").join("");
   const hasTestimonialStrip = Boolean(activeTestimonial);
   const presenceMessages = useMemo(() => {
     const source = Array.isArray(copy.presenceNowMessages) ? copy.presenceNowMessages.filter(Boolean) : [];
@@ -1138,14 +1141,24 @@ export default function LeadChat() {
     }, 150);
   };
 
+  const handleLanguageChange = (nextLocale: ChatLocale) => {
+    setLocale(nextLocale);
+    setLanguageLocked(true);
+
+    const hasUserMessages = messages.some((msg) => msg.role === "user");
+    if (!hasUserMessages) {
+      setMessages([{ role: "assistant", content: withBotEmoji(SALES_COPY[nextLocale].initialMessage) }]);
+    }
+  };
+
   const handleSend = async (overrideText?: string) => {
     if (!config?.widgetId || sending || assistantTyping) return;
     const text = (overrideText ?? input).trim();
     if (!text) return;
 
     const detectedLocale = detectMessageLocale(text, locale);
-    const responseLocale = detectedLocale === "es" ? "es" : locale;
-    if (responseLocale === "es" && locale !== "es") {
+    const responseLocale = languageLocked ? locale : (detectedLocale === "es" ? "es" : locale);
+    if (!languageLocked && responseLocale === "es" && locale !== "es") {
       setLocale("es");
     }
 
@@ -1376,19 +1389,53 @@ export default function LeadChat() {
                     {config.leadChatSubheadline || copy.step2Description}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setThemeMode((prev) => (prev === "dark" ? "light" : "dark"))}
-                  className={`ml-auto inline-flex h-10 items-center gap-2 rounded-full border px-3 text-xs font-semibold uppercase tracking-[0.12em] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                    isLightMode
-                      ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100 lg:shadow-[0_0_0_1px_rgba(56,189,248,0.35)] lg:hover:shadow-[0_0_0_2px_rgba(56,189,248,0.5)]"
-                      : "border-white/15 bg-white/5 text-slate-200 hover:bg-white/10 lg:shadow-[0_0_0_1px_rgba(34,211,238,0.35)] lg:hover:shadow-[0_0_0_2px_rgba(34,211,238,0.5)]"
-                  }`}
-                  aria-label={isLightMode ? copy.themeAriaDark : copy.themeAriaLight}
-                >
-                  {isLightMode ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-                  <span className="hidden lg:inline">{themeDesktopLabel}</span>
-                </button>
+                <div className="ml-auto inline-flex flex-wrap items-center justify-end gap-2">
+                  <div
+                    className={`inline-flex h-10 items-center gap-1 rounded-full border p-1 ${
+                      isLightMode ? "border-slate-300 bg-white" : "border-white/15 bg-white/5"
+                    }`}
+                    role="group"
+                    aria-label={locale === "es" ? "Selector de idioma" : "Language selector"}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleLanguageChange("es")}
+                      className={`inline-flex h-8 min-w-[38px] items-center justify-center rounded-full px-2 text-[11px] font-semibold tracking-[0.08em] transition focus-visible:outline-none focus-visible:ring-2 ${
+                        locale === "es"
+                          ? (isLightMode ? "bg-sky-600 text-white focus-visible:ring-sky-300" : "bg-cyan-400/80 text-slate-950 focus-visible:ring-cyan-300")
+                          : (isLightMode ? "text-slate-600 hover:bg-slate-100 focus-visible:ring-sky-300" : "text-slate-300 hover:bg-white/10 focus-visible:ring-cyan-300")
+                      }`}
+                      aria-pressed={locale === "es"}
+                    >
+                      ES
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleLanguageChange("en")}
+                      className={`inline-flex h-8 min-w-[38px] items-center justify-center rounded-full px-2 text-[11px] font-semibold tracking-[0.08em] transition focus-visible:outline-none focus-visible:ring-2 ${
+                        locale === "en"
+                          ? (isLightMode ? "bg-sky-600 text-white focus-visible:ring-sky-300" : "bg-cyan-400/80 text-slate-950 focus-visible:ring-cyan-300")
+                          : (isLightMode ? "text-slate-600 hover:bg-slate-100 focus-visible:ring-sky-300" : "text-slate-300 hover:bg-white/10 focus-visible:ring-cyan-300")
+                      }`}
+                      aria-pressed={locale === "en"}
+                    >
+                      EN
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setThemeMode((prev) => (prev === "dark" ? "light" : "dark"))}
+                    className={`inline-flex h-10 items-center gap-2 rounded-full border px-3 text-xs font-semibold uppercase tracking-[0.12em] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                      isLightMode
+                        ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100 lg:shadow-[0_0_0_1px_rgba(56,189,248,0.35)] lg:hover:shadow-[0_0_0_2px_rgba(56,189,248,0.5)]"
+                        : "border-white/15 bg-white/5 text-slate-200 hover:bg-white/10 lg:shadow-[0_0_0_1px_rgba(34,211,238,0.35)] lg:hover:shadow-[0_0_0_2px_rgba(34,211,238,0.5)]"
+                    }`}
+                    aria-label={isLightMode ? copy.themeAriaDark : copy.themeAriaLight}
+                  >
+                    {isLightMode ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+                    <span className="hidden lg:inline">{themeDesktopLabel}</span>
+                  </button>
+                </div>
               </div>
 
               <div className={`px-4 pb-3 pt-3 sm:px-7 ${isLightMode ? "border-b border-slate-200 bg-white/80" : "border-b border-white/10 bg-white/[0.03]"}`}>
@@ -1438,9 +1485,17 @@ export default function LeadChat() {
                       <p className="mt-0.5 truncate text-xs">
                         "{testimonialStripText}"
                       </p>
-                      <p className={`mt-0.5 truncate text-[11px] ${isLightMode ? "text-slate-500" : "text-slate-300"}`}>
-                        {testimonialStripMeta}
-                      </p>
+                      <div className={`mt-1 flex min-w-0 items-center gap-1.5 text-[11px] ${isLightMode ? "text-slate-500" : "text-slate-300"}`}>
+                        <span className="truncate">{testimonialStripAuthor}</span>
+                        <span aria-hidden="true" className="opacity-60">|</span>
+                        <span
+                          className="inline-flex shrink-0 rounded-full border border-amber-300/70 bg-gradient-to-b from-amber-100/80 to-amber-300/25 px-1.5 py-0.5 text-[10px] leading-none shadow-[0_0_10px_rgba(251,191,36,0.42)]"
+                          style={{ textShadow: "0 0 6px rgba(251,191,36,0.75)" }}
+                          aria-label={`${testimonialStarsCount} stars`}
+                        >
+                          {testimonialStripStars}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
