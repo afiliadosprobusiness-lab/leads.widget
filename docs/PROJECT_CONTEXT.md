@@ -73,8 +73,8 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Widget embebido (`public/widget-embed.js`) replica mejoras de retencion: quick replies en una sola fila con scroll horizontal (mobile-first), selector de emojis, entrada por voz y toggle sutil claro/oscuro.
 - Widget embebido usa ingles por defecto y permite cambiar en 1 clic a espanol desde el header, aplicando textos UI y testimonios rotativos.
 - Widget embebido actualiza defaults comerciales EN/ES (mensaje de apertura y quick replies) al enfoque de llamada en menos de 2 minutos.
-- Widget embebido muestra una barra de testimonios en la parte baja del panel (entre mensajes e input) con glow de transicion en cada cambio para reforzar prueba social sin interrumpir el chat.
-- Lead Chat reemplaza el toast de `Live activity` por una barra inferior de testimonios con glow de transicion sincronizado al rotador de testimonios.
+- Widget embebido muestra una barra de testimonios en la parte superior del panel (debajo del header) con glow de transicion en cada cambio para reforzar prueba social sin interrumpir el chat.
+- Lead Chat reemplaza el toast de `Live activity` por una barra superior de testimonios (debajo del header) con glow de transicion sincronizado al rotador de testimonios.
 - El widget comercial (`SalesWidget`) tambien esta activo en `/partners`.
 - Dashboard partner incluye secciones:
   - Ventas/Atribucion

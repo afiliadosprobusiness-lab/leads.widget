@@ -931,6 +931,37 @@ export default function LeadChat() {
                 </div>
               </div>
 
+              {activeTestimonial ? (
+                <div className={`px-4 pb-3 pt-3 sm:px-7 ${isLightMode ? "border-b border-slate-200 bg-white/80" : "border-b border-white/10 bg-white/[0.03]"}`}>
+                  <div
+                    className={`relative overflow-hidden rounded-xl border px-3 py-2 text-xs transition-all duration-500 ${
+                      isLightMode
+                        ? "border-sky-200 bg-white/90 text-slate-700"
+                        : "border-cyan-400/30 bg-slate-950/85 text-slate-100"
+                    } ${testimonialTransition ? (isLightMode ? "shadow-[0_0_35px_-18px_rgba(14,165,233,0.95)]" : "shadow-[0_0_35px_-16px_rgba(34,211,238,0.9)]") : ""}`}
+                  >
+                    <div
+                      className={`pointer-events-none absolute -inset-16 transition-opacity duration-500 ${testimonialTransition ? "opacity-100" : "opacity-0"}`}
+                      style={{
+                        background:
+                          "radial-gradient(circle at 50% 50%, rgba(125,211,252,0.42) 0%, rgba(52,211,153,0.25) 35%, rgba(2,6,23,0) 72%)",
+                      }}
+                    />
+                    <div className="relative min-w-0">
+                      <p className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${isLightMode ? "text-sky-700" : "text-cyan-200"}`}>
+                        {copy.testimonialLabel}
+                      </p>
+                      <p className="mt-0.5 truncate text-xs">
+                        "{activeTestimonial.text || copy.offerDescription}"
+                      </p>
+                      <p className={`mt-0.5 truncate text-[11px] ${isLightMode ? "text-slate-500" : "text-slate-300"}`}>
+                        {(activeTestimonial.name || copy.defaultBusinessName)} • {"★".repeat(Math.max(1, Math.min(5, Number(activeTestimonial.stars || 5))))}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
               <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4 sm:px-7">
                 {messages.map((msg, index) => (
                   <div key={`${msg.role}-${index}`} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
@@ -1087,35 +1118,6 @@ export default function LeadChat() {
                   >
                     {activeTeaser}
                   </button>
-                ) : null}
-
-                {activeTestimonial ? (
-                  <div
-                    className={`relative overflow-hidden rounded-xl border px-3 py-2 text-xs transition-all duration-500 ${
-                      isLightMode
-                        ? "border-sky-200 bg-white/90 text-slate-700"
-                        : "border-cyan-400/30 bg-slate-950/85 text-slate-100"
-                    } ${testimonialTransition ? (isLightMode ? "shadow-[0_0_35px_-18px_rgba(14,165,233,0.95)]" : "shadow-[0_0_35px_-16px_rgba(34,211,238,0.9)]") : ""}`}
-                  >
-                    <div
-                      className={`pointer-events-none absolute -inset-16 transition-opacity duration-500 ${testimonialTransition ? "opacity-100" : "opacity-0"}`}
-                      style={{
-                        background:
-                          "radial-gradient(circle at 50% 50%, rgba(125,211,252,0.42) 0%, rgba(52,211,153,0.25) 35%, rgba(2,6,23,0) 72%)",
-                      }}
-                    />
-                    <div className="relative min-w-0">
-                      <p className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${isLightMode ? "text-sky-700" : "text-cyan-200"}`}>
-                        {copy.testimonialLabel}
-                      </p>
-                      <p className="mt-0.5 truncate text-xs">
-                        "{activeTestimonial.text || copy.offerDescription}"
-                      </p>
-                      <p className={`mt-0.5 truncate text-[11px] ${isLightMode ? "text-slate-500" : "text-slate-300"}`}>
-                        {(activeTestimonial.name || copy.defaultBusinessName)} • {"★".repeat(Math.max(1, Math.min(5, Number(activeTestimonial.stars || 5))))}
-                      </p>
-                    </div>
-                  </div>
                 ) : null}
 
                 {quickReplies.length > 0 && messages.length < 7 && (

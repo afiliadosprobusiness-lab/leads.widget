@@ -819,7 +819,6 @@
         --my: 50%;
         position: relative;
         background: color-mix(in srgb, var(--lw-surface) 92%, white 8%);
-        border-top: 1px solid var(--lw-border);
         border-bottom: 1px solid var(--lw-border);
         padding: 9px 12px;
         display: none;
@@ -1217,7 +1216,6 @@
             </div>
           </div>
 
-          <div id="lw-messages"></div>
           <div id="lw-testimonial-bar" aria-live="polite">
             <div class="lw-testimonial-content">
               <span id="lw-testimonial-label" class="lw-testimonial-label">${getText('testimonialLabel')}</span>
@@ -1225,6 +1223,7 @@
               <div id="lw-testimonial-meta" class="lw-testimonial-meta"></div>
             </div>
           </div>
+          <div id="lw-messages"></div>
 
           <div id="lw-input-area">
             <div id="lw-quick-replies"></div>
