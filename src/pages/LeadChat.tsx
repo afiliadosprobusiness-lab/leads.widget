@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 type ChatMessage = {
+  id?: string;
   role: "user" | "assistant" | "system";
   content: string;
   audioUrl?: string;
@@ -117,6 +118,7 @@ const SALES_COPY: Record<
     listeningNow: string;
     themeAriaDark: string;
     themeAriaLight: string;
+    liveDemosNow: string;
   }
 > = {
   es: {
@@ -154,7 +156,7 @@ const SALES_COPY: Record<
     phonePlaceholder: "Ej: 14155552671",
     consentCheckboxLabel: "Acepto recibir una llamada automatica de demostracion.",
     privacyNote: "Solo te contactaremos para esta solicitud. No compartimos tu informacion fuera de este proceso.",
-    trustBullets: ["Demo real sin costo", "Llamada en menos de 2 minutos", "Sin tarjeta de credito"],
+    trustBullets: ["\u26A1 Demo gratis", "\u23F1\uFE0F <2 min", "\uD83D\uDD12 Sin tarjeta"],
     submitHandoff: "Activar llamada ahora",
     connectingHandoff: "Conectando con IACloser...",
     offerTag: "Oferta activa",
@@ -181,6 +183,7 @@ const SALES_COPY: Record<
     listeningNow: "Escuchando... habla ahora y convertimos el audio en texto.",
     themeAriaDark: "Cambiar a modo oscuro",
     themeAriaLight: "Cambiar a modo claro",
+    liveDemosNow: "Demos en vivo ejecutandose ahora",
   },
   en: {
     loading: "Loading Lead Chat...",
@@ -217,7 +220,7 @@ const SALES_COPY: Record<
     phonePlaceholder: "Ex: 14155552671",
     consentCheckboxLabel: "I agree to receive an automated demo call.",
     privacyNote: "We only contact you for this request. We do not share your data outside this process.",
-    trustBullets: ["Real demo at no cost", "Call in under 2 minutes", "No credit card required"],
+    trustBullets: ["\u26A1 Free demo", "\u23F1\uFE0F <2 min", "\uD83D\uDD12 No card required"],
     submitHandoff: "Start call now",
     connectingHandoff: "Connecting with IACloser...",
     offerTag: "Live offer",
@@ -244,6 +247,7 @@ const SALES_COPY: Record<
     listeningNow: "Listening... speak now and we convert audio to text.",
     themeAriaDark: "Switch to dark mode",
     themeAriaLight: "Switch to light mode",
+    liveDemosNow: "Live demos running now",
   },
 };
 
@@ -690,6 +694,13 @@ function parseIACCloserSeed(responseText: string) {
   return { isReady: true, cleanText, seed };
 }
 
+function getRedirectCountdownText(locale: ChatLocale, seconds: number) {
+  if (seconds <= 0) {
+    return locale === "es" ? "Redireccionando..." : "Redirecting...";
+  }
+  return locale === "es" ? `Redireccionando en ${seconds}...` : `Redirecting in ${seconds}...`;
+}
+
 export default function LeadChat() {
   const { identity = "" } = useParams();
   const [loadingConfig, setLoadingConfig] = useState(true);
@@ -730,7 +741,62 @@ export default function LeadChat() {
   const voiceDraftRef = useRef("");
   const pendingVoiceAutoSendRef = useRef(false);
   const handleSendFromVoiceRef = useRef<(value: string) => void>(() => {});
+  const redirectCountdownIntervalRef = useRef<number | null>(null);
+  const redirectCountdownTimeoutRef = useRef<number | null>(null);
   const copy = useMemo(() => SALES_COPY[locale], [locale]);
+
+  const clearRedirectCountdown = () => {
+    if (redirectCountdownIntervalRef.current !== null) {
+      window.clearInterval(redirectCountdownIntervalRef.current);
+      redirectCountdownIntervalRef.current = null;
+    }
+    if (redirectCountdownTimeoutRef.current !== null) {
+      window.clearTimeout(redirectCountdownTimeoutRef.current);
+      redirectCountdownTimeoutRef.current = null;
+    }
+  };
+
+  const startRedirectCountdown = (targetUrl: string, activeLocale: ChatLocale) => {
+    const redirectTarget = String(targetUrl || "").trim();
+    if (!redirectTarget) return;
+
+    clearRedirectCountdown();
+    let secondsLeft = 3;
+    const countdownMessageId = `redirect-countdown-${Date.now()}`;
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: countdownMessageId,
+        role: "system",
+        content: getRedirectCountdownText(activeLocale, secondsLeft),
+      },
+    ]);
+
+    redirectCountdownIntervalRef.current = window.setInterval(() => {
+      secondsLeft -= 1;
+      setMessages((prev) =>
+        prev.map((message) =>
+          message.id === countdownMessageId
+            ? { ...message, content: getRedirectCountdownText(activeLocale, secondsLeft) }
+            : message,
+        ),
+      );
+
+      if (secondsLeft <= 0) {
+        clearRedirectCountdown();
+        redirectCountdownTimeoutRef.current = window.setTimeout(() => {
+          window.location.href = redirectTarget;
+        }, 320);
+      }
+    }, 1000);
+  };
+
+  useEffect(() => {
+    return () => {
+      clearRedirectCountdown();
+    };
+  }, []);
 
   const appendAssistantWithTypewriter = (text: string) =>
     new Promise<void>((resolve) => {
@@ -1201,6 +1267,62 @@ export default function LeadChat() {
         if (parsed.seed?.name && !leadName) setLeadName(parsed.seed.name);
         if (parsed.seed?.phone && !leadPhone) setLeadPhone(sanitizePhone(parsed.seed.phone));
         if (parsed.seed?.collected_info) setCollectedInfoSeed(parsed.seed.collected_info);
+
+        const autoName = String(parsed.seed?.name || leadName || "").trim();
+        const autoPhone = sanitizePhone(String(parsed.seed?.phone || leadPhone || ""));
+        const canAutoHandoff = autoName.length > 0 && autoPhone.length >= 8;
+
+        if (canAutoHandoff) {
+          try {
+            const autoResponse = await fetch("/api/icloser/handoff", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                widgetId: config.widgetId,
+                name: autoName,
+                phone: autoPhone,
+                collectedInfo: parsed.seed?.collected_info?.trim() || buildCollectedInfo(),
+                history: conversationHistory,
+                consent: {
+                  accepted: true,
+                  explicitResponse: responseLocale === "en" ? "YES" : "SI",
+                  textVersion: config.consentTextVersion || "v1",
+                  text: config.consentText || "",
+                },
+              }),
+            });
+            const autoPayload = await autoResponse.json();
+            if (!autoResponse.ok || autoPayload?.success !== true) {
+              throw new Error(autoPayload?.error || copy.connectionIssue);
+            }
+
+            const autoRedirectUrl = String(autoPayload?.redirectUrl || config.iacloserRedirectUrl || "").trim();
+            setHandoffEligible(true);
+            setHandoffMessage(SALES_COPY[responseLocale].handoffSuccess);
+            setConsentVisible(false);
+            setLeadConsentAccepted(false);
+            setOfferDismissed(true);
+            setShowExitIntent(false);
+            setLeadName(autoName);
+            setLeadPhone(autoPhone);
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: `handoff-ready-${Date.now()}`,
+                role: "assistant",
+                content: withBotEmoji(SALES_COPY[responseLocale].activationMessage),
+              },
+            ]);
+
+            if (autoRedirectUrl) {
+              startRedirectCountdown(autoRedirectUrl, responseLocale);
+            }
+            return;
+          } catch (autoError: any) {
+            setChatError(autoError?.message || copy.connectionIssue);
+          }
+        }
+
         setHandoffEligible(true);
         setLeadConsentAccepted(false);
         setOfferDismissed(true);
@@ -1280,9 +1402,7 @@ export default function LeadChat() {
       setLeadConsentAccepted(false);
 
       if (redirectUrl) {
-        setTimeout(() => {
-          window.location.href = redirectUrl;
-        }, 1800);
+        startRedirectCountdown(redirectUrl, locale);
       }
     } catch (error: any) {
       setChatError(error?.message || "Could not complete handoff.");
@@ -1376,8 +1496,8 @@ export default function LeadChat() {
         <section className="min-w-0">
           <div className={`flex h-[calc(100dvh-6rem)] max-h-[860px] min-h-[560px] flex-col rounded-[34px] p-[1px] shadow-[0_30px_120px_-60px_rgba(56,189,248,0.55)] ${isLightMode ? "bg-gradient-to-b from-white via-sky-100/70 to-sky-100/30" : "bg-gradient-to-b from-white/30 via-slate-500/25 to-transparent"}`}>
             <div className={`flex h-full min-h-0 flex-col rounded-[33px] border backdrop-blur-2xl ${isLightMode ? "border-white/70 bg-white/85" : "border-white/10 bg-[#071322]/85"}`}>
-              <div className={`flex flex-wrap items-center justify-between gap-3 border-b px-4 py-4 sm:px-7 sm:py-5 ${isLightMode ? "border-slate-200" : "border-white/10"}`}>
-                <div className="min-w-0">
+              <div className={`relative flex flex-wrap items-center justify-between gap-3 border-b px-4 py-4 sm:px-7 sm:py-5 ${isLightMode ? "border-slate-200" : "border-white/10"}`}>
+                <div className="min-w-0 pr-24 sm:pr-0">
                   <p className={`text-[10px] uppercase tracking-[0.35em] ${isLightMode ? "text-sky-700/85" : "text-sky-200/90"}`}>
                     {config.leadChatEyebrow || "Lead Chat"}
                   </p>
@@ -1389,9 +1509,9 @@ export default function LeadChat() {
                     {config.leadChatSubheadline || copy.step2Description}
                   </p>
                 </div>
-                <div className="ml-auto inline-flex flex-wrap items-center justify-end gap-2">
+                <div className="absolute right-4 top-4 inline-flex items-center justify-end gap-1.5 sm:static sm:ml-auto sm:gap-2">
                   <div
-                    className={`inline-flex h-10 items-center gap-1 rounded-full border p-1 ${
+                    className={`inline-flex h-9 items-center gap-1 rounded-full border p-1 sm:h-10 ${
                       isLightMode ? "border-slate-300 bg-white" : "border-white/15 bg-white/5"
                     }`}
                     role="group"
@@ -1425,7 +1545,7 @@ export default function LeadChat() {
                   <button
                     type="button"
                     onClick={() => setThemeMode((prev) => (prev === "dark" ? "light" : "dark"))}
-                    className={`inline-flex h-10 items-center gap-2 rounded-full border px-3 text-xs font-semibold uppercase tracking-[0.12em] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                    className={`inline-flex h-9 w-9 items-center justify-center rounded-full border text-xs font-semibold uppercase tracking-[0.12em] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 sm:h-10 sm:w-10 ${
                       isLightMode
                         ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100 lg:shadow-[0_0_0_1px_rgba(56,189,248,0.35)] lg:hover:shadow-[0_0_0_2px_rgba(56,189,248,0.5)]"
                         : "border-white/15 bg-white/5 text-slate-200 hover:bg-white/10 lg:shadow-[0_0_0_1px_rgba(34,211,238,0.35)] lg:hover:shadow-[0_0_0_2px_rgba(34,211,238,0.5)]"
@@ -1433,7 +1553,7 @@ export default function LeadChat() {
                     aria-label={isLightMode ? copy.themeAriaDark : copy.themeAriaLight}
                   >
                     {isLightMode ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-                    <span className="hidden lg:inline">{themeDesktopLabel}</span>
+                    <span className="sr-only">{themeDesktopLabel}</span>
                   </button>
                 </div>
               </div>
@@ -1766,13 +1886,20 @@ export default function LeadChat() {
                     <Send className="h-4 w-4" />
                   </button>
                 </form>
-                <div className={`grid gap-1 text-[11px] ${isLightMode ? "text-slate-500" : "text-slate-300/80"}`}>
-                  {copy.trustBullets.map((item) => (
-                    <p key={`trust-footer-${item}`} className="flex items-center gap-2">
-                      <span aria-hidden="true">-</span>
-                      <span>{item}</span>
-                    </p>
-                  ))}
+                <div className={`flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[11px] ${isLightMode ? "text-slate-600" : "text-slate-300/80"}`}>
+                  <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                    {copy.trustBullets.map((item, index) => (
+                      <span key={`trust-footer-${item}`} className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                        <span>{item}</span>
+                        {index < copy.trustBullets.length - 1 ? <span aria-hidden="true" className="opacity-60">•</span> : null}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                    <ShieldCheck className={`h-3.5 w-3.5 ${isLightMode ? "text-emerald-600" : "text-emerald-300"}`} />
+                    <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" aria-hidden="true" />
+                    <span>{copy.liveDemosNow}</span>
+                  </div>
                 </div>
                 {speechListening ? (
                   <p className={`text-[11px] ${isLightMode ? "text-rose-600" : "text-rose-300"}`}>
