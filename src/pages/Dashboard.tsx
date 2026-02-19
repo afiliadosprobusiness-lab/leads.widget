@@ -229,6 +229,7 @@ const AI_WHATSAPP_COMMAND_SNIPPET = [
   "Si el lead prefiere WhatsApp, responde EXACTAMENTE:",
   "[WHATSAPP_REDIRECT: Cliente [REEMPLAZA_NOMBRE] quiere [REEMPLAZA_SERVICIO] el [REEMPLAZA_FECHA]]",
 ].join('\n');
+const FIXED_IACLOSER_REDIRECT_URL = 'https://ai-call-closer.vercel.app/';
 
 function appendPromptSnippet(currentPrompt: string, snippet: string) {
   const base = (currentPrompt || '').trim();
@@ -483,7 +484,7 @@ export default function Dashboard() {
     lead_chat_slug: '',
     consent_text: 'Acepto ser contactado por telefono o mensajes para continuar con mi solicitud.',
     consent_text_version: 'v1',
-    icloser_redirect_url: '',
+    icloser_redirect_url: FIXED_IACLOSER_REDIRECT_URL,
     lead_chat_headline: 'Conversa, califica y activa tu llamada de cierre.',
     lead_chat_subheadline: 'Este Lead Chat esta optimizado para convertir en pantalla completa.',
     lead_chat_eyebrow: 'Lead Chat publico',
@@ -611,7 +612,7 @@ export default function Dashboard() {
           lead_chat_slug: '',
           consent_text: 'Acepto ser contactado por telefono o mensajes para continuar con mi solicitud.',
           consent_text_version: 'v1',
-          icloser_redirect_url: '',
+          icloser_redirect_url: FIXED_IACLOSER_REDIRECT_URL,
           lead_chat_headline: 'Conversa, califica y activa tu llamada de cierre.',
           lead_chat_subheadline: 'Este Lead Chat esta optimizado para convertir en pantalla completa.',
           lead_chat_eyebrow: 'Lead Chat publico',
@@ -673,7 +674,7 @@ export default function Dashboard() {
           lead_chat_slug: configData.lead_chat_slug || configData.widget_id || '',
           consent_text: configData.consent_text || 'Acepto ser contactado por telefono o mensajes para continuar con mi solicitud.',
           consent_text_version: configData.consent_text_version || 'v1',
-          icloser_redirect_url: configData.icloser_redirect_url || '',
+          icloser_redirect_url: FIXED_IACLOSER_REDIRECT_URL,
           lead_chat_headline: configData.lead_chat_headline || 'Conversa, califica y activa tu llamada de cierre.',
           lead_chat_subheadline: configData.lead_chat_subheadline || 'Este Lead Chat esta optimizado para convertir en pantalla completa.',
           lead_chat_eyebrow: configData.lead_chat_eyebrow || 'Lead Chat publico',
@@ -896,7 +897,7 @@ export default function Dashboard() {
           .slice(0, 64),
         consent_text: (formConfig.consent_text || '').trim(),
         consent_text_version: (formConfig.consent_text_version || 'v1').trim().slice(0, 32),
-        icloser_redirect_url: (formConfig.icloser_redirect_url || '').trim(),
+        icloser_redirect_url: FIXED_IACLOSER_REDIRECT_URL,
         lead_chat_headline: (formConfig.lead_chat_headline || '').trim(),
         lead_chat_subheadline: (formConfig.lead_chat_subheadline || '').trim(),
         lead_chat_eyebrow: (formConfig.lead_chat_eyebrow || '').trim(),
@@ -1861,10 +1862,14 @@ export default function Dashboard() {
                         <Label>URL de redireccion IACloser</Label>
                         <Input
                           type="url"
-                          value={formConfig.icloser_redirect_url}
-                          onChange={(e) => setFormConfig({ ...formConfig, icloser_redirect_url: e.target.value })}
-                          placeholder="https://tu-landing-ia-closer.com"
+                          value={FIXED_IACLOSER_REDIRECT_URL}
+                          readOnly
+                          disabled
+                          placeholder={FIXED_IACLOSER_REDIRECT_URL}
                         />
+                        <p className="text-xs text-muted-foreground">
+                          URL fija de produccion. Este campo no es editable.
+                        </p>
                       </div>
                       <div className="space-y-2">
                         <Label>Texto de consentimiento</Label>
