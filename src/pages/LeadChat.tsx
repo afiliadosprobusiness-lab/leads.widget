@@ -1306,7 +1306,7 @@ export default function LeadChat() {
               </div>
 
               <div className={`px-4 pb-3 pt-3 sm:px-7 ${isLightMode ? "border-b border-slate-200 bg-white/80" : "border-b border-white/10 bg-white/[0.03]"}`}>
-                <div className="flex flex-col items-end gap-2">
+                <div className="flex flex-col items-center gap-2">
                   {statusActionRow}
                   {showLiveActivityStrip ? (
                     <div className={`w-full max-w-[320px] rounded-xl border px-3 py-2 text-xs ${
