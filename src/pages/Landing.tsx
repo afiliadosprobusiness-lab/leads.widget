@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation, Trans } from 'react-i18next';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
@@ -37,6 +37,10 @@ export default function Landing() {
   const landingTestimonials = Array.isArray(testimonialsRaw)
     ? testimonialsRaw as Array<{ quote: string; name: string; role: string; result: string; avatar?: string }>
     : [];
+  const loopingLandingTestimonials = useMemo(
+    () => (landingTestimonials.length > 1 ? [...landingTestimonials, ...landingTestimonials] : landingTestimonials),
+    [landingTestimonials],
+  );
   const leadChatFlowRaw = t('lead_chat_landing.flow_steps', { returnObjects: true }) as unknown;
   const leadChatFlow = Array.isArray(leadChatFlowRaw) ? leadChatFlowRaw as string[] : [];
 
@@ -94,10 +98,11 @@ export default function Landing() {
       const card = container.querySelector('[data-testimonial-card]') as HTMLElement | null;
       const step = (card?.offsetWidth || 320) + 16;
       const maxScroll = container.scrollWidth - container.clientWidth;
-      const nearEnd = container.scrollLeft >= maxScroll - 8;
+      if (maxScroll <= 0) return;
+      const loopPoint = container.scrollWidth / 2;
 
-      if (nearEnd) {
-        container.scrollTo({ left: 0, behavior: 'smooth' });
+      if (container.scrollLeft + step >= loopPoint) {
+        container.scrollTo({ left: 0, behavior: 'auto' });
         return;
       }
 
@@ -105,25 +110,25 @@ export default function Landing() {
     }, 4500);
 
     return () => window.clearInterval(intervalId);
-  }, [landingTestimonials.length]);
+  }, [landingTestimonials.length, loopingLandingTestimonials.length]);
 
   const handleTestimonialsScroll = (direction: 'prev' | 'next') => {
     const container = testimonialsScrollRef.current;
     if (!container) return;
     const card = container.querySelector('[data-testimonial-card]') as HTMLElement | null;
     const step = (card?.offsetWidth || 320) + 16;
-    const maxScroll = container.scrollWidth - container.clientWidth;
+    const loopPoint = container.scrollWidth / 2;
 
     if (direction === 'prev') {
-      if (container.scrollLeft <= 8) {
-        container.scrollTo({ left: maxScroll, behavior: 'smooth' });
+      if (container.scrollLeft <= step) {
+        container.scrollTo({ left: Math.max(loopPoint - step, 0), behavior: 'smooth' });
         return;
       }
       container.scrollBy({ left: -step, behavior: 'smooth' });
       return;
     }
 
-    if (container.scrollLeft >= maxScroll - 8) {
+    if (container.scrollLeft + step >= loopPoint) {
       container.scrollTo({ left: 0, behavior: 'smooth' });
       return;
     }
@@ -382,51 +387,56 @@ export default function Landing() {
                 className="flex gap-4 overflow-x-auto pb-2 px-1 snap-x snap-mandatory scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
                 aria-label={t('landing_testimonials.scroll_aria')}
               >
-                {landingTestimonials.map((item, idx) => (
-                  <article
-                    key={`${item.name}-${idx}`}
-                    data-testimonial-card="true"
-                    className="min-w-[86%] sm:min-w-[70%] lg:min-w-[32%] snap-start rounded-3xl border border-border/60 bg-card/70 backdrop-blur-sm p-6 sm:p-7 shadow-xl shadow-slate-200/20 dark:shadow-black/30 transition-transform duration-300 hover:-translate-y-1"
-                  >
-                    <div className="flex items-start justify-between gap-3 mb-5">
-                      <div className="flex items-center gap-1 text-amber-500" aria-label="5 estrellas">
-                        {[...Array(5)].map((_, i) => (
-                          <Star key={i} className="w-4 h-4 fill-current" />
-                        ))}
-                      </div>
-                      <span className="inline-flex rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary">
-                        {item.result}
-                      </span>
-                    </div>
-
-                    <p className="text-sm sm:text-base leading-relaxed text-foreground/90 mb-6 min-h-[112px]">
-                      &ldquo;{item.quote}&rdquo;
-                    </p>
-
-                    <div className="flex items-center gap-3">
-                      <div className="relative w-12 h-12 rounded-full overflow-hidden border border-primary/30 bg-primary/10 flex-shrink-0">
-                        <span className="absolute inset-0 text-primary font-bold text-sm flex items-center justify-center">
-                          {item.name.split(' ').map((word) => word[0]).join('').slice(0, 2).toUpperCase()}
+                {loopingLandingTestimonials.map((item, idx) => {
+                  const isDuplicate = loopingLandingTestimonials.length > landingTestimonials.length && idx >= landingTestimonials.length;
+                  const name = item.name || 'Cliente';
+                  return (
+                    <article
+                      key={`${name}-${idx}`}
+                      data-testimonial-card="true"
+                      aria-hidden={isDuplicate}
+                      className="min-w-[86%] sm:min-w-[70%] lg:min-w-[42%] xl:min-w-[32%] snap-start rounded-3xl border border-border/60 bg-card/70 backdrop-blur-sm p-6 sm:p-7 shadow-xl shadow-slate-200/20 dark:shadow-black/30 transition-transform duration-300 hover:-translate-y-1"
+                    >
+                      <div className="flex items-start justify-between gap-3 mb-5">
+                        <div className="flex items-center gap-1 text-amber-500" aria-label="5 estrellas">
+                          {[...Array(5)].map((_, i) => (
+                            <Star key={i} className="w-4 h-4 fill-current" />
+                          ))}
+                        </div>
+                        <span className="inline-flex rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary">
+                          {item.result}
                         </span>
-                        {item.avatar ? (
-                          <img
-                            src={item.avatar}
-                            alt={t('landing_testimonials.avatar_alt', { name: item.name })}
-                            loading="lazy"
-                            className="relative z-10 w-full h-full object-cover"
-                            onError={(event) => {
-                              event.currentTarget.style.display = 'none';
-                            }}
-                          />
-                        ) : null}
                       </div>
-                      <div className="min-w-0">
-                        <p className="font-bold text-sm truncate">{item.name}</p>
-                        <p className="text-xs text-muted-foreground truncate">{item.role}</p>
+
+                      <p className="text-sm sm:text-base leading-relaxed text-foreground/90 mb-6 min-h-[112px]">
+                        &ldquo;{item.quote}&rdquo;
+                      </p>
+
+                      <div className="flex items-center gap-3">
+                        <div className="relative w-12 h-12 rounded-full overflow-hidden border border-primary/30 bg-primary/10 flex-shrink-0">
+                          <span className="absolute inset-0 text-primary font-bold text-sm flex items-center justify-center">
+                            {name.split(' ').map((word) => word[0]).join('').slice(0, 2).toUpperCase()}
+                          </span>
+                          {item.avatar ? (
+                            <img
+                              src={item.avatar}
+                              alt={t('landing_testimonials.avatar_alt', { name })}
+                              loading="lazy"
+                              className="relative z-10 w-full h-full object-cover"
+                              onError={(event) => {
+                                event.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          ) : null}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-sm truncate">{name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{item.role}</p>
+                        </div>
                       </div>
-                    </div>
-                  </article>
-                ))}
+                    </article>
+                  );
+                })}
               </div>
 
               <div className="mt-6 flex items-center justify-center gap-3">

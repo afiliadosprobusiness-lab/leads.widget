@@ -1697,7 +1697,7 @@ export default function Dashboard() {
                     </h4>
 
                     <div className="space-y-2">
-                      <Label>Modo de experiencia</Label>
+                      <Label>Modo de experiencia del cliente</Label>
                       <Select
                         value={formConfig.experience_mode}
                         onValueChange={(value) => setFormConfig({
@@ -1709,12 +1709,12 @@ export default function Dashboard() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="widget">Widget embebido</SelectItem>
-                          <SelectItem value="lead_chat">Lead Chat pantalla completa</SelectItem>
+                          <SelectItem value="widget">Widget embebido (dentro de tu web)</SelectItem>
+                          <SelectItem value="lead_chat">Lead Chat publico (pagina completa)</SelectItem>
                         </SelectContent>
                       </Select>
                       <p className="text-[11px] text-amber-600">
-                        Estas opciones solo se mostraran en Lead Chat (pagina publica), no en Lead Widget embebido.
+                        Lead Chat abre una pagina completa con URL propia. Widget embebido se instala dentro de tu web.
                       </p>
                     </div>
 
@@ -1735,7 +1735,7 @@ export default function Dashboard() {
                           <Copy className="w-4 h-4 mr-2" />
                           Copiar link de Lead Chat
                         </Button>
-                        <p className="text-[11px] text-muted-foreground">Comparte este link cuando el cliente no tenga web.</p>
+                        <p className="text-[11px] text-muted-foreground">Comparte este link cuando no tengas web o quieras una campana de chat independiente.</p>
                       </div>
                     </div>
 
@@ -1789,7 +1789,7 @@ export default function Dashboard() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Titulo del popup de oferta</Label>
+                      <Label>Titulo de oferta dentro del chat</Label>
                       <Input
                         value={formConfig.lead_chat_offer_title}
                         onChange={(e) => setFormConfig({ ...formConfig, lead_chat_offer_title: e.target.value })}
@@ -1798,7 +1798,7 @@ export default function Dashboard() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Descripcion del popup de oferta</Label>
+                      <Label>Descripcion de oferta dentro del chat</Label>
                       <textarea
                         value={formConfig.lead_chat_offer_description}
                         onChange={(e) => setFormConfig({ ...formConfig, lead_chat_offer_description: e.target.value })}
@@ -1807,7 +1807,7 @@ export default function Dashboard() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Texto CTA del popup</Label>
+                      <Label>Texto CTA de la oferta</Label>
                       <Input
                         value={formConfig.lead_chat_cta_label}
                         onChange={(e) => setFormConfig({ ...formConfig, lead_chat_cta_label: e.target.value })}

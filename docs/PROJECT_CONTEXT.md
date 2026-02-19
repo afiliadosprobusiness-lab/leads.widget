@@ -44,6 +44,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
   6. AICloser ejecuta llamada outbound en menos de 60 segundos.
 - El flujo comercial de cierre cambia: no se prioriza llamada manual o WhatsApp como paso final del demo; el handoff primario es redireccion automatica a pagina/landing de IACloser.
 - Lead Chat debe funcionar tambien para clientes sin website como pagina publica full-screen (link compartible), independiente del script embebible.
+- En la experiencia publica de Lead Chat, la oferta comercial no se muestra como modal inicial; aparece de forma inline cuando la conversacion ya tiene intencion.
 
 ## Integracion de datos a IACloser (contexto funcional)
 - Durante la conversacion, Lead Chat acumula informacion de calificacion y la prepara para handoff.
@@ -61,6 +62,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Landing `/partners` con bloques de confianza (testimonios en carrusel horizontal) y FAQ en acordeon accesible.
 - Landing principal `/` ahora comunica dos modos de producto: widget embebible y Lead Chat como pagina publica sin web.
 - Testimonios de landing principal usan scroll horizontal con autoavance (desktop/mobile), controles prev/next y avatar por caso para reforzar prueba social.
+- Lead Chat (`/lead-chat/:identity`) usa layout inmersivo centrado en el chat (alto completo) con paneles laterales de prueba social/actividad dinamica y testimonios con auto-scroll.
 - El widget comercial (`SalesWidget`) tambien esta activo en `/partners`.
 - Dashboard partner incluye secciones:
   - Ventas/Atribucion
@@ -79,4 +81,4 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - En Superadmin/Agencias, la accion de payout es contextual: muestra `Aprobar payout` o `Marcar pagado` segun existan payouts pendientes.
 - Plan PLUS: branding del widget admite `branding_text` y `branding_link` para personalizar texto y URL del footer (fallback seguro a `/crear-ahora?ref=<clientId>`).
 - En `experience_mode=lead_chat`, el dashboard prioriza compartir enlace publico del chat; no depende de instalar script en una web.
-- El dashboard expone controles Lead Chat-only (headline/subheadline, popup de oferta, CTA y mensajes de actividad en vivo) con aviso de alcance exclusivo para la pagina Lead Chat.
+- El dashboard expone controles Lead Chat-only (headline/subheadline, bloque de oferta inline, CTA y mensajes de actividad en vivo) con aviso de alcance exclusivo para la pagina Lead Chat.
