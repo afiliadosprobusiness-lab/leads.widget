@@ -59,6 +59,8 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Mobile-first.
 - Estados de carga/error/vacio en dashboards.
 - Landing `/partners` con bloques de confianza (testimonios en carrusel horizontal) y FAQ en acordeon accesible.
+- Landing principal `/` ahora comunica dos modos de producto: widget embebible y Lead Chat como pagina publica sin web.
+- Testimonios de landing principal usan scroll horizontal con autoavance (desktop/mobile), controles prev/next y avatar por caso para reforzar prueba social.
 - El widget comercial (`SalesWidget`) tambien esta activo en `/partners`.
 - Dashboard partner incluye secciones:
   - Ventas/Atribucion

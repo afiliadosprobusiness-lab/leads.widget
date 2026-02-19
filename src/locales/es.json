@@ -32,27 +32,35 @@
                 "quote": "En dos semanas pasamos de responder tarde a tener leads listos en WhatsApp todo el día. La diferencia en cierres fue inmediata.",
                 "name": "María Fernández",
                 "role": "Inmobiliaria MF",
-                "result": "+45 leads / mes"
+                "result": "+45 leads / mes",
+                "avatar": "https://i.pravatar.cc/160?img=12"
             },
             {
                 "quote": "El asistente hace las preguntas clave y filtra curiosos. Ahora mi equipo atiende menos chats, pero con mucha más intención de compra.",
                 "name": "Diego Salas",
                 "role": "Clínica Dental Nova",
-                "result": "2.1x conversión"
+                "result": "2.1x conversión",
+                "avatar": "https://i.pravatar.cc/160?img=32"
             },
             {
                 "quote": "Instalarlo fue rápido y no rompió mi web. Lo que más valoro es ver desde el dashboard quién sí está listo para comprar.",
                 "name": "Camila Rojas",
                 "role": "Ecommerce Andino",
-                "result": "-32% tiempo de atención"
+                "result": "-32% tiempo de atención",
+                "avatar": "https://i.pravatar.cc/160?img=47"
             },
             {
                 "quote": "Con los mensajes proactivos recuperamos usuarios que se iban sin escribir. Hoy el widget se paga solo cada mes.",
                 "name": "Luis Mendoza",
                 "role": "Taller MotorPro",
-                "result": "+28% contactos recuperados"
+                "result": "+28% contactos recuperados",
+                "avatar": "https://i.pravatar.cc/160?img=56"
             }
-        ]
+        ],
+        "scroll_aria": "Carrusel de testimonios",
+        "prev": "Testimonio anterior",
+        "next": "Siguiente testimonio",
+        "avatar_alt": "Foto de {{name}}"
     },
     "templates_section": {
         "title": "Plantillas por Industria",
@@ -240,7 +248,8 @@
         "hint_message": "El asistente tiene algo para ti...",
         "powered_by": "Atención 24/7 con Inteligencia Artificial",
         "chat_tooltip": "Chatea con nuestra IA",
-        "subtitle": "Responde al instante con IA"
+        "subtitle": "Responde al instante con IA",
+        "quick_5": "\u00bfQu\u00e9 es Lead Chat sin web?"
     },
     "exit_popup": {
         "title": "¡Espera!",
@@ -662,7 +671,28 @@
         "benefit_3_title": "Panel Transparente",
         "benefit_3_desc": "Monitorea cada clic, registro y conversión en tiempo real desde tu propio dashboard de socio.",
         "footer_rights": "Hecho para emprendedores."
+    },
+    "lead_chat_landing": {
+        "badge": "Nuevo modo de conversi\u00f3n",
+        "title": "Lead Chat tambi\u00e9n funciona como p\u00e1gina p\u00fablica",
+        "subtitle": "Si tu cliente no tiene sitio web, puede vender con una URL de Lead Chat que precalifica y env\u00eda a IACloser en segundos.",
+        "widget_mode_badge": "Lead Widget embebible",
+        "widget_mode_title": "Ideal si ya tienes web",
+        "widget_mode_desc": "Instalas el script en tu web y capturas leads desde tus propias p\u00e1ginas.",
+        "chat_mode_badge": "Lead Chat p\u00fablico",
+        "chat_mode_title": "Ideal si no tienes web",
+        "chat_mode_desc": "Compartes un enlace p\u00fablico y el bot conversa, califica, pide n\u00famero y env\u00eda el contexto a IACloser para cierre outbound.",
+        "compliance_note": "Solo se activa la llamada si el usuario acepta el consentimiento de contacto.",
+        "flow_title": "Flujo de cierre IACloser",
+        "flow_steps": [
+            "Usuario abre el chat",
+            "La IA conversa y precalifica",
+            "Solicita nombre y n\u00famero",
+            "Muestra texto de consentimiento",
+            "Usuario acepta expresamente",
+            "IACloser llama en menos de 60 segundos"
+        ],
+        "cta_primary": "Configurar Lead Chat",
+        "cta_secondary": "Ver demo de p\u00e1gina"
     }
 }
-
-

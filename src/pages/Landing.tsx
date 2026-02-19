@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation, Trans } from 'react-i18next';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
@@ -27,16 +27,18 @@ import {
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 export default function Landing() {
   const { t, i18n } = useTranslation();
   const [activeTemplate, setActiveTemplate] = useState('real_estate');
   const [showExitPopup, setShowExitPopup] = useState(false);
   const [hasShownExit, setHasShownExit] = useState(false);
+  const testimonialsScrollRef = useRef<HTMLDivElement | null>(null);
   const testimonialsRaw = t('landing_testimonials.items', { returnObjects: true }) as unknown;
   const landingTestimonials = Array.isArray(testimonialsRaw)
-    ? testimonialsRaw as Array<{ quote: string; name: string; role: string; result: string }>
+    ? testimonialsRaw as Array<{ quote: string; name: string; role: string; result: string; avatar?: string }>
     : [];
+  const leadChatFlowRaw = t('lead_chat_landing.flow_steps', { returnObjects: true }) as unknown;
+  const leadChatFlow = Array.isArray(leadChatFlowRaw) ? leadChatFlowRaw as string[] : [];
 
   useEffect(() => {
     const handleMouseLeave = (e: MouseEvent) => {
@@ -83,6 +85,50 @@ export default function Landing() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    const container = testimonialsScrollRef.current;
+    if (!container || landingTestimonials.length < 2) return;
+
+    const intervalId = window.setInterval(() => {
+      const card = container.querySelector('[data-testimonial-card]') as HTMLElement | null;
+      const step = (card?.offsetWidth || 320) + 16;
+      const maxScroll = container.scrollWidth - container.clientWidth;
+      const nearEnd = container.scrollLeft >= maxScroll - 8;
+
+      if (nearEnd) {
+        container.scrollTo({ left: 0, behavior: 'smooth' });
+        return;
+      }
+
+      container.scrollBy({ left: step, behavior: 'smooth' });
+    }, 4500);
+
+    return () => window.clearInterval(intervalId);
+  }, [landingTestimonials.length]);
+
+  const handleTestimonialsScroll = (direction: 'prev' | 'next') => {
+    const container = testimonialsScrollRef.current;
+    if (!container) return;
+    const card = container.querySelector('[data-testimonial-card]') as HTMLElement | null;
+    const step = (card?.offsetWidth || 320) + 16;
+    const maxScroll = container.scrollWidth - container.clientWidth;
+
+    if (direction === 'prev') {
+      if (container.scrollLeft <= 8) {
+        container.scrollTo({ left: maxScroll, behavior: 'smooth' });
+        return;
+      }
+      container.scrollBy({ left: -step, behavior: 'smooth' });
+      return;
+    }
+
+    if (container.scrollLeft >= maxScroll - 8) {
+      container.scrollTo({ left: 0, behavior: 'smooth' });
+      return;
+    }
+    container.scrollBy({ left: step, behavior: 'smooth' });
+  };
 
   const handleOpenDemoFromPopup = () => {
     setShowExitPopup(false);
@@ -327,42 +373,85 @@ export default function Landing() {
           </div>
 
           {landingTestimonials.length > 0 ? (
-            <Carousel opts={{ align: 'start', loop: true }} className="w-full">
-              <CarouselContent className="-ml-4">
+            <div className="relative">
+              <div className="pointer-events-none absolute left-0 top-0 h-full w-8 bg-gradient-to-r from-background to-transparent z-10" />
+              <div className="pointer-events-none absolute right-0 top-0 h-full w-8 bg-gradient-to-l from-background to-transparent z-10" />
+
+              <div
+                ref={testimonialsScrollRef}
+                className="flex gap-4 overflow-x-auto pb-2 px-1 snap-x snap-mandatory scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                aria-label={t('landing_testimonials.scroll_aria')}
+              >
                 {landingTestimonials.map((item, idx) => (
-                  <CarouselItem key={`${item.name}-${idx}`} className="pl-4 md:basis-1/2 xl:basis-1/3">
-                    <article className="h-full rounded-3xl border border-border/60 bg-card/60 backdrop-blur-sm p-6 sm:p-7 shadow-lg shadow-slate-200/20 dark:shadow-black/20">
-                      <div className="flex items-start justify-between gap-3 mb-5">
-                        <div className="flex items-center gap-1 text-amber-500" aria-label="5 estrellas">
-                          {[...Array(5)].map((_, i) => (
-                            <Star key={i} className="w-4 h-4 fill-current" />
-                          ))}
-                        </div>
-                        <span className="inline-flex rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary">
-                          {item.result}
-                        </span>
+                  <article
+                    key={`${item.name}-${idx}`}
+                    data-testimonial-card="true"
+                    className="min-w-[86%] sm:min-w-[70%] lg:min-w-[32%] snap-start rounded-3xl border border-border/60 bg-card/70 backdrop-blur-sm p-6 sm:p-7 shadow-xl shadow-slate-200/20 dark:shadow-black/30 transition-transform duration-300 hover:-translate-y-1"
+                  >
+                    <div className="flex items-start justify-between gap-3 mb-5">
+                      <div className="flex items-center gap-1 text-amber-500" aria-label="5 estrellas">
+                        {[...Array(5)].map((_, i) => (
+                          <Star key={i} className="w-4 h-4 fill-current" />
+                        ))}
                       </div>
+                      <span className="inline-flex rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary">
+                        {item.result}
+                      </span>
+                    </div>
 
-                      <p className="text-sm sm:text-base leading-relaxed text-foreground/90 mb-6">
-                        “{item.quote}”
-                      </p>
+                    <p className="text-sm sm:text-base leading-relaxed text-foreground/90 mb-6 min-h-[112px]">
+                      &ldquo;{item.quote}&rdquo;
+                    </p>
 
-                      <div className="flex items-center gap-3">
-                        <div className="w-11 h-11 rounded-full bg-primary/10 border border-primary/20 text-primary font-bold flex items-center justify-center">
+                    <div className="flex items-center gap-3">
+                      <div className="relative w-12 h-12 rounded-full overflow-hidden border border-primary/30 bg-primary/10 flex-shrink-0">
+                        <span className="absolute inset-0 text-primary font-bold text-sm flex items-center justify-center">
                           {item.name.split(' ').map((word) => word[0]).join('').slice(0, 2).toUpperCase()}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-bold text-sm truncate">{item.name}</p>
-                          <p className="text-xs text-muted-foreground truncate">{item.role}</p>
-                        </div>
+                        </span>
+                        {item.avatar ? (
+                          <img
+                            src={item.avatar}
+                            alt={t('landing_testimonials.avatar_alt', { name: item.name })}
+                            loading="lazy"
+                            className="relative z-10 w-full h-full object-cover"
+                            onError={(event) => {
+                              event.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        ) : null}
                       </div>
-                    </article>
-                  </CarouselItem>
+                      <div className="min-w-0">
+                        <p className="font-bold text-sm truncate">{item.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{item.role}</p>
+                      </div>
+                    </div>
+                  </article>
                 ))}
-              </CarouselContent>
-              <CarouselPrevious className="hidden md:inline-flex left-2 bg-background/90 backdrop-blur border-border hover:bg-background" />
-              <CarouselNext className="hidden md:inline-flex right-2 bg-background/90 backdrop-blur border-border hover:bg-background" />
-            </Carousel>
+              </div>
+
+              <div className="mt-6 flex items-center justify-center gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handleTestimonialsScroll('prev')}
+                  className="rounded-full border-border/70 bg-background/80 backdrop-blur hover:bg-background"
+                  aria-label={t('landing_testimonials.prev')}
+                >
+                  <ArrowRight className="w-4 h-4 rotate-180" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handleTestimonialsScroll('next')}
+                  className="rounded-full border-border/70 bg-background/80 backdrop-blur hover:bg-background"
+                  aria-label={t('landing_testimonials.next')}
+                >
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
           ) : (
             <div className="rounded-2xl border border-border/50 bg-card/60 p-8 text-center text-muted-foreground">
               {t('landing_testimonials.empty')}
@@ -462,6 +551,84 @@ export default function Landing() {
                 <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">{f.d}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* --- LEAD CHAT MODE SECTION --- */}
+      <section className="py-16 lg:py-24 px-4 bg-gradient-to-b from-background to-emerald-50/40 dark:to-emerald-900/10 border-y border-border/50">
+        <div className="container mx-auto max-w-6xl">
+          <div className="text-center mb-12 lg:mb-16 max-w-3xl mx-auto">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-wide mb-4">
+              <Bot className="w-3.5 h-3.5" />
+              {t('lead_chat_landing.badge')}
+            </div>
+            <h2 className="text-3xl md:text-5xl font-bold text-balance mb-4">
+              {t('lead_chat_landing.title')}
+            </h2>
+            <p className="text-base sm:text-lg text-muted-foreground text-pretty">
+              {t('lead_chat_landing.subtitle')}
+            </p>
+          </div>
+
+          <div className="grid lg:grid-cols-2 gap-6 lg:gap-8">
+            <article className="rounded-3xl border border-border/60 bg-card/70 p-6 sm:p-8 shadow-lg">
+              <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-primary mb-4">
+                <MessageCircle className="w-3.5 h-3.5" />
+                {t('lead_chat_landing.widget_mode_badge')}
+              </div>
+              <h3 className="text-xl font-bold mb-3">{t('lead_chat_landing.widget_mode_title')}</h3>
+              <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
+                {t('lead_chat_landing.widget_mode_desc')}
+              </p>
+            </article>
+
+            <article className="rounded-3xl border border-primary/30 bg-slate-950 text-white p-6 sm:p-8 shadow-2xl shadow-primary/10 relative overflow-hidden">
+              <div className="absolute -top-16 -right-10 w-36 h-36 rounded-full bg-primary/20 blur-2xl" />
+              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300/30 bg-emerald-300/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-300 mb-4 relative z-10">
+                <Sparkles className="w-3.5 h-3.5" />
+                {t('lead_chat_landing.chat_mode_badge')}
+              </div>
+              <h3 className="text-xl font-bold mb-3 relative z-10">{t('lead_chat_landing.chat_mode_title')}</h3>
+              <p className="text-sm sm:text-base text-slate-300 leading-relaxed relative z-10">
+                {t('lead_chat_landing.chat_mode_desc')}
+              </p>
+              <div className="mt-5 inline-flex items-center gap-2 rounded-xl border border-emerald-300/30 bg-emerald-300/10 px-3 py-2 text-xs text-emerald-200 relative z-10">
+                <ShieldCheck className="w-4 h-4" />
+                {t('lead_chat_landing.compliance_note')}
+              </div>
+            </article>
+          </div>
+
+          {leadChatFlow.length > 0 ? (
+            <div className="mt-10 lg:mt-12 rounded-3xl border border-border/60 bg-card/70 p-6 sm:p-8">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground mb-5">
+                {t('lead_chat_landing.flow_title')}
+              </p>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {leadChatFlow.map((step, index) => (
+                  <div key={`${step}-${index}`} className="rounded-2xl border border-border/70 bg-background/70 px-4 py-3 flex items-start gap-3">
+                    <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0">
+                      {index + 1}
+                    </span>
+                    <span className="text-sm text-foreground/90 leading-relaxed">{step}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          <div className="mt-8 flex flex-col sm:flex-row items-center gap-3 sm:gap-4 justify-center">
+            <Link to="/register" className="w-full sm:w-auto">
+              <Button size="lg" className="w-full sm:w-auto font-bold">
+                {t('lead_chat_landing.cta_primary')}
+              </Button>
+            </Link>
+            <Link to="/lc/demo-landing" className="w-full sm:w-auto">
+              <Button size="lg" variant="outline" className="w-full sm:w-auto font-semibold">
+                {t('lead_chat_landing.cta_secondary')}
+              </Button>
+            </Link>
           </div>
         </div>
       </section>

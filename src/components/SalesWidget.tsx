@@ -33,7 +33,8 @@ export function SalesWidget() {
         t('demo_widget.quick_1'),
         t('demo_widget.quick_2'),
         t('demo_widget.quick_3'),
-        t('demo_widget.quick_4')
+        t('demo_widget.quick_4'),
+        t('demo_widget.quick_5')
     ];
 
     // Static ID for Demo

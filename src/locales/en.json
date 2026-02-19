@@ -32,27 +32,35 @@
                 "quote": "In two weeks we went from late replies to having qualified WhatsApp leads all day. The impact on closed deals was immediate.",
                 "name": "Maria Fernandez",
                 "role": "MF Real Estate",
-                "result": "+45 leads / month"
+                "result": "+45 leads / month",
+                "avatar": "https://i.pravatar.cc/160?img=12"
             },
             {
                 "quote": "The assistant asks the right questions and filters low-intent traffic. My team now handles fewer chats with much better purchase intent.",
                 "name": "Diego Salas",
                 "role": "Nova Dental Clinic",
-                "result": "2.1x conversion"
+                "result": "2.1x conversion",
+                "avatar": "https://i.pravatar.cc/160?img=32"
             },
             {
                 "quote": "Setup was quick and it did not break my website. What I value most is seeing exactly who is ready to buy from the dashboard.",
                 "name": "Camila Rojas",
                 "role": "Andino Ecommerce",
-                "result": "-32% response time"
+                "result": "-32% response time",
+                "avatar": "https://i.pravatar.cc/160?img=47"
             },
             {
                 "quote": "With proactive messages we recovered users that were about to leave. Today the widget fully pays for itself every month.",
                 "name": "Luis Mendoza",
                 "role": "MotorPro Workshop",
-                "result": "+28% recovered contacts"
+                "result": "+28% recovered contacts",
+                "avatar": "https://i.pravatar.cc/160?img=56"
             }
-        ]
+        ],
+        "scroll_aria": "Testimonials carousel",
+        "prev": "Previous testimonial",
+        "next": "Next testimonial",
+        "avatar_alt": "Photo of {{name}}"
     },
     "templates_section": {
         "title": "Templates by Industry",
@@ -240,7 +248,8 @@
         "hint_message": "The assistant has something for you...",
         "powered_by": "24/7 Support with Artificial Intelligence",
         "chat_tooltip": "Chat with our AI",
-        "subtitle": "Replies instantly with AI"
+        "subtitle": "Replies instantly with AI",
+        "quick_5": "What is Lead Chat without a website?"
     },
     "exit_popup": {
         "title": "Wait!",
@@ -662,7 +671,28 @@
         "benefit_3_title": "Transparent Dashboard",
         "benefit_3_desc": "Monitor every click, registration, and conversion in real-time from your own partner dashboard.",
         "footer_rights": "Made for entrepreneurs."
+    },
+    "lead_chat_landing": {
+        "badge": "New conversion mode",
+        "title": "Lead Chat also works as a public page",
+        "subtitle": "If your client has no website, they can still convert with a Lead Chat URL that qualifies and sends the lead to IACloser in seconds.",
+        "widget_mode_badge": "Embeddable Lead Widget",
+        "widget_mode_title": "Best when you already have a website",
+        "widget_mode_desc": "Install the script on your website and capture leads directly from your own pages.",
+        "chat_mode_badge": "Public Lead Chat",
+        "chat_mode_title": "Best when you have no website",
+        "chat_mode_desc": "Share one public link and the bot will converse, qualify, request phone number, and send context to IACloser for outbound closing.",
+        "compliance_note": "Calls are only triggered after explicit contact consent is accepted.",
+        "flow_title": "IACloser close flow",
+        "flow_steps": [
+            "User opens the chat",
+            "AI converses and qualifies",
+            "Bot requests name and phone",
+            "Consent text is shown",
+            "User accepts explicitly",
+            "IACloser calls in under 60 seconds"
+        ],
+        "cta_primary": "Set up Lead Chat",
+        "cta_secondary": "View page demo"
     }
 }
-
-
