@@ -1232,6 +1232,49 @@ export default function LeadChat() {
   }
 
   const isLightMode = themeMode === "light";
+  const statusActionRow = (
+    <>
+      <div
+        className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] transition-all duration-500 animate-[pulse_3.2s_ease-in-out_infinite] ${
+          isLightMode ? "border-rose-200 bg-rose-50 text-rose-700" : "border-rose-400/40 bg-rose-500/10 text-rose-100"
+        }`}
+      >
+        <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" aria-hidden="true" />
+        {activePresenceMessage}
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setThemeMode((prev) => (prev === "dark" ? "light" : "dark"))}
+          className={`inline-flex h-9 w-9 items-center justify-center rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+            isLightMode
+              ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+              : "border-white/15 bg-white/5 text-slate-200 hover:bg-white/10"
+          }`}
+          aria-label={isLightMode ? copy.themeAriaDark : copy.themeAriaLight}
+        >
+          {isLightMode ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+        </button>
+        <button
+          type="button"
+          onClick={openConsentStep}
+          disabled={!handoffEligible}
+          className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+            handoffEligible || handoffLoading || Boolean(handoffMessage)
+              ? "border-emerald-300/45 bg-emerald-400/12 text-emerald-100 hover:bg-emerald-400/20 hover:shadow-[0_0_0_1px_rgba(52,211,153,0.35)]"
+              : (isLightMode ? "cursor-not-allowed border-slate-300 bg-slate-100 text-slate-500" : "cursor-not-allowed border-white/15 bg-white/5 text-slate-400")
+          }`}
+        >
+          <PhoneCall className="h-3.5 w-3.5" />
+          {handoffLoading || handoffMessage
+            ? copy.callingBadge
+            : handoffEligible
+              ? (config.leadChatBadgeText || copy.readyBadge)
+              : copy.prequalifyingBadge}
+        </button>
+      </div>
+    </>
+  );
 
   return (
     <main className={`relative min-h-screen overflow-hidden ${isLightMode ? "bg-[#eef3fb] text-slate-900" : "bg-[#050b15] text-slate-100"}`}>
@@ -1258,60 +1301,8 @@ export default function LeadChat() {
                     {config.leadChatSubheadline || copy.step2Description}
                   </p>
                 </div>
-                <div className="flex flex-col items-end gap-2">
-                  <div
-                    className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] transition-all duration-500 animate-[pulse_3.2s_ease-in-out_infinite] ${
-                      isLightMode ? "border-rose-200 bg-rose-50 text-rose-700" : "border-rose-400/40 bg-rose-500/10 text-rose-100"
-                    }`}
-                  >
-                    <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" aria-hidden="true" />
-                    {activePresenceMessage}
-                  </div>
-                  <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setThemeMode((prev) => (prev === "dark" ? "light" : "dark"))}
-                    className={`inline-flex h-9 w-9 items-center justify-center rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                      isLightMode
-                        ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
-                        : "border-white/15 bg-white/5 text-slate-200 hover:bg-white/10"
-                    }`}
-                    aria-label={isLightMode ? copy.themeAriaDark : copy.themeAriaLight}
-                  >
-                    {isLightMode ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={openConsentStep}
-                    disabled={!handoffEligible}
-                    className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                      handoffEligible || handoffLoading || Boolean(handoffMessage)
-                        ? "border-emerald-300/45 bg-emerald-400/12 text-emerald-100 hover:bg-emerald-400/20 hover:shadow-[0_0_0_1px_rgba(52,211,153,0.35)]"
-                        : (isLightMode ? "cursor-not-allowed border-slate-300 bg-slate-100 text-slate-500" : "cursor-not-allowed border-white/15 bg-white/5 text-slate-400")
-                    }`}
-                  >
-                    <PhoneCall className="h-3.5 w-3.5" />
-                    {handoffLoading || handoffMessage
-                      ? copy.callingBadge
-                      : handoffEligible
-                        ? (config.leadChatBadgeText || copy.readyBadge)
-                        : copy.prequalifyingBadge}
-                  </button>
-                </div>
-                {showLiveActivityStrip ? (
-                  <div className={`hidden max-w-[320px] rounded-xl border px-3 py-2 text-xs lg:block ${
-                    isLightMode
-                      ? "border-sky-200 bg-white/95 text-slate-700"
-                      : "border-cyan-400/30 bg-slate-950/85 text-slate-100"
-                  } ${liveActivityTransition ? (isLightMode ? "shadow-[0_0_28px_-16px_rgba(14,165,233,0.9)]" : "shadow-[0_0_28px_-14px_rgba(34,211,238,0.85)]") : ""}`}>
-                    <p className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${isLightMode ? "text-sky-700" : "text-cyan-200"}`}>
-                      {copy.liveActivityLabel}
-                    </p>
-                    <p className="mt-0.5 line-clamp-2">
-                      {activeLiveActivityMessage}
-                    </p>
-                  </div>
-                ) : null}
+                <div className="flex flex-col items-end gap-2 lg:hidden">
+                  {statusActionRow}
                 </div>
               </div>
 
@@ -1347,6 +1338,25 @@ export default function LeadChat() {
               ) : null}
 
               <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4 sm:px-7">
+                <div className="hidden lg:flex lg:justify-end">
+                  <div className="flex max-w-[320px] flex-col items-end gap-2">
+                    {statusActionRow}
+                    {showLiveActivityStrip ? (
+                      <div className={`max-w-[320px] rounded-xl border px-3 py-2 text-xs ${
+                        isLightMode
+                          ? "border-sky-200 bg-white/95 text-slate-700"
+                          : "border-cyan-400/30 bg-slate-950/85 text-slate-100"
+                      } ${liveActivityTransition ? (isLightMode ? "shadow-[0_0_28px_-16px_rgba(14,165,233,0.9)]" : "shadow-[0_0_28px_-14px_rgba(34,211,238,0.85)]") : ""}`}>
+                        <p className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${isLightMode ? "text-sky-700" : "text-cyan-200"}`}>
+                          {copy.liveActivityLabel}
+                        </p>
+                        <p className="mt-0.5 line-clamp-2">
+                          {activeLiveActivityMessage}
+                        </p>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
                 {messages.map((msg, index) => (
                   <div key={`${msg.role}-${index}`} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                     <div
