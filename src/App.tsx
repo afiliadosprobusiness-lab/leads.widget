@@ -17,6 +17,7 @@ import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import TermsOfServicePage from "./pages/TermsOfServicePage";
 import ClaimsBookPage from "./pages/ClaimsBookPage";
 import NotFound from "./pages/NotFound";
+import LeadChat from "./pages/LeadChat";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +38,8 @@ const App = () => (
             <Route path="/crear-ahora" element={<CreateNow />} />
             <Route path="/partners" element={<PartnersLanding />} />
             <Route path="/partner" element={<PartnerDashboard />} />
+            <Route path="/lead-chat/:identity" element={<LeadChat />} />
+            <Route path="/lc/:identity" element={<LeadChat />} />
             <Route path="/legal/privacy" element={<PrivacyPolicyPage />} />
             <Route path="/legal/terms" element={<TermsOfServicePage />} />
             <Route path="/legal/claims" element={<ClaimsBookPage />} />

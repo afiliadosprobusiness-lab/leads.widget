@@ -21,6 +21,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Auth/roles frontend ahora distingue `client`, `superadmin`, `partner_admin`, `partner_staff` y redirige segun rol.
 - Integracion partner siempre via backend (`/api/partners/*`, `/api/admin/partners/*`) para garantizar scoping server-side por `partner_id`.
 - Footer landing incluye enlace directo a "Partners Leads Widget".
+- Se incorpora experiencia `Lead Chat` como ruta publica (`/lead-chat/:identity`, alias `/lc/:identity`) con flujo full-screen de conversion.
 
 ## Flujos principales
 - Registro cliente referido:
@@ -32,6 +33,27 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Billing cliente:
   - Verificacion PayPal ahora envia Authorization Bearer token al backend.
   - Pagos manuales Yape/Plin guardan `plan_type` y `partner_id` cuando aplica.
+
+## Objetivo activo Lead Chat + IACloser (2026-02-19)
+- Nuevo objetivo comercial del canal chat:
+  1. Usuario abre chat.
+  2. Bot conversa y precalifica.
+  3. Bot solicita numero telefonico.
+  4. Bot muestra consentimiento de contacto en lenguaje claro.
+  5. Usuario acepta expresamente.
+  6. AICloser ejecuta llamada outbound en menos de 60 segundos.
+- El flujo comercial de cierre cambia: no se prioriza llamada manual o WhatsApp como paso final del demo; el handoff primario es redireccion automatica a pagina/landing de IACloser.
+- Lead Chat debe funcionar tambien para clientes sin website como pagina publica full-screen (link compartible), independiente del script embebible.
+
+## Integracion de datos a IACloser (contexto funcional)
+- Durante la conversacion, Lead Chat acumula informacion de calificacion y la prepara para handoff.
+- Antes de iniciar outbound, frontend/backend deben enviar un payload JSON a la API de IACloser con consentimiento previo.
+- Campos minimos requeridos por negocio:
+  - `name` (nombre)
+  - `phone` (numero para llamada)
+  - `collected_info` (informacion recopilada por el chat)
+- Se debe incluir ademas trazabilidad de consentimiento (ej. `consent.accepted`, `consent.accepted_at`, `consent.text_version`) para auditoria.
+- Si el usuario no acepta consentimiento expreso, el sistema no debe disparar handoff ni llamada outbound.
 
 ## Reglas UI/UX
 - Mobile-first.
@@ -54,3 +76,5 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Eliminacion de usuario desde superadmin usa borrado completo (Firebase Auth + datos principales), no solo soft delete.
 - En Superadmin/Agencias, la accion de payout es contextual: muestra `Aprobar payout` o `Marcar pagado` segun existan payouts pendientes.
 - Plan PLUS: branding del widget admite `branding_text` y `branding_link` para personalizar texto y URL del footer (fallback seguro a `/crear-ahora?ref=<clientId>`).
+- En `experience_mode=lead_chat`, el dashboard prioriza compartir enlace publico del chat; no depende de instalar script en una web.
+- El dashboard expone controles Lead Chat-only (headline/subheadline, popup de oferta, CTA y mensajes de actividad en vivo) con aviso de alcance exclusivo para la pagina Lead Chat.

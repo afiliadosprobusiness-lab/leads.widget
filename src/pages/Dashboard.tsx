@@ -105,6 +105,17 @@ interface WidgetConfig {
   facebook_pixel_id?: string | null;
   tiktok_pixel_id?: string | null;
   google_tag_id?: string | null;
+  experience_mode?: 'widget' | 'lead_chat';
+  lead_chat_slug?: string;
+  consent_text?: string;
+  consent_text_version?: string;
+  icloser_redirect_url?: string;
+  lead_chat_headline?: string;
+  lead_chat_subheadline?: string;
+  lead_chat_offer_title?: string;
+  lead_chat_offer_description?: string;
+  lead_chat_cta_label?: string;
+  lead_chat_live_toasts?: string[] | string;
 }
 
 const STATIC_ICONS = [
@@ -431,6 +442,17 @@ export default function Dashboard() {
     facebook_pixel_id: '',
     tiktok_pixel_id: '',
     google_tag_id: '',
+    experience_mode: 'widget',
+    lead_chat_slug: '',
+    consent_text: 'Acepto ser contactado por telefono o mensajes para continuar con mi solicitud.',
+    consent_text_version: 'v1',
+    icloser_redirect_url: '',
+    lead_chat_headline: 'Conversa, califica y activa tu llamada de cierre.',
+    lead_chat_subheadline: 'Este Lead Chat esta optimizado para convertir en pantalla completa.',
+    lead_chat_offer_title: 'Bloquea tu llamada de cierre ahora',
+    lead_chat_offer_description: 'IACloser toma tu contexto y prioriza el cierre comercial en menos de 60 segundos.',
+    lead_chat_cta_label: 'Activar llamada',
+    lead_chat_live_toasts: 'Nuevo lead activo hace 2 min\nUn asesor IA acaba de cerrar una llamada\nConversiones en vivo: este chat esta funcionando',
   });
 
   const [showApiKey, setShowApiKey] = useState(false);
@@ -546,6 +568,21 @@ export default function Dashboard() {
           facebook_pixel_id: null,
           tiktok_pixel_id: null,
           google_tag_id: null,
+          experience_mode: 'widget',
+          lead_chat_slug: '',
+          consent_text: 'Acepto ser contactado por telefono o mensajes para continuar con mi solicitud.',
+          consent_text_version: 'v1',
+          icloser_redirect_url: '',
+          lead_chat_headline: 'Conversa, califica y activa tu llamada de cierre.',
+          lead_chat_subheadline: 'Este Lead Chat esta optimizado para convertir en pantalla completa.',
+          lead_chat_offer_title: 'Bloquea tu llamada de cierre ahora',
+          lead_chat_offer_description: 'IACloser toma tu contexto y prioriza el cierre comercial en menos de 60 segundos.',
+          lead_chat_cta_label: 'Activar llamada',
+          lead_chat_live_toasts: [
+            'Nuevo lead activo hace 2 min',
+            'Un asesor IA acaba de cerrar una llamada',
+            'Conversiones en vivo: este chat esta funcionando'
+          ],
           created_at: new Date().toISOString()
         };
         await setDoc(newWidgetRef, defaultConfig);
@@ -591,6 +628,19 @@ export default function Dashboard() {
           facebook_pixel_id: configData.facebook_pixel_id || '',
           tiktok_pixel_id: configData.tiktok_pixel_id || '',
           google_tag_id: configData.google_tag_id || '',
+          experience_mode: configData.experience_mode === 'lead_chat' ? 'lead_chat' : 'widget',
+          lead_chat_slug: configData.lead_chat_slug || configData.widget_id || '',
+          consent_text: configData.consent_text || 'Acepto ser contactado por telefono o mensajes para continuar con mi solicitud.',
+          consent_text_version: configData.consent_text_version || 'v1',
+          icloser_redirect_url: configData.icloser_redirect_url || '',
+          lead_chat_headline: configData.lead_chat_headline || 'Conversa, califica y activa tu llamada de cierre.',
+          lead_chat_subheadline: configData.lead_chat_subheadline || 'Este Lead Chat esta optimizado para convertir en pantalla completa.',
+          lead_chat_offer_title: configData.lead_chat_offer_title || 'Bloquea tu llamada de cierre ahora',
+          lead_chat_offer_description: configData.lead_chat_offer_description || 'IACloser toma tu contexto y prioriza el cierre comercial en menos de 60 segundos.',
+          lead_chat_cta_label: configData.lead_chat_cta_label || 'Activar llamada',
+          lead_chat_live_toasts: Array.isArray(configData.lead_chat_live_toasts)
+            ? configData.lead_chat_live_toasts.join('\n')
+            : (configData.lead_chat_live_toasts || 'Nuevo lead activo hace 2 min\nUn asesor IA acaba de cerrar una llamada\nConversiones en vivo: este chat esta funcionando'),
         });
 
         if (configData.testimonials_json) {
@@ -794,6 +844,24 @@ export default function Dashboard() {
         facebook_pixel_id: trackingConfig.facebookPixelId,
         tiktok_pixel_id: trackingConfig.tiktokPixelId,
         google_tag_id: trackingConfig.googleTagId,
+        experience_mode: formConfig.experience_mode === 'lead_chat' ? 'lead_chat' : 'widget',
+        lead_chat_slug: (formConfig.lead_chat_slug || formConfig.business_name || widgetConfig.widget_id || '')
+          .toLowerCase()
+          .replace(/[^a-z0-9-_]/g, '-')
+          .replace(/-+/g, '-')
+          .replace(/^-|-$/g, '')
+          .slice(0, 64),
+        consent_text: (formConfig.consent_text || '').trim(),
+        consent_text_version: (formConfig.consent_text_version || 'v1').trim().slice(0, 32),
+        icloser_redirect_url: (formConfig.icloser_redirect_url || '').trim(),
+        lead_chat_headline: (formConfig.lead_chat_headline || '').trim(),
+        lead_chat_subheadline: (formConfig.lead_chat_subheadline || '').trim(),
+        lead_chat_offer_title: (formConfig.lead_chat_offer_title || '').trim(),
+        lead_chat_offer_description: (formConfig.lead_chat_offer_description || '').trim(),
+        lead_chat_cta_label: (formConfig.lead_chat_cta_label || '').trim(),
+        lead_chat_live_toasts: typeof formConfig.lead_chat_live_toasts === 'string'
+          ? formConfig.lead_chat_live_toasts.split('\n').map((value: string) => value.trim()).filter(Boolean).slice(0, 12)
+          : [],
         custom_tracking_code: deleteField(),
         custom_code: deleteField(),
         updated_at: new Date().toISOString(),
@@ -820,6 +888,11 @@ export default function Dashboard() {
   };
 
   const copyEmbedCode = () => {
+    if (formConfig.experience_mode === 'lead_chat') {
+      copyLeadChatLink();
+      return;
+    }
+
     // Generate the widget URL 
     const currentDomain = window.location.origin;
     const publicWidgetId = widgetConfig?.widget_id || widgetConfig?.id || user?.uid || '';
@@ -830,6 +903,29 @@ export default function Dashboard() {
       title: t('dashboard.embed.copy_toast_title'),
       description: t('dashboard.embed.copy_toast_desc'),
       duration: 5000,
+    });
+  };
+
+  const getLeadChatUrl = () => {
+    if (!widgetConfig) return;
+    const slugSource = (formConfig.lead_chat_slug || widgetConfig.widget_id || widgetConfig.id || '').toString();
+    const slug = slugSource
+      .toLowerCase()
+      .replace(/[^a-z0-9-_]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 64);
+    if (!slug) return '';
+    return `${window.location.origin}/lead-chat/${encodeURIComponent(slug)}`;
+  };
+
+  const copyLeadChatLink = () => {
+    const url = getLeadChatUrl();
+    if (!url) return;
+    navigator.clipboard.writeText(url);
+    toast({
+      title: 'Link copiado',
+      description: 'El enlace de Lead Chat fue copiado al portapapeles.',
     });
   };
 
@@ -1596,6 +1692,141 @@ export default function Dashboard() {
 
                   <div className="space-y-4 pt-4 border-t">
                     <h4 className="font-semibold text-sm flex items-center gap-2">
+                      <Rocket className="w-4 h-4" />
+                      Lead Chat + IACloser
+                    </h4>
+
+                    <div className="space-y-2">
+                      <Label>Modo de experiencia</Label>
+                      <Select
+                        value={formConfig.experience_mode}
+                        onValueChange={(value) => setFormConfig({
+                          ...formConfig,
+                          experience_mode: value === 'lead_chat' ? 'lead_chat' : 'widget',
+                        })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="widget">Widget embebido</SelectItem>
+                          <SelectItem value="lead_chat">Lead Chat pantalla completa</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[11px] text-amber-600">
+                        Estas opciones solo se mostraran en Lead Chat (pagina publica), no en Lead Widget embebido.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Slug de Lead Chat</Label>
+                      <Input
+                        value={formConfig.lead_chat_slug}
+                        onChange={(e) => setFormConfig({ ...formConfig, lead_chat_slug: e.target.value })}
+                        placeholder="mi-negocio-chat"
+                      />
+                      <Input
+                        value={getLeadChatUrl() || 'Guarda el slug para generar el enlace publico'}
+                        readOnly
+                        className="text-xs"
+                      />
+                      <div className="flex items-center gap-2">
+                        <Button type="button" variant="outline" size="sm" onClick={copyLeadChatLink}>
+                          <Copy className="w-4 h-4 mr-2" />
+                          Copiar link de Lead Chat
+                        </Button>
+                        <p className="text-[11px] text-muted-foreground">Comparte este link cuando el cliente no tenga web.</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>URL de redireccion IACloser</Label>
+                      <Input
+                        type="url"
+                        value={formConfig.icloser_redirect_url}
+                        onChange={(e) => setFormConfig({ ...formConfig, icloser_redirect_url: e.target.value })}
+                        placeholder="https://tu-landing-ia-closer.com"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Texto de consentimiento</Label>
+                      <textarea
+                        value={formConfig.consent_text}
+                        onChange={(e) => setFormConfig({ ...formConfig, consent_text: e.target.value })}
+                        className="w-full p-2 text-sm border rounded-md bg-background min-h-[72px]"
+                      />
+                      <p className="text-[11px] text-muted-foreground">
+                        Se muestra antes del handoff a IACloser. El usuario debe aceptarlo expresamente.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Version legal del consentimiento</Label>
+                      <Input
+                        value={formConfig.consent_text_version}
+                        onChange={(e) => setFormConfig({ ...formConfig, consent_text_version: e.target.value })}
+                        placeholder="v1"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Titulo principal de Lead Chat</Label>
+                      <Input
+                        value={formConfig.lead_chat_headline}
+                        onChange={(e) => setFormConfig({ ...formConfig, lead_chat_headline: e.target.value })}
+                        placeholder="Conversa, califica y activa tu llamada de cierre."
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Subtitulo principal de Lead Chat</Label>
+                      <textarea
+                        value={formConfig.lead_chat_subheadline}
+                        onChange={(e) => setFormConfig({ ...formConfig, lead_chat_subheadline: e.target.value })}
+                        className="w-full p-2 text-sm border rounded-md bg-background min-h-[64px]"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Titulo del popup de oferta</Label>
+                      <Input
+                        value={formConfig.lead_chat_offer_title}
+                        onChange={(e) => setFormConfig({ ...formConfig, lead_chat_offer_title: e.target.value })}
+                        placeholder="Bloquea tu llamada de cierre ahora"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Descripcion del popup de oferta</Label>
+                      <textarea
+                        value={formConfig.lead_chat_offer_description}
+                        onChange={(e) => setFormConfig({ ...formConfig, lead_chat_offer_description: e.target.value })}
+                        className="w-full p-2 text-sm border rounded-md bg-background min-h-[72px]"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Texto CTA del popup</Label>
+                      <Input
+                        value={formConfig.lead_chat_cta_label}
+                        onChange={(e) => setFormConfig({ ...formConfig, lead_chat_cta_label: e.target.value })}
+                        placeholder="Activar llamada"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Mensajes de actividad en vivo (uno por linea)</Label>
+                      <textarea
+                        value={formConfig.lead_chat_live_toasts}
+                        onChange={(e) => setFormConfig({ ...formConfig, lead_chat_live_toasts: e.target.value })}
+                        className="w-full p-2 text-sm border rounded-md bg-background min-h-[84px]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 pt-4 border-t">
+                    <h4 className="font-semibold text-sm flex items-center gap-2">
                       <Code className="w-4 h-4" />
                       Píxeles de conversión
                     </h4>
@@ -1950,20 +2181,44 @@ export default function Dashboard() {
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Rocket className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                      Activa tu Widget
+                      {formConfig.experience_mode === 'lead_chat' ? 'Publica tu Lead Chat' : 'Activa tu Widget'}
                     </CardTitle>
-                    <CardDescription>Conéctalo a tu web para empezar a recibir clientes.</CardDescription>
+                    <CardDescription>
+                      {formConfig.experience_mode === 'lead_chat'
+                        ? 'Comparte el enlace publico. No depende de tener una web.'
+                        : 'Conectalo a tu web para empezar a recibir clientes.'
+                      }
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <Button asChild className="w-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200 dark:shadow-none transition-all py-6 rounded-xl group" size="lg">
-                      <Link to="/installation-guide">
-                        <BookOpen className="w-5 h-5 mr-3 group-hover:scale-110 transition-transform" />
-                        <span className="font-semibold text-base">Ver Guía de Instalación</span>
-                      </Link>
-                    </Button>
-                    <p className="text-xs text-center text-muted-foreground">
-                      Compatible con WordPress, Shopify, Wix y más.
-                    </p>
+                    {formConfig.experience_mode === 'lead_chat' ? (
+                      <>
+                        <Button
+                          type="button"
+                          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200 dark:shadow-none transition-all py-6 rounded-xl group"
+                          size="lg"
+                          onClick={copyLeadChatLink}
+                        >
+                          <Copy className="w-5 h-5 mr-3 group-hover:scale-110 transition-transform" />
+                          <span className="font-semibold text-base">Copiar enlace publico</span>
+                        </Button>
+                        <p className="text-xs text-center text-muted-foreground">
+                          Usalo en anuncios o mensajes directos: tu Lead Chat funciona como pagina de conversion.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <Button asChild className="w-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200 dark:shadow-none transition-all py-6 rounded-xl group" size="lg">
+                          <Link to="/installation-guide">
+                            <BookOpen className="w-5 h-5 mr-3 group-hover:scale-110 transition-transform" />
+                            <span className="font-semibold text-base">Ver Guia de Instalacion</span>
+                          </Link>
+                        </Button>
+                        <p className="text-xs text-center text-muted-foreground">
+                          Compatible con WordPress, Shopify, Wix y mas.
+                        </p>
+                      </>
+                    )}
                   </CardContent>
                 </Card>
               </div>

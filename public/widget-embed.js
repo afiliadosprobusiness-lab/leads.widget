@@ -21,6 +21,10 @@
     hideBranding: false,
     brandingText: '',
     brandingLink: '',
+    consentText: 'Acepto ser contactado por telefono o mensajes para continuar con mi solicitud.',
+    consentTextVersion: 'v1',
+    iacloserRedirectUrl: '',
+    iacloserEnabled: false,
     projectId: 'leads-widget',
     apiKey: 'AIzaSyCXNFoeg1nrYcFHzU9TEKNnDPg1mHU3_tA'
   };
