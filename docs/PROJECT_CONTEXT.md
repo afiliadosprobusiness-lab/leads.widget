@@ -75,6 +75,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Lead Chat incluye selector manual de idioma `ES/EN` en el header (desktop/mobile); cuando el usuario lo elige, las respuestas se fuerzan en ese idioma durante toda la interaccion.
 - Lead Chat agrega microcopy de reduccion de friccion debajo del input (`Demo real sin costo`, `Llamada en menos de 2 minutos`, `Sin tarjeta de credito`) y una barra superior de prueba social con pulsacion leve y mensajes dinamicos de volumen (cifras creibles).
 - Lead Chat actualiza el microcopy inferior del composer a formato compacto horizontal con emojis y badge de actividad en vivo para mejorar escaneo rapido en mobile/desktop.
+- En Lead Chat, los mensajes teaser dinamicos (barra de captacion encima de quick replies/composer) cambian de idioma junto al selector `ES/EN`.
 - En Lead Chat, cuando el asistente emite `ICALLCLOSER_READY` con datos suficientes, el frontend intenta handoff automatico y muestra cuenta regresiva en chat (`3..2..1`) antes de redirigir al `redirectUrl` configurado; si faltan datos, mantiene fallback de consentimiento manual.
 - Quick replies de Lead Chat y `SalesWidget` usan una sola fila con scroll horizontal suave (sin wrap) para mantener CTA compactos en todas las resoluciones.
 - Lead Chat consume `language` del widget config para defaults EN/ES (mensaje inicial, quick replies, consentimiento, estados y copys de conversion).

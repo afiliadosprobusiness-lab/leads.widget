@@ -74,6 +74,7 @@ const SALES_COPY: Record<
     initialMessage: string;
     chatPlaceholder: string;
     quickReplies: string[];
+    teaserMessages: string[];
     presenceNow: string;
     presenceNowMessages: string[];
     prequalifyingBadge: string;
@@ -131,6 +132,11 @@ const SALES_COPY: Record<
       "Hola, soy el asistente de pre-calificacion.\nEn menos de 2 minutos podemos llamarte y ayudarte a cerrar o agendar clientes.\n\nQue te gustaria hacer ahora?",
     chatPlaceholder: "Escribe tu mensaje...",
     quickReplies: ["Agendar clientes", "Cerrar ventas por llamada", "Ver como funciona"],
+    teaserMessages: [
+      "\u00BFC\u00F3mo podemos ayudarte? \uD83D\uDC4B",
+      "\u00BFTienes alguna duda sobre el servicio? \u2728",
+      "\u00A1Hola! Estamos en l\u00EDnea para atenderte \uD83D\uDE80",
+    ],
     presenceNow: "3 personas probando la demo ahora",
     presenceNowMessages: [
       "3 personas probando la demo ahora",
@@ -195,6 +201,11 @@ const SALES_COPY: Record<
       "Hi! I'm the qualification assistant.\nIn under 2 minutes, our AI can call you and help you book or close customers live.\n\nWhat would you like to do?",
     chatPlaceholder: "Type your message...",
     quickReplies: ["Book more appointments", "Close deals by phone", "See how it works"],
+    teaserMessages: [
+      "How can we help you? \uD83D\uDC4B",
+      "Do you have any question about the service? \u2728",
+      "Hi! We are online to assist you \uD83D\uDE80",
+    ],
     presenceNow: "3 people are testing this demo right now",
     presenceNowMessages: [
       "3 people are testing this demo right now",
@@ -263,6 +274,13 @@ const LEGACY_QUICK_REPLIES = [
   ["How does it work?", "I want more information", "See pricing"],
   ["Agendar clientes", "Cerrar ventas por llamada", "Ver como funciona"],
   ["Book more appointments", "Close deals by phone", "See how it works"],
+];
+
+const LEGACY_TEASER_MESSAGES = [
+  ["\u00BFC\u00F3mo podemos ayudarte? \uD83D\uDC4B", "\u00BFTienes alguna duda sobre el servicio? \u2728", "\u00A1Hola! Estamos en l\u00EDnea para atenderte \uD83D\uDE80"],
+  ["How can we help you? \uD83D\uDC4B", "Do you have any question about the service? \u2728", "Hi! We are online to assist you \uD83D\uDE80"],
+  ["\u00BFC\u00F3mo podemos ayudarte?", "\u00BFTienes alguna duda sobre el servicio?", "\u00A1Hola! Estamos en l\u00EDnea para atenderte"],
+  ["How can we help you?", "Do you have any question about the service?", "Hi! We are online to assist you"],
 ];
 
 declare global {
@@ -548,6 +566,11 @@ function shouldUseSalesQuickReplies(candidate: string[]) {
   return LEGACY_QUICK_REPLIES.some((legacy) => arraysLooselyMatch(candidate, legacy));
 }
 
+function shouldUseSalesTeaserMessages(candidate: string[]) {
+  if (candidate.length === 0) return true;
+  return LEGACY_TEASER_MESSAGES.some((legacy) => arraysLooselyMatch(candidate, legacy));
+}
+
 function resolveWelcomeMessage(rawWelcome: unknown, locale: ChatLocale) {
   const fallback = SALES_COPY[locale].initialMessage;
   const candidate = typeof rawWelcome === "string" ? rawWelcome.trim() : "";
@@ -562,6 +585,14 @@ function resolveQuickReplies(rawQuickReplies: unknown, locale: ChatLocale) {
   const parsed = normalizeStringArray(rawQuickReplies).slice(0, 8);
   if (shouldUseSalesQuickReplies(parsed)) {
     return [...SALES_COPY[locale].quickReplies];
+  }
+  return parsed;
+}
+
+function resolveTeaserMessages(rawTeasers: unknown, locale: ChatLocale) {
+  const parsed = normalizeStringArray(rawTeasers).slice(0, 12);
+  if (shouldUseSalesTeaserMessages(parsed)) {
+    return [...SALES_COPY[locale].teaserMessages];
   }
   return parsed;
 }
@@ -925,7 +956,7 @@ export default function LeadChat() {
           welcomeMessage: resolveWelcomeMessage(raw.welcomeMessage ?? raw.welcome_message, resolvedLocale),
           chatPlaceholder: String(raw.chatPlaceholder || raw.chat_placeholder || localeCopy.chatPlaceholder),
           quickReplies: resolveQuickReplies(raw.quickReplies ?? raw.quick_replies, resolvedLocale),
-          teaserMessages: normalizeStringArray(raw.teaserMessages ?? raw.teaser_messages).slice(0, 12),
+          teaserMessages: resolveTeaserMessages(raw.teaserMessages ?? raw.teaser_messages, resolvedLocale),
           testimonials: resolvedTestimonials,
           triggerDelay: Number(raw.triggerDelay || raw.trigger_delay || 5),
           exitIntentEnabled:
@@ -1090,6 +1121,13 @@ export default function LeadChat() {
     }
     return parsed;
   }, [config?.quickReplies, copy.quickReplies]);
+  const teaserMessages = useMemo(() => {
+    const parsed = Array.isArray(config?.teaserMessages) ? config.teaserMessages.filter(Boolean).slice(0, 12) : [];
+    if (shouldUseSalesTeaserMessages(parsed)) {
+      return [...copy.teaserMessages];
+    }
+    return parsed;
+  }, [config?.teaserMessages, copy.teaserMessages]);
 
   const testimonials = useMemo(
     () => (Array.isArray(config?.testimonials) ? config.testimonials.slice(0, 10) : []),
@@ -1184,7 +1222,7 @@ export default function LeadChat() {
   }, [presenceMessages]);
 
   useEffect(() => {
-    const source = Array.isArray(config?.teaserMessages) ? config.teaserMessages.filter(Boolean) : [];
+    const source = teaserMessages;
     if (source.length === 0 || consentVisible || !!handoffMessage || !!input.trim() || sending || assistantTyping) {
       setTeaserVisible(false);
       return;
@@ -1209,7 +1247,17 @@ export default function LeadChat() {
       window.clearInterval(intervalId);
       if (hideTimeout) window.clearTimeout(hideTimeout);
     };
-  }, [config?.teaserMessages, config?.triggerDelay, consentVisible, handoffMessage, input, sending, assistantTyping]);
+  }, [teaserMessages, config?.triggerDelay, consentVisible, handoffMessage, input, sending, assistantTyping]);
+
+  useEffect(() => {
+    if (!teaserVisible || teaserMessages.length === 0) return;
+    setActiveTeaser((prev) => {
+      if (teaserMessages.some((item) => normalizeText(item) === normalizeText(prev))) {
+        return prev;
+      }
+      return teaserMessages[0] || "";
+    });
+  }, [locale, teaserVisible, teaserMessages]);
 
   useEffect(() => {
     if (config?.exitIntentEnabled === false || exitIntentShown || showExitIntent || consentVisible || !!handoffMessage) return;
