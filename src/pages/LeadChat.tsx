@@ -1,6 +1,6 @@
 ﻿import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { CheckCircle2, Loader2, PhoneCall, Send, ShieldCheck, Sparkles } from "lucide-react";
+import { CheckCircle2, Loader2, PhoneCall, Send, ShieldCheck, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,7 +25,13 @@ type PublicWidgetConfig = {
   welcomeMessage?: string;
   chatPlaceholder?: string;
   quickReplies?: string[];
+  teaserMessages?: string[];
   testimonials?: Testimonial[];
+  triggerDelay?: number;
+  exitIntentEnabled?: boolean;
+  exitIntentTitle?: string;
+  exitIntentDescription?: string;
+  exitIntentCta?: string;
   consentText?: string;
   consentTextVersion?: string;
   iacloserRedirectUrl?: string;
@@ -45,6 +51,38 @@ type CloserSeed = {
 
 function sanitizePhone(value: string) {
   return value.replace(/\D/g, "").slice(0, 15);
+}
+
+function normalizeStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => (typeof item === "string" ? item.trim() : ""))
+      .filter(Boolean);
+  }
+  if (typeof value === "string") {
+    return value
+      .split("\n")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+function normalizeTestimonials(value: unknown): Testimonial[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const record = item as Record<string, unknown>;
+      return {
+        id: typeof record.id === "string" ? record.id : "",
+        name: typeof record.name === "string" ? record.name : "Cliente",
+        text: typeof record.text === "string" ? record.text : "",
+        stars: typeof record.stars === "number" ? record.stars : 5,
+        avatar_url: typeof record.avatar_url === "string" ? record.avatar_url : "",
+      } as Testimonial;
+    })
+    .filter((item): item is Testimonial => Boolean(item) && Boolean(item.text || item.name));
 }
 
 function parseIACCloserSeed(responseText: string) {
@@ -83,6 +121,8 @@ export default function LeadChat() {
   const { identity = "" } = useParams();
   const [loadingConfig, setLoadingConfig] = useState(true);
   const [sending, setSending] = useState(false);
+  const [assistantTyping, setAssistantTyping] = useState(false);
+  const [assistantDraft, setAssistantDraft] = useState("");
   const [handoffLoading, setHandoffLoading] = useState(false);
   const [config, setConfig] = useState<PublicWidgetConfig | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -96,10 +136,46 @@ export default function LeadChat() {
   const [handoffMessage, setHandoffMessage] = useState("");
   const [offerDismissed, setOfferDismissed] = useState(false);
   const [socialProofToast, setSocialProofToast] = useState("");
-  const [conversationSignal, setConversationSignal] = useState("");
+  const [activeTestimonialIndex, setActiveTestimonialIndex] = useState(0);
+  const [activeTeaser, setActiveTeaser] = useState("");
+  const [teaserVisible, setTeaserVisible] = useState(false);
+  const [showExitIntent, setShowExitIntent] = useState(false);
+  const [exitIntentShown, setExitIntentShown] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const proofScrollRef = useRef<HTMLDivElement | null>(null);
   const consentPanelRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  const appendAssistantWithTypewriter = (text: string) =>
+    new Promise<void>((resolve) => {
+      const cleanText = text.trim();
+      if (!cleanText) {
+        resolve();
+        return;
+      }
+
+      const chars = Array.from(cleanText);
+      let index = 0;
+      const speed = chars.length > 220 ? 8 : chars.length > 140 ? 12 : 16;
+
+      setAssistantTyping(true);
+      setAssistantDraft("");
+
+      const intervalId = window.setInterval(() => {
+        index += 1;
+        setAssistantDraft(chars.slice(0, index).join(""));
+
+        if (index >= chars.length) {
+          window.clearInterval(intervalId);
+          window.setTimeout(() => {
+            setMessages((prev) => [...prev, { role: "assistant", content: cleanText }]);
+            setAssistantTyping(false);
+            setAssistantDraft("");
+            resolve();
+          }, 120);
+        }
+      }, speed);
+    });
 
   useEffect(() => {
     const loadConfig = async () => {
@@ -111,12 +187,56 @@ export default function LeadChat() {
           throw new Error(payload?.error || "No se pudo cargar la configuracion");
         }
 
-        const cfg = payload.config as PublicWidgetConfig;
-        setConfig(cfg);
+        const raw = payload.config as Record<string, unknown>;
+        const normalized: PublicWidgetConfig = {
+          widgetId: String(raw.widgetId || raw.widget_id || identity || ""),
+          businessName: String(raw.businessName || raw.business_name || "Asistente comercial"),
+          primaryColor: String(raw.primaryColor || raw.primary_color || "#00C185"),
+          welcomeMessage: String(
+            raw.welcomeMessage || raw.welcome_message || "Hola. Soy tu asistente virtual, te ayudo a encontrar la mejor opcion para ti.",
+          ),
+          chatPlaceholder: String(raw.chatPlaceholder || raw.chat_placeholder || "Escribe tu mensaje..."),
+          quickReplies: normalizeStringArray(raw.quickReplies ?? raw.quick_replies).slice(0, 8),
+          teaserMessages: normalizeStringArray(raw.teaserMessages ?? raw.teaser_messages).slice(0, 12),
+          testimonials: normalizeTestimonials(raw.testimonials).slice(0, 10),
+          triggerDelay: Number(raw.triggerDelay || raw.trigger_delay || 5),
+          exitIntentEnabled:
+            typeof raw.exitIntentEnabled === "boolean"
+              ? raw.exitIntentEnabled
+              : typeof raw.trigger_exit_intent === "boolean"
+                ? raw.trigger_exit_intent
+                : true,
+          exitIntentTitle: String(raw.exitIntentTitle || raw.exit_intent_title || "Espera"),
+          exitIntentDescription: String(
+            raw.exitIntentDescription || raw.exit_intent_description || "Antes de salir, mira como este Lead Chat acelera el cierre.",
+          ),
+          exitIntentCta: String(raw.exitIntentCta || raw.exit_intent_cta || "Volver al chat"),
+          consentText: String(
+            raw.consentText || raw.consent_text || "Acepto ser contactado por telefono o mensajes para continuar con mi solicitud.",
+          ),
+          consentTextVersion: String(raw.consentTextVersion || raw.consent_text_version || "v1"),
+          iacloserRedirectUrl: String(raw.iacloserRedirectUrl || raw.icloser_redirect_url || ""),
+          leadChatHeadline: String(raw.leadChatHeadline || raw.lead_chat_headline || "Conversa, califica y activa tu llamada de cierre."),
+          leadChatSubheadline: String(
+            raw.leadChatSubheadline ||
+              raw.lead_chat_subheadline ||
+              "Esta pagina esta enfocada en precalificar al lead y activar cierre rapido con IACloser.",
+          ),
+          leadChatOfferTitle: String(raw.leadChatOfferTitle || raw.lead_chat_offer_title || "Bloquea tu llamada de cierre ahora"),
+          leadChatOfferDescription: String(
+            raw.leadChatOfferDescription ||
+              raw.lead_chat_offer_description ||
+              "Estas en el momento mas caliente. Si aceptas el contacto ahora, IACloser toma tu contexto y prioriza el cierre.",
+          ),
+          leadChatCtaLabel: String(raw.leadChatCtaLabel || raw.lead_chat_cta_label || "Activar llamada"),
+          leadChatLiveToasts: normalizeStringArray(raw.leadChatLiveToasts ?? raw.lead_chat_live_toasts).slice(0, 12),
+        };
+
+        setConfig(normalized);
         setMessages([
           {
             role: "assistant",
-            content: cfg.welcomeMessage || "Hola. Soy tu asistente virtual, te ayudo a encontrar la mejor opcion para ti.",
+            content: normalized.welcomeMessage || "Hola. Soy tu asistente virtual, te ayudo a encontrar la mejor opcion para ti.",
           },
         ]);
       } catch (error: any) {
@@ -138,15 +258,15 @@ export default function LeadChat() {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, sending, consentVisible]);
+  }, [messages, sending, assistantTyping, assistantDraft, consentVisible]);
 
   const quickReplies = useMemo(
-    () => (Array.isArray(config?.quickReplies) ? config?.quickReplies.filter(Boolean).slice(0, 6) : []),
+    () => (Array.isArray(config?.quickReplies) ? config.quickReplies.filter(Boolean).slice(0, 8) : []),
     [config?.quickReplies],
   );
 
   const testimonials = useMemo(
-    () => (Array.isArray(config?.testimonials) ? config.testimonials.slice(0, 8) : []),
+    () => (Array.isArray(config?.testimonials) ? config.testimonials.slice(0, 10) : []),
     [config?.testimonials],
   );
 
@@ -165,6 +285,19 @@ export default function LeadChat() {
     [testimonials],
   );
 
+  const activeTestimonial = useMemo(() => {
+    if (testimonials.length === 0) return null;
+    return testimonials[activeTestimonialIndex % testimonials.length];
+  }, [activeTestimonialIndex, testimonials]);
+
+  useEffect(() => {
+    if (testimonials.length <= 1) return;
+    const interval = window.setInterval(() => {
+      setActiveTestimonialIndex((prev) => (prev + 1) % testimonials.length);
+    }, 4200);
+    return () => window.clearInterval(interval);
+  }, [testimonials.length]);
+
   useEffect(() => {
     const fallbackMessages = [
       "Nuevo lead activo hace 2 min",
@@ -182,11 +315,11 @@ export default function LeadChat() {
 
     let index = 0;
     setSocialProofToast(source[0] || "");
-    const interval = setInterval(() => {
+    const interval = window.setInterval(() => {
       index = (index + 1) % source.length;
       setSocialProofToast(source[index] || "");
-    }, 8000);
-    return () => clearInterval(interval);
+    }, 7600);
+    return () => window.clearInterval(interval);
   }, [config?.leadChatLiveToasts, testimonials]);
 
   useEffect(() => {
@@ -210,34 +343,52 @@ export default function LeadChat() {
   }, [proofFeed.length]);
 
   useEffect(() => {
-    const lastUserMessage = [...messages].reverse().find((msg) => msg.role === "user")?.content?.toLowerCase() || "";
-    if (!lastUserMessage) return;
-
-    let signal = "";
-    if (/precio|costo|cuanto|presupuesto/.test(lastUserMessage)) {
-      signal = "Senal de compra: el lead esta evaluando precio y presupuesto.";
-    } else if (/hoy|ahora|urgente|rapido|pronto/.test(lastUserMessage)) {
-      signal = "Senal de urgencia detectada: es buen momento para activar cierre.";
-    } else if (/servicio|producto|tratamiento|plan/.test(lastUserMessage)) {
-      signal = "Interes claro en la oferta: conviene guiar hacia consentimiento.";
-    } else if (userMessageCount >= 2) {
-      signal = "Conversacion activa: el lead sigue comprometido en el flujo.";
+    const source = Array.isArray(config?.teaserMessages) ? config.teaserMessages.filter(Boolean) : [];
+    if (source.length === 0 || consentVisible || !!handoffMessage || !!input.trim() || sending || assistantTyping) {
+      setTeaserVisible(false);
+      return;
     }
 
-    if (!signal) return;
-    setConversationSignal(signal);
-    const timer = window.setTimeout(() => setConversationSignal(""), 5200);
-    return () => window.clearTimeout(timer);
-  }, [messages, userMessageCount]);
+    let index = Math.floor(Math.random() * source.length);
+    let hideTimeout: number | undefined;
+    const startupDelay = Math.max(4, Number(config?.triggerDelay || 5)) * 1000;
 
-  const conversionStep = useMemo(() => {
-    if (handoffMessage) return 4;
-    if (consentVisible) return 3;
-    if (messages.filter((msg) => msg.role === "user").length >= 2) return 2;
-    return 1;
-  }, [consentVisible, handoffMessage, messages]);
+    const showTeaser = () => {
+      setActiveTeaser(source[index] || "");
+      setTeaserVisible(true);
+      index = (index + 1) % source.length;
+      hideTimeout = window.setTimeout(() => setTeaserVisible(false), 4200);
+    };
 
-  const conversionSteps = ["Conversacion", "Calificacion", "Consentimiento", "Llamada"];
+    const startTimeout = window.setTimeout(showTeaser, startupDelay);
+    const intervalId = window.setInterval(showTeaser, 8500);
+
+    return () => {
+      window.clearTimeout(startTimeout);
+      window.clearInterval(intervalId);
+      if (hideTimeout) window.clearTimeout(hideTimeout);
+    };
+  }, [config?.teaserMessages, config?.triggerDelay, consentVisible, handoffMessage, input, sending, assistantTyping]);
+
+  useEffect(() => {
+    if (config?.exitIntentEnabled === false || exitIntentShown || showExitIntent || consentVisible || !!handoffMessage) return;
+    const desktopPointer = window.matchMedia("(min-width: 1024px) and (pointer:fine)").matches;
+    if (!desktopPointer) return;
+
+    const handleExitIntent = (event: MouseEvent) => {
+      const isExit = event.clientY <= 6 || (event.relatedTarget === null && event.clientY < 10);
+      if (!isExit) return;
+      setExitIntentShown(true);
+      setShowExitIntent(true);
+    };
+
+    document.addEventListener("mouseout", handleExitIntent);
+    document.addEventListener("mouseleave", handleExitIntent);
+    return () => {
+      document.removeEventListener("mouseout", handleExitIntent);
+      document.removeEventListener("mouseleave", handleExitIntent);
+    };
+  }, [config?.exitIntentEnabled, consentVisible, handoffMessage, exitIntentShown, showExitIntent]);
 
   const conversationHistory = useMemo(
     () => messages.filter((msg) => msg.role !== "system").map((msg) => ({ role: msg.role, content: msg.content })),
@@ -255,6 +406,7 @@ export default function LeadChat() {
 
   const openConsentStep = () => {
     setOfferDismissed(true);
+    setShowExitIntent(false);
     setConsentVisible(true);
     window.setTimeout(() => {
       consentPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -262,12 +414,13 @@ export default function LeadChat() {
   };
 
   const handleSend = async (overrideText?: string) => {
-    if (!config?.widgetId || sending) return;
+    if (!config?.widgetId || sending || assistantTyping) return;
     const text = (overrideText ?? input).trim();
     if (!text) return;
 
     setChatError("");
     setHandoffMessage("");
+    setTeaserVisible(false);
 
     const nextMessages: ChatMessage[] = [...messages, { role: "user", content: text }];
     setMessages(nextMessages);
@@ -294,7 +447,7 @@ export default function LeadChat() {
       const parsed = parseIACCloserSeed(aiText);
       const cleanResponse = parsed.cleanText || "Perfecto, continuemos.";
 
-      setMessages((prev) => [...prev, { role: "assistant", content: cleanResponse }]);
+      await appendAssistantWithTypewriter(cleanResponse);
 
       if (parsed.isReady) {
         if (parsed.seed?.name && !leadName) setLeadName(parsed.seed.name);
@@ -408,82 +561,60 @@ export default function LeadChat() {
         <div className="absolute bottom-0 right-0 h-72 w-72 rounded-full bg-emerald-400/10 blur-3xl" />
       </div>
 
-      <div className="relative mx-auto grid min-h-screen max-w-[1600px] grid-cols-1 gap-4 px-3 py-3 lg:grid-cols-[250px_minmax(0,1fr)_320px] lg:px-5 lg:py-5">
-        <aside className="order-2 min-w-0 space-y-4 lg:order-1">
-          <div className="rounded-2xl border border-slate-800/90 bg-slate-950/70 p-4 backdrop-blur">
-            <p className="text-xs text-slate-300">Embudo en tiempo real</p>
-            <p className="mt-1 text-2xl font-semibold">{conversionStep}/4</p>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-800">
-              <div
-                className="h-full rounded-full transition-all duration-500"
-                style={{
-                  width: `${(conversionStep / 4) * 100}%`,
-                  backgroundColor: config.primaryColor || "#00C185",
-                }}
-              />
-            </div>
-            <div className="mt-3 grid gap-2">
-              {conversionSteps.map((step, idx) => {
-                const active = conversionStep >= idx + 1;
-                return (
-                  <div
-                    key={step}
-                    className={`rounded-lg border px-2 py-1 text-[11px] ${
-                      active
-                        ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-200"
-                        : "border-slate-700 bg-slate-900 text-slate-400"
-                    }`}
-                  >
-                    {step}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-slate-800/90 bg-slate-950/70 p-4 backdrop-blur">
-            <h2 className="flex items-center gap-2 text-sm font-semibold">
-              <Sparkles className="h-4 w-4 text-cyan-300" />
-              Actividad dinamica
-            </h2>
-            <p className="mt-2 rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-xs text-cyan-100">
-              {socialProofToast || "Mostrando pruebas sociales y actividad en vivo."}
-            </p>
-            {conversationSignal ? (
-              <p className="mt-2 rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-xs text-emerald-100">
-                {conversationSignal}
-              </p>
-            ) : null}
-          </div>
-        </aside>
-
-        <section className="order-1 min-w-0 lg:order-2">
-          <div className="flex min-h-[calc(100vh-1.5rem)] flex-col rounded-3xl bg-gradient-to-b from-cyan-400/30 via-slate-800/60 to-slate-900/80 p-[1px] shadow-[0_16px_60px_-24px_rgba(34,211,238,0.35)]">
-            <div className="flex h-full min-h-0 flex-col rounded-3xl border border-slate-800/80 bg-[#071423]/95">
+      <div className="relative mx-auto flex min-h-screen max-w-[1650px] flex-col gap-4 px-2 py-2 sm:px-3 sm:py-3 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:px-5 lg:py-5">
+        <section className="min-w-0">
+          <div className="flex min-h-[88dvh] flex-col rounded-[28px] bg-gradient-to-b from-cyan-400/25 via-slate-800/60 to-slate-900/85 p-[1px] shadow-[0_20px_80px_-35px_rgba(34,211,238,0.5)] lg:min-h-[calc(100dvh-2.5rem)]">
+            <div className="flex h-full min-h-0 flex-col rounded-[27px] border border-slate-800/80 bg-[#071423]/95">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 px-4 py-4 sm:px-6">
                 <div className="min-w-0">
                   <p className="text-[10px] uppercase tracking-[0.25em] text-cyan-200/80">Lead Chat publico</p>
-                  <h1 className="text-lg font-semibold leading-tight sm:text-2xl">
-                    {config.businessName || "Asistente comercial"}
-                  </h1>
-                  <p className="mt-1 text-xs text-slate-300 sm:text-sm">
+                  <h1 className="text-xl font-semibold leading-tight sm:text-4xl">{config.businessName || "Asistente comercial"}</h1>
+                  <p className="mt-1 text-sm text-slate-200 sm:text-base">
                     {config.leadChatHeadline || "Conversa, califica y activa tu llamada de cierre."}
                   </p>
-                  <p className="mt-1 text-[11px] text-slate-400 sm:text-xs">
+                  <p className="mt-1 text-xs text-slate-400 sm:text-sm">
                     {config.leadChatSubheadline || "Esta pagina esta enfocada en precalificar al lead y activar cierre rapido con IACloser."}
                   </p>
                 </div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-200">
+                <button
+                  type="button"
+                  onClick={() => setShowExitIntent(true)}
+                  className="inline-flex items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-200 transition-colors hover:bg-emerald-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+                >
                   <PhoneCall className="h-3.5 w-3.5" />
                   IACloser en menos de 60s
-                </div>
+                </button>
               </div>
 
               <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4 sm:px-6">
+                {activeTestimonial ? (
+                  <article className="sticky top-0 z-20 rounded-2xl border border-cyan-400/30 bg-slate-950/85 p-2.5 backdrop-blur animate-in fade-in duration-300">
+                    <div className="flex items-center gap-2">
+                      <div className="h-8 w-8 shrink-0 rounded-full bg-cyan-900/60 text-[11px] font-semibold text-cyan-100 grid place-items-center">
+                        {String(activeTestimonial.name || "C")
+                          .split(" ")
+                          .map((chunk) => chunk[0] || "")
+                          .join("")
+                          .slice(0, 2)
+                          .toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-[11px] font-medium text-cyan-100">
+                          {activeTestimonial.name || "Cliente"}
+                          <span className="ml-2 text-[10px] text-amber-300">
+                            {"*".repeat(Math.max(1, Math.min(5, Number(activeTestimonial.stars || 5))))}
+                          </span>
+                        </p>
+                        <p className="truncate text-[11px] text-slate-300">"{activeTestimonial.text || "Excelente experiencia."}"</p>
+                      </div>
+                    </div>
+                  </article>
+                ) : null}
+
                 {messages.map((msg, index) => (
                   <div key={`${msg.role}-${index}`} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                     <div
-                      className={`max-w-[88%] break-words rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
+                      className={`max-w-[88%] break-words rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed animate-in fade-in slide-in-from-bottom-2 duration-300 ${
                         msg.role === "user"
                           ? "rounded-br-md text-slate-950 shadow-sm"
                           : msg.role === "system"
@@ -497,6 +628,15 @@ export default function LeadChat() {
                   </div>
                 ))}
 
+                {assistantTyping && (
+                  <div className="flex justify-start">
+                    <div className="max-w-[88%] rounded-2xl rounded-bl-md border border-slate-700 bg-slate-800/90 px-3.5 py-2.5 text-sm leading-relaxed text-slate-100">
+                      {assistantDraft}
+                      <span className="ml-0.5 inline-block h-4 w-[1px] animate-pulse bg-cyan-300 align-middle" aria-hidden="true" />
+                    </div>
+                  </div>
+                )}
+
                 {sending && (
                   <div className="flex justify-start">
                     <div className="inline-flex items-center gap-2 rounded-2xl rounded-bl-md border border-slate-700 bg-slate-800 px-3 py-2 text-xs text-slate-300">
@@ -508,7 +648,7 @@ export default function LeadChat() {
 
                 {shouldShowInlineOffer && (
                   <div className="pt-2">
-                    <div className="mx-auto w-full max-w-2xl rounded-2xl border border-amber-300/40 bg-slate-950/90 p-4 sm:p-5">
+                    <div className="mx-auto w-full max-w-2xl rounded-2xl border border-amber-300/40 bg-slate-950/90 p-4 sm:p-5 animate-in fade-in zoom-in-95 duration-300">
                       <p className="text-[11px] uppercase tracking-[0.25em] text-amber-200">Oferta activa</p>
                       <h3 className="mt-2 text-lg font-semibold sm:text-xl">
                         {config.leadChatOfferTitle || "Bloquea tu llamada de cierre ahora"}
@@ -530,20 +670,31 @@ export default function LeadChat() {
               </div>
 
               <div className="space-y-3 border-t border-slate-800 px-4 py-4 sm:px-6">
-                {quickReplies.length > 0 && messages.length < 6 && (
+                {teaserVisible && !!activeTeaser ? (
+                  <button
+                    type="button"
+                    onClick={() => void handleSend(activeTeaser)}
+                    className="w-full rounded-xl border border-cyan-400/35 bg-cyan-400/10 px-3 py-2 text-left text-xs text-cyan-100 transition-colors hover:bg-cyan-400/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 animate-in fade-in slide-in-from-bottom-2 duration-300"
+                  >
+                    {activeTeaser}
+                  </button>
+                ) : null}
+
+                {quickReplies.length > 0 && messages.length < 7 && (
                   <div className="flex flex-wrap gap-2">
                     {quickReplies.map((item, idx) => (
                       <button
                         key={`${item}-${idx}`}
                         type="button"
-                        onClick={() => handleSend(item)}
-                        className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-200 transition-colors hover:border-cyan-400/60 hover:text-cyan-200"
+                        onClick={() => void handleSend(item)}
+                        className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-200 transition-colors hover:border-cyan-400/60 hover:text-cyan-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
                       >
                         {item}
                       </button>
                     ))}
                   </div>
                 )}
+
                 <form
                   onSubmit={(event) => {
                     event.preventDefault();
@@ -552,13 +703,14 @@ export default function LeadChat() {
                   className="flex gap-2"
                 >
                   <Input
+                    ref={inputRef}
                     value={input}
                     onChange={(event) => setInput(event.target.value)}
                     placeholder={config.chatPlaceholder || "Escribe tu mensaje..."}
-                    className="border-slate-700 bg-slate-900 text-slate-100"
-                    disabled={sending}
+                    className="border-slate-700 bg-slate-900 text-slate-100 focus-visible:ring-2 focus-visible:ring-cyan-300/70"
+                    disabled={sending || assistantTyping}
                   />
-                  <Button type="submit" disabled={sending || !input.trim()} className="shrink-0">
+                  <Button type="submit" disabled={sending || assistantTyping || !input.trim()} className="shrink-0">
                     <Send className="h-4 w-4" />
                   </Button>
                 </form>
@@ -567,25 +719,45 @@ export default function LeadChat() {
           </div>
         </section>
 
-        <aside className="order-3 min-w-0 space-y-4 lg:overflow-y-auto lg:pr-1">
+        <aside className="min-w-0 space-y-4 lg:max-h-[calc(100dvh-2.5rem)] lg:overflow-y-auto lg:pr-1">
           <div className="rounded-2xl border border-slate-800/90 bg-slate-950/70 p-4 backdrop-blur">
             <h2 className="text-sm font-semibold">Por que convierte mejor</h2>
             <ul className="mt-3 space-y-2 text-xs text-slate-300">
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400" />
-                Chat centrado en toda la pantalla para reducir distracciones.
+                Pantalla casi completa para reducir distracciones y aumentar foco.
               </li>
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400" />
-                Prueba social dinamica en laterales para reforzar confianza.
+                Prueba social en tiempo real para reforzar confianza durante la conversacion.
               </li>
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400" />
-                Handoff inmediato a IACloser solo con consentimiento expreso.
+                Handoff inmediato a IACloser solo cuando existe consentimiento expreso.
               </li>
             </ul>
             <Button type="button" onClick={openConsentStep} className="mt-4 w-full">
               {config.leadChatCtaLabel || "Quiero acelerar mi llamada"}
+            </Button>
+          </div>
+
+          <div className="rounded-2xl border border-slate-800/90 bg-slate-950/70 p-4 backdrop-blur">
+            <h2 className="flex items-center gap-2 text-sm font-semibold">
+              <Sparkles className="h-4 w-4 text-amber-300" />
+              Pop de intencion de salida (PC)
+            </h2>
+            <p className="mt-2 text-xs text-slate-300">Este pop se activa en escritorio cuando detecta salida por la parte superior.</p>
+            <div className="mt-3 rounded-xl border border-amber-300/30 bg-amber-300/10 p-3">
+              <p className="text-xs font-semibold text-amber-100">{config.exitIntentTitle || "Espera"}</p>
+              <p className="mt-1 text-[11px] text-slate-200">
+                {config.exitIntentDescription || "Antes de salir, mira como este Lead Chat acelera el cierre."}
+              </p>
+              <p className="mt-2 inline-flex rounded-full border border-amber-300/40 bg-slate-950/60 px-2 py-1 text-[10px] text-amber-200">
+                CTA: {config.exitIntentCta || "Volver al chat"}
+              </p>
+            </div>
+            <Button type="button" variant="outline" className="mt-3 w-full" onClick={() => setShowExitIntent(true)}>
+              Probar pop de salida
             </Button>
           </div>
 
@@ -634,7 +806,7 @@ export default function LeadChat() {
                   />
                   <span>{config.consentText || "Acepto ser contactado por telefono o mensajes para continuar con mi solicitud."}</span>
                 </label>
-                <Button type="submit" disabled={handoffLoading} className="w-full gap-2 animate-pulse">
+                <Button type="submit" disabled={handoffLoading} className="w-full gap-2">
                   {handoffLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <PhoneCall className="h-4 w-4" />}
                   Enviar a IACloser
                 </Button>
@@ -650,8 +822,8 @@ export default function LeadChat() {
 
           <div className="rounded-2xl border border-slate-800/90 bg-slate-950/70 p-4 backdrop-blur">
             <h2 className="flex items-center gap-2 text-sm font-semibold">
-              <Sparkles className="h-4 w-4 text-amber-300" />
-              Testimonios en movimiento
+              <Sparkles className="h-4 w-4 text-cyan-300" />
+              Testimonios y prueba social
             </h2>
             {testimonials.length === 0 ? (
               <p className="mt-2 text-xs text-slate-400">Agrega testimonios desde el dashboard para reforzar esta seccion.</p>
@@ -681,10 +853,44 @@ export default function LeadChat() {
       </div>
 
       {!!socialProofToast && (
-        <div className="pointer-events-none fixed bottom-5 right-4 z-40 hidden max-w-xs animate-in slide-in-from-bottom-4 fade-in md:block">
+        <div className="pointer-events-none fixed bottom-5 right-4 z-40 max-w-xs animate-in slide-in-from-bottom-4 fade-in">
           <div className="rounded-xl border border-cyan-400/30 bg-slate-950/95 px-3 py-2 text-xs text-cyan-100 shadow-xl">
             <p className="font-semibold text-cyan-200">Actividad en vivo</p>
             <p className="mt-1 line-clamp-2">{socialProofToast}</p>
+          </div>
+        </div>
+      )}
+
+      {showExitIntent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-cyan-300/35 bg-slate-950 p-5 shadow-2xl animate-in zoom-in-95 fade-in duration-300">
+            <button
+              type="button"
+              onClick={() => setShowExitIntent(false)}
+              className="ml-auto grid h-8 w-8 place-items-center rounded-full border border-slate-700 bg-slate-900 text-slate-300 transition-colors hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
+              aria-label="Cerrar pop de salida"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <p className="text-[11px] uppercase tracking-[0.25em] text-cyan-200">Intencion de salida detectada</p>
+            <h3 className="mt-2 text-xl font-semibold">{config.exitIntentTitle || "Espera"}</h3>
+            <p className="mt-2 text-sm text-slate-300">
+              {config.exitIntentDescription || "Antes de salir, mira como este Lead Chat acelera el cierre."}
+            </p>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              <Button
+                type="button"
+                onClick={() => {
+                  setShowExitIntent(false);
+                  inputRef.current?.focus();
+                }}
+              >
+                {config.exitIntentCta || "Volver al chat"}
+              </Button>
+              <Button type="button" variant="outline" onClick={() => setShowExitIntent(false)}>
+                Continuar navegando
+              </Button>
+            </div>
           </div>
         </div>
       )}
