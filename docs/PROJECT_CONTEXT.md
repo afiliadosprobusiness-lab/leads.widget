@@ -74,7 +74,8 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Widget embebido usa ingles por defecto y permite cambiar en 1 clic a espanol desde el header, aplicando textos UI y testimonios rotativos.
 - Widget embebido actualiza defaults comerciales EN/ES (mensaje de apertura y quick replies) al enfoque de llamada en menos de 2 minutos.
 - Widget embebido muestra una barra de testimonios en la parte superior del panel (debajo del header) con glow de transicion en cada cambio para reforzar prueba social sin interrumpir el chat.
-- Lead Chat reutiliza `lead_chat_live_toasts` (dashboard: mensajes de actividad en vivo) en la barra superior bajo el header cuando existen; tambien acepta aliases (`liveActivities`, `liveActivityMessages`) para compatibilidad de payload. Si no hay mensajes configurados, hace fallback a testimonios con glow de transicion.
+- Lead Chat reutiliza `lead_chat_live_toasts` (dashboard: mensajes de actividad en vivo) en la barra superior bajo el header cuando existen; tambien acepta aliases (`liveActivities`, `liveActivityMessages`) y shape Firestore (`arrayValue`/`stringValue`) para compatibilidad de payload. Si el endpoint publico no trae ese campo, hace fallback de lectura directa a Firestore para `widget_configs` por `lead_chat_slug/widget_id/user_id`.
+- En mobile, esa actividad en vivo se muestra en la barra superior bajo el header; en desktop se muestra en una tarjeta lateral (costado derecho del header) para aprovechar espacio libre.
 - El widget embebido no muestra `lead_chat_live_toasts`; mantiene solo la barra superior de testimonios.
 - El widget comercial (`SalesWidget`) tambien esta activo en `/partners`.
 - Dashboard partner incluye secciones:

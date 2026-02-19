@@ -56,6 +56,8 @@ type CloserSeed = {
 const FIXED_IACLOSER_REDIRECT_URL = "https://ai-call-closer.vercel.app/";
 const HAS_EMOJI_RE = /[\p{Extended_Pictographic}]/u;
 const QUICK_EMOJIS = ["😀", "😄", "🙏", "✨", "🔥", "👍", "🎯", "📞", "✅", "💬", "😊", "🚀"];
+const PUBLIC_FIRESTORE_PROJECT_ID = "leads-widget";
+const PUBLIC_FIRESTORE_API_KEY = "AIzaSyCXNFoeg1nrYcFHzU9TEKNnDPg1mHU3_tA";
 
 type ChatLocale = "es" | "en";
 
@@ -285,6 +287,30 @@ function normalizeText(value: string) {
 }
 
 function normalizeStringArray(value: unknown): string[] {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const record = value as Record<string, any>;
+    if (Array.isArray(record.arrayValue?.values)) {
+      const mapped = record.arrayValue.values.map((item: any) => {
+        if (typeof item?.stringValue === "string") return item.stringValue;
+        const fields = item?.mapValue?.fields;
+        return (
+          fields?.message?.stringValue ||
+          fields?.text?.stringValue ||
+          fields?.label?.stringValue ||
+          ""
+        );
+      });
+      return normalizeStringArray(mapped);
+    }
+    if (typeof record.stringValue === "string") {
+      return normalizeStringArray(record.stringValue);
+    }
+    const singleton = record.message ?? record.text ?? record.label;
+    if (typeof singleton === "string") {
+      return normalizeStringArray(singleton);
+    }
+  }
+
   if (Array.isArray(value)) {
     return value
       .map((item) => {
@@ -299,8 +325,17 @@ function normalizeStringArray(value: unknown): string[] {
       .filter(Boolean);
   }
   if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+      try {
+        return normalizeStringArray(JSON.parse(trimmed));
+      } catch {
+        // noop
+      }
+    }
+
     return value
-      .split("\n")
+      .split(/\r?\n/)
       .map((item) => item.trim())
       .filter(Boolean);
   }
@@ -319,6 +354,78 @@ function resolveLeadChatLiveToasts(raw: Record<string, unknown>) {
   for (const candidate of candidates) {
     const parsed = normalizeStringArray(candidate).slice(0, 12);
     if (parsed.length > 0) return parsed;
+  }
+
+  return [];
+}
+
+type FirestoreQueryResult = Array<{
+  document?: {
+    fields?: Record<string, any>;
+  };
+}>;
+
+function parseFirestoreStringListField(field: any) {
+  if (!field) return [];
+  if (Array.isArray(field)) return normalizeStringArray(field);
+  if (typeof field === "string") return normalizeStringArray(field);
+
+  if (field.arrayValue?.values && Array.isArray(field.arrayValue.values)) {
+    const mapped = field.arrayValue.values.map((item: any) => {
+      if (typeof item?.stringValue === "string") return item.stringValue;
+      const fields = item?.mapValue?.fields;
+      return (
+        fields?.message?.stringValue ||
+        fields?.text?.stringValue ||
+        fields?.label?.stringValue ||
+        ""
+      );
+    });
+    return normalizeStringArray(mapped);
+  }
+
+  if (typeof field.stringValue === "string") return normalizeStringArray(field.stringValue);
+  return [];
+}
+
+async function fetchLeadChatLiveToastsFromFirestore(identity: string) {
+  if (!identity) return [];
+
+  const url = `https://firestore.googleapis.com/v1/projects/${PUBLIC_FIRESTORE_PROJECT_ID}/databases/(default)/documents:runQuery?key=${PUBLIC_FIRESTORE_API_KEY}`;
+  const candidates = [
+    { fieldPath: "lead_chat_slug", value: identity },
+    { fieldPath: "widget_id", value: identity },
+    { fieldPath: "user_id", value: identity },
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          structuredQuery: {
+            from: [{ collectionId: "widget_configs" }],
+            where: {
+              fieldFilter: {
+                field: { fieldPath: candidate.fieldPath },
+                op: "EQUAL",
+                value: { stringValue: candidate.value },
+              },
+            },
+            limit: 1,
+          },
+        }),
+      });
+
+      if (!response.ok) continue;
+      const data = (await response.json()) as FirestoreQueryResult;
+      const fields = data?.[0]?.document?.fields;
+      const toasts = parseFirestoreStringListField(fields?.lead_chat_live_toasts).slice(0, 12);
+      if (toasts.length > 0) return toasts;
+    } catch {
+      // noop
+    }
   }
 
   return [];
@@ -494,6 +601,10 @@ export default function LeadChat() {
         const raw = payload.config as Record<string, unknown>;
         const resolvedLocale = resolveLocale(raw.language);
         const localeCopy = SALES_COPY[resolvedLocale];
+        let resolvedLiveToasts = resolveLeadChatLiveToasts(raw);
+        if (resolvedLiveToasts.length === 0) {
+          resolvedLiveToasts = await fetchLeadChatLiveToastsFromFirestore(identity);
+        }
         const normalized: PublicWidgetConfig = {
           widgetId: String(raw.widgetId || raw.widget_id || identity || ""),
           language: resolvedLocale,
@@ -536,7 +647,7 @@ export default function LeadChat() {
               localeCopy.offerDescription,
           ),
           leadChatCtaLabel: String(raw.leadChatCtaLabel || raw.lead_chat_cta_label || localeCopy.offerCta),
-          leadChatLiveToasts: resolveLeadChatLiveToasts(raw),
+          leadChatLiveToasts: resolvedLiveToasts,
         };
 
         setLocale(resolvedLocale);
@@ -1017,11 +1128,25 @@ export default function LeadChat() {
                         : copy.prequalifyingBadge}
                   </button>
                 </div>
+                {showLiveActivityStrip ? (
+                  <div className={`hidden max-w-[320px] rounded-xl border px-3 py-2 text-xs lg:block ${
+                    isLightMode
+                      ? "border-sky-200 bg-white/95 text-slate-700"
+                      : "border-cyan-400/30 bg-slate-950/85 text-slate-100"
+                  } ${testimonialTransition ? (isLightMode ? "shadow-[0_0_28px_-16px_rgba(14,165,233,0.9)]" : "shadow-[0_0_28px_-14px_rgba(34,211,238,0.85)]") : ""}`}>
+                    <p className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${isLightMode ? "text-sky-700" : "text-cyan-200"}`}>
+                      {socialStripLabel}
+                    </p>
+                    <p className="mt-0.5 line-clamp-2">
+                      {socialStripText}
+                    </p>
+                  </div>
+                ) : null}
                 </div>
               </div>
 
               {hasSocialStrip ? (
-                <div className={`px-4 pb-3 pt-3 sm:px-7 ${isLightMode ? "border-b border-slate-200 bg-white/80" : "border-b border-white/10 bg-white/[0.03]"}`}>
+                <div className={`px-4 pb-3 pt-3 sm:px-7 ${showLiveActivityStrip ? "lg:hidden" : ""} ${isLightMode ? "border-b border-slate-200 bg-white/80" : "border-b border-white/10 bg-white/[0.03]"}`}>
                   <div
                     className={`relative overflow-hidden rounded-xl border px-3 py-2 text-xs transition-all duration-500 ${
                       isLightMode
