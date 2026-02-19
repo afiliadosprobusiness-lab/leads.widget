@@ -1449,7 +1449,7 @@ export default function LeadChat() {
         type="button"
         onClick={openConsentStep}
         disabled={!handoffEligible}
-        className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+        className={`hidden sm:inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
           handoffEligible || handoffLoading || Boolean(handoffMessage)
             ? (isLightMode
               ? "border-emerald-300/75 bg-emerald-100 text-emerald-800 hover:bg-emerald-100/85"
@@ -1485,17 +1485,17 @@ export default function LeadChat() {
       };
 
   return (
-    <main className={`relative min-h-screen overflow-hidden ${isLightMode ? "bg-[#eef3fb] text-slate-900" : "bg-[#050b15] text-slate-100"}`}>
+    <main className={`relative min-h-[100dvh] overflow-hidden ${isLightMode ? "bg-[#eef3fb] text-slate-900" : "bg-[#050b15] text-slate-100"}`}>
       <div className="pointer-events-none absolute inset-0">
         <div className={`absolute -top-32 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full blur-3xl ${isLightMode ? "bg-sky-300/25" : "bg-cyan-400/20"}`} />
         <div className={`absolute bottom-0 right-0 h-72 w-72 rounded-full blur-3xl ${isLightMode ? "bg-indigo-300/20" : "bg-emerald-400/10"}`} />
         <div className={`absolute top-[28%] -left-20 h-64 w-64 rounded-full blur-3xl ${isLightMode ? "bg-fuchsia-200/25" : "bg-fuchsia-500/10"}`} />
       </div>
 
-      <div className="relative mx-auto w-full max-w-[1080px] px-3 pb-10 pt-4 sm:px-5 lg:px-6 lg:pb-12 lg:pt-6">
-        <section className="min-w-0">
-          <div className={`flex h-[calc(100dvh-6rem)] max-h-[860px] min-h-[560px] flex-col rounded-[34px] p-[1px] shadow-[0_30px_120px_-60px_rgba(56,189,248,0.55)] ${isLightMode ? "bg-gradient-to-b from-white via-sky-100/70 to-sky-100/30" : "bg-gradient-to-b from-white/30 via-slate-500/25 to-transparent"}`}>
-            <div className={`flex h-full min-h-0 flex-col rounded-[33px] border backdrop-blur-2xl ${isLightMode ? "border-white/70 bg-white/85" : "border-white/10 bg-[#071322]/85"}`}>
+      <div className="relative mx-auto h-[100dvh] w-full max-w-[1080px] px-0 pb-0 pt-0 sm:h-auto sm:px-5 sm:pb-10 sm:pt-4 lg:px-6 lg:pb-12 lg:pt-6">
+        <section className="min-w-0 h-full">
+          <div className={`flex h-full min-h-[100dvh] flex-col rounded-none p-0 sm:h-[calc(100dvh-6rem)] sm:max-h-[860px] sm:min-h-[560px] sm:rounded-[34px] sm:p-[1px] shadow-[0_30px_120px_-60px_rgba(56,189,248,0.55)] ${isLightMode ? "bg-gradient-to-b from-white via-sky-100/70 to-sky-100/30" : "bg-gradient-to-b from-white/30 via-slate-500/25 to-transparent"}`}>
+            <div className={`flex h-full min-h-0 flex-col rounded-none sm:rounded-[33px] border backdrop-blur-2xl ${isLightMode ? "border-white/70 bg-white/85" : "border-white/10 bg-[#071322]/85"}`}>
               <div className={`relative flex flex-wrap items-center justify-between gap-3 border-b px-4 py-4 sm:px-7 sm:py-5 ${isLightMode ? "border-slate-200" : "border-white/10"}`}>
                 <div className="min-w-0 pr-24 sm:pr-0">
                   <p className={`text-[10px] uppercase tracking-[0.35em] ${isLightMode ? "text-sky-700/85" : "text-sky-200/90"}`}>
