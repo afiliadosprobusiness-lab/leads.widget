@@ -2321,6 +2321,7 @@ export default function Dashboard() {
                       <div>
                         <Label>{t('dashboard.widget_config.teaser_messages')}</Label>
                         <p className="text-[10px] text-muted-foreground mt-1">{t('dashboard.widget_config.teaser_desc')}</p>
+                        <p className="text-[10px] text-muted-foreground mt-1">Aplica para widget embebido y Lead Chat.</p>
                       </div>
                       <textarea
                         value={formConfig.teaser_messages}
@@ -2336,6 +2337,7 @@ export default function Dashboard() {
                       <div>
                         <Label>{t('dashboard.widget_config.quick_replies')}</Label>
                         <p className="text-[10px] text-muted-foreground mt-1">{t('dashboard.widget_config.quick_replies_desc')}</p>
+                        <p className="text-[10px] text-muted-foreground mt-1">Aplica para widget embebido y Lead Chat.</p>
                       </div>
                       <textarea
                         value={formConfig.quick_replies}

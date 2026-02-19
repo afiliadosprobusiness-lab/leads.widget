@@ -448,6 +448,14 @@
       if (backendResponse.ok) {
         const payload = await backendResponse.json();
         if (payload && payload.config) {
+          const quickReplies = parseStringList(
+            payload.config.quickReplies ||
+            payload.config.quick_replies
+          );
+          const teaserMessages = parseStringList(
+            payload.config.teaserMessages ||
+            payload.config.teaser_messages
+          );
           const liveActivities = parseStringList(
             payload.config.liveActivities ||
             payload.config.liveActivityMessages ||
@@ -456,6 +464,8 @@
           const testimonials = normalizeTestimonials(payload.config.testimonials);
           return {
             ...payload.config,
+            quickReplies: quickReplies.length > 0 ? quickReplies : [...config.quickReplies],
+            teaserMessages: teaserMessages.length > 0 ? teaserMessages : [...config.teaserMessages],
             testimonials: testimonials.length > 0 ? testimonials : [],
             liveActivities: liveActivities.length > 0 ? liveActivities : [...config.liveActivities],
             clientId: payload.config.clientId || config.clientId || identity,
@@ -534,6 +544,8 @@
         let teaserMessages = defaultConfig.teaserMessages;
         if (fields.teaser_messages?.arrayValue?.values) {
           teaserMessages = fields.teaser_messages.arrayValue.values.map(v => v.stringValue);
+        } else if (fields.teaser_messages?.stringValue) {
+          teaserMessages = fields.teaser_messages.stringValue.split('\n').filter(r => r.trim());
         }
 
         // Parse legacy live activity values (kept for compatibility in config refresh)
@@ -872,8 +884,8 @@
         z-index: 999999;
         width: auto;
         max-width: 420px;
-        height: 74vh;
-        max-height: 640px;
+        height: 76vh;
+        max-height: 660px;
         background:
           radial-gradient(120% 100% at 10% -10%, rgba(255,255,255,0.32), transparent 42%),
           radial-gradient(120% 100% at 100% -20%, ${config.primaryColor}20, transparent 46%),
@@ -888,7 +900,7 @@
         backdrop-filter: blur(16px);
       }
       @media (min-width: 640px) {
-        #lw-panel { left: auto; width: 400px; height: 620px; right: 20px; bottom: 20px; }
+        #lw-panel { left: auto; width: 400px; height: 640px; right: 20px; bottom: 20px; }
       }
       @keyframes lw-slideUp { from { opacity: 0; transform: translateY(20px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
@@ -1836,11 +1848,11 @@
 
     // Render quick replies
     function renderQuickReplies() {
-      if (messages.length > 2) {
+      const quickReplies = getLocalizedQuickReplies(config.quickReplies);
+      if (!Array.isArray(quickReplies) || quickReplies.length === 0) {
         quickRepliesContainer.style.display = 'none';
         return;
       }
-      const quickReplies = getLocalizedQuickReplies(config.quickReplies);
       quickRepliesContainer.style.display = 'flex';
       quickRepliesContainer.style.flexWrap = 'nowrap';
       quickRepliesContainer.style.overflowX = 'auto';
