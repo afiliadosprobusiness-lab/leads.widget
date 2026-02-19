@@ -55,6 +55,15 @@ function sanitizePhone(value: string) {
   return value.replace(/\D/g, "").slice(0, 15);
 }
 
+function normalizeConsentAnswer(value: string) {
+  return value.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+function hasExplicitConsentYes(value: string) {
+  const normalized = normalizeConsentAnswer(value);
+  return normalized === "si" || normalized === "yes";
+}
+
 function normalizeStringArray(value: unknown): string[] {
   if (Array.isArray(value)) {
     return value
@@ -88,8 +97,8 @@ function normalizeTestimonials(value: unknown): Testimonial[] {
 }
 
 function parseIACCloserSeed(responseText: string) {
-  const fullMatch = responseText.match(/\[\s*ICLOSER_READY\s*:\s*([\s\S]*?)\]/i);
-  const bareMatch = responseText.match(/\[\s*ICLOSER_READY\s*\]/i);
+  const fullMatch = responseText.match(/\[\s*(?:ICLOSER_READY|ICALLCLOSER_READY|IACALLCLOSER_READY)\s*:\s*([\s\S]*?)\]/i);
+  const bareMatch = responseText.match(/\[\s*(?:ICLOSER_READY|ICALLCLOSER_READY|IACALLCLOSER_READY)\s*\]/i);
 
   if (!fullMatch && !bareMatch) {
     return { isReady: false, cleanText: responseText, seed: {} as CloserSeed };
@@ -133,7 +142,8 @@ export default function LeadChat() {
   const [consentVisible, setConsentVisible] = useState(false);
   const [leadName, setLeadName] = useState("");
   const [leadPhone, setLeadPhone] = useState("");
-  const [leadConsent, setLeadConsent] = useState(false);
+  const [leadConsentAnswer, setLeadConsentAnswer] = useState("");
+  const [handoffEligible, setHandoffEligible] = useState(false);
   const [collectedInfoSeed, setCollectedInfoSeed] = useState("");
   const [handoffMessage, setHandoffMessage] = useState("");
   const [offerDismissed, setOfferDismissed] = useState(false);
@@ -279,8 +289,8 @@ export default function LeadChat() {
   );
 
   const shouldShowInlineOffer = useMemo(
-    () => !consentVisible && !handoffMessage && !offerDismissed && userMessageCount >= 2,
-    [consentVisible, handoffMessage, offerDismissed, userMessageCount],
+    () => handoffEligible && !consentVisible && !handoffMessage && !offerDismissed && userMessageCount >= 2,
+    [handoffEligible, consentVisible, handoffMessage, offerDismissed, userMessageCount],
   );
 
   const activeTestimonial = useMemo(() => {
@@ -383,6 +393,12 @@ export default function LeadChat() {
   };
 
   const openConsentStep = () => {
+    if (!handoffEligible) {
+      setChatError("Primero terminemos la precalificacion. Al final te pediremos confirmar el consentimiento.");
+      return;
+    }
+
+    setChatError("");
     setOfferDismissed(true);
     setShowExitIntent(false);
     setConsentVisible(true);
@@ -437,6 +453,9 @@ export default function LeadChat() {
         if (parsed.seed?.name && !leadName) setLeadName(parsed.seed.name);
         if (parsed.seed?.phone && !leadPhone) setLeadPhone(sanitizePhone(parsed.seed.phone));
         if (parsed.seed?.collected_info) setCollectedInfoSeed(parsed.seed.collected_info);
+        setHandoffEligible(true);
+        setOfferDismissed(true);
+        setShowExitIntent(false);
         setConsentVisible(true);
       }
     } catch (error: any) {
@@ -463,8 +482,8 @@ export default function LeadChat() {
       setChatError("Completa nombre y telefono valido para continuar.");
       return;
     }
-    if (!leadConsent) {
-      setChatError("Debes aceptar el consentimiento para continuar.");
+    if (!hasExplicitConsentYes(leadConsentAnswer)) {
+      setChatError("Para continuar debes escribir SI de forma expresa.");
       return;
     }
 
@@ -484,6 +503,7 @@ export default function LeadChat() {
           history: conversationHistory,
           consent: {
             accepted: true,
+            explicitResponse: leadConsentAnswer.trim(),
             textVersion: config.consentTextVersion || "v1",
             text: config.consentText || "",
           },
@@ -565,10 +585,15 @@ export default function LeadChat() {
                 <button
                   type="button"
                   onClick={openConsentStep}
-                  className="inline-flex items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-200 transition-colors hover:bg-emerald-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+                  disabled={!handoffEligible}
+                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                    handoffEligible
+                      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20"
+                      : "cursor-not-allowed border-slate-700 bg-slate-800 text-slate-400"
+                  }`}
                 >
                   <PhoneCall className="h-3.5 w-3.5" />
-                  {config.leadChatBadgeText || "IACloser en menos de 60s"}
+                  {handoffEligible ? (config.leadChatBadgeText || "IACloser en menos de 60s") : "Precalificando..."}
                 </button>
               </div>
 
@@ -662,7 +687,7 @@ export default function LeadChat() {
                         Consentimiento expreso
                       </h3>
                       <p className="mt-2 text-xs text-slate-300 sm:text-sm">
-                        Antes de enviar tu informacion, debes aceptar explicitamente el contacto para cumplimiento legal.
+                        Ya terminamos la precalificacion. Para activar tu llamada, confirma de forma expresa que SI aceptas el contacto.
                       </p>
                       <form onSubmit={submitHandoff} className="mt-3 space-y-3">
                         <div className="space-y-1.5">
@@ -686,16 +711,24 @@ export default function LeadChat() {
                             className="border-slate-700 bg-slate-900"
                           />
                         </div>
-                        <label className="flex items-start gap-2 text-xs text-slate-300">
-                          <input
-                            type="checkbox"
-                            checked={leadConsent}
-                            onChange={(event) => setLeadConsent(event.target.checked)}
-                            className="mt-0.5 h-4 w-4 rounded border-slate-600 bg-slate-900"
+                        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2.5 text-xs text-emerald-100">
+                          {config.consentText || "Acepto ser contactado por telefono o mensajes para continuar con mi solicitud."}
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="lead-consent-answer">Escribe SI para autorizar contacto</Label>
+                          <Input
+                            id="lead-consent-answer"
+                            value={leadConsentAnswer}
+                            onChange={(event) => setLeadConsentAnswer(event.target.value)}
+                            placeholder='Escribe "SI"'
+                            className="border-slate-700 bg-slate-900 uppercase"
+                            autoComplete="off"
                           />
-                          <span>{config.consentText || "Acepto ser contactado por telefono o mensajes para continuar con mi solicitud."}</span>
-                        </label>
-                        <Button type="submit" disabled={handoffLoading} className="w-full gap-2">
+                          <p className="text-[11px] text-slate-400">
+                            Solo te contactaremos para esta solicitud. No compartimos tu informacion con terceros ajenos a este proceso.
+                          </p>
+                        </div>
+                        <Button type="submit" disabled={handoffLoading || !hasExplicitConsentYes(leadConsentAnswer)} className="w-full gap-2">
                           {handoffLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <PhoneCall className="h-4 w-4" />}
                           Enviar a IACloser
                         </Button>

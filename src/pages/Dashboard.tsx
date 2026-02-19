@@ -205,16 +205,39 @@ const AI_DEFAULT_BUSINESS_TEMPLATE = [
   "- Diferencial principal",
 ].join('\n');
 
-const AI_DEFAULT_SYSTEM_PROMPT_TEMPLATE = [
-  "Eres el asistente comercial de [NOMBRE_NEGOCIO].",
-  "Objetivo: calificar al lead y resolver dudas breves.",
+const AI_USA_CALL_SYSTEM_PROMPT_TEMPLATE = [
+  "Eres el asistente comercial de [REEMPLAZA_NOMBRE_NEGOCIO].",
+  "Objetivo: precalificar al lead y activar llamada con ICallCloser (mercado USA).",
   "Reglas:",
-  "1) Responde en el idioma del usuario.",
-  "2) Respuestas cortas (maximo 2-3 oraciones).",
-  "3) Haz una pregunta a la vez.",
-  "4) No inventes precios ni politicas que no esten confirmadas.",
-  "5) Si el lead confirma intencion de compra, pide datos minimos y prepara redireccion a WhatsApp.",
+  "1) Responde en el idioma del usuario con textos cortos (maximo 2-3 oraciones).",
+  "2) Haz una pregunta a la vez para calificar intencion real de compra.",
+  "3) Captura nombre, telefono y necesidad principal.",
+  "4) Antes del cierre, pide consentimiento expreso y confirma que responda SI.",
+  "5) Solo cuando confirme consentimiento con SI, responde EXACTAMENTE con:",
+  '[ICALLCLOSER_READY: {"name":"[REEMPLAZA_NOMBRE]","phone":"[REEMPLAZA_TELEFONO]","collected_info":"[REEMPLAZA_RESUMEN_DEL_CASO]"}]',
+  "6) Si el usuario pide continuar por WhatsApp, usa el comando de WhatsApp solo en ese caso.",
 ].join('\n');
+
+const AI_DEFAULT_SYSTEM_PROMPT_TEMPLATE = AI_USA_CALL_SYSTEM_PROMPT_TEMPLATE;
+
+const AI_ICALLCLOSER_COMMAND_SNIPPET = [
+  "Si el lead confirma compra y consentimiento con SI, responde EXACTAMENTE:",
+  '[ICALLCLOSER_READY: {"name":"[REEMPLAZA_NOMBRE]","phone":"[REEMPLAZA_TELEFONO]","collected_info":"[REEMPLAZA_RESUMEN_DEL_CASO]"}]',
+].join('\n');
+
+const AI_WHATSAPP_COMMAND_SNIPPET = [
+  "Si el lead prefiere WhatsApp, responde EXACTAMENTE:",
+  "[WHATSAPP_REDIRECT: Cliente [REEMPLAZA_NOMBRE] quiere [REEMPLAZA_SERVICIO] el [REEMPLAZA_FECHA]]",
+].join('\n');
+
+function appendPromptSnippet(currentPrompt: string, snippet: string) {
+  const base = (currentPrompt || '').trim();
+  const normalizedSnippet = (snippet || '').trim();
+  if (!normalizedSnippet) return currentPrompt;
+  if (base.includes(normalizedSnippet)) return currentPrompt;
+  if (!base) return normalizedSnippet;
+  return `${base}\n\n${normalizedSnippet}`;
+}
 
 const AI_DEFAULT_SECURITY_PROMPT = [
   "Protocolo de seguridad obligatorio:",
@@ -405,12 +428,24 @@ export default function Dashboard() {
     ai_system_prompt: AI_DEFAULT_SYSTEM_PROMPT_TEMPLATE,
     ai_security_prompt: AI_DEFAULT_SECURITY_PROMPT,
   });
+  const [promptCommandMode, setPromptCommandMode] = useState<'icallcloser' | 'whatsapp'>('icallcloser');
 
   const resolveAiTemplate = (currentValue: string | undefined, fallbackTemplate: string, legacyHint?: string) => {
     const normalized = (currentValue || '').trim();
     if (!normalized) return fallbackTemplate;
     if (legacyHint && normalized === legacyHint.trim()) return fallbackTemplate;
     return currentValue as string;
+  };
+
+  const applySystemPromptTemplate = (template: string) => {
+    setAiConfig((prev) => ({ ...prev, ai_system_prompt: template }));
+  };
+
+  const appendSystemPromptSnippet = (snippet: string) => {
+    setAiConfig((prev) => ({
+      ...prev,
+      ai_system_prompt: appendPromptSnippet(prev.ai_system_prompt, snippet),
+    }));
   };
 
   // Widget config form state
@@ -2498,6 +2533,42 @@ export default function Dashboard() {
                 {/* System Prompt */}
                 <div className="space-y-2">
                   <Label>{t('dashboard.ai_config.system_prompt')}</Label>
+                  <div className="rounded-lg border border-emerald-300/40 bg-emerald-500/5 p-3 space-y-2">
+                    <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+                      {t('dashboard.ai_config.prompt_templates_title')}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {t('dashboard.ai_config.prompt_templates_desc')}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => applySystemPromptTemplate(AI_USA_CALL_SYSTEM_PROMPT_TEMPLATE)}
+                      >
+                        {t('dashboard.ai_config.apply_call_template_btn')}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => appendSystemPromptSnippet(AI_ICALLCLOSER_COMMAND_SNIPPET)}
+                      >
+                        {t('dashboard.ai_config.insert_icallcloser_btn')}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => appendSystemPromptSnippet(AI_WHATSAPP_COMMAND_SNIPPET)}
+                      >
+                        {t('dashboard.ai_config.insert_whatsapp_btn')}
+                      </Button>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      {t('dashboard.ai_config.template_placeholder_hint')}
+                    </p>
+                  </div>
                   <textarea
                     value={aiConfig.ai_system_prompt}
                     onChange={(e) => setAiConfig({ ...aiConfig, ai_system_prompt: e.target.value })}
@@ -2545,14 +2616,62 @@ export default function Dashboard() {
                   <p className="text-blue-700 dark:text-blue-400 text-xs">
                     {t('dashboard.ai_config.redirect_desc')}
                   </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={promptCommandMode === 'icallcloser' ? 'default' : 'outline'}
+                      onClick={() => setPromptCommandMode('icallcloser')}
+                    >
+                      {t('dashboard.ai_config.redirect_icallcloser_label')}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={promptCommandMode === 'whatsapp' ? 'default' : 'outline'}
+                      onClick={() => setPromptCommandMode('whatsapp')}
+                    >
+                      {t('dashboard.ai_config.redirect_whatsapp_label')}
+                    </Button>
+                  </div>
                   <div className="bg-background/80 p-3 rounded border border-blue-200 dark:border-blue-800 text-xs font-mono space-y-1 overflow-x-auto">
                     <p className="text-muted-foreground">// {t('dashboard.ai_config.redirect_title')}</p>
-                    <p className="text-green-600 dark:text-green-400">"Pide Nombre, Fecha y Servicio. Cuando tengas todo, pregunta si quiere confirmar."</p>
-                    <p className="text-green-600 dark:text-green-400">"{t('dashboard.ai_config.redirect_example')}"</p>
-                    <p className="text-primary font-bold">[WHATSAPP_REDIRECT: Cliente Juan Pérez quiere Cita Dental el Lunes]</p>
+                    <p className="text-green-600 dark:text-green-400">"{t('dashboard.ai_config.redirect_flow_hint')}"</p>
+                    <p className="text-blue-700 dark:text-blue-300">
+                      // {promptCommandMode === 'icallcloser'
+                        ? t('dashboard.ai_config.redirect_icallcloser_label')
+                        : t('dashboard.ai_config.redirect_whatsapp_label')}
+                    </p>
+                    <p className="text-green-600 dark:text-green-400">
+                      "{promptCommandMode === 'icallcloser'
+                        ? t('dashboard.ai_config.redirect_icallcloser_example')
+                        : t('dashboard.ai_config.redirect_example')}"
+                    </p>
+                    <p className="text-primary font-bold break-words">
+                      {promptCommandMode === 'icallcloser'
+                        ? `[ICALLCLOSER_READY: {"name":"Juan Perez","phone":"51999999999","collected_info":"Quiere Cita Dental el Lunes"}]`
+                        : '[WHATSAPP_REDIRECT: Cliente Juan Perez quiere Cita Dental el Lunes]'}
+                    </p>
                   </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      appendSystemPromptSnippet(
+                        promptCommandMode === 'icallcloser'
+                          ? AI_ICALLCLOSER_COMMAND_SNIPPET
+                          : AI_WHATSAPP_COMMAND_SNIPPET,
+                      )
+                    }
+                  >
+                    {t('dashboard.ai_config.insert_selected_command_btn')}
+                  </Button>
                   <p className="text-xs text-muted-foreground">
                     {t('dashboard.ai_config.redirect_note')}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {t('dashboard.ai_config.redirect_icallcloser_note')}
                   </p>
                 </div>
 
@@ -3829,3 +3948,4 @@ export default function Dashboard() {
     </div >
   );
 }
+

@@ -440,13 +440,25 @@
             "system_prompt": "System Prompt",
             "system_prompt_hint": "Instructions for AI behavior...",
             "system_prompt_sub": "Define how your AI assistant should behave and what information it should capture",
+            "prompt_templates_title": "Prebuilt templates for USA sales",
+            "prompt_templates_desc": "Use the calls-first template with consent, then replace all [REPLACE_*] fields with your business info.",
+            "apply_call_template_btn": "Use ICallCloser template (Recommended)",
+            "insert_icallcloser_btn": "Insert ICallCloser block",
+            "insert_whatsapp_btn": "Insert WhatsApp block (Optional)",
+            "template_placeholder_hint": "Edit the [REPLACE_*] fields directly in your prompt.",
             "security_prompt": "Security and Blocking Protocol (Advanced)",
             "security_prompt_hint": "Instructions for detecting attacks and blocking...",
             "security_prompt_sub": "Credit Protection: Define here which behaviors will cause immediate blocking of the user's IP.",
             "redirect_title": "How to make automatic redirects:",
-            "redirect_desc": "Instruct the AI to use the special command when it has gathered all the data.",
-            "redirect_example": "If confirmed, reply EXACTLY like this (substituting the data):",
-            "redirect_note": "* The AI will replace \"Juan Perez\" with the actual name of the current customer.",
+            "redirect_desc": "Instruct the AI to use the special command when it has gathered all required data.",
+            "redirect_flow_hint": "Ask for Name, Date, and Service. Once you have everything, ask if they want to confirm.",
+            "redirect_example": "If confirmed, reply EXACTLY like this (replacing the data):",
+            "redirect_whatsapp_label": "Command for users who prefer WhatsApp",
+            "redirect_icallcloser_label": "Command for Lead Chat + ICallCloser",
+            "redirect_icallcloser_example": "If consent is confirmed with YES, reply EXACTLY like this (replacing the data):",
+            "insert_selected_command_btn": "Insert selected command into prompt",
+            "redirect_note": "* The AI will replace \"Juan Perez\" with the real customer name.",
+            "redirect_icallcloser_note": "* The ICallCloser command must only run after explicit consent (SI/YES) to trigger the call.",
             "save_btn": "Save AI Configuration",
             "chatbot_how": "How the AI Chatbot works",
             "how_items": [
@@ -696,3 +708,6 @@
         "cta_secondary": "View page demo"
     }
 }
+
+
+

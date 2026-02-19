@@ -439,14 +439,26 @@
             "business_desc_sub": "Esta información le dará contexto a la IA sobre quién eres.",
             "system_prompt": "Prompt del Sistema",
             "system_prompt_hint": "Instrucciones para el comportamiento de la IA...",
-            "system_prompt_sub": "Define cómo debe comportarse tu asistente IA y qué información debe capturar",
+            "system_prompt_sub": "Define como debe comportarse tu asistente IA y que informacion debe capturar",
+            "prompt_templates_title": "Plantillas predefinidas para ventas en USA",
+            "prompt_templates_desc": "Usa la plantilla de llamadas con consentimiento y luego edita los campos [REEMPLAZA_*] con la info de tu negocio.",
+            "apply_call_template_btn": "Usar plantilla ICallCloser (Recomendada)",
+            "insert_icallcloser_btn": "Insertar bloque ICallCloser",
+            "insert_whatsapp_btn": "Insertar bloque WhatsApp (Opcional)",
+            "template_placeholder_hint": "Edita los campos [REEMPLAZA_*] directamente en el prompt.",
             "security_prompt": "Protocolo de Seguridad y Bloqueo (Avanzado)",
             "security_prompt_hint": "Instrucciones para detectar ataques y bloquear...",
             "security_prompt_sub": "Protección de Créditos: Define aquí qué comportamientos causarán el bloqueo inmediato de la IP del usuario.",
-            "redirect_title": "Cómo hacer re-direcciones automáticas:",
+            "redirect_title": "Como hacer re-direcciones automaticas:",
             "redirect_desc": "Instruye a la IA para que use el comando especial cuando haya recopilado todos los datos.",
-            "redirect_example": "Si confirma, responde EXACTAMENTE así (sustituyendo los datos):",
-            "redirect_note": "* La IA remplazará \"Juan Pérez\" por el nombre real del cliente actual.",
+            "redirect_flow_hint": "Pide Nombre, Fecha y Servicio. Cuando tengas todo, pregunta si quiere confirmar.",
+            "redirect_example": "Si confirma, responde EXACTAMENTE asi (sustituyendo los datos):",
+            "redirect_whatsapp_label": "Comando para usuarios que prefieren WhatsApp",
+            "redirect_icallcloser_label": "Comando para Lead Chat + ICallCloser",
+            "redirect_icallcloser_example": "Si confirma consentimiento con SI, responde EXACTAMENTE asi (sustituyendo los datos):",
+            "insert_selected_command_btn": "Insertar comando seleccionado en el prompt",
+            "redirect_note": "* La IA reemplazara \"Juan Perez\" por el nombre real del cliente actual.",
+            "redirect_icallcloser_note": "* El comando ICallCloser solo debe activarse despues del consentimiento expreso (SI) para iniciar la llamada.",
             "save_btn": "Guardar Configuración de IA",
             "chatbot_how": "Cómo funciona el Chatbot IA",
             "how_items": [
@@ -696,3 +708,6 @@
         "cta_secondary": "Ver demo de p\u00e1gina"
     }
 }
+
+
+

@@ -40,7 +40,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
   2. Bot conversa y precalifica.
   3. Bot solicita numero telefonico.
   4. Bot muestra consentimiento de contacto en lenguaje claro.
-  5. Usuario acepta expresamente.
+  5. Usuario acepta expresamente escribiendo "SI".
   6. AICloser ejecuta llamada outbound en menos de 60 segundos.
 - El flujo comercial de cierre cambia: no se prioriza llamada manual o WhatsApp como paso final del demo; el handoff primario es redireccion automatica a pagina/landing de IACloser.
 - Lead Chat debe funcionar tambien para clientes sin website como pagina publica full-screen (link compartible), independiente del script embebible.
@@ -55,6 +55,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
   - `phone` (numero para llamada)
   - `collected_info` (informacion recopilada por el chat)
 - Se debe incluir ademas trazabilidad de consentimiento (ej. `consent.accepted`, `consent.accepted_at`, `consent.text_version`) para auditoria.
+- Para disparar handoff, el consentimiento debe incluir respuesta afirmativa explicita (`consent.explicit_response = "SI"` o `YES`).
 - Si el usuario no acepta consentimiento expreso, el sistema no debe disparar handoff ni llamada outbound.
 
 ## Reglas UI/UX
@@ -83,3 +84,5 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Plan PLUS: branding del widget admite `branding_text` y `branding_link` para personalizar texto y URL del footer (fallback seguro a `/crear-ahora?ref=<clientId>`).
 - En `experience_mode=lead_chat`, el dashboard prioriza compartir enlace publico del chat; no depende de instalar script en una web.
 - El dashboard expone controles Lead Chat-only (eyebrow del header, headline/subheadline, badge superior, bloque de oferta inline, CTA y mensajes de actividad en vivo) con aviso de alcance exclusivo para la pagina Lead Chat.
+- En IA > Prompt del Sistema, el dashboard ahora incluye plantillas predefinidas editables (campos `[REEMPLAZA_*]`) y prioriza flujo USA de llamada con consentimiento usando `ICALLCLOSER_READY`.
+- `WHATSAPP_REDIRECT` se mantiene como opcion secundaria; la guia permite alternar comando (ICallCloser/WhatsApp) e insertarlo al prompt con un boton.
