@@ -1,5 +1,5 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Bot, Loader2, MessageCircle, Mic, MicOff, Moon, Palette, Send, Smile, Sun, X } from "lucide-react";
+import { Bot, Loader2, MessageCircle, Mic, MicOff, Palette, Send, Smile, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -611,14 +611,6 @@ export function SalesWidget() {
             </div>
             <button
               type="button"
-              onClick={() => setThemeMode((prev) => (prev === "dark" ? "light" : "dark"))}
-              className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition ${headerChipStyles} lg:animate-[pulse_3.2s_ease-in-out_infinite]`}
-              aria-label={isLightMode ? copy.themeDarkAria : copy.themeLightAria}
-            >
-              {isLightMode ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-            </button>
-            <button
-              type="button"
               onClick={handleClose}
               className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition ${headerChipStyles}`}
               aria-label={copy.closeAria}
@@ -650,7 +642,7 @@ export function SalesWidget() {
             <p className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${isLightMode ? "text-sky-700" : "text-cyan-200"}`}>{copy.testimonialLabel}</p>
             <p className="mt-0.5 truncate text-xs">"{testimonial.text}"</p>
             <p className={`mt-0.5 truncate text-[11px] ${isLightMode ? "text-slate-500" : "text-slate-300"}`}>
-              {testimonial.name} • {"*".repeat(testimonial.stars)}
+              {testimonial.name} • {"\u2605".repeat(testimonial.stars)}
             </p>
           </div>
         </div>

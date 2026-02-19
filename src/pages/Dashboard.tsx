@@ -2286,9 +2286,11 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  <Button onClick={saveWidgetConfig} disabled={saving} className="w-full">
-                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : t('dashboard.widget_config.save_btn')}
-                  </Button>
+                  <div className="sticky bottom-2 z-20 rounded-xl border border-border/70 bg-background/95 p-2 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+                    <Button onClick={saveWidgetConfig} disabled={saving} className="w-full">
+                      {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : t('dashboard.widget_config.save_btn')}
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
 
@@ -3612,7 +3614,7 @@ export default function Dashboard() {
                     </p>
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="sticky bottom-2 z-20 flex gap-2 rounded-xl border border-border/70 bg-background/95 p-2 backdrop-blur supports-[backdrop-filter]:bg-background/80">
                     <Button onClick={handleSaveAccountProfile} disabled={accountSavingProfile}>
                       {accountSavingProfile ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Guardar cambios'}
                     </Button>

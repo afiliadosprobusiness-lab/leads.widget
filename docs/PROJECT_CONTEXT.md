@@ -64,6 +64,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Landing `/partners` con bloques de confianza (testimonios en carrusel horizontal) y FAQ en acordeon accesible.
 - Landing principal `/` ahora comunica dos modos de producto: widget embebible y Lead Chat como pagina publica sin web.
 - Landing principal `/` fue redisenada con estilo visual premium tipo Apple (glass + gradientes suaves), narrativa simplificada orientada a conversion, preview del widget embebido en hero y secciones actualizadas de capacidades/casos/testimonios/precio.
+- Landing principal `/` incluye toggle claro/oscuro visible en navbar (desktop/mobile) y copy reforzado a conversion para trafico pago + cierre por llamada.
 - Testimonios de landing principal usan scroll horizontal con autoavance (desktop/mobile), controles prev/next y avatar por caso para reforzar prueba social.
 - Testimonios de landing principal, widget embebido y Lead Chat usan efecto visual tipo Instagram (anillo degradado + glow de transicion) para enfatizar prueba social sin bloquear lectura.
 - En modo claro, las barras de testimonios de Lead Chat/widget embebido usan una variante visual mas sobria (menos saturada) para mejorar legibilidad sin perder el efecto de prueba social.
@@ -85,6 +86,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - El widget embebido no muestra `lead_chat_live_toasts`; mantiene solo la barra superior de testimonios.
 - El widget comercial (`SalesWidget`) tambien esta activo en `/partners`.
 - El `SalesWidget` de landing replica la experiencia visual del embebido (header con acciones, barra de testimonios, composer con emoji/voz) y agrega selector de color con contraste automatico para mantener legibilidad.
+- En `SalesWidget` de landing, el header mantiene selector de idioma + paleta de color + cierre (sin toggle de tema en header) para reducir ruido visual.
 - Dashboard partner incluye secciones:
   - Ventas/Atribucion
   - Clientes
@@ -103,6 +105,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Plan PLUS: branding del widget admite `branding_text` y `branding_link` para personalizar texto y URL del footer (fallback seguro a `/crear-ahora?ref=<clientId>`).
 - En `experience_mode=lead_chat`, el dashboard prioriza compartir enlace publico del chat; no depende de instalar script en una web.
 - El dashboard expone controles Lead Chat-only (eyebrow del header, headline/subheadline, badge superior, bloque de oferta inline, CTA y mensajes de actividad/testimonios) con aviso de alcance exclusivo para la pagina Lead Chat.
+- En Dashboard, acciones primarias de guardado (configuracion de widget y cuenta) usan barra sticky para mantener CTA visible durante scroll largo.
 - En dashboard, los defaults de Lead Chat quedan alineados al guion de conversion en 3 pasos y el selector de idioma (`es/en`) puede aplicar automaticamente copy EN/ES mientras no se haya personalizado manualmente.
 - En IA > Prompt del Sistema, el dashboard ahora incluye plantillas predefinidas editables (campos `[REEMPLAZA_*]`) y prioriza flujo USA de llamada con consentimiento usando `ICALLCLOSER_READY`.
 - `WHATSAPP_REDIRECT` se mantiene como opcion secundaria; la guia permite alternar comando (ICallCloser/WhatsApp) e insertarlo al prompt con un boton.
