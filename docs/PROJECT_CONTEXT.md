@@ -77,6 +77,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Lead Chat consume `language` del widget config para defaults EN/ES (mensaje inicial, quick replies, consentimiento, estados y copys de conversion).
 - Widget embebido (`public/widget-embed.js`) replica mejoras de retencion: quick replies en una sola fila con scroll horizontal (mobile-first), selector de emojis, entrada por voz y toggle sutil claro/oscuro.
 - En Lead Chat/widget embebido/SalesWidget, la entrada por voz usa fallback `SpeechRecognition/webkitSpeechRecognition` y autoenvia el mensaje al terminar el dictado.
+- En Lead Chat/widget embebido/SalesWidget, el idioma por defecto del chat es ingles; si el usuario escribe en espanol el flujo cambia automaticamente a espanol y continua en ese idioma.
 - Widget embebido usa ingles por defecto y permite cambiar en 1 clic a espanol desde el header, aplicando textos UI y testimonios rotativos.
 - Widget embebido actualiza defaults comerciales EN/ES (mensaje de apertura y quick replies) al enfoque de llamada en menos de 2 minutos.
 - Widget embebido muestra una barra de testimonios en la parte superior del panel (debajo del header) con glow de transicion en cada cambio para reforzar prueba social sin interrumpir el chat.
@@ -106,6 +107,9 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - En `experience_mode=lead_chat`, el dashboard prioriza compartir enlace publico del chat; no depende de instalar script en una web.
 - El dashboard expone controles Lead Chat-only (eyebrow del header, headline/subheadline, badge superior, bloque de oferta inline, CTA y mensajes de actividad/testimonios) con aviso de alcance exclusivo para la pagina Lead Chat.
 - En Dashboard, acciones primarias de guardado (configuracion de widget y cuenta) usan barra sticky para mantener CTA visible durante scroll largo.
+- En Dashboard > Configuracion del widget, el boton `Guardar Cambios` se fija arriba del formulario (sticky) con microcopy para que sea ubicable y evitar perdidas por no guardar.
+- En dashboard, el CTA `Guardar Cambios` de la pestana Configuracion se muestra en una barra sticky superior del tab para que permanezca visible durante todo el scroll.
+- En mobile del widget embebido, el teaser de recaptura es mas compacto/suave, aparece a la izquierda del launcher flotante y al cerrarlo con `X` no vuelve a mostrarse hasta recargar la pagina.
 - En dashboard, los defaults de Lead Chat quedan alineados al guion de conversion en 3 pasos y el selector de idioma (`es/en`) puede aplicar automaticamente copy EN/ES mientras no se haya personalizado manualmente.
 - En IA > Prompt del Sistema, el dashboard ahora incluye plantillas predefinidas editables (campos `[REEMPLAZA_*]`) y prioriza flujo USA de llamada con consentimiento usando `ICALLCLOSER_READY`.
 - `WHATSAPP_REDIRECT` se mantiene como opcion secundaria; la guia permite alternar comando (ICallCloser/WhatsApp) e insertarlo al prompt con un boton.

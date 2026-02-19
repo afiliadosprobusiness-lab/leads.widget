@@ -1650,6 +1650,17 @@ export default function Dashboard() {
 
           {/* Widget Config Tab */}
           <TabsContent value="config" className="space-y-6 overflow-hidden">
+            <div className="sticky top-[7.25rem] sm:top-20 z-40 rounded-xl border border-border/70 bg-background/95 p-2 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-background/80">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="px-2 text-[11px] font-medium text-muted-foreground">
+                  Guarda tus cambios para aplicarlos al instante.
+                </p>
+                <Button onClick={saveWidgetConfig} disabled={saving} className="w-full sm:w-auto sm:min-w-[190px]">
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : t('dashboard.widget_config.save_btn')}
+                </Button>
+              </div>
+            </div>
+
             <div className="grid lg:grid-cols-2 gap-4 sm:gap-8">
               {/* Config Form */}
               <Card>
@@ -2286,11 +2297,6 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  <div className="sticky bottom-2 z-20 rounded-xl border border-border/70 bg-background/95 p-2 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-                    <Button onClick={saveWidgetConfig} disabled={saving} className="w-full">
-                      {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : t('dashboard.widget_config.save_btn')}
-                    </Button>
-                  </div>
                 </CardContent>
               </Card>
 

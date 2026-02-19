@@ -1,6 +1,5 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Bot, Loader2, MessageCircle, Mic, MicOff, Palette, Send, Smile, X } from "lucide-react";
-import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -172,9 +171,29 @@ function hexToRgba(hex: string, alpha: number) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+function detectMessageLocale(value: string, fallback: WidgetLocale): WidgetLocale {
+  const raw = String(value || "");
+  const normalized = raw
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ");
+  if (!normalized) return fallback;
+
+  const spanishSignals =
+    /\b(hola|como|quiero|necesito|precio|precios|ayuda|gracias|por favor|agendar|llamada|ventas|cita|telefono|numero|espanol|si)\b/;
+  if (spanishSignals.test(normalized)) return "es";
+
+  const englishSignals =
+    /\b(hello|hi|i need|price|pricing|help|thanks|please|book|call|appointment|sales|phone|yes)\b/;
+  if (englishSignals.test(normalized)) return "en";
+
+  return fallback;
+}
+
 export function SalesWidget() {
-  const { i18n } = useTranslation();
-  const inferredLocale: WidgetLocale = String(i18n.language || "").toLowerCase().startsWith("en") ? "en" : "es";
+  const inferredLocale: WidgetLocale = "en";
 
   const [locale, setLocale] = useState<WidgetLocale>(inferredLocale);
   const [themeMode, setThemeMode] = useState<WidgetTheme>("dark");
@@ -213,10 +232,6 @@ export function SalesWidget() {
     setPaletteOpen(false);
     setEmojiPickerOpen(false);
   };
-
-  useEffect(() => {
-    setLocale(inferredLocale);
-  }, [inferredLocale]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -361,13 +376,27 @@ export function SalesWidget() {
       const userMessage = textToSend.trim();
       if (!userMessage || isLoading || isBlocked) return;
 
+      const detectedLocale = detectMessageLocale(userMessage, locale);
+      const responseLocale: WidgetLocale = detectedLocale === "es" ? "es" : locale;
+      if (responseLocale === "es" && locale !== "es") {
+        setLocale("es");
+      }
+
       closePaletteAndEmoji();
       setIsIdle(false);
       setInputText("");
       setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
       setIsLoading(true);
 
-      const history = [...messages.filter((item) => item.role !== "system").map((item) => ({ role: item.role, content: item.content })), { role: "user", content: userMessage }];
+      const languageDirective =
+        responseLocale === "es"
+          ? "Responde siempre en espanol claro y natural."
+          : "Respond in clear, natural English.";
+      const history = [
+        { role: "system", content: languageDirective },
+        ...messages.filter((item) => item.role !== "system").map((item) => ({ role: item.role, content: item.content })),
+        { role: "user", content: userMessage },
+      ];
 
       try {
         const response = await fetch("/api/chat", {
@@ -423,7 +452,7 @@ export function SalesWidget() {
         setIsLoading(false);
       }
     },
-    [copy.blockedMessage, copy.connectionError, copy.hint, copy.openingWhatsApp, inputText, isBlocked, isLoading, messages],
+    [copy.blockedMessage, copy.connectionError, copy.hint, copy.openingWhatsApp, inputText, isBlocked, isLoading, locale, messages],
   );
 
   useEffect(() => {

@@ -104,6 +104,7 @@
   let isOpen = false;
   let hasBeenClosedOnce = false;
   let activeTeaser = '';
+  let teaserDismissedThisSession = false;
   let teaserInterval = null;
   let exitIntentShown = false;
   let configRefreshInterval = null;
@@ -141,6 +142,20 @@
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/\s+/g, ' ')
       .trim();
+  }
+
+  function detectMessageLocale(value, fallback = 'en') {
+    const raw = String(value || '');
+    const normalized = normalizeText(raw);
+    if (!normalized) return fallback;
+
+    const spanishSignals = /\b(hola|como|quiero|necesito|precio|precios|ayuda|gracias|por favor|agendar|llamada|ventas|cita|telefono|numero|espanol|si)\b/;
+    if (spanishSignals.test(normalized)) return 'es';
+
+    const englishSignals = /\b(hello|hi|i need|price|pricing|help|thanks|please|book|call|appointment|sales|phone|yes)\b/;
+    if (englishSignals.test(normalized)) return 'en';
+
+    return fallback;
   }
 
   function parseStringList(value) {
@@ -535,10 +550,17 @@
 
       console.log('LeadWidget: Connecting to secure backend:', backendUrl);
 
-      const conversationHistory = messages.filter(m => m.role !== 'system').map(m => ({
+      const languageDirective =
+        activeLanguage === 'es'
+          ? 'Responde siempre en espanol claro y natural.'
+          : 'Respond in clear, natural English.';
+      const conversationHistory = [
+        { role: 'system', content: languageDirective },
+        ...messages.filter(m => m.role !== 'system').map(m => ({
         role: m.role === 'assistant' ? 'assistant' : 'user',
         content: m.content
-      }));
+      })),
+      ];
 
       const response = await fetch(backendUrl, {
         method: 'POST',
@@ -717,32 +739,43 @@
         z-index: 999997;
         background: var(--lw-surface);
         border: 1px solid var(--lw-border);
-        padding: 12px 16px;
+        padding: 10px 14px;
         border-radius: 16px 16px 6px 16px;
         box-shadow: var(--lw-shadow);
-        max-width: 280px;
-        font-size: 13px;
+        max-width: 260px;
+        font-size: 12px;
+        line-height: 1.35;
         color: var(--lw-text);
         font-weight: 550;
         animation: lw-teaser-in 0.35s ease-out;
         cursor: pointer;
         display: none;
         backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        transition: opacity 0.2s ease, transform 0.2s ease;
+      }
+      #lw-teaser-text {
+        display: block;
+        padding-right: 16px;
       }
       @keyframes lw-teaser-in { from { opacity: 0; transform: translateY(8px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
       #lw-teaser-close {
         position: absolute;
-        top: -8px;
-        right: -8px;
-        width: 20px;
-        height: 20px;
+        top: 6px;
+        right: 6px;
+        width: 16px;
+        height: 16px;
         border-radius: 999px;
-        background: #64748b;
-        border: none;
+        background: rgba(100, 116, 139, 0.78);
+        border: 1px solid rgba(255, 255, 255, 0.28);
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
+      }
+      @keyframes lw-teaser-breathe {
+        0%, 100% { box-shadow: 0 8px 18px rgba(2, 6, 23, 0.16); }
+        50% { box-shadow: 0 12px 24px rgba(2, 6, 23, 0.26); }
       }
 
       #lw-panel {
@@ -1114,6 +1147,34 @@
       @media (max-width: 639px) {
         #lw-close-mobile.visible { display: flex; }
         #lw-panel.open { padding-bottom: 72px; }
+        #lw-teaser {
+          right: 88px;
+          bottom: 24px;
+          max-width: min(56vw, 185px);
+          padding: 8px 10px;
+          border-radius: 12px;
+          font-size: 11px;
+          line-height: 1.25;
+          animation: lw-teaser-in 0.26s ease-out, lw-teaser-breathe 3.6s ease-in-out infinite;
+        }
+        #lw-root[data-theme='dark'] #lw-teaser {
+          background: rgba(15, 23, 42, 0.6);
+          border-color: rgba(148, 163, 184, 0.32);
+        }
+        #lw-root[data-theme='light'] #lw-teaser {
+          background: rgba(255, 255, 255, 0.76);
+          border-color: rgba(148, 163, 184, 0.4);
+        }
+        #lw-teaser-close {
+          top: 4px;
+          right: 4px;
+          width: 15px;
+          height: 15px;
+        }
+        #lw-teaser-close svg {
+          width: 8px;
+          height: 8px;
+        }
       }
       @media (min-width: 640px) {
         #lw-close-mobile { display: none !important; }
@@ -1540,6 +1601,12 @@
       const userMessage = text || input.value.trim();
       if (!userMessage || isLoading) return;
 
+      const detectedLocale = detectMessageLocale(userMessage, activeLanguage);
+      if (detectedLocale === 'es' && activeLanguage !== 'es') {
+        activeLanguage = 'es';
+        applyLanguageUI();
+      }
+
       messages.push({ role: 'user', content: userMessage });
       input.value = '';
       isLoading = true;
@@ -1662,11 +1729,11 @@
           latestVoiceTranscript = '';
           try { speechRecognition.stop(); } catch (_) { /* noop */ }
         }
-        // Start teaser cycle after a short delay
-        // Start teaser cycle after a short delay
-        teaserStartTimeout = setTimeout(() => {
-          startTeaserCycle();
-        }, 2000);
+        if (!teaserDismissedThisSession) {
+          teaserStartTimeout = setTimeout(() => {
+            startTeaserCycle();
+          }, 2000);
+        }
 
         stopTestimonialRotator();
       }
@@ -1728,8 +1795,8 @@
     // Teaser cycle
     function startTeaserCycle() {
       const teaserMessages = getLocalizedTeaserMessages(config.teaserMessages);
-      if (isOpen || !teaserMessages || teaserMessages.length === 0) {
-        console.log('LeadWidget: Teaser cycle not started', { isOpen, teaserCount: teaserMessages?.length });
+      if (isOpen || teaserDismissedThisSession || !teaserMessages || teaserMessages.length === 0) {
+        console.log('LeadWidget: Teaser cycle not started', { isOpen, teaserDismissedThisSession, teaserCount: teaserMessages?.length });
         return;
       }
 
@@ -1737,7 +1804,7 @@
       let index = Math.floor(Math.random() * teaserMessages.length);
 
       const showTeaser = () => {
-        if (isOpen) return;
+        if (isOpen || teaserDismissedThisSession) return;
         activeTeaser = teaserMessages[index];
         teaserText.textContent = activeTeaser;
         teaser.style.display = 'block';
@@ -1784,7 +1851,17 @@
     });
     closeMobile.addEventListener('click', () => togglePanel(false));
     teaser.addEventListener('click', () => togglePanel(true));
-    teaserClose.addEventListener('click', (e) => { e.stopPropagation(); teaser.style.display = 'none'; });
+    teaserClose.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      teaserDismissedThisSession = true;
+      if (teaserStartTimeout) {
+        clearTimeout(teaserStartTimeout);
+        teaserStartTimeout = null;
+      }
+      stopTeaserCycle();
+      teaser.style.display = 'none';
+    });
 
     form.addEventListener('submit', (e) => {
       e.preventDefault();
@@ -1882,7 +1959,7 @@
     if (!isOpen) startVibration();
 
     // Restore teaser if it was running (re-render happened while closed)
-    if (hasBeenClosedOnce && !isOpen) {
+    if (hasBeenClosedOnce && !isOpen && !teaserDismissedThisSession) {
       teaserStartTimeout = setTimeout(() => startTeaserCycle(), 2000);
     }
 

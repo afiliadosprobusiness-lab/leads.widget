@@ -441,16 +441,31 @@ async function fetchLeadChatLiveToastsFromFirestore(identity: string) {
 }
 
 function resolveLocale(input: unknown): ChatLocale {
-  if (typeof input === "string") {
-    const normalized = input.trim().toLowerCase();
-    if (normalized === "en") return "en";
-    if (normalized === "es") return "es";
-  }
+  void input;
+  return "en";
+}
 
-  if (typeof navigator !== "undefined" && String(navigator.language || "").toLowerCase().startsWith("en")) {
-    return "en";
+function detectMessageLocale(value: string, fallback: ChatLocale): ChatLocale {
+  const raw = String(value || "");
+  const normalized = normalizeText(raw);
+  if (!normalized) return fallback;
+
+  const spanishSignals =
+    /\b(hola|como|quiero|necesito|precio|precios|ayuda|gracias|por favor|agendar|llamada|ventas|cita|telefono|numero|espanol|si)\b/;
+  if (spanishSignals.test(normalized)) return "es";
+
+  const englishSignals =
+    /\b(hello|hi|i need|price|pricing|help|thanks|please|book|call|appointment|sales|phone|yes)\b/;
+  if (englishSignals.test(normalized)) return "en";
+
+  return fallback;
+}
+
+function getLanguageDirective(locale: ChatLocale) {
+  if (locale === "es") {
+    return "Responde siempre en espanol claro y natural.";
   }
-  return "es";
+  return "Respond in clear, natural English.";
 }
 
 function arraysLooselyMatch(a: string[], b: string[]) {
@@ -704,7 +719,7 @@ export default function LeadChat() {
   const [showExitIntent, setShowExitIntent] = useState(false);
   const [exitIntentShown, setExitIntentShown] = useState(false);
   const [themeMode, setThemeMode] = useState<"dark" | "light">("dark");
-  const [locale, setLocale] = useState<ChatLocale>("es");
+  const [locale, setLocale] = useState<ChatLocale>("en");
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [speechListening, setSpeechListening] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -1128,6 +1143,12 @@ export default function LeadChat() {
     const text = (overrideText ?? input).trim();
     if (!text) return;
 
+    const detectedLocale = detectMessageLocale(text, locale);
+    const responseLocale = detectedLocale === "es" ? "es" : locale;
+    if (responseLocale === "es" && locale !== "es") {
+      setLocale("es");
+    }
+
     setChatError("");
     setHandoffMessage("");
     setTeaserVisible(false);
@@ -1144,7 +1165,10 @@ export default function LeadChat() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: text,
-          history: nextMessages.map((m) => ({ role: m.role, content: m.content })),
+          history: [
+            { role: "system", content: getLanguageDirective(responseLocale) },
+            ...nextMessages.map((m) => ({ role: m.role, content: m.content })),
+          ],
           widgetId: config.widgetId,
           userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         }),
