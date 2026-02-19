@@ -68,11 +68,13 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Lead Chat desktop prioriza UX centrada (ancho contenido acotado), estilo visual premium tipo glass y tarjeta de testimonios con efecto tornasol dinamico al hover.
 - Composer de Lead Chat incluye selector rapido de emojis, entrada por voz (speech-to-text) y control sutil de tema claro/oscuro para mejorar retencion de uso.
 - Lead Chat agrega microcopy de reduccion de friccion debajo del input (`Demo real sin costo`, `Llamada en menos de 2 minutos`, `Sin tarjeta de credito`) y una barra superior de prueba social (`3 personas probando la demo ahora`).
+- Quick replies de Lead Chat y `SalesWidget` usan una sola fila con scroll horizontal suave (sin wrap) para mantener CTA compactos en todas las resoluciones.
 - Lead Chat consume `language` del widget config para defaults EN/ES (mensaje inicial, quick replies, consentimiento, estados y copys de conversion).
 - Widget embebido (`public/widget-embed.js`) replica mejoras de retencion: quick replies en una sola fila con scroll horizontal (mobile-first), selector de emojis, entrada por voz y toggle sutil claro/oscuro.
-- Widget embebido usa ingles por defecto y permite cambiar en 1 clic a espanol desde el header, aplicando textos UI y mensajes de actividad en vivo.
+- Widget embebido usa ingles por defecto y permite cambiar en 1 clic a espanol desde el header, aplicando textos UI y testimonios rotativos.
 - Widget embebido actualiza defaults comerciales EN/ES (mensaje de apertura y quick replies) al enfoque de llamada en menos de 2 minutos.
-- La barra `Live activity` del widget embebido ya no recicla testimonios; usa actividades separadas (ej. adopcion de ICallCloser) con rotacion y traduccion EN/ES.
+- Widget embebido muestra una barra de testimonios en la parte baja del panel (entre mensajes e input) con glow de transicion en cada cambio para reforzar prueba social sin interrumpir el chat.
+- Lead Chat reemplaza el toast de `Live activity` por una barra inferior de testimonios con glow de transicion sincronizado al rotador de testimonios.
 - El widget comercial (`SalesWidget`) tambien esta activo en `/partners`.
 - Dashboard partner incluye secciones:
   - Ventas/Atribucion
@@ -91,7 +93,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - En Superadmin/Agencias, la accion de payout es contextual: muestra `Aprobar payout` o `Marcar pagado` segun existan payouts pendientes.
 - Plan PLUS: branding del widget admite `branding_text` y `branding_link` para personalizar texto y URL del footer (fallback seguro a `/crear-ahora?ref=<clientId>`).
 - En `experience_mode=lead_chat`, el dashboard prioriza compartir enlace publico del chat; no depende de instalar script en una web.
-- El dashboard expone controles Lead Chat-only (eyebrow del header, headline/subheadline, badge superior, bloque de oferta inline, CTA y mensajes de actividad en vivo) con aviso de alcance exclusivo para la pagina Lead Chat.
+- El dashboard expone controles Lead Chat-only (eyebrow del header, headline/subheadline, badge superior, bloque de oferta inline, CTA y mensajes de actividad/testimonios) con aviso de alcance exclusivo para la pagina Lead Chat.
 - En dashboard, los defaults de Lead Chat quedan alineados al guion de conversion en 3 pasos y el selector de idioma (`es/en`) puede aplicar automaticamente copy EN/ES mientras no se haya personalizado manualmente.
 - En IA > Prompt del Sistema, el dashboard ahora incluye plantillas predefinidas editables (campos `[REEMPLAZA_*]`) y prioriza flujo USA de llamada con consentimiento usando `ICALLCLOSER_READY`.
 - `WHATSAPP_REDIRECT` se mantiene como opcion secundaria; la guia permite alternar comando (ICallCloser/WhatsApp) e insertarlo al prompt con un boton.

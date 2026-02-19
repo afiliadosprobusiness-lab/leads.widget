@@ -378,7 +378,7 @@ export function SalesWidget() {
 
                     {/* Quick Actions */}
                     {messages.length < 3 && (
-                        <div className="flex flex-wrap gap-2 mb-2">
+                        <div className="mb-2 flex flex-nowrap gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:overflow-x-visible sm:pb-0">
                             {quickReplies.map((text, i) => (
                                 <button
                                     key={i}
@@ -389,7 +389,7 @@ export function SalesWidget() {
                                         handleSendMessage(text);
                                     }}
                                     disabled={isBlocked}
-                                    className="text-[11px] bg-slate-100 hover:text-white text-slate-600 px-3 py-1.5 rounded-full transition-colors border border-slate-200"
+                                    className="shrink-0 whitespace-nowrap text-[11px] bg-slate-100 hover:text-white text-slate-600 px-3 py-1.5 rounded-full transition-colors border border-slate-200 sm:shrink"
                                     onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = config.primaryColor; e.currentTarget.style.color = 'white'; }}
                                     onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; e.currentTarget.style.color = '#475569'; }}
                                 >

@@ -65,7 +65,7 @@
       headerSubtitle: 'Instant AI replies',
       chatPlaceholder: 'Type your message...',
       closeExitIntent: 'No thanks',
-      liveActivityLabel: 'Live activity',
+      testimonialLabel: 'Testimonials',
       viralTexts: ['Powered by LeadWidget', 'Want this chat on your website?', 'Create your FREE widget here'],
       aiUnavailableWithWa: 'The AI assistant is not configured yet. You can contact us on WhatsApp for immediate support.',
       aiUnavailableNoWa: 'The AI assistant is not configured yet. The admin must add an OpenAI or Anthropic API key.',
@@ -82,7 +82,7 @@
       headerSubtitle: 'Respuestas con IA al instante',
       chatPlaceholder: 'Escribe tu mensaje...',
       closeExitIntent: 'No gracias',
-      liveActivityLabel: 'Actividad en vivo',
+      testimonialLabel: 'Testimonios',
       viralTexts: ['Potenciado por LeadWidget', 'Quieres este chat en tu web?', 'Crea tu widget GRATIS aqui'],
       aiUnavailableWithWa: 'El asistente de IA aun no esta configurado. Puedes escribirnos por WhatsApp para atencion inmediata.',
       aiUnavailableNoWa: 'El asistente de IA aun no esta configurado. El administrador debe agregar la API key de OpenAI o Anthropic.',
@@ -163,6 +163,34 @@
     return [];
   }
 
+  function normalizeTestimonials(value) {
+    if (!Array.isArray(value)) return [];
+    return value
+      .map(item => {
+        if (typeof item === 'string') {
+          const text = item.trim();
+          if (!text) return null;
+          return { name: '', text, stars: 5, avatar_url: '' };
+        }
+        if (!item || typeof item !== 'object') return null;
+
+        const rawName = item.name || item.author || item.client || item.business || '';
+        const rawText = item.text || item.quote || item.message || '';
+        const rawStars = Number(item.stars);
+
+        const text = String(rawText || '').trim();
+        if (!text) return null;
+
+        return {
+          name: String(rawName || '').trim(),
+          text,
+          stars: Number.isFinite(rawStars) ? Math.max(1, Math.min(5, Math.round(rawStars))) : 5,
+          avatar_url: String(item.avatar_url || item.avatarUrl || '').trim()
+        };
+      })
+      .filter(Boolean);
+  }
+
   function getText(key) {
     const lang = I18N[activeLanguage] ? activeLanguage : 'en';
     return I18N[lang][key] || I18N.en[key] || '';
@@ -214,6 +242,10 @@
       return [...LIVE_ACTIVITY_DEFAULTS[activeLanguage]];
     }
     return currentLiveActivities;
+  }
+
+  function getLocalizedTestimonials(currentTestimonials) {
+    return normalizeTestimonials(currentTestimonials);
   }
 
   function containsEmoji(text) {
@@ -318,8 +350,10 @@
             payload.config.liveActivityMessages ||
             payload.config.leadChatLiveToasts
           );
+          const testimonials = normalizeTestimonials(payload.config.testimonials);
           return {
             ...payload.config,
+            testimonials: testimonials.length > 0 ? testimonials : [],
             liveActivities: liveActivities.length > 0 ? liveActivities : [...config.liveActivities],
             clientId: payload.config.clientId || config.clientId || identity,
             widgetId: payload.config.widgetId || identity
@@ -399,7 +433,7 @@
           teaserMessages = fields.teaser_messages.arrayValue.values.map(v => v.stringValue);
         }
 
-        // Parse live activities for the live activity bar (not testimonials)
+        // Parse legacy live activity values (kept for compatibility in config refresh)
         let liveActivities = [];
         if (fields.lead_chat_live_toasts?.arrayValue?.values) {
           liveActivities = fields.lead_chat_live_toasts.arrayValue.values.map(v => v.stringValue).filter(Boolean);
@@ -407,13 +441,35 @@
           liveActivities = parseStringList(fields.lead_chat_live_toasts.stringValue);
         }
 
-        // Parse Testimonials (Bulletproof JSON String)
+        // Parse testimonials from JSON string
         let testimonials = [];
         if (fields.testimonials_json?.stringValue) {
           try {
             const t = JSON.parse(fields.testimonials_json.stringValue);
-            if (Array.isArray(t)) testimonials = t;
+            if (Array.isArray(t)) testimonials = normalizeTestimonials(t);
           } catch (e) { console.warn('LeadWidget: Error parsing testimonials JSON', e); }
+        }
+
+        // Parse testimonials from array/map fallback
+        if (testimonials.length === 0 && fields.testimonials?.arrayValue?.values) {
+          const fallbackTestimonials = fields.testimonials.arrayValue.values.map(item => {
+            if (item.stringValue) {
+              return { text: item.stringValue };
+            }
+            const mapFields = item.mapValue?.fields || {};
+            return {
+              name: mapFields.name?.stringValue || mapFields.author?.stringValue || '',
+              text: mapFields.text?.stringValue || mapFields.quote?.stringValue || mapFields.message?.stringValue || '',
+              stars: Number(
+                mapFields.stars?.integerValue ||
+                mapFields.stars?.doubleValue ||
+                mapFields.stars?.stringValue ||
+                5
+              ),
+              avatar_url: mapFields.avatar_url?.stringValue || ''
+            };
+          });
+          testimonials = normalizeTestimonials(fallbackTestimonials);
         }
 
         // Extract AI configuration from widget_configs (since profiles has restricted access)
@@ -586,7 +642,7 @@
     updateLocalizedDefaults();
     config.quickReplies = getLocalizedQuickReplies(config.quickReplies);
     config.teaserMessages = getLocalizedTeaserMessages(config.teaserMessages);
-    config.liveActivities = getLocalizedLiveActivities(config.liveActivities);
+    config.testimonials = getLocalizedTestimonials(config.testimonials);
 
     const styles = `
       #lw-root,
@@ -758,57 +814,38 @@
       .lw-icon-btn { width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; }
       #lw-close-btn { border-color: rgba(255,255,255,0.28); }
 
-      #lw-live-bar {
+      #lw-testimonial-bar {
         --mx: 50%;
         --my: 50%;
         position: relative;
         background: color-mix(in srgb, var(--lw-surface) 92%, white 8%);
+        border-top: 1px solid var(--lw-border);
         border-bottom: 1px solid var(--lw-border);
         padding: 9px 12px;
         display: none;
-        align-items: center;
-        gap: 10px;
-        animation: lw-slideDown 0.3s ease-out;
         overflow: hidden;
       }
-      #lw-live-bar::before {
+      #lw-testimonial-bar::before {
         content: "";
         position: absolute;
-        inset: -35%;
+        inset: -32%;
         background:
-          radial-gradient(circle at var(--mx) var(--my), rgba(255,255,255,0.54) 0%, rgba(255,255,255,0) 42%),
-          conic-gradient(from 0deg, rgba(99,102,241,0), rgba(56,189,248,0.24), rgba(16,185,129,0.22), rgba(99,102,241,0));
+          radial-gradient(circle at var(--mx) var(--my), rgba(255,255,255,0.48) 0%, rgba(255,255,255,0.02) 44%),
+          conic-gradient(from 0deg, rgba(99,102,241,0), rgba(56,189,248,0.22), rgba(16,185,129,0.2), rgba(99,102,241,0));
         opacity: 0;
-        transition: opacity 0.24s ease;
         pointer-events: none;
-        filter: blur(14px) saturate(1.2);
+        filter: blur(16px) saturate(1.18);
       }
-      #lw-live-bar:hover::before {
-        opacity: 1;
-        animation: lw-iridescence 4.6s linear infinite;
+      #lw-testimonial-bar.lw-testimonial-glow::before {
+        animation: lw-testimonialGlow 0.85s ease-out;
       }
-      @keyframes lw-iridescence {
-        0% { transform: rotate(0deg) scale(1); }
-        100% { transform: rotate(360deg) scale(1.08); }
+      @keyframes lw-testimonialGlow {
+        0% { opacity: 0; transform: scale(0.96); }
+        40% { opacity: 0.85; transform: scale(1); }
+        100% { opacity: 0; transform: scale(1.06); }
       }
-      @keyframes lw-slideDown { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-      .lw-live-dot {
-        width: 10px;
-        height: 10px;
-        border-radius: 999px;
-        background: #22c55e;
-        box-shadow: 0 0 0 0 rgba(34,197,94,0.5);
-        animation: lw-livePulse 1.8s ease-out infinite;
-        position: relative;
-        z-index: 1;
-        flex-shrink: 0;
-      }
-      @keyframes lw-livePulse {
-        0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.5); }
-        100% { box-shadow: 0 0 0 10px rgba(34,197,94,0); }
-      }
-      .lw-live-content { flex: 1; overflow: hidden; position: relative; z-index: 1; }
-      .lw-live-label {
+      .lw-testimonial-content { position: relative; z-index: 1; min-width: 0; }
+      .lw-testimonial-label {
         display: block;
         font-size: 10px;
         font-weight: 700;
@@ -817,9 +854,17 @@
         color: var(--lw-primary);
         margin-bottom: 2px;
       }
-      .lw-live-text {
+      .lw-testimonial-text {
         font-size: 12px;
         color: var(--lw-text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .lw-testimonial-meta {
+        margin-top: 2px;
+        font-size: 10px;
+        color: var(--lw-muted);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -894,17 +939,24 @@
       #lw-quick-replies {
         display: flex;
         flex-wrap: nowrap;
+        align-items: center;
         gap: 8px;
         margin-bottom: 10px;
         overflow-x: auto;
         overflow-y: hidden;
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-x;
+        scroll-snap-type: x proximity;
         scrollbar-width: none;
         -ms-overflow-style: none;
         padding-bottom: 2px;
+        padding-right: 2px;
       }
       #lw-quick-replies::-webkit-scrollbar { display: none; }
       .lw-quick-btn {
         flex: 0 0 auto;
+        scroll-snap-align: start;
         background: var(--lw-surface-soft);
         border: 1px solid var(--lw-border);
         padding: 8px 13px;
@@ -1165,16 +1217,14 @@
             </div>
           </div>
 
-          <!-- Live Activity -->
-          <div id="lw-live-bar">
-            <span class="lw-live-dot" aria-hidden="true"></span>
-            <div class="lw-live-content">
-              <span id="lw-live-label" class="lw-live-label">${getText('liveActivityLabel')}</span>
-              <div id="lw-live-text" class="lw-live-text"></div>
+          <div id="lw-messages"></div>
+          <div id="lw-testimonial-bar" aria-live="polite">
+            <div class="lw-testimonial-content">
+              <span id="lw-testimonial-label" class="lw-testimonial-label">${getText('testimonialLabel')}</span>
+              <div id="lw-testimonial-text" class="lw-testimonial-text"></div>
+              <div id="lw-testimonial-meta" class="lw-testimonial-meta"></div>
             </div>
           </div>
-
-          <div id="lw-messages"></div>
 
           <div id="lw-input-area">
             <div id="lw-quick-replies"></div>
@@ -1270,9 +1320,10 @@
     const micBtn = document.getElementById('lw-mic-btn');
     const emojiPanel = document.getElementById('lw-emoji-panel');
     const subtitleEl = document.getElementById('lw-header-subtitle');
-    const liveLabelEl = document.getElementById('lw-live-label');
-    const liveBar = document.getElementById('lw-live-bar');
-    const liveTextEl = document.getElementById('lw-live-text');
+    const testimonialLabelEl = document.getElementById('lw-testimonial-label');
+    const testimonialBar = document.getElementById('lw-testimonial-bar');
+    const testimonialTextEl = document.getElementById('lw-testimonial-text');
+    const testimonialMetaEl = document.getElementById('lw-testimonial-meta');
     const viralTextEl = document.getElementById('lw-viral-text');
 
     const quickEmojiSet = ['😀', '😄', '😊', '🔥', '👍', '✨', '🙌', '📞', '🚀', '🎯'];
@@ -1323,11 +1374,11 @@
       updateLocalizedDefaults();
       config.quickReplies = getLocalizedQuickReplies(config.quickReplies);
       config.teaserMessages = getLocalizedTeaserMessages(config.teaserMessages);
-      config.liveActivities = getLocalizedLiveActivities(config.liveActivities);
+      config.testimonials = getLocalizedTestimonials(config.testimonials);
 
       if (langBtn) langBtn.textContent = getText('languageLabel');
       if (subtitleEl) subtitleEl.textContent = getText('headerSubtitle');
-      if (liveLabelEl) liveLabelEl.textContent = getText('liveActivityLabel');
+      if (testimonialLabelEl) testimonialLabelEl.textContent = getText('testimonialLabel');
       if (input) input.placeholder = config.chatPlaceholder || getText('chatPlaceholder');
       if (exitClose) exitClose.textContent = getText('closeExitIntent');
       if (exitTitleEl) exitTitleEl.textContent = config.exitIntentTitle || '';
@@ -1339,9 +1390,9 @@
       updateViralText();
       renderQuickReplies();
       if (isOpen) {
-        startLiveActivityRotator();
+        startTestimonialRotator();
       } else {
-        stopLiveActivityRotator();
+        stopTestimonialRotator();
       }
     }
 
@@ -1394,6 +1445,11 @@
       }
       const quickReplies = getLocalizedQuickReplies(config.quickReplies);
       quickRepliesContainer.style.display = 'flex';
+      quickRepliesContainer.style.flexWrap = 'nowrap';
+      quickRepliesContainer.style.overflowX = 'auto';
+      quickRepliesContainer.style.overflowY = 'hidden';
+      quickRepliesContainer.style.webkitOverflowScrolling = 'touch';
+      quickRepliesContainer.style.touchAction = 'pan-x';
       quickRepliesContainer.innerHTML = quickReplies.map(text =>
         `<button type="button" class="lw-quick-btn">${text}</button>`
       ).join('');
@@ -1542,7 +1598,7 @@
           messages.push({ role: 'assistant', content: withBotEmoji(config.welcomeMessage) });
           renderMessages();
         }
-        startLiveActivityRotator();
+        startTestimonialRotator();
       } else {
         hasBeenClosedOnce = true;
         startVibration();
@@ -1558,48 +1614,61 @@
           startTeaserCycle();
         }, 2000);
 
-        stopLiveActivityRotator();
+        stopTestimonialRotator();
       }
     }
 
-    // Live activity rotator (independent from testimonials)
-    function startLiveActivityRotator() {
-      stopLiveActivityRotator();
-      const activities = getLocalizedLiveActivities(config.liveActivities);
+    // Testimonial rotator
+    function startTestimonialRotator() {
+      stopTestimonialRotator();
+      const testimonials = getLocalizedTestimonials(config.testimonials);
 
-      if (!activities || !Array.isArray(activities) || activities.length === 0) {
-        if (liveBar) liveBar.style.display = 'none';
+      if (!testimonials || !Array.isArray(testimonials) || testimonials.length === 0) {
+        if (testimonialBar) testimonialBar.style.display = 'none';
         return;
       }
 
-      if (liveBar) liveBar.style.display = 'flex';
-      let activityIndex = 0;
+      if (testimonialBar) testimonialBar.style.display = 'block';
+      let testimonialIndex = 0;
 
-      const showLiveActivity = () => {
-        const currentActivity = activities[activityIndex];
-        if (!currentActivity) return;
+      const showTestimonial = () => {
+        const current = testimonials[testimonialIndex];
+        if (!current) return;
 
-        if (liveTextEl) {
-          liveTextEl.classList.remove('lw-fade-in');
-          void liveTextEl.offsetWidth;
-          liveTextEl.classList.add('lw-fade-in');
-          liveTextEl.textContent = currentActivity;
+        if (testimonialTextEl) {
+          testimonialTextEl.classList.remove('lw-fade-in');
+          void testimonialTextEl.offsetWidth;
+          testimonialTextEl.classList.add('lw-fade-in');
+          testimonialTextEl.textContent = `"${current.text}"`;
         }
 
-        activityIndex = (activityIndex + 1) % activities.length;
+        if (testimonialMetaEl) {
+          const stars = '★'.repeat(Math.max(1, Math.min(5, Number(current.stars || 5))));
+          const author = (current.name || '').trim();
+          testimonialMetaEl.textContent = author ? `${author} • ${stars}` : stars;
+        }
+
+        if (testimonialBar) {
+          testimonialBar.classList.remove('lw-testimonial-glow');
+          void testimonialBar.offsetWidth;
+          testimonialBar.classList.add('lw-testimonial-glow');
+        }
+
+        testimonialIndex = (testimonialIndex + 1) % testimonials.length;
       };
 
-      showLiveActivity();
-      if (activities.length > 1) {
-        testimonialInterval = setInterval(showLiveActivity, 4200);
+      showTestimonial();
+      if (testimonials.length > 1) {
+        testimonialInterval = setInterval(showTestimonial, 4800);
       }
     }
 
-    function stopLiveActivityRotator() {
+    function stopTestimonialRotator() {
       if (testimonialInterval) {
         clearInterval(testimonialInterval);
         testimonialInterval = null;
       }
+      if (testimonialBar) testimonialBar.classList.remove('lw-testimonial-glow');
     }
 
     // Teaser cycle
@@ -1729,17 +1798,17 @@
       }
     });
 
-    if (liveBar) {
-      liveBar.addEventListener('mousemove', (event) => {
-        const rect = liveBar.getBoundingClientRect();
+    if (testimonialBar) {
+      testimonialBar.addEventListener('mousemove', (event) => {
+        const rect = testimonialBar.getBoundingClientRect();
         const x = ((event.clientX - rect.left) / rect.width) * 100;
         const y = ((event.clientY - rect.top) / rect.height) * 100;
-        liveBar.style.setProperty('--mx', `${x}%`);
-        liveBar.style.setProperty('--my', `${y}%`);
+        testimonialBar.style.setProperty('--mx', `${x}%`);
+        testimonialBar.style.setProperty('--my', `${y}%`);
       });
-      liveBar.addEventListener('mouseleave', () => {
-        liveBar.style.setProperty('--mx', '50%');
-        liveBar.style.setProperty('--my', '50%');
+      testimonialBar.addEventListener('mouseleave', () => {
+        testimonialBar.style.setProperty('--mx', '50%');
+        testimonialBar.style.setProperty('--my', '50%');
       });
     }
 

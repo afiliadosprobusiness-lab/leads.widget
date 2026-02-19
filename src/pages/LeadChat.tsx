@@ -1,4 +1,4 @@
-import { FormEvent, MouseEvent as ReactMouseEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Loader2, Mic, MicOff, Moon, PhoneCall, Send, ShieldCheck, Smile, Sun, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -69,7 +69,6 @@ const SALES_COPY: Record<
     initialMessage: string;
     chatPlaceholder: string;
     quickReplies: string[];
-    liveToasts: string[];
     presenceNow: string;
     prequalifyingBadge: string;
     readyBadge: string;
@@ -103,7 +102,7 @@ const SALES_COPY: Record<
     handoffSuccess: string;
     activationMessage: string;
     openLeadChat: string;
-    liveActivityLabel: string;
+    testimonialLabel: string;
     exitIntentDetected: string;
     closeExitIntent: string;
     continueBrowsing: string;
@@ -124,11 +123,6 @@ const SALES_COPY: Record<
       "Hola, soy el asistente de pre-calificacion.\nEn menos de 2 minutos podemos llamarte y ayudarte a cerrar o agendar clientes.\n\nQue te gustaria hacer ahora?",
     chatPlaceholder: "Escribe tu mensaje...",
     quickReplies: ["Agendar clientes", "Cerrar ventas por llamada", "Ver como funciona"],
-    liveToasts: [
-      "Nuevo lead activo hace 2 min",
-      "Un asesor IA acaba de cerrar una llamada",
-      "Conversiones en vivo: este chat esta funcionando",
-    ],
     presenceNow: "3 personas probando la demo ahora",
     prequalifyingBadge: "Precalificando...",
     readyBadge: "Llamada en menos de 2 min",
@@ -162,7 +156,7 @@ const SALES_COPY: Record<
     handoffSuccess: "Todo listo. Te llamaremos en menos de 2 minutos.",
     activationMessage: "Perfecto. Estamos iniciando tu llamada de prueba ahora mismo...",
     openLeadChat: "No pudimos iniciar el chat.",
-    liveActivityLabel: "Actividad en vivo",
+    testimonialLabel: "Testimonios",
     exitIntentDetected: "Intencion de salida detectada",
     closeExitIntent: "Cerrar pop de salida",
     continueBrowsing: "Continuar navegando",
@@ -182,11 +176,6 @@ const SALES_COPY: Record<
       "Hi! I'm the qualification assistant.\nIn under 2 minutes, our AI can call you and help you book or close customers live.\n\nWhat would you like to do?",
     chatPlaceholder: "Type your message...",
     quickReplies: ["Book more appointments", "Close deals by phone", "See how it works"],
-    liveToasts: [
-      "A new lead became active 2 minutes ago",
-      "An AI closer just booked a live call",
-      "Live conversions: this chat is performing now",
-    ],
     presenceNow: "3 people are testing this demo right now",
     prequalifyingBadge: "Pre-qualifying...",
     readyBadge: "Call in under 2 min",
@@ -220,7 +209,7 @@ const SALES_COPY: Record<
     handoffSuccess: "All set. We will call you in under 2 minutes.",
     activationMessage: "Perfect. We are starting your demo call right now...",
     openLeadChat: "We could not start the chat.",
-    liveActivityLabel: "Live activity",
+    testimonialLabel: "Testimonials",
     exitIntentDetected: "Exit intent detected",
     closeExitIntent: "Close exit popup",
     continueBrowsing: "Continue browsing",
@@ -397,8 +386,8 @@ export default function LeadChat() {
   const [collectedInfoSeed, setCollectedInfoSeed] = useState("");
   const [handoffMessage, setHandoffMessage] = useState("");
   const [offerDismissed, setOfferDismissed] = useState(false);
-  const [socialProofToast, setSocialProofToast] = useState("");
   const [activeTestimonialIndex, setActiveTestimonialIndex] = useState(0);
+  const [testimonialTransition, setTestimonialTransition] = useState(false);
   const [activeTeaser, setActiveTeaser] = useState("");
   const [teaserVisible, setTeaserVisible] = useState(false);
   const [showExitIntent, setShowExitIntent] = useState(false);
@@ -407,7 +396,6 @@ export default function LeadChat() {
   const [locale, setLocale] = useState<ChatLocale>("es");
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [speechListening, setSpeechListening] = useState(false);
-  const [testimonialGlow, setTestimonialGlow] = useState({ x: 50, y: 50, active: false });
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const consentPanelRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -600,18 +588,6 @@ export default function LeadChat() {
     return testimonials[activeTestimonialIndex % testimonials.length];
   }, [activeTestimonialIndex, testimonials]);
 
-  const handleTestimonialPointerMove = (event: ReactMouseEvent<HTMLElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    if (!rect.width || !rect.height) return;
-    const x = ((event.clientX - rect.left) / rect.width) * 100;
-    const y = ((event.clientY - rect.top) / rect.height) * 100;
-    setTestimonialGlow({ x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)), active: true });
-  };
-
-  const handleTestimonialPointerLeave = () => {
-    setTestimonialGlow((prev) => ({ ...prev, active: false }));
-  };
-
   useEffect(() => {
     if (testimonials.length <= 1) return;
     const interval = window.setInterval(() => {
@@ -621,24 +597,11 @@ export default function LeadChat() {
   }, [testimonials.length]);
 
   useEffect(() => {
-    const fallbackMessages = copy.liveToasts;
-    const customToasts = Array.isArray(config?.leadChatLiveToasts)
-      ? config.leadChatLiveToasts.filter(Boolean).slice(0, 12)
-      : [];
-    const source = customToasts.length > 0
-      ? customToasts
-      : testimonials.length > 0
-      ? testimonials.map((item) => `${item.name || copy.defaultBusinessName}: ${item.text || copy.offerDescription}`)
-      : fallbackMessages;
-
-    let index = 0;
-    setSocialProofToast(source[0] || "");
-    const interval = window.setInterval(() => {
-      index = (index + 1) % source.length;
-      setSocialProofToast(source[index] || "");
-    }, 7600);
-    return () => window.clearInterval(interval);
-  }, [config?.leadChatLiveToasts, testimonials, copy.liveToasts, copy.defaultBusinessName, copy.offerDescription]);
+    if (!activeTestimonial) return;
+    setTestimonialTransition(true);
+    const timeoutId = window.setTimeout(() => setTestimonialTransition(false), 650);
+    return () => window.clearTimeout(timeoutId);
+  }, [activeTestimonialIndex, activeTestimonial]);
 
   useEffect(() => {
     const source = Array.isArray(config?.teaserMessages) ? config.teaserMessages.filter(Boolean) : [];
@@ -969,53 +932,6 @@ export default function LeadChat() {
               </div>
 
               <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4 sm:px-7">
-                {activeTestimonial ? (
-                  <article
-                    onMouseMove={handleTestimonialPointerMove}
-                    onMouseEnter={handleTestimonialPointerMove}
-                    onMouseLeave={handleTestimonialPointerLeave}
-                    className={`group relative sticky top-0 z-20 overflow-hidden rounded-2xl border p-2.5 backdrop-blur-xl transition-all duration-500 animate-in fade-in ${
-                      isLightMode
-                        ? "border-slate-200 bg-white/90 hover:border-sky-300 hover:shadow-[0_22px_80px_-45px_rgba(14,165,233,0.55)]"
-                        : "border-white/15 bg-white/[0.035] hover:border-sky-200/60 hover:shadow-[0_22px_80px_-38px_rgba(125,211,252,0.65)]"
-                    }`}
-                  >
-                    <div
-                      className={`pointer-events-none absolute inset-0 transition-opacity duration-500 ${testimonialGlow.active ? "opacity-100" : "opacity-0"}`}
-                      style={{
-                        background: `radial-gradient(280px circle at ${testimonialGlow.x}% ${testimonialGlow.y}%, rgba(255,255,255,0.45) 0%, rgba(125,211,252,0.28) 24%, rgba(196,181,253,0.2) 46%, rgba(45,212,191,0.16) 66%, rgba(2,6,23,0.02) 100%)`,
-                      }}
-                    />
-                    <div
-                      className="pointer-events-none absolute -inset-[120%] opacity-0 blur-2xl transition-all duration-700 group-hover:opacity-70 group-hover:translate-x-10"
-                      style={{
-                        background: "conic-gradient(from 180deg at 50% 50%, rgba(244,114,182,0.3), rgba(59,130,246,0.3), rgba(45,212,191,0.3), rgba(167,139,250,0.3), rgba(244,114,182,0.3))",
-                      }}
-                    />
-                    <div className="relative flex items-center gap-2">
-                      <div className={`h-8 w-8 shrink-0 rounded-full text-[11px] font-semibold grid place-items-center ${isLightMode ? "border border-sky-200 bg-sky-100 text-sky-700" : "border border-white/15 bg-sky-900/55 text-sky-100"}`}>
-                        {String(activeTestimonial.name || "C")
-                          .split(" ")
-                          .map((chunk) => chunk[0] || "")
-                          .join("")
-                          .slice(0, 2)
-                          .toUpperCase()}
-                      </div>
-                      <div className="min-w-0">
-                        <p className={`truncate text-[11px] font-medium ${isLightMode ? "text-slate-700" : "text-sky-100"}`}>
-                          {activeTestimonial.name || copy.defaultBusinessName}
-                          <span className="ml-2 text-[10px] text-amber-300/90">
-                            {"*".repeat(Math.max(1, Math.min(5, Number(activeTestimonial.stars || 5))))}
-                          </span>
-                        </p>
-                        <p className={`truncate text-[11px] ${isLightMode ? "text-slate-500" : "text-slate-200/90"}`}>
-                          "{activeTestimonial.text || copy.offerDescription}"
-                        </p>
-                      </div>
-                    </div>
-                  </article>
-                ) : null}
-
                 {messages.map((msg, index) => (
                   <div key={`${msg.role}-${index}`} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                     <div
@@ -1173,14 +1089,43 @@ export default function LeadChat() {
                   </button>
                 ) : null}
 
+                {activeTestimonial ? (
+                  <div
+                    className={`relative overflow-hidden rounded-xl border px-3 py-2 text-xs transition-all duration-500 ${
+                      isLightMode
+                        ? "border-sky-200 bg-white/90 text-slate-700"
+                        : "border-cyan-400/30 bg-slate-950/85 text-slate-100"
+                    } ${testimonialTransition ? (isLightMode ? "shadow-[0_0_35px_-18px_rgba(14,165,233,0.95)]" : "shadow-[0_0_35px_-16px_rgba(34,211,238,0.9)]") : ""}`}
+                  >
+                    <div
+                      className={`pointer-events-none absolute -inset-16 transition-opacity duration-500 ${testimonialTransition ? "opacity-100" : "opacity-0"}`}
+                      style={{
+                        background:
+                          "radial-gradient(circle at 50% 50%, rgba(125,211,252,0.42) 0%, rgba(52,211,153,0.25) 35%, rgba(2,6,23,0) 72%)",
+                      }}
+                    />
+                    <div className="relative min-w-0">
+                      <p className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${isLightMode ? "text-sky-700" : "text-cyan-200"}`}>
+                        {copy.testimonialLabel}
+                      </p>
+                      <p className="mt-0.5 truncate text-xs">
+                        "{activeTestimonial.text || copy.offerDescription}"
+                      </p>
+                      <p className={`mt-0.5 truncate text-[11px] ${isLightMode ? "text-slate-500" : "text-slate-300"}`}>
+                        {(activeTestimonial.name || copy.defaultBusinessName)} • {"★".repeat(Math.max(1, Math.min(5, Number(activeTestimonial.stars || 5))))}
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
+
                 {quickReplies.length > 0 && messages.length < 7 && (
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-nowrap gap-2 overflow-x-auto scroll-smooth pb-1 pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [scroll-snap-type:x_proximity] [-webkit-overflow-scrolling:touch] [touch-action:pan-x] [&::-webkit-scrollbar]:hidden">
                     {quickReplies.map((item, idx) => (
                       <button
                         key={`${item}-${idx}`}
                         type="button"
                         onClick={() => void handleSend(item)}
-                        className={`rounded-full border px-3 py-1.5 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 ${
+                        className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 [scroll-snap-align:start] ${
                           isLightMode
                             ? "border-slate-300 bg-white text-slate-700 hover:border-sky-300 hover:text-sky-700 focus-visible:ring-sky-400"
                             : "border-slate-700 bg-slate-900 text-slate-200 hover:border-cyan-400/60 hover:text-cyan-200 focus-visible:ring-cyan-300"
@@ -1275,19 +1220,6 @@ export default function LeadChat() {
           </div>
         </section>
       </div>
-
-      {!!socialProofToast && (
-        <div className="pointer-events-none fixed bottom-5 right-4 z-40 max-w-xs animate-in slide-in-from-bottom-4 fade-in">
-          <div className={`rounded-xl border px-3 py-2 text-xs shadow-xl backdrop-blur ${
-            isLightMode
-              ? "border-sky-200 bg-white/95 text-sky-700"
-              : "border-cyan-400/30 bg-slate-950/95 text-cyan-100"
-          }`}>
-            <p className={`font-semibold ${isLightMode ? "text-sky-700" : "text-cyan-200"}`}>{copy.liveActivityLabel}</p>
-            <p className="mt-1 line-clamp-2">{socialProofToast}</p>
-          </div>
-        </div>
-      )}
 
       {showExitIntent && (
         <div className={`fixed inset-0 z-50 flex items-center justify-center px-4 ${isLightMode ? "bg-slate-900/35" : "bg-slate-950/70"}`}>
