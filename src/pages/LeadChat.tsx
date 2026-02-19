@@ -164,7 +164,7 @@ const SALES_COPY: Record<
     consentCheckboxLabel: "Acepto recibir una llamada automatica de demostracion.",
     privacyNote: "Solo te contactaremos para esta solicitud. No compartimos tu informacion fuera de este proceso.",
     trustBullets: ["\u26A1 Demo gratis", "\u23F1\uFE0F <2 min", "\uD83D\uDD12 Sin tarjeta"],
-    submitHandoff: "Activar llamada ahora",
+    submitHandoff: "Enviar",
     connectingHandoff: "Conectando con IACloser...",
     offerTag: "Oferta activa",
     offerTitle: "Bloquea tu llamada de cierre ahora",
@@ -233,7 +233,7 @@ const SALES_COPY: Record<
     consentCheckboxLabel: "I agree to receive an automated demo call.",
     privacyNote: "We only contact you for this request. We do not share your data outside this process.",
     trustBullets: ["\u26A1 Free demo", "\u23F1\uFE0F <2 min", "\uD83D\uDD12 No card required"],
-    submitHandoff: "Start call now",
+    submitHandoff: "Send",
     connectingHandoff: "Connecting with IACloser...",
     offerTag: "Live offer",
     offerTitle: "Lock your closing call now",
@@ -1395,63 +1395,9 @@ export default function LeadChat() {
       await appendAssistantWithTypewriter(cleanResponse);
 
       if (parsed.isReady) {
-        if (parsed.seed?.name && !leadName) setLeadName(parsed.seed.name);
-        if (parsed.seed?.phone && !leadPhone) setLeadPhone(sanitizePhone(parsed.seed.phone));
+        if (parsed.seed?.name) setLeadName(parsed.seed.name.trim());
+        if (parsed.seed?.phone) setLeadPhone(sanitizePhone(parsed.seed.phone));
         if (parsed.seed?.collected_info) setCollectedInfoSeed(parsed.seed.collected_info);
-
-        const autoName = String(parsed.seed?.name || leadName || "").trim();
-        const autoPhone = sanitizePhone(String(parsed.seed?.phone || leadPhone || ""));
-        const canAutoHandoff = autoName.length > 0 && autoPhone.length >= 8;
-
-        if (canAutoHandoff) {
-          try {
-            const autoResponse = await fetch("/api/icloser/handoff", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                widgetId: config.widgetId,
-                name: autoName,
-                phone: autoPhone,
-                collectedInfo: parsed.seed?.collected_info?.trim() || buildCollectedInfo(),
-                history: conversationHistory,
-                consent: {
-                  accepted: true,
-                  explicitResponse: responseLocale === "en" ? "YES" : "SI",
-                  textVersion: config.consentTextVersion || "v1",
-                  text: config.consentText || "",
-                },
-              }),
-            });
-            const autoPayload = await autoResponse.json();
-            if (!autoResponse.ok || autoPayload?.success !== true) {
-              throw new Error(autoPayload?.error || copy.connectionIssue);
-            }
-
-            const autoRedirectUrl = String(autoPayload?.redirectUrl || config.iacloserRedirectUrl || "").trim();
-            setHandoffEligible(true);
-            setHandoffMessage(SALES_COPY[responseLocale].handoffSuccess);
-            setConsentVisible(false);
-            setLeadConsentAccepted(false);
-            setShowExitIntent(false);
-            setLeadName(autoName);
-            setLeadPhone(autoPhone);
-            setMessages((prev) => [
-              ...prev,
-              {
-                id: `handoff-ready-${Date.now()}`,
-                role: "assistant",
-                content: withBotEmoji(SALES_COPY[responseLocale].activationMessage),
-              },
-            ]);
-
-            if (autoRedirectUrl) {
-              startRedirectCountdown(autoRedirectUrl, responseLocale);
-            }
-            return;
-          } catch (autoError: any) {
-            setChatError(autoError?.message || copy.connectionIssue);
-          }
-        }
 
         setHandoffEligible(true);
         setLeadConsentAccepted(false);
@@ -1482,7 +1428,9 @@ export default function LeadChat() {
 
     const cleanName = leadName.trim();
     const cleanPhone = sanitizePhone(leadPhone);
-    if (!cleanName || cleanPhone.length < 8) {
+    const isNameValid = cleanName.length >= 2;
+    const isPhoneValid = cleanPhone.length >= 8 && cleanPhone.length <= 15;
+    if (!isNameValid || !isPhoneValid) {
       setChatError(copy.invalidLeadData);
       return;
     }
@@ -1539,6 +1487,11 @@ export default function LeadChat() {
       setHandoffLoading(false);
     }
   };
+
+  const isLeadNameValid = leadName.trim().length >= 2;
+  const leadPhoneDigits = sanitizePhone(leadPhone);
+  const isLeadPhoneValid = leadPhoneDigits.length >= 8 && leadPhoneDigits.length <= 15;
+  const canSubmitLeadHandoff = isLeadNameValid && isLeadPhoneValid && leadConsentAccepted && !handoffLoading;
 
   if (loadingConfig) {
     return (
@@ -1823,7 +1776,8 @@ export default function LeadChat() {
                             value={leadName}
                             onChange={(event) => setLeadName(event.target.value)}
                             placeholder={copy.namePlaceholder}
-                            className="border-slate-700 bg-slate-900"
+                            aria-invalid={!isLeadNameValid && leadName.trim().length > 0}
+                            className={`bg-slate-900 ${!isLeadNameValid && leadName.trim().length > 0 ? "border-rose-500/80 focus-visible:ring-rose-400" : "border-slate-700"}`}
                           />
                         </div>
                         <div className="space-y-1.5">
@@ -1834,7 +1788,8 @@ export default function LeadChat() {
                             onChange={(event) => setLeadPhone(sanitizePhone(event.target.value))}
                             inputMode="tel"
                             placeholder={copy.phonePlaceholder}
-                            className="border-slate-700 bg-slate-900"
+                            aria-invalid={!isLeadPhoneValid && leadPhone.length > 0}
+                            className={`bg-slate-900 ${!isLeadPhoneValid && leadPhone.length > 0 ? "border-rose-500/80 focus-visible:ring-rose-400" : "border-slate-700"}`}
                           />
                         </div>
                         <div className="space-y-1 rounded-lg border border-sky-400/30 bg-sky-500/10 p-2.5 text-xs text-sky-100">
@@ -1863,7 +1818,7 @@ export default function LeadChat() {
                             {copy.privacyNote}
                           </p>
                         </div>
-                        <Button type="submit" disabled={handoffLoading || !leadConsentAccepted} className="w-full gap-2">
+                        <Button type="submit" disabled={!canSubmitLeadHandoff} className="w-full gap-2">
                           {handoffLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <PhoneCall className="h-4 w-4" />}
                           {handoffLoading ? copy.connectingHandoff : copy.submitHandoff}
                         </Button>
