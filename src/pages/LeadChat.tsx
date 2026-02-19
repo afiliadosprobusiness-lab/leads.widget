@@ -359,6 +359,12 @@ function resolveLeadChatLiveToasts(raw: Record<string, unknown>) {
   return [];
 }
 
+function parseNumberCandidate(value: unknown, fallback = 5) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return parsed;
+}
+
 type FirestoreQueryResult = Array<{
   document?: {
     fields?: Record<string, any>;
@@ -473,20 +479,165 @@ function resolveQuickReplies(rawQuickReplies: unknown, locale: ChatLocale) {
 }
 
 function normalizeTestimonials(value: unknown): Testimonial[] {
-  if (!Array.isArray(value)) return [];
-  return value
+  let source: unknown = value;
+
+  if (source && typeof source === "object" && !Array.isArray(source)) {
+    const record = source as Record<string, any>;
+    if (Array.isArray(record.arrayValue?.values)) {
+      source = record.arrayValue.values;
+    } else if (typeof record.stringValue === "string") {
+      source = record.stringValue;
+    }
+  }
+
+  if (typeof source === "string") {
+    const trimmed = source.trim();
+    if (!trimmed) return [];
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+      try {
+        source = JSON.parse(trimmed);
+      } catch {
+        return [];
+      }
+    } else {
+      return [];
+    }
+  }
+
+  if (!Array.isArray(source)) return [];
+
+  return source
     .map((item) => {
+      if (typeof item === "string") {
+        const text = item.trim();
+        if (!text) return null;
+        return {
+          id: "",
+          name: "Cliente",
+          text,
+          stars: 5,
+          avatar_url: "",
+        } as Testimonial;
+      }
       if (!item || typeof item !== "object") return null;
-      const record = item as Record<string, unknown>;
+
+      const firestoreMap = (item as Record<string, any>).mapValue?.fields;
+      const record = (firestoreMap && typeof firestoreMap === "object"
+        ? {
+            id: firestoreMap.id?.stringValue,
+            name: firestoreMap.name?.stringValue ?? firestoreMap.author?.stringValue,
+            text:
+              firestoreMap.text?.stringValue ??
+              firestoreMap.quote?.stringValue ??
+              firestoreMap.message?.stringValue,
+            stars:
+              firestoreMap.stars?.doubleValue ??
+              firestoreMap.stars?.integerValue ??
+              firestoreMap.stars?.stringValue,
+            avatar_url:
+              firestoreMap.avatar_url?.stringValue ??
+              firestoreMap.avatarUrl?.stringValue ??
+              firestoreMap.avatar?.stringValue,
+          }
+        : item) as Record<string, unknown>;
+
+      const text =
+        typeof record.text === "string"
+          ? record.text.trim()
+          : typeof record.quote === "string"
+            ? String(record.quote).trim()
+            : typeof record.message === "string"
+              ? String(record.message).trim()
+              : "";
+
+      if (!text) return null;
+
+      const name =
+        typeof record.name === "string"
+          ? record.name.trim()
+          : typeof record.author === "string"
+            ? String(record.author).trim()
+            : "Cliente";
+
       return {
         id: typeof record.id === "string" ? record.id : "",
-        name: typeof record.name === "string" ? record.name : "Cliente",
-        text: typeof record.text === "string" ? record.text : "",
-        stars: typeof record.stars === "number" ? record.stars : 5,
-        avatar_url: typeof record.avatar_url === "string" ? record.avatar_url : "",
+        name: name || "Cliente",
+        text,
+        stars: parseNumberCandidate(record.stars, 5),
+        avatar_url:
+          typeof record.avatar_url === "string"
+            ? record.avatar_url
+            : typeof record.avatar === "string"
+              ? String(record.avatar)
+              : typeof record.avatarUrl === "string"
+                ? String(record.avatarUrl)
+                : "",
       } as Testimonial;
     })
-    .filter((item): item is Testimonial => Boolean(item) && Boolean(item.text || item.name));
+    .filter((item): item is Testimonial => Boolean(item) && Boolean(item.text));
+}
+
+function resolveTestimonials(raw: Record<string, unknown>) {
+  const candidates = [
+    raw.testimonials,
+    raw.testimonials_json,
+    raw.testimonialsJson,
+    raw.leadChatTestimonials,
+    raw.lead_chat_testimonials,
+  ];
+
+  for (const candidate of candidates) {
+    const parsed = normalizeTestimonials(candidate).slice(0, 10);
+    if (parsed.length > 0) return parsed;
+  }
+
+  return [];
+}
+
+async function fetchLeadChatTestimonialsFromFirestore(identity: string) {
+  if (!identity) return [];
+
+  const url = `https://firestore.googleapis.com/v1/projects/${PUBLIC_FIRESTORE_PROJECT_ID}/databases/(default)/documents:runQuery?key=${PUBLIC_FIRESTORE_API_KEY}`;
+  const candidates = [
+    { fieldPath: "lead_chat_slug", value: identity },
+    { fieldPath: "widget_id", value: identity },
+    { fieldPath: "user_id", value: identity },
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          structuredQuery: {
+            from: [{ collectionId: "widget_configs" }],
+            where: {
+              fieldFilter: {
+                field: { fieldPath: candidate.fieldPath },
+                op: "EQUAL",
+                value: { stringValue: candidate.value },
+              },
+            },
+            limit: 1,
+          },
+        }),
+      });
+
+      if (!response.ok) continue;
+      const data = (await response.json()) as FirestoreQueryResult;
+      const fields = data?.[0]?.document?.fields || {};
+      const parsed = resolveTestimonials({
+        testimonials: fields.testimonials,
+        testimonials_json: fields.testimonials_json,
+      });
+      if (parsed.length > 0) return parsed;
+    } catch {
+      // noop
+    }
+  }
+
+  return [];
 }
 
 function parseIACCloserSeed(responseText: string) {
@@ -541,8 +692,10 @@ export default function LeadChat() {
   const [handoffMessage, setHandoffMessage] = useState("");
   const [offerDismissed, setOfferDismissed] = useState(false);
   const [activeTestimonialIndex, setActiveTestimonialIndex] = useState(0);
+  const [activeLiveActivityIndex, setActiveLiveActivityIndex] = useState(0);
   const [presenceNowIndex, setPresenceNowIndex] = useState(0);
   const [testimonialTransition, setTestimonialTransition] = useState(false);
+  const [liveActivityTransition, setLiveActivityTransition] = useState(false);
   const [activeTeaser, setActiveTeaser] = useState("");
   const [teaserVisible, setTeaserVisible] = useState(false);
   const [showExitIntent, setShowExitIntent] = useState(false);
@@ -601,6 +754,10 @@ export default function LeadChat() {
         const raw = payload.config as Record<string, unknown>;
         const resolvedLocale = resolveLocale(raw.language);
         const localeCopy = SALES_COPY[resolvedLocale];
+        let resolvedTestimonials = resolveTestimonials(raw);
+        if (resolvedTestimonials.length === 0) {
+          resolvedTestimonials = await fetchLeadChatTestimonialsFromFirestore(identity);
+        }
         let resolvedLiveToasts = resolveLeadChatLiveToasts(raw);
         if (resolvedLiveToasts.length === 0) {
           resolvedLiveToasts = await fetchLeadChatLiveToastsFromFirestore(identity);
@@ -614,7 +771,7 @@ export default function LeadChat() {
           chatPlaceholder: String(raw.chatPlaceholder || raw.chat_placeholder || localeCopy.chatPlaceholder),
           quickReplies: resolveQuickReplies(raw.quickReplies ?? raw.quick_replies, resolvedLocale),
           teaserMessages: normalizeStringArray(raw.teaserMessages ?? raw.teaser_messages).slice(0, 12),
-          testimonials: normalizeTestimonials(raw.testimonials).slice(0, 10),
+          testimonials: resolvedTestimonials,
           triggerDelay: Number(raw.triggerDelay || raw.trigger_delay || 5),
           exitIntentEnabled:
             typeof raw.exitIntentEnabled === "boolean"
@@ -735,7 +892,6 @@ export default function LeadChat() {
     [config?.leadChatLiveToasts],
   );
   const showLiveActivityStrip = liveActivityMessages.length > 0;
-  const socialStripLength = showLiveActivityStrip ? liveActivityMessages.length : testimonials.length;
 
   const userMessageCount = useMemo(
     () => messages.filter((msg) => msg.role === "user").length,
@@ -753,16 +909,11 @@ export default function LeadChat() {
   }, [activeTestimonialIndex, testimonials]);
   const activeLiveActivityMessage = useMemo(() => {
     if (liveActivityMessages.length === 0) return "";
-    return liveActivityMessages[activeTestimonialIndex % liveActivityMessages.length] || "";
-  }, [activeTestimonialIndex, liveActivityMessages]);
-  const socialStripLabel = showLiveActivityStrip ? copy.liveActivityLabel : copy.testimonialLabel;
-  const socialStripText = showLiveActivityStrip
-    ? activeLiveActivityMessage
-    : (activeTestimonial?.text || copy.offerDescription);
-  const socialStripMeta = showLiveActivityStrip
-    ? ""
-    : `${activeTestimonial?.name || copy.defaultBusinessName} • ${"★".repeat(Math.max(1, Math.min(5, Number(activeTestimonial?.stars || 5))))}`;
-  const hasSocialStrip = Boolean(socialStripText);
+    return liveActivityMessages[activeLiveActivityIndex % liveActivityMessages.length] || "";
+  }, [activeLiveActivityIndex, liveActivityMessages]);
+  const testimonialStripText = activeTestimonial?.text || copy.offerDescription;
+  const testimonialStripMeta = `${activeTestimonial?.name || copy.defaultBusinessName} • ${"★".repeat(Math.max(1, Math.min(5, Number(activeTestimonial?.stars || 5))))}`;
+  const hasTestimonialStrip = Boolean(activeTestimonial);
   const presenceMessages = useMemo(() => {
     const source = Array.isArray(copy.presenceNowMessages) ? copy.presenceNowMessages.filter(Boolean) : [];
     return source.length > 0 ? source : [copy.presenceNow];
@@ -774,22 +925,41 @@ export default function LeadChat() {
 
   useEffect(() => {
     setActiveTestimonialIndex(0);
-  }, [showLiveActivityStrip, liveActivityMessages.length, testimonials.length]);
+  }, [testimonials.length]);
 
   useEffect(() => {
-    if (socialStripLength <= 1) return;
+    if (testimonials.length <= 1) return;
     const interval = window.setInterval(() => {
-      setActiveTestimonialIndex((prev) => (prev + 1) % socialStripLength);
+      setActiveTestimonialIndex((prev) => (prev + 1) % testimonials.length);
     }, 4200);
     return () => window.clearInterval(interval);
-  }, [socialStripLength]);
+  }, [testimonials.length]);
 
   useEffect(() => {
-    if (!hasSocialStrip) return;
+    if (!hasTestimonialStrip) return;
     setTestimonialTransition(true);
     const timeoutId = window.setTimeout(() => setTestimonialTransition(false), 650);
     return () => window.clearTimeout(timeoutId);
-  }, [activeTestimonialIndex, hasSocialStrip, socialStripText]);
+  }, [activeTestimonialIndex, hasTestimonialStrip, testimonialStripText]);
+
+  useEffect(() => {
+    setActiveLiveActivityIndex(0);
+  }, [liveActivityMessages.length]);
+
+  useEffect(() => {
+    if (!showLiveActivityStrip || liveActivityMessages.length <= 1) return;
+    const interval = window.setInterval(() => {
+      setActiveLiveActivityIndex((prev) => (prev + 1) % liveActivityMessages.length);
+    }, 4300);
+    return () => window.clearInterval(interval);
+  }, [showLiveActivityStrip, liveActivityMessages.length]);
+
+  useEffect(() => {
+    if (!showLiveActivityStrip || !activeLiveActivityMessage) return;
+    setLiveActivityTransition(true);
+    const timeoutId = window.setTimeout(() => setLiveActivityTransition(false), 650);
+    return () => window.clearTimeout(timeoutId);
+  }, [showLiveActivityStrip, activeLiveActivityIndex, activeLiveActivityMessage]);
 
   useEffect(() => {
     setPresenceNowIndex(0);
@@ -1133,20 +1303,20 @@ export default function LeadChat() {
                     isLightMode
                       ? "border-sky-200 bg-white/95 text-slate-700"
                       : "border-cyan-400/30 bg-slate-950/85 text-slate-100"
-                  } ${testimonialTransition ? (isLightMode ? "shadow-[0_0_28px_-16px_rgba(14,165,233,0.9)]" : "shadow-[0_0_28px_-14px_rgba(34,211,238,0.85)]") : ""}`}>
+                  } ${liveActivityTransition ? (isLightMode ? "shadow-[0_0_28px_-16px_rgba(14,165,233,0.9)]" : "shadow-[0_0_28px_-14px_rgba(34,211,238,0.85)]") : ""}`}>
                     <p className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${isLightMode ? "text-sky-700" : "text-cyan-200"}`}>
-                      {socialStripLabel}
+                      {copy.liveActivityLabel}
                     </p>
                     <p className="mt-0.5 line-clamp-2">
-                      {socialStripText}
+                      {activeLiveActivityMessage}
                     </p>
                   </div>
                 ) : null}
                 </div>
               </div>
 
-              {hasSocialStrip ? (
-                <div className={`px-4 pb-3 pt-3 sm:px-7 ${showLiveActivityStrip ? "lg:hidden" : ""} ${isLightMode ? "border-b border-slate-200 bg-white/80" : "border-b border-white/10 bg-white/[0.03]"}`}>
+              {hasTestimonialStrip ? (
+                <div className={`px-4 pb-3 pt-3 sm:px-7 ${isLightMode ? "border-b border-slate-200 bg-white/80" : "border-b border-white/10 bg-white/[0.03]"}`}>
                   <div
                     className={`relative overflow-hidden rounded-xl border px-3 py-2 text-xs transition-all duration-500 ${
                       isLightMode
@@ -1163,16 +1333,14 @@ export default function LeadChat() {
                     />
                     <div className="relative min-w-0">
                       <p className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${isLightMode ? "text-sky-700" : "text-cyan-200"}`}>
-                        {socialStripLabel}
+                        {copy.testimonialLabel}
                       </p>
                       <p className="mt-0.5 truncate text-xs">
-                        {showLiveActivityStrip ? socialStripText : `"${socialStripText}"`}
+                        "{testimonialStripText}"
                       </p>
-                      {!showLiveActivityStrip ? (
-                        <p className={`mt-0.5 truncate text-[11px] ${isLightMode ? "text-slate-500" : "text-slate-300"}`}>
-                          {socialStripMeta}
-                        </p>
-                      ) : null}
+                      <p className={`mt-0.5 truncate text-[11px] ${isLightMode ? "text-slate-500" : "text-slate-300"}`}>
+                        {testimonialStripMeta}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -1428,6 +1596,20 @@ export default function LeadChat() {
                     </p>
                   ))}
                 </div>
+                {showLiveActivityStrip ? (
+                  <div className={`rounded-xl border px-3 py-2 text-xs lg:hidden ${
+                    isLightMode
+                      ? "border-sky-200 bg-white/95 text-slate-700"
+                      : "border-cyan-400/30 bg-slate-950/85 text-slate-100"
+                  } ${liveActivityTransition ? (isLightMode ? "shadow-[0_0_28px_-16px_rgba(14,165,233,0.9)]" : "shadow-[0_0_28px_-14px_rgba(34,211,238,0.85)]") : ""}`}>
+                    <p className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${isLightMode ? "text-sky-700" : "text-cyan-200"}`}>
+                      {copy.liveActivityLabel}
+                    </p>
+                    <p className="mt-0.5 line-clamp-2">
+                      {activeLiveActivityMessage}
+                    </p>
+                  </div>
+                ) : null}
                 {speechListening ? (
                   <p className={`text-[11px] ${isLightMode ? "text-rose-600" : "text-rose-300"}`}>
                     {copy.listeningNow}
