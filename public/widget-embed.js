@@ -5,28 +5,96 @@
   const defaultConfig = {
     primaryColor: '#00C185',
     businessName: 'LeadWidget',
-    welcomeMessage: 'ðŸ‘‹ Â¡Hola! Soy tu asistente virtual. Â¿En quÃ© puedo ayudarte hoy?',
+    welcomeMessage: "Hi! I'm the qualification assistant. In under 2 minutes, our AI can call you and help you book or close customers live. What would you like to do?",
     whatsappDestination: '',
     template: 'general',
-    chatPlaceholder: 'Escribe tu consulta aquÃ­...',
-    quickReplies: ['Â¿CÃ³mo funciona?', 'Quiero informaciÃ³n', 'Ver precios'],
-    teaserMessages: ['Â¿CÃ³mo podemos ayudarte? ðŸ‘‹', 'Â¿Tienes alguna duda? âœ¨', 'Â¡Estamos en lÃ­nea! ðŸš€'],
+    chatPlaceholder: 'Type your message...',
+    quickReplies: ['Book more appointments', 'Close deals by phone', 'See how it works'],
+    teaserMessages: ['How can we help you today? 👋', 'Do you have any questions? ✨', 'We are online now 🚀'],
     vibrationIntensity: 'soft',
     triggerDelay: 5,
     exitIntentEnabled: true,
-    exitIntentTitle: 'Â¡Espera!',
-    exitIntentDescription: 'Â¿Tienes alguna pregunta antes de irte?',
-    exitIntentCta: 'Chatear Ahora',
+    exitIntentTitle: 'Wait a second',
+    exitIntentDescription: 'Do you want quick help before you leave?',
+    exitIntentCta: 'Open chat',
     testimonials: [],
+    liveActivities: [],
     hideBranding: false,
     brandingText: '',
     brandingLink: '',
-    consentText: 'Acepto ser contactado por telefono o mensajes para continuar con mi solicitud.',
+    consentText: 'I agree to be contacted by phone or messages to continue my request.',
     consentTextVersion: 'v1',
     iacloserRedirectUrl: '',
     iacloserEnabled: false,
     projectId: 'leads-widget',
     apiKey: 'AIzaSyCXNFoeg1nrYcFHzU9TEKNnDPg1mHU3_tA'
+  };
+
+  const LEGACY_QUICK_REPLIES = {
+    en: ['Book more appointments', 'Close deals by phone', 'See how it works'],
+    es: ['Agendar clientes', 'Cerrar ventas por llamada', 'Ver como funciona']
+  };
+
+  const OLD_QUICK_REPLY_SETS = [
+    ['How does it work?', 'I want more information', 'See pricing'],
+    ['Como funciona?', 'Quiero mas informacion', 'Ver precios']
+  ];
+
+  const LEGACY_TEASERS = {
+    en: ['How can we help you today? 👋', 'Do you have any questions? ✨', 'We are online now 🚀'],
+    es: ['Como podemos ayudarte? 👋', 'Tienes alguna duda? ✨', 'Estamos en linea ahora 🚀']
+  };
+
+  const LIVE_ACTIVITY_DEFAULTS = {
+    en: [
+      'Mark got the ICallCloser system.',
+      'Samantha requested a call in under 60 seconds.',
+      'Robert shared his phone and accepted contact consent.',
+      'Emily asked for pricing and moved to a closer call.'
+    ],
+    es: [
+      'Mark adquirio el sistema ICallCloser.',
+      'Samantha solicito llamada en menos de 60 segundos.',
+      'Robert compartio su telefono y acepto el consentimiento.',
+      'Emily pidio precios y paso a llamada de cierre.'
+    ]
+  };
+
+  const I18N = {
+    en: {
+      headerSubtitle: 'Instant AI replies',
+      chatPlaceholder: 'Type your message...',
+      closeExitIntent: 'No thanks',
+      liveActivityLabel: 'Live activity',
+      viralTexts: ['Powered by LeadWidget', 'Want this chat on your website?', 'Create your FREE widget here'],
+      aiUnavailableWithWa: 'The AI assistant is not configured yet. You can contact us on WhatsApp for immediate support.',
+      aiUnavailableNoWa: 'The AI assistant is not configured yet. The admin must add an OpenAI or Anthropic API key.',
+      fallbackResponse: 'I had a connection issue. Want to continue on WhatsApp?',
+      blockedPlaceholder: 'Chat blocked for security reasons',
+      waFallback: 'Great! I will connect you with an advisor on WhatsApp now.',
+      systemAudioUnsupported: 'Voice input is not supported in this browser.',
+      languageLabel: 'ES',
+      themeLabel: 'Theme',
+      voiceLabel: 'Voice input',
+      emojiLabel: 'Emoji picker'
+    },
+    es: {
+      headerSubtitle: 'Respuestas con IA al instante',
+      chatPlaceholder: 'Escribe tu mensaje...',
+      closeExitIntent: 'No gracias',
+      liveActivityLabel: 'Actividad en vivo',
+      viralTexts: ['Potenciado por LeadWidget', 'Quieres este chat en tu web?', 'Crea tu widget GRATIS aqui'],
+      aiUnavailableWithWa: 'El asistente de IA aun no esta configurado. Puedes escribirnos por WhatsApp para atencion inmediata.',
+      aiUnavailableNoWa: 'El asistente de IA aun no esta configurado. El administrador debe agregar la API key de OpenAI o Anthropic.',
+      fallbackResponse: 'Tuve un problema de conexion. Quieres continuar por WhatsApp?',
+      blockedPlaceholder: 'Chat blocked for security reasons',
+      waFallback: 'Excelente, te paso con un asesor por WhatsApp.',
+      systemAudioUnsupported: 'La entrada por voz no es compatible con este navegador.',
+      languageLabel: 'EN',
+      themeLabel: 'Tema',
+      voiceLabel: 'Entrada por voz',
+      emojiLabel: 'Selector de emojis'
+    }
   };
 
   // State
@@ -43,6 +111,11 @@
   let testimonialInterval = null;
   let autoOpenTimeout = null;
   let teaserStartTimeout = null;
+  let themeMode = 'light';
+  let activeLanguage = 'en';
+  let speechRecognition = null;
+  let isListening = false;
+  let emojiPanelOpen = false;
 
   // Cleanup all timers and listeners
   function cleanupWidget() {
@@ -57,6 +130,156 @@
     testimonialInterval = null;
     autoOpenTimeout = null;
     teaserStartTimeout = null;
+  }
+
+  function normalizeText(value) {
+    return String(value || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function parseStringList(value) {
+    if (Array.isArray(value)) {
+      return value
+        .map(item => {
+          if (typeof item === 'string') return item.trim();
+          if (item && typeof item === 'object') {
+            const candidate = item.message || item.text || item.label || '';
+            return String(candidate).trim();
+          }
+          return String(item || '').trim();
+        })
+        .filter(Boolean);
+    }
+    if (typeof value === 'string') {
+      return value
+        .split('\n')
+        .map(item => item.trim())
+        .filter(Boolean);
+    }
+    return [];
+  }
+
+  function getText(key) {
+    const lang = I18N[activeLanguage] ? activeLanguage : 'en';
+    return I18N[lang][key] || I18N.en[key] || '';
+  }
+
+  function arraysLooselyMatch(a, b) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+    return a.every((item, idx) => normalizeText(item) === normalizeText(b[idx]));
+  }
+
+  function shouldUseLocalizedQuickReplies(currentQuickReplies) {
+    return (
+      arraysLooselyMatch(currentQuickReplies, LEGACY_QUICK_REPLIES.en) ||
+      arraysLooselyMatch(currentQuickReplies, LEGACY_QUICK_REPLIES.es) ||
+      OLD_QUICK_REPLY_SETS.some(set => arraysLooselyMatch(currentQuickReplies, set))
+    );
+  }
+
+  function shouldUseLocalizedTeasers(currentTeasers) {
+    return (
+      arraysLooselyMatch(currentTeasers, LEGACY_TEASERS.en) ||
+      arraysLooselyMatch(currentTeasers, LEGACY_TEASERS.es)
+    );
+  }
+
+  function getLocalizedQuickReplies(currentQuickReplies) {
+    if (!Array.isArray(currentQuickReplies) || currentQuickReplies.length === 0 || shouldUseLocalizedQuickReplies(currentQuickReplies)) {
+      return [...LEGACY_QUICK_REPLIES[activeLanguage]];
+    }
+    return currentQuickReplies;
+  }
+
+  function getLocalizedTeaserMessages(currentTeasers) {
+    if (!Array.isArray(currentTeasers) || currentTeasers.length === 0 || shouldUseLocalizedTeasers(currentTeasers)) {
+      return [...LEGACY_TEASERS[activeLanguage]];
+    }
+    return currentTeasers;
+  }
+
+  function shouldUseLocalizedLiveActivities(currentLiveActivities) {
+    return (
+      arraysLooselyMatch(currentLiveActivities, LIVE_ACTIVITY_DEFAULTS.en) ||
+      arraysLooselyMatch(currentLiveActivities, LIVE_ACTIVITY_DEFAULTS.es)
+    );
+  }
+
+  function getLocalizedLiveActivities(currentLiveActivities) {
+    if (!Array.isArray(currentLiveActivities) || currentLiveActivities.length === 0 || shouldUseLocalizedLiveActivities(currentLiveActivities)) {
+      return [...LIVE_ACTIVITY_DEFAULTS[activeLanguage]];
+    }
+    return currentLiveActivities;
+  }
+
+  function containsEmoji(text) {
+    if (!text) return false;
+    try {
+      return /\p{Extended_Pictographic}/u.test(text);
+    } catch (_) {
+      return /[\u{1F300}-\u{1FAFF}]/u.test(text);
+    }
+  }
+
+  function withBotEmoji(text) {
+    if (!text || containsEmoji(text)) return text;
+    const pool = activeLanguage === 'es' ? ['😊', '✨', '🙌', '👍'] : ['😊', '✨', '🙌', '👍'];
+    return `${pool[Math.floor(Math.random() * pool.length)]} ${text}`;
+  }
+
+  function updateLocalizedDefaults() {
+    const welcomeDefaults = [
+      'Hi! I am your virtual assistant. How can I help you today?',
+      "Hi! I'm the qualification assistant. In under 2 minutes, our AI can call you and help you book or close customers live. What would you like to do?",
+      'Hola! Soy tu asistente virtual. En que puedo ayudarte hoy?',
+      'Hola, soy el asistente de pre-calificacion. En menos de 2 minutos podemos llamarte y ayudarte a cerrar o agendar clientes. Que te gustaria hacer ahora?'
+    ];
+    if (welcomeDefaults.some(item => normalizeText(config.welcomeMessage) === normalizeText(item))) {
+      config.welcomeMessage = activeLanguage === 'es'
+        ? 'Hola, soy el asistente de pre-calificacion. En menos de 2 minutos podemos llamarte y ayudarte a cerrar o agendar clientes. Que te gustaria hacer ahora?'
+        : "Hi! I'm the qualification assistant. In under 2 minutes, our AI can call you and help you book or close customers live. What would you like to do?";
+    }
+
+    const placeholderDefaults = ['Type your message...', 'Escribe tu mensaje...'];
+    if (!config.chatPlaceholder || placeholderDefaults.some(item => normalizeText(config.chatPlaceholder) === normalizeText(item))) {
+      config.chatPlaceholder = getText('chatPlaceholder');
+    }
+
+    const exitTitleDefaults = ['Wait a second', 'Espera un segundo'];
+    if (!config.exitIntentTitle || exitTitleDefaults.some(item => normalizeText(config.exitIntentTitle) === normalizeText(item))) {
+      config.exitIntentTitle = activeLanguage === 'es' ? 'Espera un segundo' : 'Wait a second';
+    }
+
+    const exitDescDefaults = [
+      'Do you want quick help before you leave?',
+      'Quieres ayuda rapida antes de salir?'
+    ];
+    if (!config.exitIntentDescription || exitDescDefaults.some(item => normalizeText(config.exitIntentDescription) === normalizeText(item))) {
+      config.exitIntentDescription = activeLanguage === 'es'
+        ? 'Quieres ayuda rapida antes de salir?'
+        : 'Do you want quick help before you leave?';
+    }
+
+    const exitCtaDefaults = ['Open chat', 'Abrir chat'];
+    if (!config.exitIntentCta || exitCtaDefaults.some(item => normalizeText(config.exitIntentCta) === normalizeText(item))) {
+      config.exitIntentCta = activeLanguage === 'es' ? 'Abrir chat' : 'Open chat';
+    }
+
+    if (shouldUseLocalizedQuickReplies(config.quickReplies)) {
+      config.quickReplies = [...LEGACY_QUICK_REPLIES[activeLanguage]];
+    }
+
+    if (shouldUseLocalizedTeasers(config.teaserMessages)) {
+      config.teaserMessages = [...LEGACY_TEASERS[activeLanguage]];
+    }
+
+    if (shouldUseLocalizedLiveActivities(config.liveActivities)) {
+      config.liveActivities = [...LIVE_ACTIVITY_DEFAULTS[activeLanguage]];
+    }
   }
 
   function getBackendApiBase() {
@@ -90,8 +313,14 @@
       if (backendResponse.ok) {
         const payload = await backendResponse.json();
         if (payload && payload.config) {
+          const liveActivities = parseStringList(
+            payload.config.liveActivities ||
+            payload.config.liveActivityMessages ||
+            payload.config.leadChatLiveToasts
+          );
           return {
             ...payload.config,
+            liveActivities: liveActivities.length > 0 ? liveActivities : [...config.liveActivities],
             clientId: payload.config.clientId || config.clientId || identity,
             widgetId: payload.config.widgetId || identity
           };
@@ -170,6 +399,14 @@
           teaserMessages = fields.teaser_messages.arrayValue.values.map(v => v.stringValue);
         }
 
+        // Parse live activities for the live activity bar (not testimonials)
+        let liveActivities = [];
+        if (fields.lead_chat_live_toasts?.arrayValue?.values) {
+          liveActivities = fields.lead_chat_live_toasts.arrayValue.values.map(v => v.stringValue).filter(Boolean);
+        } else if (fields.lead_chat_live_toasts?.stringValue) {
+          liveActivities = parseStringList(fields.lead_chat_live_toasts.stringValue);
+        }
+
         // Parse Testimonials (Bulletproof JSON String)
         let testimonials = [];
         if (fields.testimonials_json?.stringValue) {
@@ -193,6 +430,7 @@
           quickReplies: quickReplies,
           teaserMessages: teaserMessages,
           testimonials: testimonials,
+          liveActivities: liveActivities,
           launcherIcon: fields.launcher_icon?.stringValue || '',
           vibrationIntensity: fields.vibration_intensity?.stringValue || 'soft',
           triggerDelay: parseInt(fields.trigger_delay?.integerValue) || 5,
@@ -257,13 +495,13 @@
       const data = await response.json();
 
       return {
-        response: data.response || "No pude procesar tu mensaje.",
+        response: data.response || withBotEmoji('I could not process your message.'),
         blocked: response.status === 403 || data.blocked === true
       };
     } catch (error) {
       console.error('LeadWidget: Connection Error', error);
       return {
-        response: "Hubo un error de conexiÃ³n. Â¿Te gustarÃ­a contactarnos por WhatsApp?",
+        response: withBotEmoji(getText('fallbackResponse')),
         blocked: false
       };
     }
@@ -345,31 +583,62 @@
     const existing = document.getElementById('lw-root');
     if (existing) existing.remove();
 
+    updateLocalizedDefaults();
+    config.quickReplies = getLocalizedQuickReplies(config.quickReplies);
+    config.teaserMessages = getLocalizedTeaserMessages(config.teaserMessages);
+    config.liveActivities = getLocalizedLiveActivities(config.liveActivities);
+
     const styles = `
-      #lw-root * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-      
-      /* Button */
-      #lw-button { 
-        position: fixed; bottom: 20px; right: 20px; z-index: 2147483646;
-        width: 60px; height: 60px; border-radius: 50%; border: none; cursor: pointer; 
-        display: flex; align-items: center; justify-content: center; 
-        transition: transform 0.2s, box-shadow 0.2s; 
-        box-shadow: 0 4px 20px rgba(0,0,0,0.25); 
-        background: linear-gradient(135deg, ${config.primaryColor} 0%, ${adjustColor(config.primaryColor, -30)} 100%);
+      #lw-root,
+      #lw-root * { box-sizing: border-box; font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+      #lw-root {
+        --lw-primary: ${config.primaryColor};
+        --lw-primary-strong: ${adjustColor(config.primaryColor, -26)};
+        --lw-surface: #ffffff;
+        --lw-surface-soft: #f3f6fb;
+        --lw-surface-strong: #edf2f7;
+        --lw-text: #0f172a;
+        --lw-muted: #475569;
+        --lw-border: rgba(148, 163, 184, 0.28);
+        --lw-shadow: 0 22px 48px rgba(15, 23, 42, 0.22);
+      }
+      #lw-root[data-theme="dark"] {
+        --lw-surface: #0b1220;
+        --lw-surface-soft: #09101d;
+        --lw-surface-strong: #101a2c;
+        --lw-text: #e2e8f0;
+        --lw-muted: #9aa8bf;
+        --lw-border: rgba(148, 163, 184, 0.22);
+        --lw-shadow: 0 26px 56px rgba(2, 6, 23, 0.55);
+      }
+
+      #lw-button {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 2147483646;
+        width: 60px;
+        height: 60px;
+        border-radius: 999px;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+        box-shadow: 0 10px 28px rgba(2, 8, 23, 0.28);
+        background: linear-gradient(145deg, var(--lw-primary) 0%, var(--lw-primary-strong) 100%);
         -webkit-tap-highlight-color: transparent;
         outline: none;
       }
-      #lw-button:hover { transform: scale(1.08); }
-      #lw-button > * { pointer-events: none; } /* Critical: ensure clicks pass through icon to button */
-      
-      /* Vibration animations */
-      @keyframes lw-vibrate-soft { 
-        0%, 100% { transform: scale(1); } 
-        50% { transform: scale(1.08); } 
-      }
-      @keyframes lw-vibrate-strong { 
-        0%, 100% { transform: translateX(0) scale(1); } 
-        20% { transform: translateX(-3px) scale(1.02); } 
+      #lw-button:hover { transform: translateY(-2px) scale(1.04); }
+      #lw-button:focus-visible { box-shadow: 0 0 0 3px rgba(255,255,255,0.6), 0 0 0 6px var(--lw-primary); }
+      #lw-button > * { pointer-events: none; }
+
+      @keyframes lw-vibrate-soft { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+      @keyframes lw-vibrate-strong {
+        0%, 100% { transform: translateX(0) scale(1); }
+        20% { transform: translateX(-3px) scale(1.02); }
         40% { transform: translateX(3px) scale(1.02); }
         60% { transform: translateX(-3px) scale(1.02); }
         80% { transform: translateX(3px) scale(1.02); }
@@ -377,171 +646,467 @@
       #lw-button.lw-vibrating-soft { animation: lw-vibrate-soft 1.5s ease-in-out infinite; }
       #lw-button.lw-vibrating-strong { animation: lw-vibrate-strong 0.6s ease-in-out infinite; }
 
-      /* Teaser bubble */
       #lw-teaser {
-        position: fixed; bottom: 90px; right: 20px; z-index: 999997;
-        background: white; padding: 12px 16px; border-radius: 16px 16px 4px 16px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.15); max-width: 250px;
-        font-size: 14px; color: #1e293b; font-weight: 500;
-        animation: lw-teaser-in 0.4s ease-out;
+        position: fixed;
+        bottom: 92px;
+        right: 20px;
+        z-index: 999997;
+        background: var(--lw-surface);
+        border: 1px solid var(--lw-border);
+        padding: 12px 16px;
+        border-radius: 16px 16px 6px 16px;
+        box-shadow: var(--lw-shadow);
+        max-width: 280px;
+        font-size: 13px;
+        color: var(--lw-text);
+        font-weight: 550;
+        animation: lw-teaser-in 0.35s ease-out;
         cursor: pointer;
         display: none;
+        backdrop-filter: blur(10px);
       }
-      @keyframes lw-teaser-in { from { opacity: 0; transform: translateY(10px) scale(0.9); } to { opacity: 1; transform: translateY(0) scale(1); } }
-      #lw-teaser-close { position: absolute; top: -8px; right: -8px; width: 20px; height: 20px; border-radius: 50%; background: #64748b; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-
-      /* Panel */
-      #lw-panel { 
-        position: fixed; bottom: 16px; right: 16px; left: 16px; z-index: 999999;
-        width: auto; max-width: 360px; height: 70vh; max-height: 550px;
-        background: white; border-radius: 24px; 
-        box-shadow: 0 8px 40px rgba(0,0,0,0.2); 
-        display: none; flex-direction: column; overflow: hidden; 
-        animation: lw-slideUp 0.3s ease-out;
+      @keyframes lw-teaser-in { from { opacity: 0; transform: translateY(8px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+      #lw-teaser-close {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        width: 20px;
+        height: 20px;
+        border-radius: 999px;
+        background: #64748b;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
-      @media (min-width: 640px) { 
-        #lw-panel { left: auto; width: 360px; height: 500px; bottom: 20px; right: 20px; } 
+
+      #lw-panel {
+        position: fixed;
+        bottom: 16px;
+        right: 16px;
+        left: 16px;
+        z-index: 999999;
+        width: auto;
+        max-width: 420px;
+        height: 74vh;
+        max-height: 640px;
+        background:
+          radial-gradient(120% 100% at 10% -10%, rgba(255,255,255,0.32), transparent 42%),
+          radial-gradient(120% 100% at 100% -20%, ${config.primaryColor}20, transparent 46%),
+          var(--lw-surface);
+        border: 1px solid var(--lw-border);
+        border-radius: 28px;
+        box-shadow: var(--lw-shadow);
+        display: none;
+        flex-direction: column;
+        overflow: hidden;
+        animation: lw-slideUp 0.35s ease-out;
+        backdrop-filter: blur(16px);
       }
-      @keyframes lw-slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+      @media (min-width: 640px) {
+        #lw-panel { left: auto; width: 400px; height: 620px; right: 20px; bottom: 20px; }
+      }
+      @keyframes lw-slideUp { from { opacity: 0; transform: translateY(20px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
-      /* Header */
-      #lw-header { padding: 16px; display: flex; align-items: center; gap: 12px; color: white; background: ${config.primaryColor}; position: relative; }
-      #lw-avatar { width: 40px; height: 40px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; position: relative; flex-shrink: 0; }
-      #lw-avatar::after { content: ''; position: absolute; bottom: 2px; right: 2px; width: 10px; height: 10px; background: #22c55e; border-radius: 50%; border: 2px solid ${config.primaryColor}; }
-      #lw-close-btn { position: absolute; top: 12px; right: 12px; background: rgba(255,255,255,0.2); border: none; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; color: white; transition: background 0.2s; }
-      #lw-close-btn:hover { background: rgba(255,255,255,0.3); }
+      #lw-header {
+        padding: 15px 16px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: white;
+        background: linear-gradient(135deg, var(--lw-primary) 0%, var(--lw-primary-strong) 100%);
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+      }
+      #lw-avatar {
+        width: 38px;
+        height: 38px;
+        background: rgba(255,255,255,0.22);
+        border-radius: 999px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        flex-shrink: 0;
+      }
+      #lw-avatar::after {
+        content: '';
+        position: absolute;
+        bottom: 2px;
+        right: 1px;
+        width: 10px;
+        height: 10px;
+        background: #22c55e;
+        border-radius: 999px;
+        border: 2px solid var(--lw-primary);
+      }
+      #lw-header-actions { display: inline-flex; gap: 6px; align-items: center; }
+      .lw-chip-btn,
+      .lw-icon-btn {
+        border: 1px solid rgba(255,255,255,0.28);
+        background: rgba(255,255,255,0.15);
+        color: #ffffff;
+        border-radius: 999px;
+        cursor: pointer;
+        transition: background 0.2s ease, transform 0.2s ease;
+      }
+      .lw-chip-btn:hover,
+      .lw-icon-btn:hover { background: rgba(255,255,255,0.26); transform: translateY(-1px); }
+      .lw-chip-btn:focus-visible,
+      .lw-icon-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(255,255,255,0.75), 0 0 0 4px rgba(2,6,23,0.4); }
+      .lw-chip-btn { min-width: 40px; height: 30px; padding: 0 10px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; }
+      .lw-icon-btn { width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; }
+      #lw-close-btn { border-color: rgba(255,255,255,0.28); }
 
-      /* Messages */
-      #lw-messages { flex: 1; overflow-y: auto; padding: 16px; background: #f8fafc; display: flex; flex-direction: column; gap: 12px; }
-      .lw-msg { max-width: 85%; padding: 12px 16px; border-radius: 18px; font-size: 14px; line-height: 1.5; animation: lw-fadeIn 0.3s ease-out; word-wrap: break-word; white-space: pre-wrap; }
-      @keyframes lw-fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-      .lw-msg-assistant { background: white; color: #1e293b; border: 1px solid #e2e8f0; border-bottom-left-radius: 4px; align-self: flex-start; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-      .lw-msg-user { background: ${config.primaryColor}; color: white; border-bottom-right-radius: 4px; align-self: flex-end; }
-      .lw-msg-system { background: #f1f5f9; color: #64748b; font-size: 12px; text-align: center; align-self: center; border-radius: 12px; padding: 8px 16px; }
-
-      /* Testimonial Rotator */
-      #lw-testimonial-bar { 
-          background: rgba(255,255,255,0.95); 
-          border-bottom: 1px solid #f0f0f0; 
-          padding: 8px 12px; 
-          display: none; /* Hidden by default if no testimonials */
-          align-items: center; 
-          gap: 10px;
-          animation: lw-slideDown 0.3s ease-out;
+      #lw-live-bar {
+        --mx: 50%;
+        --my: 50%;
+        position: relative;
+        background: color-mix(in srgb, var(--lw-surface) 92%, white 8%);
+        border-bottom: 1px solid var(--lw-border);
+        padding: 9px 12px;
+        display: none;
+        align-items: center;
+        gap: 10px;
+        animation: lw-slideDown 0.3s ease-out;
+        overflow: hidden;
+      }
+      #lw-live-bar::before {
+        content: "";
+        position: absolute;
+        inset: -35%;
+        background:
+          radial-gradient(circle at var(--mx) var(--my), rgba(255,255,255,0.54) 0%, rgba(255,255,255,0) 42%),
+          conic-gradient(from 0deg, rgba(99,102,241,0), rgba(56,189,248,0.24), rgba(16,185,129,0.22), rgba(99,102,241,0));
+        opacity: 0;
+        transition: opacity 0.24s ease;
+        pointer-events: none;
+        filter: blur(14px) saturate(1.2);
+      }
+      #lw-live-bar:hover::before {
+        opacity: 1;
+        animation: lw-iridescence 4.6s linear infinite;
+      }
+      @keyframes lw-iridescence {
+        0% { transform: rotate(0deg) scale(1); }
+        100% { transform: rotate(360deg) scale(1.08); }
       }
       @keyframes lw-slideDown { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-      
-      .lw-t-avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 1px solid #e2e8f0; }
-      .lw-t-content { flex: 1; overflow: hidden; }
-      .lw-t-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
-      .lw-t-name { font-size: 11px; font-weight: 700; color: #334155; }
-      .lw-t-stars { font-size: 9px; color: #fbbf24; letter-spacing: -1px; }
-      .lw-t-text { font-size: 11px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      
-      .lw-fade-in { animation: lw-fadeInT 0.5s ease-in-out; }
+      .lw-live-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: #22c55e;
+        box-shadow: 0 0 0 0 rgba(34,197,94,0.5);
+        animation: lw-livePulse 1.8s ease-out infinite;
+        position: relative;
+        z-index: 1;
+        flex-shrink: 0;
+      }
+      @keyframes lw-livePulse {
+        0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.5); }
+        100% { box-shadow: 0 0 0 10px rgba(34,197,94,0); }
+      }
+      .lw-live-content { flex: 1; overflow: hidden; position: relative; z-index: 1; }
+      .lw-live-label {
+        display: block;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--lw-primary);
+        margin-bottom: 2px;
+      }
+      .lw-live-text {
+        font-size: 12px;
+        color: var(--lw-text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .lw-fade-in { animation: lw-fadeInT 0.45s ease-in-out; }
       @keyframes lw-fadeInT { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: translateY(0); } }
 
-      /* Typing indicator */
-      #lw-typing { display: flex; gap: 4px; padding: 12px 16px; background: white; border-radius: 18px; border: 1px solid #e2e8f0; align-self: flex-start; }
-      .lw-dot { width: 6px; height: 6px; border-radius: 50%; background: ${config.primaryColor}; animation: lw-bounce 1.4s infinite ease-in-out both; }
+      #lw-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px;
+        background: var(--lw-surface-soft);
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .lw-msg {
+        max-width: 88%;
+        padding: 12px 14px;
+        border-radius: 16px;
+        font-size: 14px;
+        line-height: 1.45;
+        animation: lw-fadeIn 0.25s ease-out;
+        word-wrap: break-word;
+        white-space: pre-wrap;
+      }
+      @keyframes lw-fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+      .lw-msg-assistant {
+        background: var(--lw-surface);
+        color: var(--lw-text);
+        border: 1px solid var(--lw-border);
+        border-bottom-left-radius: 6px;
+        align-self: flex-start;
+        box-shadow: 0 2px 5px rgba(2,6,23,0.05);
+      }
+      .lw-msg-user {
+        background: linear-gradient(140deg, var(--lw-primary) 0%, var(--lw-primary-strong) 100%);
+        color: #fff;
+        border-bottom-right-radius: 6px;
+        align-self: flex-end;
+      }
+      .lw-msg-system {
+        background: var(--lw-surface-strong);
+        color: var(--lw-muted);
+        font-size: 12px;
+        text-align: center;
+        align-self: center;
+        border-radius: 12px;
+        padding: 8px 14px;
+      }
+
+      #lw-typing {
+        display: flex;
+        gap: 4px;
+        padding: 11px 14px;
+        background: var(--lw-surface);
+        border-radius: 14px;
+        border: 1px solid var(--lw-border);
+        align-self: flex-start;
+      }
+      .lw-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--lw-primary); animation: lw-bounce 1.4s infinite ease-in-out both; }
       .lw-dot:nth-child(1) { animation-delay: 0s; }
       .lw-dot:nth-child(2) { animation-delay: 0.16s; }
       .lw-dot:nth-child(3) { animation-delay: 0.32s; }
       @keyframes lw-bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
 
-      /* Input area */
-      #lw-input-area { padding: 12px; background: white; border-top: 1px solid #e2e8f0; }
-      #lw-quick-replies { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
-      .lw-quick-btn { background: #f1f5f9; border: 1px solid #e2e8f0; padding: 8px 14px; border-radius: 20px; font-size: 12px; cursor: pointer; transition: all 0.2s; color: #475569; }
-      .lw-quick-btn:hover { background: ${config.primaryColor}15; color: ${config.primaryColor}; border-color: ${config.primaryColor}; }
-      #lw-form { display: flex; gap: 8px; }
-      #lw-input { flex: 1; padding: 12px 16px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 14px; background: #f8fafc; outline: none; color: #1e293b; }
-      #lw-input:focus { border-color: ${config.primaryColor}; box-shadow: 0 0 0 3px ${config.primaryColor}20; }
-      #lw-send { width: 48px; height: 48px; border-radius: 12px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: white; background: ${config.primaryColor}; transition: opacity 0.2s; flex-shrink: 0; }
-      #lw-send:hover { opacity: 0.9; }
-      #lw-send:disabled { opacity: 0.5; cursor: not-allowed; }
-      #lw-footer { text-align: center; padding: 8px; font-size: 9px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
-
-      /* WhatsApp button */
-      #lw-wa-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 14px; background: #25D366; color: white; border: none; border-radius: 12px; font-weight: 600; cursor: pointer; margin-top: 8px; font-size: 14px; }
-      #lw-wa-btn:hover { background: #128C7E; }
-
-      /* Mobile close button - Only on small screens */
-      #lw-close-mobile { 
-        position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 1000000;
-        width: 56px; height: 56px; border-radius: 50%; background: #dc2626; border: 4px solid white; 
-        color: white; cursor: pointer; box-shadow: 0 4px 20px rgba(0,0,0,0.3); 
-        display: none; align-items: center; justify-content: center;
+      #lw-input-area {
+        padding: 10px 12px 10px;
+        background: var(--lw-surface);
+        border-top: 1px solid var(--lw-border);
       }
-      @media (max-width: 639px) { 
+      #lw-quick-replies {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 8px;
+        margin-bottom: 10px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        padding-bottom: 2px;
+      }
+      #lw-quick-replies::-webkit-scrollbar { display: none; }
+      .lw-quick-btn {
+        flex: 0 0 auto;
+        background: var(--lw-surface-soft);
+        border: 1px solid var(--lw-border);
+        padding: 8px 13px;
+        border-radius: 999px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+        color: var(--lw-muted);
+        white-space: nowrap;
+      }
+      .lw-quick-btn:hover { background: color-mix(in srgb, var(--lw-primary) 13%, var(--lw-surface)); color: var(--lw-primary); border-color: color-mix(in srgb, var(--lw-primary) 40%, var(--lw-border)); }
+
+      #lw-form { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+      #lw-composer {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--lw-surface-soft);
+        border: 1px solid var(--lw-border);
+        border-radius: 14px;
+        padding: 8px 10px;
+        position: relative;
+        min-width: 0;
+      }
+      #lw-input {
+        flex: 1;
+        min-width: 0;
+        border: none;
+        font-size: 14px;
+        background: transparent;
+        outline: none;
+        color: var(--lw-text);
+      }
+      #lw-input::placeholder { color: color-mix(in srgb, var(--lw-muted) 72%, transparent); }
+      #lw-composer:focus-within { border-color: color-mix(in srgb, var(--lw-primary) 55%, var(--lw-border)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--lw-primary) 20%, transparent); }
+      .lw-mini-btn {
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        border: 1px solid var(--lw-border);
+        background: var(--lw-surface);
+        color: var(--lw-muted);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+        flex-shrink: 0;
+      }
+      .lw-mini-btn:hover { background: color-mix(in srgb, var(--lw-primary) 16%, var(--lw-surface)); color: var(--lw-primary); transform: translateY(-1px); }
+      .lw-mini-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px color-mix(in srgb, var(--lw-primary) 30%, transparent); }
+      .lw-mini-btn.active { background: color-mix(in srgb, var(--lw-primary) 20%, var(--lw-surface)); color: var(--lw-primary); }
+
+      #lw-emoji-panel {
+        position: absolute;
+        bottom: 42px;
+        left: 8px;
+        right: 8px;
+        background: var(--lw-surface);
+        border: 1px solid var(--lw-border);
+        border-radius: 14px;
+        padding: 8px;
+        display: none;
+        gap: 6px;
+        flex-wrap: wrap;
+        box-shadow: 0 18px 34px rgba(2,6,23,0.18);
+        z-index: 2;
+      }
+      #lw-emoji-panel.open { display: flex; }
+      .lw-emoji-btn {
+        border: none;
+        background: var(--lw-surface-soft);
+        width: 32px;
+        height: 32px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 18px;
+        line-height: 1;
+      }
+      .lw-emoji-btn:hover { background: color-mix(in srgb, var(--lw-primary) 14%, var(--lw-surface-soft)); }
+
+      #lw-send {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        background: linear-gradient(140deg, var(--lw-primary) 0%, var(--lw-primary-strong) 100%);
+        transition: opacity 0.2s, transform 0.2s;
+        flex-shrink: 0;
+        box-shadow: 0 8px 16px rgba(0, 193, 133, 0.2);
+      }
+      #lw-send:hover { opacity: 0.95; transform: translateY(-1px); }
+      #lw-send:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+      #lw-footer {
+        text-align: center;
+        padding: 8px 0 2px;
+        font-size: 9px;
+        color: var(--lw-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      #lw-close-mobile {
+        position: fixed;
+        bottom: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1000000;
+        width: 56px;
+        height: 56px;
+        border-radius: 999px;
+        background: #dc2626;
+        border: 4px solid #fff;
+        color: #fff;
+        cursor: pointer;
+        box-shadow: 0 8px 22px rgba(0,0,0,0.35);
+        display: none;
+        align-items: center;
+        justify-content: center;
+      }
+      @media (max-width: 639px) {
         #lw-close-mobile.visible { display: flex; }
-        #lw-panel.open { padding-bottom: 70px; }
+        #lw-panel.open { padding-bottom: 72px; }
       }
       @media (min-width: 640px) {
         #lw-close-mobile { display: none !important; }
       }
 
-      /* Exit intent popup */
-      #lw-exit-overlay { 
-        position: fixed; inset: 0; 
-        background: rgba(15, 23, 42, 0.4); 
+      #lw-exit-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.45);
         backdrop-filter: blur(8px);
         -webkit-backdrop-filter: blur(8px);
-        z-index: 1000001; 
-        display: none; align-items: center; justify-content: center; padding: 24px;
-        animation: lw-fadeMask 0.4s ease-out;
+        z-index: 1000001;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        animation: lw-fadeMask 0.35s ease-out;
       }
       @keyframes lw-fadeMask { from { opacity: 0; } to { opacity: 1; } }
-      
-      #lw-exit-popup { 
-        background: white; border-radius: 32px; padding: 40px 32px; max-width: 420px; width: 100%; 
-        text-align: center; 
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-        border: 1px solid rgba(226, 232, 240, 0.8);
-        animation: lw-popReveal 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-        position: relative;
-        overflow: hidden;
+      #lw-exit-popup {
+        background: var(--lw-surface);
+        border-radius: 28px;
+        padding: 34px 28px;
+        max-width: 420px;
+        width: 100%;
+        text-align: center;
+        box-shadow: var(--lw-shadow);
+        border: 1px solid var(--lw-border);
+        animation: lw-popReveal 0.45s cubic-bezier(0.16, 1, 0.3, 1);
       }
-      @keyframes lw-popReveal { 
-        from { opacity: 0; transform: scale(0.9) translateY(20px); } 
-        to { opacity: 1; transform: scale(1) translateY(0); } 
+      @keyframes lw-popReveal { from { opacity: 0; transform: scale(0.93) translateY(16px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+      #lw-exit-icon {
+        width: 76px;
+        height: 76px;
+        background: color-mix(in srgb, var(--lw-primary) 16%, transparent);
+        color: var(--lw-primary);
+        border-radius: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 22px;
+        transform: rotate(-8deg);
       }
-      
-      #lw-exit-icon { 
-        width: 80px; height: 80px; 
-        background: ${config.primaryColor}10; 
-        color: ${config.primaryColor};
-        border-radius: 24px; display: flex; align-items: center; justify-content: center; 
-        margin: 0 auto 24px;
-        transform: rotate(-10deg);
+      #lw-exit-title { font-size: 26px; font-weight: 800; color: var(--lw-text); margin-bottom: 10px; line-height: 1.2; letter-spacing: -0.02em; }
+      #lw-exit-desc { font-size: 15px; color: var(--lw-muted); margin-bottom: 26px; line-height: 1.55; }
+      #lw-exit-cta {
+        width: 100%;
+        padding: 14px;
+        background: linear-gradient(140deg, var(--lw-primary) 0%, var(--lw-primary-strong) 100%);
+        color: #fff;
+        border: none;
+        border-radius: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        font-size: 15px;
+        transition: transform 0.2s ease, opacity 0.2s ease;
       }
-      #lw-exit-title { 
-        font-size: 28px; font-weight: 800; color: #0f172a; 
-        margin-bottom: 12px; line-height: 1.2;
-        letter-spacing: -0.02em;
+      #lw-exit-cta:hover { transform: translateY(-1px); opacity: 0.95; }
+      #lw-exit-close {
+        background: none;
+        border: none;
+        color: var(--lw-muted);
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        margin-top: 16px;
       }
-      #lw-exit-desc { 
-        font-size: 16px; color: #475569; margin-bottom: 32px; 
-        line-height: 1.6;
-      }
-      #lw-exit-cta { 
-        width: 100%; padding: 16px; 
-        background: ${config.primaryColor}; color: white; border: none; 
-        border-radius: 16px; font-weight: 700; cursor: pointer; font-size: 16px;
-        box-shadow: 0 10px 15px -3px ${config.primaryColor}40;
-        transition: all 0.2s;
-      }
-      #lw-exit-cta:hover { transform: translateY(-2px); box-shadow: 0 20px 25px -5px ${config.primaryColor}40; }
-      #lw-exit-close { 
-        background: none; border: none; color: #94a3b8; font-size: 14px; 
-        font-weight: 500; cursor: pointer; margin-top: 20px; transition: color 0.2s;
-      }
-      #lw-exit-close:hover { color: #64748b; }
+      #lw-exit-close:hover { color: var(--lw-text); }
     `;
     const brandingHref = toSafeBrandingLink(config.brandingLink) || getDefaultBrandingLink();
 
     const html = `
-      <div id="lw-root">
+      <div id="lw-root" data-theme="${themeMode}">
         <style>${styles}</style>
         
         <!-- Main Button -->
@@ -582,29 +1147,31 @@
             </div>
             <div style="flex: 1;">
               <div style="font-weight: 600; font-size: 14px;">${config.businessName}</div>
-              <div style="font-size: 11px; opacity: 0.9;">Responde al instante con IA</div>
+              <div id="lw-header-subtitle" style="font-size: 11px; opacity: 0.9;">${getText('headerSubtitle')}</div>
             </div>
-            <!-- Close button in header -->
-            <button id="lw-close-btn">
+            <div id="lw-header-actions">
+              <button type="button" id="lw-lang-btn" class="lw-chip-btn" aria-label="Toggle language">${getText('languageLabel')}</button>
+              <button type="button" id="lw-theme-btn" class="lw-icon-btn" aria-label="${getText('themeLabel')}">
+                ${themeMode === 'dark'
+          ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z"></path></svg>'
+          : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg>'}
+              </button>
+              <button id="lw-close-btn" class="lw-icon-btn" type="button" aria-label="Close chat">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <line x1="18" y1="6" x2="6" y2="18"></line>
                 <line x1="6" y1="6" x2="18" y2="18"></line>
               </svg>
-            </button>
+              </button>
+            </div>
           </div>
 
-
-
-          <!-- Testimonial Rotator -->
-          <div id="lw-testimonial-bar">
-             <img id="lw-t-img" class="lw-t-avatar" src="" />
-             <div class="lw-t-content">
-                <div class="lw-t-header">
-                   <span id="lw-t-name" class="lw-t-name"></span>
-                   <span id="lw-t-stars" class="lw-t-stars"></span>
-                </div>
-                <div id="lw-t-text" class="lw-t-text"></div>
-             </div>
+          <!-- Live Activity -->
+          <div id="lw-live-bar">
+            <span class="lw-live-dot" aria-hidden="true"></span>
+            <div class="lw-live-content">
+              <span id="lw-live-label" class="lw-live-label">${getText('liveActivityLabel')}</span>
+              <div id="lw-live-text" class="lw-live-text"></div>
+            </div>
           </div>
 
           <div id="lw-messages"></div>
@@ -612,7 +1179,26 @@
           <div id="lw-input-area">
             <div id="lw-quick-replies"></div>
             <form id="lw-form">
-              <input type="text" id="lw-input" placeholder="${config.chatPlaceholder}" autocomplete="off">
+              <div id="lw-composer">
+                <button type="button" id="lw-emoji-btn" class="lw-mini-btn" aria-label="${getText('emojiLabel')}">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                    <line x1="9" y1="10" x2="9.01" y2="10"></line>
+                    <line x1="15" y1="10" x2="15.01" y2="10"></line>
+                  </svg>
+                </button>
+                <button type="button" id="lw-mic-btn" class="lw-mini-btn" aria-label="${getText('voiceLabel')}">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="2" width="6" height="12" rx="3"></rect>
+                    <path d="M5 10a7 7 0 0 0 14 0"></path>
+                    <line x1="12" y1="19" x2="12" y2="22"></line>
+                    <line x1="8" y1="22" x2="16" y2="22"></line>
+                  </svg>
+                </button>
+                <input type="text" id="lw-input" placeholder="${config.chatPlaceholder || getText('chatPlaceholder')}" autocomplete="off">
+                <div id="lw-emoji-panel"></div>
+              </div>
               <button type="submit" id="lw-send">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -621,10 +1207,10 @@
               </button>
             </form>
             ${!config.hideBranding ? `
-            <div id="lw-footer" style="text-align:center; padding:8px 0; background:white; font-size:10px;">
+            <div id="lw-footer" style="text-align:center; padding:8px 0; font-size:10px;">
               <a href="${brandingHref}" target="_blank" rel="noopener noreferrer" style="color:${config.primaryColor}; text-decoration:none; font-weight:600; display:flex; align-items:center; justify-content:center; gap:4px;">
                 <span style="background:rgba(0,0,0,0.05); padding:2px 6px; border-radius:4px; font-weight:800;">LW</span>
-                <span id="lw-viral-text">Tecnologia LeadWidget</span>
+                <span id="lw-viral-text">${getText('viralTexts')[0]}</span>
               </a>
             </div>
             ` : ''}
@@ -650,7 +1236,7 @@
             <h2 id="lw-exit-title">${config.exitIntentTitle}</h2>
             <p id="lw-exit-desc">${config.exitIntentDescription}</p>
             <button id="lw-exit-cta">${config.exitIntentCta}</button>
-            <button id="lw-exit-close">No, gracias</button>
+            <button id="lw-exit-close">${getText('closeExitIntent')}</button>
           </div>
         </div>
       </div>
@@ -661,6 +1247,7 @@
     document.body.appendChild(container);
 
     // Get elements
+    const root = document.getElementById('lw-root');
     const button = document.getElementById('lw-button');
     const panel = document.getElementById('lw-panel');
     const messagesContainer = document.getElementById('lw-messages');
@@ -675,14 +1262,117 @@
     const exitOverlay = document.getElementById('lw-exit-overlay');
     const exitCta = document.getElementById('lw-exit-cta');
     const exitClose = document.getElementById('lw-exit-close');
+    const exitTitleEl = document.getElementById('lw-exit-title');
+    const exitDescEl = document.getElementById('lw-exit-desc');
+    const langBtn = document.getElementById('lw-lang-btn');
+    const themeBtn = document.getElementById('lw-theme-btn');
+    const emojiBtn = document.getElementById('lw-emoji-btn');
+    const micBtn = document.getElementById('lw-mic-btn');
+    const emojiPanel = document.getElementById('lw-emoji-panel');
+    const subtitleEl = document.getElementById('lw-header-subtitle');
+    const liveLabelEl = document.getElementById('lw-live-label');
+    const liveBar = document.getElementById('lw-live-bar');
+    const liveTextEl = document.getElementById('lw-live-text');
+    const viralTextEl = document.getElementById('lw-viral-text');
 
-    // Testimonial elements
-    const testimonialBar = document.getElementById('lw-testimonial-bar');
-    const tImg = document.getElementById('lw-t-img');
-    const tName = document.getElementById('lw-t-name');
-    const tStars = document.getElementById('lw-t-stars');
-    const tText = document.getElementById('lw-t-text');
-    const tContentDiv = document.querySelector('.lw-t-content');
+    const quickEmojiSet = ['😀', '😄', '😊', '🔥', '👍', '✨', '🙌', '📞', '🚀', '🎯'];
+
+    function themeIconMarkup() {
+      if (themeMode === 'dark') {
+        return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z"></path></svg>';
+      }
+      return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg>';
+    }
+
+    function updateViralText() {
+      if (!viralTextEl) return;
+      const customBranding = (config.brandingText || '').trim();
+      if (customBranding) {
+        viralTextEl.textContent = customBranding;
+      } else {
+        const choices = getText('viralTexts');
+        const randomText = choices[Math.floor(Math.random() * choices.length)];
+        viralTextEl.textContent = randomText;
+      }
+    }
+
+    function applyTheme() {
+      if (root) root.setAttribute('data-theme', themeMode);
+      if (themeBtn) themeBtn.innerHTML = themeIconMarkup();
+    }
+
+    function renderEmojiPanel() {
+      if (!emojiPanel) return;
+      emojiPanel.innerHTML = quickEmojiSet
+        .map(emoji => `<button type="button" class="lw-emoji-btn" data-emoji="${emoji}">${emoji}</button>`)
+        .join('');
+
+      emojiPanel.querySelectorAll('.lw-emoji-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const emoji = btn.getAttribute('data-emoji') || '';
+          input.value = `${input.value}${emoji}`;
+          input.focus();
+          emojiPanelOpen = false;
+          emojiPanel.classList.remove('open');
+          if (emojiBtn) emojiBtn.classList.remove('active');
+        });
+      });
+    }
+
+    function applyLanguageUI() {
+      updateLocalizedDefaults();
+      config.quickReplies = getLocalizedQuickReplies(config.quickReplies);
+      config.teaserMessages = getLocalizedTeaserMessages(config.teaserMessages);
+      config.liveActivities = getLocalizedLiveActivities(config.liveActivities);
+
+      if (langBtn) langBtn.textContent = getText('languageLabel');
+      if (subtitleEl) subtitleEl.textContent = getText('headerSubtitle');
+      if (liveLabelEl) liveLabelEl.textContent = getText('liveActivityLabel');
+      if (input) input.placeholder = config.chatPlaceholder || getText('chatPlaceholder');
+      if (exitClose) exitClose.textContent = getText('closeExitIntent');
+      if (exitTitleEl) exitTitleEl.textContent = config.exitIntentTitle || '';
+      if (exitDescEl) exitDescEl.textContent = config.exitIntentDescription || '';
+      if (exitCta) exitCta.textContent = config.exitIntentCta || '';
+      if (emojiBtn) emojiBtn.setAttribute('aria-label', getText('emojiLabel'));
+      if (micBtn) micBtn.setAttribute('aria-label', getText('voiceLabel'));
+      if (themeBtn) themeBtn.setAttribute('aria-label', getText('themeLabel'));
+      updateViralText();
+      renderQuickReplies();
+      if (isOpen) {
+        startLiveActivityRotator();
+      } else {
+        stopLiveActivityRotator();
+      }
+    }
+
+    function initSpeechRecognition() {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) return null;
+      const recognition = new SR();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+      recognition.onresult = (event) => {
+        const transcript = event?.results?.[0]?.[0]?.transcript || '';
+        if (transcript) {
+          input.value = `${input.value}${input.value ? ' ' : ''}${transcript}`;
+          input.focus();
+        }
+      };
+      recognition.onstart = () => {
+        isListening = true;
+        if (micBtn) micBtn.classList.add('active');
+      };
+      recognition.onend = () => {
+        isListening = false;
+        if (micBtn) micBtn.classList.remove('active');
+      };
+      recognition.onerror = () => {
+        isListening = false;
+        if (micBtn) micBtn.classList.remove('active');
+      };
+      return recognition;
+    }
 
     // Start vibration animation
     function startVibration() {
@@ -696,31 +1386,15 @@
       button.classList.remove('lw-vibrating-soft', 'lw-vibrating-strong');
     }
 
-    // Viral Loop A/B Testing
-    const viralTexts = [
-      'Tecnologia LeadWidget',
-      'Quieres un chat asi en tu web?',
-      'Crea tu Widget GRATIS aqui'
-    ];
-    const viralTextEl = document.getElementById('lw-viral-text');
-    if (viralTextEl) {
-      const customBranding = (config.brandingText || '').trim();
-      if (customBranding) {
-        viralTextEl.textContent = customBranding;
-      } else {
-        const randomText = viralTexts[Math.floor(Math.random() * viralTexts.length)];
-        viralTextEl.textContent = randomText;
-      }
-    }
-
     // Render quick replies
     function renderQuickReplies() {
       if (messages.length > 2) {
         quickRepliesContainer.style.display = 'none';
         return;
       }
+      const quickReplies = getLocalizedQuickReplies(config.quickReplies);
       quickRepliesContainer.style.display = 'flex';
-      quickRepliesContainer.innerHTML = config.quickReplies.map(text =>
+      quickRepliesContainer.innerHTML = quickReplies.map(text =>
         `<button type="button" class="lw-quick-btn">${text}</button>`
       ).join('');
 
@@ -778,9 +1452,9 @@
       if (aiResult === null) {
         // No AI configured - show helpful message
         if (config.whatsappDestination) {
-          response = `âš ï¸ El asistente de IA aÃºn no estÃ¡ configurado por el administrador.\n\nÂ¡Pero no te preocupes! Puedes contactarnos directamente por WhatsApp para una atenciÃ³n inmediata. ðŸ‘‡`;
+          response = getText('aiUnavailableWithWa');
         } else {
-          response = `âš ï¸ El asistente de IA aÃºn no estÃ¡ configurado.\n\nEl administrador debe configurar su API Key de OpenAI o Anthropic en el panel de control para activar las respuestas automÃ¡ticas.`;
+          response = getText('aiUnavailableNoWa');
         }
       } else {
         response = aiResult.response;
@@ -795,26 +1469,32 @@
         // Remove the command from the visible response
         response = response.replace(redirectMatch[0], '').trim();
         // If response became empty, provide a default text
-        if (!response) response = "Â¡Excelente! Te paso con un asesor en WhatsApp para confirmar los detalles.";
+        if (!response) response = getText('waFallback');
       }
       isLoading = false;
-      messages.push({ role: 'assistant', content: response });
+      messages.push({ role: 'assistant', content: withBotEmoji(response) });
 
       // Handle Auto-Redirect & Save Lead
       if (waRedirectData && config.whatsappDestination) {
         console.log('LeadWidget: Auto-redirecting to WhatsApp with data:', waRedirectData);
 
         // Save Qualified Lead to Firestore
-        let leadName = 'Lead Calificado';
-        // Try to extract name from the summary text (e.g. "Soy Juan...")
-        const nameMatch = waRedirectData.match(/soy\s+([A-Za-zÃ-ÃšÃ¡-ÃºÃ±Ã‘]+)/i) || waRedirectData.match(/nombre\s+es\s+([A-Za-zÃ-ÃšÃ¡-ÃºÃ±Ã‘]+)/i) || waRedirectData.match(/Cliente\s+([A-Za-zÃ-ÃšÃ¡-ÃºÃ±Ã‘]+)/i);
+        let leadName = activeLanguage === 'es' ? 'Lead calificado' : 'Qualified lead';
+        // Try to extract common name snippets from the summary text.
+        const nameMatch =
+          waRedirectData.match(/i am\s+([A-Za-zÀ-ÿ'\-]+)/i) ||
+          waRedirectData.match(/my name is\s+([A-Za-zÀ-ÿ'\-]+)/i) ||
+          waRedirectData.match(/soy\s+([A-Za-zÀ-ÿ'\-]+)/i) ||
+          waRedirectData.match(/nombre es\s+([A-Za-zÀ-ÿ'\-]+)/i) ||
+          waRedirectData.match(/client\s+([A-Za-zÀ-ÿ'\-]+)/i) ||
+          waRedirectData.match(/cliente\s+([A-Za-zÀ-ÿ'\-]+)/i);
         if (nameMatch) {
           leadName = nameMatch[1];
         }
 
         // Save with extracted info
-        // Use 'Clic en WhatsApp' as marker since we don't have user's phone yet (they are just going to WA)
-        saveLeadToFirestore(leadName, 'Clic en WhatsApp', waRedirectData);
+        // Use a marker because user phone still comes later in WhatsApp.
+        saveLeadToFirestore(leadName, activeLanguage === 'es' ? 'Clic en WhatsApp' : 'WhatsApp click', waRedirectData);
 
         setTimeout(() => {
           const cleanDest = config.whatsappDestination.replace(/\D/g, '');
@@ -834,7 +1514,7 @@
     function disableChatInput() {
       if (input) {
         input.disabled = true;
-        input.placeholder = "Chat bloqueado por seguridad";
+        input.placeholder = getText('blockedPlaceholder');
         input.style.opacity = "0.6";
         input.style.cursor = "not-allowed";
       }
@@ -859,59 +1539,63 @@
         stopVibration();
         stopTeaserCycle();
         if (messages.length === 0) {
-          messages.push({ role: 'assistant', content: config.welcomeMessage });
+          messages.push({ role: 'assistant', content: withBotEmoji(config.welcomeMessage) });
           renderMessages();
         }
-        startTestimonialRotator();
+        startLiveActivityRotator();
       } else {
         hasBeenClosedOnce = true;
         startVibration();
+        if (emojiPanel) emojiPanel.classList.remove('open');
+        if (emojiBtn) emojiBtn.classList.remove('active');
+        emojiPanelOpen = false;
+        if (speechRecognition && isListening) {
+          try { speechRecognition.stop(); } catch (_) { /* noop */ }
+        }
         // Start teaser cycle after a short delay
         // Start teaser cycle after a short delay
         teaserStartTimeout = setTimeout(() => {
           startTeaserCycle();
         }, 2000);
 
-        stopTestimonialRotator();
+        stopLiveActivityRotator();
       }
     }
 
-    // Testimonial Rotator Logic (Bulletproof)
-    function startTestimonialRotator() {
-      if (!config.testimonials || !Array.isArray(config.testimonials) || config.testimonials.length === 0) {
-        if (testimonialBar) testimonialBar.style.display = 'none';
+    // Live activity rotator (independent from testimonials)
+    function startLiveActivityRotator() {
+      stopLiveActivityRotator();
+      const activities = getLocalizedLiveActivities(config.liveActivities);
+
+      if (!activities || !Array.isArray(activities) || activities.length === 0) {
+        if (liveBar) liveBar.style.display = 'none';
         return;
       }
 
-      if (testimonialBar) testimonialBar.style.display = 'flex';
-      let tIndex = 0;
+      if (liveBar) liveBar.style.display = 'flex';
+      let activityIndex = 0;
 
-      const showTestimonial = () => {
-        const t = config.testimonials[tIndex];
-        if (!t) return;
+      const showLiveActivity = () => {
+        const currentActivity = activities[activityIndex];
+        if (!currentActivity) return;
 
-        // Animate out (if not first) - simplified to just fade in new content
-        if (tContentDiv) {
-          tContentDiv.classList.remove('lw-fade-in');
-          void tContentDiv.offsetWidth; // trigger reflow
-          tContentDiv.classList.add('lw-fade-in');
+        if (liveTextEl) {
+          liveTextEl.classList.remove('lw-fade-in');
+          void liveTextEl.offsetWidth;
+          liveTextEl.classList.add('lw-fade-in');
+          liveTextEl.textContent = currentActivity;
         }
 
-        if (tImg) tImg.src = t.avatar_url || `https://ui-avatars.com/api/?name=${(t.name || 'C').replace(' ', '+')}&background=random`;
-        if (tName) tName.textContent = t.name || 'Cliente';
-        if (tStars) tStars.textContent = 'â˜…'.repeat(t.stars || 5);
-        if (tText) tText.textContent = `"${t.text || ''}"`;
-
-        tIndex = (tIndex + 1) % config.testimonials.length;
+        activityIndex = (activityIndex + 1) % activities.length;
       };
 
-      showTestimonial(); // Show first immediately
-      if (config.testimonials.length > 1) {
-        testimonialInterval = setInterval(showTestimonial, 4000);
+      showLiveActivity();
+      if (activities.length > 1) {
+        testimonialInterval = setInterval(showLiveActivity, 4200);
       }
     }
 
-    function stopTestimonialRotator() {
+    function stopLiveActivityRotator() {
       if (testimonialInterval) {
         clearInterval(testimonialInterval);
         testimonialInterval = null;
@@ -920,21 +1604,22 @@
 
     // Teaser cycle
     function startTeaserCycle() {
-      if (isOpen || !config.teaserMessages || config.teaserMessages.length === 0) {
-        console.log('LeadWidget: Teaser cycle not started', { isOpen, teaserCount: config.teaserMessages?.length });
+      const teaserMessages = getLocalizedTeaserMessages(config.teaserMessages);
+      if (isOpen || !teaserMessages || teaserMessages.length === 0) {
+        console.log('LeadWidget: Teaser cycle not started', { isOpen, teaserCount: teaserMessages?.length });
         return;
       }
 
       stopTeaserCycle();
-      let index = Math.floor(Math.random() * config.teaserMessages.length);
+      let index = Math.floor(Math.random() * teaserMessages.length);
 
       const showTeaser = () => {
         if (isOpen) return;
-        activeTeaser = config.teaserMessages[index];
+        activeTeaser = teaserMessages[index];
         teaserText.textContent = activeTeaser;
         teaser.style.display = 'block';
         console.log('LeadWidget: Showing teaser:', activeTeaser);
-        index = (index + 1) % config.teaserMessages.length;
+        index = (index + 1) % teaserMessages.length;
       };
 
       showTeaser();
@@ -983,12 +1668,80 @@
       handleSendMessage();
     });
 
+    if (langBtn) {
+      langBtn.addEventListener('click', () => {
+        activeLanguage = activeLanguage === 'en' ? 'es' : 'en';
+        applyLanguageUI();
+      });
+    }
+
+    if (themeBtn) {
+      themeBtn.addEventListener('click', () => {
+        themeMode = themeMode === 'dark' ? 'light' : 'dark';
+        applyTheme();
+      });
+    }
+
+    if (emojiBtn && emojiPanel) {
+      emojiBtn.addEventListener('click', () => {
+        emojiPanelOpen = !emojiPanelOpen;
+        emojiPanel.classList.toggle('open', emojiPanelOpen);
+        emojiBtn.classList.toggle('active', emojiPanelOpen);
+      });
+    }
+
+    if (micBtn) {
+      speechRecognition = initSpeechRecognition();
+      micBtn.addEventListener('click', () => {
+        if (!speechRecognition) {
+          messages.push({ role: 'system', content: getText('systemAudioUnsupported') });
+          renderMessages();
+          return;
+        }
+        try {
+          if (isListening) {
+            speechRecognition.stop();
+            return;
+          }
+          speechRecognition.lang = activeLanguage === 'es' ? 'es-ES' : 'en-US';
+          speechRecognition.start();
+        } catch (_) {
+          isListening = false;
+          micBtn.classList.remove('active');
+        }
+      });
+    }
+
     exitCta.addEventListener('click', () => {
       exitOverlay.style.display = 'none';
       togglePanel(true);
     });
     exitClose.addEventListener('click', () => { exitOverlay.style.display = 'none'; });
     exitOverlay.addEventListener('click', (e) => { if (e.target === exitOverlay) exitOverlay.style.display = 'none'; });
+
+    document.addEventListener('click', (e) => {
+      if (!emojiPanel || !emojiBtn) return;
+      const clickInsideEmoji = emojiPanel.contains(e.target) || emojiBtn.contains(e.target);
+      if (!clickInsideEmoji) {
+        emojiPanelOpen = false;
+        emojiPanel.classList.remove('open');
+        emojiBtn.classList.remove('active');
+      }
+    });
+
+    if (liveBar) {
+      liveBar.addEventListener('mousemove', (event) => {
+        const rect = liveBar.getBoundingClientRect();
+        const x = ((event.clientX - rect.left) / rect.width) * 100;
+        const y = ((event.clientY - rect.top) / rect.height) * 100;
+        liveBar.style.setProperty('--mx', `${x}%`);
+        liveBar.style.setProperty('--my', `${y}%`);
+      });
+      liveBar.addEventListener('mouseleave', () => {
+        liveBar.style.setProperty('--mx', '50%');
+        liveBar.style.setProperty('--my', '50%');
+      });
+    }
 
     // Exit intent (desktop only) - Use both mouseout and mouseleave for better coverage
     document.addEventListener('mouseout', handleExitIntent);
@@ -1011,6 +1764,9 @@
     }
 
     // Render initial
+    renderEmojiPanel();
+    applyTheme();
+    applyLanguageUI();
     renderMessages();
   }
 
@@ -1023,7 +1779,7 @@
         'primaryColor', 'businessName', 'welcomeMessage',
         'whatsappDestination', 'quickReplies', 'teaserMessages',
         'chatPlaceholder', 'exitIntentTitle', 'exitIntentDescription', 'exitIntentCta',
-        'vibrationIntensity', 'testimonials', 'launcherIcon', 'hideBranding', 'brandingText', 'brandingLink'
+        'vibrationIntensity', 'testimonials', 'liveActivities', 'launcherIcon', 'hideBranding', 'brandingText', 'brandingLink'
       ];
 
       let hasVisualChanges = false;

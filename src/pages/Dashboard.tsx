@@ -231,6 +231,71 @@ const AI_WHATSAPP_COMMAND_SNIPPET = [
 ].join('\n');
 const FIXED_IACLOSER_REDIRECT_URL = 'https://ai-call-closer.vercel.app/';
 
+const LEAD_CHAT_COPY_DEFAULTS = {
+  es: {
+    welcomeMessage:
+      'Hola, soy el asistente de pre-calificacion.\nEn menos de 2 minutos podemos llamarte y ayudarte a cerrar o agendar clientes.\n\nQue te gustaria hacer ahora?',
+    quickReplies: ['Agendar clientes', 'Cerrar ventas por llamada', 'Ver como funciona'],
+    consentText: 'Acepto recibir una llamada automatica de demostracion.',
+    leadChatHeadline: 'Conversa 2 minutos y activa tu llamada de cierre.',
+    leadChatSubheadline: 'Dejamos tu llamada lista en menos de 2 minutos, sin tarjeta y sin friccion.',
+    leadChatEyebrow: 'Lead Chat en vivo',
+    leadChatBadgeText: 'Llamada en menos de 2 min',
+    leadChatOfferTitle: 'Bloquea tu llamada de cierre ahora',
+    leadChatOfferDescription: 'Estas en el momento mas caliente. Si activas ahora, IACloser prioriza tu cierre.',
+    leadChatCtaLabel: 'Activar llamada',
+    leadChatLiveToasts: [
+      'Nuevo lead activo hace 2 min',
+      'Un asesor IA acaba de cerrar una llamada',
+      'Conversiones en vivo: este chat esta funcionando',
+    ],
+  },
+  en: {
+    welcomeMessage:
+      "Hi! I'm the qualification assistant.\nIn under 2 minutes, our AI can call you and help you book or close customers live.\n\nWhat would you like to do?",
+    quickReplies: ['Book more appointments', 'Close deals by phone', 'See how it works'],
+    consentText: 'I agree to receive an automated demo call.',
+    leadChatHeadline: 'Chat for 2 minutes and trigger your closing call.',
+    leadChatSubheadline: 'We can trigger your demo call in under 2 minutes, with no card and no friction.',
+    leadChatEyebrow: 'Live Lead Chat',
+    leadChatBadgeText: 'Call in under 2 min',
+    leadChatOfferTitle: 'Lock your closing call now',
+    leadChatOfferDescription: 'You are in the hottest moment. Activate now and IACloser prioritizes your close.',
+    leadChatCtaLabel: 'Start call',
+    leadChatLiveToasts: [
+      'A new lead became active 2 minutes ago',
+      'An AI closer just booked a live call',
+      'Live conversions: this chat is performing now',
+    ],
+  },
+} as const;
+
+type LeadChatDefaultLanguage = keyof typeof LEAD_CHAT_COPY_DEFAULTS;
+
+function getLeadChatCopyDefaults(language: string | undefined): (typeof LEAD_CHAT_COPY_DEFAULTS)[LeadChatDefaultLanguage] {
+  return language === 'en' ? LEAD_CHAT_COPY_DEFAULTS.en : LEAD_CHAT_COPY_DEFAULTS.es;
+}
+
+function isKnownLeadChatDefaultText(
+  value: string | undefined,
+  picker: (defaults: (typeof LEAD_CHAT_COPY_DEFAULTS)[LeadChatDefaultLanguage]) => string,
+) {
+  const candidate = (value || '').trim();
+  if (!candidate) return true;
+  return (Object.values(LEAD_CHAT_COPY_DEFAULTS) as Array<(typeof LEAD_CHAT_COPY_DEFAULTS)[LeadChatDefaultLanguage]>)
+    .some((defaults) => picker(defaults).trim() === candidate);
+}
+
+function isKnownLeadChatDefaultList(
+  value: string | undefined,
+  picker: (defaults: (typeof LEAD_CHAT_COPY_DEFAULTS)[LeadChatDefaultLanguage]) => string[],
+) {
+  const candidate = (value || '').trim();
+  if (!candidate) return true;
+  return (Object.values(LEAD_CHAT_COPY_DEFAULTS) as Array<(typeof LEAD_CHAT_COPY_DEFAULTS)[LeadChatDefaultLanguage]>)
+    .some((defaults) => picker(defaults).join('\n').trim() === candidate);
+}
+
 function appendPromptSnippet(currentPrompt: string, snippet: string) {
   const base = (currentPrompt || '').trim();
   const normalizedSnippet = (snippet || '').trim();
@@ -450,12 +515,13 @@ export default function Dashboard() {
   };
 
   // Widget config form state
+  const initialLeadChatDefaults = getLeadChatCopyDefaults('es');
   const [formConfig, setFormConfig] = useState({
     template: 'general',
     language: 'es',
     primary_color: '#00C185',
     business_name: 'Lead Widget',
-    welcome_message: '¡Hola! ¿En qué podemos ayudarte?',
+    welcome_message: initialLeadChatDefaults.welcomeMessage,
     whatsapp_destination: '',
     niche_question: '¿En qué distrito te encuentras?',
     trigger_delay: 15,
@@ -472,7 +538,7 @@ export default function Dashboard() {
     exit_intent_cta: 'Probar Demo Ahora',
     teaser_messages: '¿Cómo podemos ayudarte? 👋\n¿Tienes alguna duda sobre el servicio? ✨\n¡Hola! Estamos en línea para atenderte 🚀',
     // Quick Replies
-    quick_replies: '¿Cómo funciona?\nQuiero más información\nVer precios',
+    quick_replies: initialLeadChatDefaults.quickReplies.join('\n'),
     launcher_icon: '',
     hide_branding: false,
     branding_text: '',
@@ -482,17 +548,17 @@ export default function Dashboard() {
     google_tag_id: '',
     experience_mode: 'widget',
     lead_chat_slug: '',
-    consent_text: 'Acepto ser contactado por telefono o mensajes para continuar con mi solicitud.',
+    consent_text: initialLeadChatDefaults.consentText,
     consent_text_version: 'v1',
     icloser_redirect_url: FIXED_IACLOSER_REDIRECT_URL,
-    lead_chat_headline: 'Conversa, califica y activa tu llamada de cierre.',
-    lead_chat_subheadline: 'Este Lead Chat esta optimizado para convertir en pantalla completa.',
-    lead_chat_eyebrow: 'Lead Chat publico',
-    lead_chat_badge_text: 'IACloser en menos de 60s',
-    lead_chat_offer_title: 'Bloquea tu llamada de cierre ahora',
-    lead_chat_offer_description: 'IACloser toma tu contexto y prioriza el cierre comercial en menos de 60 segundos.',
-    lead_chat_cta_label: 'Activar llamada',
-    lead_chat_live_toasts: 'Nuevo lead activo hace 2 min\nUn asesor IA acaba de cerrar una llamada\nConversiones en vivo: este chat esta funcionando',
+    lead_chat_headline: initialLeadChatDefaults.leadChatHeadline,
+    lead_chat_subheadline: initialLeadChatDefaults.leadChatSubheadline,
+    lead_chat_eyebrow: initialLeadChatDefaults.leadChatEyebrow,
+    lead_chat_badge_text: initialLeadChatDefaults.leadChatBadgeText,
+    lead_chat_offer_title: initialLeadChatDefaults.leadChatOfferTitle,
+    lead_chat_offer_description: initialLeadChatDefaults.leadChatOfferDescription,
+    lead_chat_cta_label: initialLeadChatDefaults.leadChatCtaLabel,
+    lead_chat_live_toasts: initialLeadChatDefaults.leadChatLiveToasts.join('\n'),
   });
 
   const [showApiKey, setShowApiKey] = useState(false);
@@ -576,13 +642,14 @@ export default function Dashboard() {
       if (configSnap.empty) {
         // AUTO-CREATE DEFAULT CONFIG FOR NEW USER
         const newWidgetRef = doc(collection(db, 'widget_configs'));
+        const newUserLeadChatDefaults = getLeadChatCopyDefaults('es');
         const defaultConfig = {
           user_id: userId,
           widget_id: Math.random().toString(36).substring(2, 12),
           template: 'general',
           language: 'es',
           primary_color: '#00C165',
-          welcome_message: '¡Hola! ¿En qué podemos ayudarte?',
+          welcome_message: newUserLeadChatDefaults.welcomeMessage,
           whatsapp_destination: '',
           niche_question: '¿En qué distrito te encuentras?',
           trigger_delay: 3,
@@ -598,9 +665,7 @@ export default function Dashboard() {
             '¡Hola! Estamos en línea para atenderte 🚀'
           ],
           quick_replies: [
-            '¿Cómo funciona?',
-            'Quiero más información',
-            'Ver precios'
+            ...newUserLeadChatDefaults.quickReplies
           ],
           hide_branding: false,
           branding_text: '',
@@ -610,20 +675,18 @@ export default function Dashboard() {
           google_tag_id: null,
           experience_mode: 'widget',
           lead_chat_slug: '',
-          consent_text: 'Acepto ser contactado por telefono o mensajes para continuar con mi solicitud.',
+          consent_text: newUserLeadChatDefaults.consentText,
           consent_text_version: 'v1',
           icloser_redirect_url: FIXED_IACLOSER_REDIRECT_URL,
-          lead_chat_headline: 'Conversa, califica y activa tu llamada de cierre.',
-          lead_chat_subheadline: 'Este Lead Chat esta optimizado para convertir en pantalla completa.',
-          lead_chat_eyebrow: 'Lead Chat publico',
-          lead_chat_badge_text: 'IACloser en menos de 60s',
-          lead_chat_offer_title: 'Bloquea tu llamada de cierre ahora',
-          lead_chat_offer_description: 'IACloser toma tu contexto y prioriza el cierre comercial en menos de 60 segundos.',
-          lead_chat_cta_label: 'Activar llamada',
+          lead_chat_headline: newUserLeadChatDefaults.leadChatHeadline,
+          lead_chat_subheadline: newUserLeadChatDefaults.leadChatSubheadline,
+          lead_chat_eyebrow: newUserLeadChatDefaults.leadChatEyebrow,
+          lead_chat_badge_text: newUserLeadChatDefaults.leadChatBadgeText,
+          lead_chat_offer_title: newUserLeadChatDefaults.leadChatOfferTitle,
+          lead_chat_offer_description: newUserLeadChatDefaults.leadChatOfferDescription,
+          lead_chat_cta_label: newUserLeadChatDefaults.leadChatCtaLabel,
           lead_chat_live_toasts: [
-            'Nuevo lead activo hace 2 min',
-            'Un asesor IA acaba de cerrar una llamada',
-            'Conversiones en vivo: este chat esta funcionando'
+            ...newUserLeadChatDefaults.leadChatLiveToasts
           ],
           created_at: new Date().toISOString()
         };
@@ -634,13 +697,15 @@ export default function Dashboard() {
       }
 
       if (configData) {
+        const configLanguage = configData.language === 'en' ? 'en' : 'es';
+        const configLeadChatDefaults = getLeadChatCopyDefaults(configLanguage);
         setWidgetConfig(configData);
         setFormConfig({
           template: configData.template || 'general',
-          language: configData.language || 'es',
+          language: configLanguage,
           primary_color: configData.primary_color || '#00C185',
           business_name: configData.business_name || profileData?.business_name || 'Lead Widget',
-          welcome_message: configData.welcome_message || '¡Hola! ¿En qué podemos ayudarte?',
+          welcome_message: configData.welcome_message || configLeadChatDefaults.welcomeMessage,
           whatsapp_destination: configData.whatsapp_destination || '',
           niche_question: configData.niche_question || '¿En qué distrito te encuentras?',
           trigger_delay: configData.trigger_delay ?? 3,
@@ -662,7 +727,7 @@ export default function Dashboard() {
             ]).join('\n'),
           quick_replies: Array.isArray(configData.quick_replies)
             ? configData.quick_replies.join('\n')
-            : (configData.quick_replies || '¿Cómo funciona?\nQuiero más información\nVer precios'),
+            : (configData.quick_replies || configLeadChatDefaults.quickReplies.join('\n')),
           launcher_icon: configData.launcher_icon || '',
           hide_branding: configData.hide_branding || false,
           branding_text: configData.branding_text || '',
@@ -672,19 +737,19 @@ export default function Dashboard() {
           google_tag_id: configData.google_tag_id || '',
           experience_mode: configData.experience_mode === 'lead_chat' ? 'lead_chat' : 'widget',
           lead_chat_slug: configData.lead_chat_slug || configData.widget_id || '',
-          consent_text: configData.consent_text || 'Acepto ser contactado por telefono o mensajes para continuar con mi solicitud.',
+          consent_text: configData.consent_text || configLeadChatDefaults.consentText,
           consent_text_version: configData.consent_text_version || 'v1',
           icloser_redirect_url: FIXED_IACLOSER_REDIRECT_URL,
-          lead_chat_headline: configData.lead_chat_headline || 'Conversa, califica y activa tu llamada de cierre.',
-          lead_chat_subheadline: configData.lead_chat_subheadline || 'Este Lead Chat esta optimizado para convertir en pantalla completa.',
-          lead_chat_eyebrow: configData.lead_chat_eyebrow || 'Lead Chat publico',
-          lead_chat_badge_text: configData.lead_chat_badge_text || 'IACloser en menos de 60s',
-          lead_chat_offer_title: configData.lead_chat_offer_title || 'Bloquea tu llamada de cierre ahora',
-          lead_chat_offer_description: configData.lead_chat_offer_description || 'IACloser toma tu contexto y prioriza el cierre comercial en menos de 60 segundos.',
-          lead_chat_cta_label: configData.lead_chat_cta_label || 'Activar llamada',
+          lead_chat_headline: configData.lead_chat_headline || configLeadChatDefaults.leadChatHeadline,
+          lead_chat_subheadline: configData.lead_chat_subheadline || configLeadChatDefaults.leadChatSubheadline,
+          lead_chat_eyebrow: configData.lead_chat_eyebrow || configLeadChatDefaults.leadChatEyebrow,
+          lead_chat_badge_text: configData.lead_chat_badge_text || configLeadChatDefaults.leadChatBadgeText,
+          lead_chat_offer_title: configData.lead_chat_offer_title || configLeadChatDefaults.leadChatOfferTitle,
+          lead_chat_offer_description: configData.lead_chat_offer_description || configLeadChatDefaults.leadChatOfferDescription,
+          lead_chat_cta_label: configData.lead_chat_cta_label || configLeadChatDefaults.leadChatCtaLabel,
           lead_chat_live_toasts: Array.isArray(configData.lead_chat_live_toasts)
             ? configData.lead_chat_live_toasts.join('\n')
-            : (configData.lead_chat_live_toasts || 'Nuevo lead activo hace 2 min\nUn asesor IA acaba de cerrar una llamada\nConversiones en vivo: este chat esta funcionando'),
+            : (configData.lead_chat_live_toasts || configLeadChatDefaults.leadChatLiveToasts.join('\n')),
         });
 
         if (configData.testimonials_json) {
@@ -1611,8 +1676,44 @@ export default function Dashboard() {
                       <Select
                         value={formConfig.language}
                         onValueChange={(v) => {
-                          setFormConfig(prev => ({ ...prev, language: v }));
-                          // Optional: Auto-update helper texts if needed, relying on manual edit for now as per instructions
+                          const nextDefaults = getLeadChatCopyDefaults(v);
+                          setFormConfig((prev) => ({
+                            ...prev,
+                            language: v,
+                            welcome_message: isKnownLeadChatDefaultText(prev.welcome_message, (d) => d.welcomeMessage)
+                              ? nextDefaults.welcomeMessage
+                              : prev.welcome_message,
+                            quick_replies: isKnownLeadChatDefaultList(prev.quick_replies, (d) => d.quickReplies)
+                              ? nextDefaults.quickReplies.join('\n')
+                              : prev.quick_replies,
+                            consent_text: isKnownLeadChatDefaultText(prev.consent_text, (d) => d.consentText)
+                              ? nextDefaults.consentText
+                              : prev.consent_text,
+                            lead_chat_headline: isKnownLeadChatDefaultText(prev.lead_chat_headline, (d) => d.leadChatHeadline)
+                              ? nextDefaults.leadChatHeadline
+                              : prev.lead_chat_headline,
+                            lead_chat_subheadline: isKnownLeadChatDefaultText(prev.lead_chat_subheadline, (d) => d.leadChatSubheadline)
+                              ? nextDefaults.leadChatSubheadline
+                              : prev.lead_chat_subheadline,
+                            lead_chat_eyebrow: isKnownLeadChatDefaultText(prev.lead_chat_eyebrow, (d) => d.leadChatEyebrow)
+                              ? nextDefaults.leadChatEyebrow
+                              : prev.lead_chat_eyebrow,
+                            lead_chat_badge_text: isKnownLeadChatDefaultText(prev.lead_chat_badge_text, (d) => d.leadChatBadgeText)
+                              ? nextDefaults.leadChatBadgeText
+                              : prev.lead_chat_badge_text,
+                            lead_chat_offer_title: isKnownLeadChatDefaultText(prev.lead_chat_offer_title, (d) => d.leadChatOfferTitle)
+                              ? nextDefaults.leadChatOfferTitle
+                              : prev.lead_chat_offer_title,
+                            lead_chat_offer_description: isKnownLeadChatDefaultText(prev.lead_chat_offer_description, (d) => d.leadChatOfferDescription)
+                              ? nextDefaults.leadChatOfferDescription
+                              : prev.lead_chat_offer_description,
+                            lead_chat_cta_label: isKnownLeadChatDefaultText(prev.lead_chat_cta_label, (d) => d.leadChatCtaLabel)
+                              ? nextDefaults.leadChatCtaLabel
+                              : prev.lead_chat_cta_label,
+                            lead_chat_live_toasts: isKnownLeadChatDefaultList(prev.lead_chat_live_toasts, (d) => d.leadChatLiveToasts)
+                              ? nextDefaults.leadChatLiveToasts.join('\n')
+                              : prev.lead_chat_live_toasts,
+                          }));
                         }}
                       >
                         <SelectTrigger>

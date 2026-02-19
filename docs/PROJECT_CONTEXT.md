@@ -37,11 +37,11 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 ## Objetivo activo Lead Chat + IACloser (2026-02-19)
 - Nuevo objetivo comercial del canal chat:
   1. Usuario abre chat.
-  2. Bot conversa y precalifica.
-  3. Bot solicita numero telefonico.
-  4. Bot muestra consentimiento de contacto en lenguaje claro.
-  5. Usuario acepta expresamente escribiendo "SI".
-  6. AICloser ejecuta llamada outbound en menos de 60 segundos.
+  2. Bot abre con mensaje orientado a resultado economico inmediato (llamada en <2 minutos) y botones de accion.
+  3. Flujo de conversion en 3 pasos: objetivo, telefono + consentimiento, activacion emocional.
+  4. Bot solicita numero telefonico y muestra consentimiento de contacto en lenguaje claro.
+  5. Usuario acepta consentimiento via checkbox obligatorio; frontend envia consentimiento expreso (`SI`/`YES`) al backend para handoff.
+  6. AICloser ejecuta llamada outbound en menos de 2 minutos y la UI muestra estado `IA llamando...`.
 - El flujo comercial de cierre cambia: no se prioriza llamada manual o WhatsApp como paso final del demo; el handoff primario es redireccion automatica a pagina/landing de IACloser.
 - Lead Chat debe funcionar tambien para clientes sin website como pagina publica full-screen (link compartible), independiente del script embebible.
 - En la experiencia publica de Lead Chat, la oferta comercial no se muestra como modal inicial; aparece de forma inline cuando la conversacion ya tiene intencion.
@@ -67,6 +67,12 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Lead Chat (`/lead-chat/:identity`) usa layout inmersivo centrado en el chat (alto casi completo en desktop/mobile), deja espacio inferior para avisos dinamicos y mantiene consentimiento/handoff inline dentro del flujo principal del chat (sin panel lateral de opciones).
 - Lead Chat desktop prioriza UX centrada (ancho contenido acotado), estilo visual premium tipo glass y tarjeta de testimonios con efecto tornasol dinamico al hover.
 - Composer de Lead Chat incluye selector rapido de emojis, entrada por voz (speech-to-text) y control sutil de tema claro/oscuro para mejorar retencion de uso.
+- Lead Chat agrega microcopy de reduccion de friccion debajo del input (`Demo real sin costo`, `Llamada en menos de 2 minutos`, `Sin tarjeta de credito`) y una barra superior de prueba social (`3 personas probando la demo ahora`).
+- Lead Chat consume `language` del widget config para defaults EN/ES (mensaje inicial, quick replies, consentimiento, estados y copys de conversion).
+- Widget embebido (`public/widget-embed.js`) replica mejoras de retencion: quick replies en una sola fila con scroll horizontal (mobile-first), selector de emojis, entrada por voz y toggle sutil claro/oscuro.
+- Widget embebido usa ingles por defecto y permite cambiar en 1 clic a espanol desde el header, aplicando textos UI y mensajes de actividad en vivo.
+- Widget embebido actualiza defaults comerciales EN/ES (mensaje de apertura y quick replies) al enfoque de llamada en menos de 2 minutos.
+- La barra `Live activity` del widget embebido ya no recicla testimonios; usa actividades separadas (ej. adopcion de ICallCloser) con rotacion y traduccion EN/ES.
 - El widget comercial (`SalesWidget`) tambien esta activo en `/partners`.
 - Dashboard partner incluye secciones:
   - Ventas/Atribucion
@@ -86,6 +92,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Plan PLUS: branding del widget admite `branding_text` y `branding_link` para personalizar texto y URL del footer (fallback seguro a `/crear-ahora?ref=<clientId>`).
 - En `experience_mode=lead_chat`, el dashboard prioriza compartir enlace publico del chat; no depende de instalar script en una web.
 - El dashboard expone controles Lead Chat-only (eyebrow del header, headline/subheadline, badge superior, bloque de oferta inline, CTA y mensajes de actividad en vivo) con aviso de alcance exclusivo para la pagina Lead Chat.
+- En dashboard, los defaults de Lead Chat quedan alineados al guion de conversion en 3 pasos y el selector de idioma (`es/en`) puede aplicar automaticamente copy EN/ES mientras no se haya personalizado manualmente.
 - En IA > Prompt del Sistema, el dashboard ahora incluye plantillas predefinidas editables (campos `[REEMPLAZA_*]`) y prioriza flujo USA de llamada con consentimiento usando `ICALLCLOSER_READY`.
 - `WHATSAPP_REDIRECT` se mantiene como opcion secundaria; la guia permite alternar comando (ICallCloser/WhatsApp) e insertarlo al prompt con un boton.
 - En configuracion Lead Chat, la URL de redireccion post-consentimiento queda fija en `https://ai-call-closer.vercel.app/` y no es editable desde dashboard.

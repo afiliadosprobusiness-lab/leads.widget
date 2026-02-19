@@ -21,6 +21,7 @@ type Testimonial = {
 
 type PublicWidgetConfig = {
   widgetId: string;
+  language?: "es" | "en";
   businessName?: string;
   primaryColor?: string;
   welcomeMessage?: string;
@@ -56,6 +57,195 @@ const FIXED_IACLOSER_REDIRECT_URL = "https://ai-call-closer.vercel.app/";
 const HAS_EMOJI_RE = /[\p{Extended_Pictographic}]/u;
 const QUICK_EMOJIS = ["😀", "😄", "🙏", "✨", "🔥", "👍", "🎯", "📞", "✅", "💬", "😊", "🚀"];
 
+type ChatLocale = "es" | "en";
+
+const SALES_COPY: Record<
+  ChatLocale,
+  {
+    loading: string;
+    chatLoadError: string;
+    missingIdentity: string;
+    defaultBusinessName: string;
+    initialMessage: string;
+    chatPlaceholder: string;
+    quickReplies: string[];
+    liveToasts: string[];
+    presenceNow: string;
+    prequalifyingBadge: string;
+    readyBadge: string;
+    callingBadge: string;
+    typing: string;
+    step1Title: string;
+    step1Description: string;
+    step2Title: string;
+    step2Description: string;
+    step3Title: string;
+    step3Description: string;
+    nameLabel: string;
+    namePlaceholder: string;
+    phoneLabel: string;
+    phonePlaceholder: string;
+    consentCheckboxLabel: string;
+    privacyNote: string;
+    trustBullets: string[];
+    submitHandoff: string;
+    connectingHandoff: string;
+    offerTag: string;
+    offerTitle: string;
+    offerDescription: string;
+    offerCta: string;
+    continueChat: string;
+    voiceUnsupported: string;
+    prequalifyFirstError: string;
+    connectionIssue: string;
+    invalidLeadData: string;
+    consentRequired: string;
+    handoffSuccess: string;
+    activationMessage: string;
+    openLeadChat: string;
+    liveActivityLabel: string;
+    exitIntentDetected: string;
+    closeExitIntent: string;
+    continueBrowsing: string;
+    emojiAria: string;
+    micAriaStart: string;
+    micAriaStop: string;
+    listeningNow: string;
+    themeAriaDark: string;
+    themeAriaLight: string;
+  }
+> = {
+  es: {
+    loading: "Cargando Lead Chat...",
+    chatLoadError: "No pudimos abrir este Lead Chat.",
+    missingIdentity: "Falta identidad de Lead Chat.",
+    defaultBusinessName: "Asistente de pre-calificacion",
+    initialMessage:
+      "Hola, soy el asistente de pre-calificacion.\nEn menos de 2 minutos podemos llamarte y ayudarte a cerrar o agendar clientes.\n\nQue te gustaria hacer ahora?",
+    chatPlaceholder: "Escribe tu mensaje...",
+    quickReplies: ["Agendar clientes", "Cerrar ventas por llamada", "Ver como funciona"],
+    liveToasts: [
+      "Nuevo lead activo hace 2 min",
+      "Un asesor IA acaba de cerrar una llamada",
+      "Conversiones en vivo: este chat esta funcionando",
+    ],
+    presenceNow: "3 personas probando la demo ahora",
+    prequalifyingBadge: "Precalificando...",
+    readyBadge: "Llamada en menos de 2 min",
+    callingBadge: "IA llamando...",
+    typing: "Escribiendo...",
+    step1Title: "Paso 1 - Objetivo",
+    step1Description: "Buscamos si prefieres agendar mas clientes o cerrar ventas por llamada.",
+    step2Title: "Paso 2 - Telefono + consentimiento",
+    step2Description: "Dejanos tu numero y te llamamos en menos de 2 minutos para probarlo en vivo.",
+    step3Title: "Paso 3 - Activacion emocional",
+    step3Description: "Perfecto. Estamos iniciando tu llamada de prueba ahora mismo.",
+    nameLabel: "Nombre",
+    namePlaceholder: "Tu nombre completo",
+    phoneLabel: "Telefono",
+    phonePlaceholder: "Ej: 14155552671",
+    consentCheckboxLabel: "Acepto recibir una llamada automatica de demostracion.",
+    privacyNote: "Solo te contactaremos para esta solicitud. No compartimos tu informacion fuera de este proceso.",
+    trustBullets: ["Demo real sin costo", "Llamada en menos de 2 minutos", "Sin tarjeta de credito"],
+    submitHandoff: "Activar llamada ahora",
+    connectingHandoff: "Conectando con IACloser...",
+    offerTag: "Oferta activa",
+    offerTitle: "Bloquea tu llamada de cierre ahora",
+    offerDescription: "Estas en el momento mas caliente. Si activas ahora, IACloser prioriza tu llamada de cierre.",
+    offerCta: "Activar llamada",
+    continueChat: "Continuar chat",
+    voiceUnsupported: "Tu navegador no soporta captura de voz. Usa Chrome o Edge actualizado.",
+    prequalifyFirstError: "Primero terminemos la pre-calificacion. Luego activamos la llamada en menos de 2 minutos.",
+    connectionIssue: "Tuvimos un problema de conexion. Puedes intentarlo nuevamente.",
+    invalidLeadData: "Completa nombre y telefono valido para continuar.",
+    consentRequired: "Debes aceptar el consentimiento para activar la llamada.",
+    handoffSuccess: "Todo listo. Te llamaremos en menos de 2 minutos.",
+    activationMessage: "Perfecto. Estamos iniciando tu llamada de prueba ahora mismo...",
+    openLeadChat: "No pudimos iniciar el chat.",
+    liveActivityLabel: "Actividad en vivo",
+    exitIntentDetected: "Intencion de salida detectada",
+    closeExitIntent: "Cerrar pop de salida",
+    continueBrowsing: "Continuar navegando",
+    emojiAria: "Abrir selector de emojis",
+    micAriaStart: "Grabar voz",
+    micAriaStop: "Detener grabacion de voz",
+    listeningNow: "Escuchando... habla ahora y convertimos el audio en texto.",
+    themeAriaDark: "Cambiar a modo oscuro",
+    themeAriaLight: "Cambiar a modo claro",
+  },
+  en: {
+    loading: "Loading Lead Chat...",
+    chatLoadError: "We could not open this Lead Chat.",
+    missingIdentity: "Missing Lead Chat identity.",
+    defaultBusinessName: "Qualification assistant",
+    initialMessage:
+      "Hi! I'm the qualification assistant.\nIn under 2 minutes, our AI can call you and help you book or close customers live.\n\nWhat would you like to do?",
+    chatPlaceholder: "Type your message...",
+    quickReplies: ["Book more appointments", "Close deals by phone", "See how it works"],
+    liveToasts: [
+      "A new lead became active 2 minutes ago",
+      "An AI closer just booked a live call",
+      "Live conversions: this chat is performing now",
+    ],
+    presenceNow: "3 people are testing this demo right now",
+    prequalifyingBadge: "Pre-qualifying...",
+    readyBadge: "Call in under 2 min",
+    callingBadge: "AI calling...",
+    typing: "Typing...",
+    step1Title: "Step 1 - Goal",
+    step1Description: "We identify if you want to book more appointments or close deals by phone.",
+    step2Title: "Step 2 - Phone + consent",
+    step2Description: "Leave your number and we call you in under 2 minutes for a live demo.",
+    step3Title: "Step 3 - Emotional activation",
+    step3Description: "Perfect. We are starting your demo call right now.",
+    nameLabel: "Name",
+    namePlaceholder: "Your full name",
+    phoneLabel: "Phone",
+    phonePlaceholder: "Ex: 14155552671",
+    consentCheckboxLabel: "I agree to receive an automated demo call.",
+    privacyNote: "We only contact you for this request. We do not share your data outside this process.",
+    trustBullets: ["Real demo at no cost", "Call in under 2 minutes", "No credit card required"],
+    submitHandoff: "Start call now",
+    connectingHandoff: "Connecting with IACloser...",
+    offerTag: "Live offer",
+    offerTitle: "Lock your closing call now",
+    offerDescription: "You are in the hottest moment. If you activate now, IACloser prioritizes your closing call.",
+    offerCta: "Start call",
+    continueChat: "Continue chat",
+    voiceUnsupported: "Your browser does not support voice capture. Use Chrome or Edge.",
+    prequalifyFirstError: "Let's finish pre-qualification first. Then we can trigger a call in under 2 minutes.",
+    connectionIssue: "We had a connection issue. Please try again.",
+    invalidLeadData: "Please complete name and valid phone number.",
+    consentRequired: "You must accept consent to trigger the call.",
+    handoffSuccess: "All set. We will call you in under 2 minutes.",
+    activationMessage: "Perfect. We are starting your demo call right now...",
+    openLeadChat: "We could not start the chat.",
+    liveActivityLabel: "Live activity",
+    exitIntentDetected: "Exit intent detected",
+    closeExitIntent: "Close exit popup",
+    continueBrowsing: "Continue browsing",
+    emojiAria: "Open emoji picker",
+    micAriaStart: "Start voice input",
+    micAriaStop: "Stop voice input",
+    listeningNow: "Listening... speak now and we convert audio to text.",
+    themeAriaDark: "Switch to dark mode",
+    themeAriaLight: "Switch to light mode",
+  },
+};
+
+const LEGACY_WELCOME_MESSAGES = [
+  "Hola. Soy tu asistente virtual, te ayudo a encontrar la mejor opcion para ti.",
+  "Hola! En que podemos ayudarte?",
+  "Hi! I am your virtual assistant. How can I help you today?",
+];
+
+const LEGACY_QUICK_REPLIES = [
+  ["Como funciona?", "Quiero mas informacion", "Ver precios"],
+  ["How does it work?", "I want more information", "See pricing"],
+  ["Agendar clientes", "Cerrar ventas por llamada", "Ver como funciona"],
+  ["Book more appointments", "Close deals by phone", "See how it works"],
+];
+
 declare global {
   interface Window {
     SpeechRecognition?: any;
@@ -74,13 +264,13 @@ function withBotEmoji(value: string) {
   return `✨ ${text}`;
 }
 
-function normalizeConsentAnswer(value: string) {
-  return value.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-}
-
-function hasExplicitConsentYes(value: string) {
-  const normalized = normalizeConsentAnswer(value);
-  return normalized === "si" || normalized === "yes";
+function normalizeText(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ");
 }
 
 function normalizeStringArray(value: unknown): string[] {
@@ -96,6 +286,47 @@ function normalizeStringArray(value: unknown): string[] {
       .filter(Boolean);
   }
   return [];
+}
+
+function resolveLocale(input: unknown): ChatLocale {
+  if (typeof input === "string") {
+    const normalized = input.trim().toLowerCase();
+    if (normalized === "en") return "en";
+    if (normalized === "es") return "es";
+  }
+
+  if (typeof navigator !== "undefined" && String(navigator.language || "").toLowerCase().startsWith("en")) {
+    return "en";
+  }
+  return "es";
+}
+
+function arraysLooselyMatch(a: string[], b: string[]) {
+  if (a.length !== b.length) return false;
+  return a.every((item, index) => normalizeText(item) === normalizeText(b[index] || ""));
+}
+
+function shouldUseSalesQuickReplies(candidate: string[]) {
+  if (candidate.length === 0) return true;
+  return LEGACY_QUICK_REPLIES.some((legacy) => arraysLooselyMatch(candidate, legacy));
+}
+
+function resolveWelcomeMessage(rawWelcome: unknown, locale: ChatLocale) {
+  const fallback = SALES_COPY[locale].initialMessage;
+  const candidate = typeof rawWelcome === "string" ? rawWelcome.trim() : "";
+  if (!candidate) return fallback;
+  if (LEGACY_WELCOME_MESSAGES.some((legacy) => normalizeText(legacy) === normalizeText(candidate))) {
+    return fallback;
+  }
+  return candidate;
+}
+
+function resolveQuickReplies(rawQuickReplies: unknown, locale: ChatLocale) {
+  const parsed = normalizeStringArray(rawQuickReplies).slice(0, 8);
+  if (shouldUseSalesQuickReplies(parsed)) {
+    return [...SALES_COPY[locale].quickReplies];
+  }
+  return parsed;
 }
 
 function normalizeTestimonials(value: unknown): Testimonial[] {
@@ -161,7 +392,7 @@ export default function LeadChat() {
   const [consentVisible, setConsentVisible] = useState(false);
   const [leadName, setLeadName] = useState("");
   const [leadPhone, setLeadPhone] = useState("");
-  const [leadConsentAnswer, setLeadConsentAnswer] = useState("");
+  const [leadConsentAccepted, setLeadConsentAccepted] = useState(false);
   const [handoffEligible, setHandoffEligible] = useState(false);
   const [collectedInfoSeed, setCollectedInfoSeed] = useState("");
   const [handoffMessage, setHandoffMessage] = useState("");
@@ -173,6 +404,7 @@ export default function LeadChat() {
   const [showExitIntent, setShowExitIntent] = useState(false);
   const [exitIntentShown, setExitIntentShown] = useState(false);
   const [themeMode, setThemeMode] = useState<"dark" | "light">("dark");
+  const [locale, setLocale] = useState<ChatLocale>("es");
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [speechListening, setSpeechListening] = useState(false);
   const [testimonialGlow, setTestimonialGlow] = useState({ x: 50, y: 50, active: false });
@@ -180,6 +412,7 @@ export default function LeadChat() {
   const consentPanelRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const recognitionRef = useRef<any>(null);
+  const copy = useMemo(() => SALES_COPY[locale], [locale]);
 
   const appendAssistantWithTypewriter = (text: string) =>
     new Promise<void>((resolve) => {
@@ -219,19 +452,20 @@ export default function LeadChat() {
         const response = await fetch(`/api/widget-config/${encodeURIComponent(identity)}`, { cache: "no-store" });
         const payload = await response.json();
         if (!response.ok || !payload?.config) {
-          throw new Error(payload?.error || "No se pudo cargar la configuracion");
+          throw new Error(payload?.error || "Could not load config");
         }
 
         const raw = payload.config as Record<string, unknown>;
+        const resolvedLocale = resolveLocale(raw.language);
+        const localeCopy = SALES_COPY[resolvedLocale];
         const normalized: PublicWidgetConfig = {
           widgetId: String(raw.widgetId || raw.widget_id || identity || ""),
-          businessName: String(raw.businessName || raw.business_name || "Asistente comercial"),
+          language: resolvedLocale,
+          businessName: String(raw.businessName || raw.business_name || localeCopy.defaultBusinessName),
           primaryColor: String(raw.primaryColor || raw.primary_color || "#00C185"),
-          welcomeMessage: String(
-            raw.welcomeMessage || raw.welcome_message || "Hola. Soy tu asistente virtual, te ayudo a encontrar la mejor opcion para ti.",
-          ),
-          chatPlaceholder: String(raw.chatPlaceholder || raw.chat_placeholder || "Escribe tu mensaje..."),
-          quickReplies: normalizeStringArray(raw.quickReplies ?? raw.quick_replies).slice(0, 8),
+          welcomeMessage: resolveWelcomeMessage(raw.welcomeMessage ?? raw.welcome_message, resolvedLocale),
+          chatPlaceholder: String(raw.chatPlaceholder || raw.chat_placeholder || localeCopy.chatPlaceholder),
+          quickReplies: resolveQuickReplies(raw.quickReplies ?? raw.quick_replies, resolvedLocale),
           teaserMessages: normalizeStringArray(raw.teaserMessages ?? raw.teaser_messages).slice(0, 12),
           testimonials: normalizeTestimonials(raw.testimonials).slice(0, 10),
           triggerDelay: Number(raw.triggerDelay || raw.trigger_delay || 5),
@@ -241,43 +475,45 @@ export default function LeadChat() {
               : typeof raw.trigger_exit_intent === "boolean"
                 ? raw.trigger_exit_intent
                 : true,
-          exitIntentTitle: String(raw.exitIntentTitle || raw.exit_intent_title || "Espera"),
+          exitIntentTitle: String(raw.exitIntentTitle || raw.exit_intent_title || "Wait"),
           exitIntentDescription: String(
-            raw.exitIntentDescription || raw.exit_intent_description || "Antes de salir, mira como este Lead Chat acelera el cierre.",
+            raw.exitIntentDescription || raw.exit_intent_description || localeCopy.offerDescription,
           ),
-          exitIntentCta: String(raw.exitIntentCta || raw.exit_intent_cta || "Volver al chat"),
+          exitIntentCta: String(raw.exitIntentCta || raw.exit_intent_cta || localeCopy.continueChat),
           consentText: String(
-            raw.consentText || raw.consent_text || "Acepto ser contactado por telefono o mensajes para continuar con mi solicitud.",
+            raw.consentText || raw.consent_text || localeCopy.consentCheckboxLabel,
           ),
           consentTextVersion: String(raw.consentTextVersion || raw.consent_text_version || "v1"),
           iacloserRedirectUrl: String(raw.iacloserRedirectUrl || raw.icloser_redirect_url || FIXED_IACLOSER_REDIRECT_URL),
-          leadChatHeadline: String(raw.leadChatHeadline || raw.lead_chat_headline || "Conversa, califica y activa tu llamada de cierre."),
+          leadChatHeadline: String(raw.leadChatHeadline || raw.lead_chat_headline || localeCopy.offerTitle),
           leadChatSubheadline: String(
             raw.leadChatSubheadline ||
               raw.lead_chat_subheadline ||
-              "Esta pagina esta enfocada en precalificar al lead y activar cierre rapido con IACloser.",
+              localeCopy.step2Description,
           ),
-          leadChatEyebrow: String(raw.leadChatEyebrow || raw.lead_chat_eyebrow || "Lead Chat publico"),
-          leadChatBadgeText: String(raw.leadChatBadgeText || raw.lead_chat_badge_text || "IACloser en menos de 60s"),
-          leadChatOfferTitle: String(raw.leadChatOfferTitle || raw.lead_chat_offer_title || "Bloquea tu llamada de cierre ahora"),
+          leadChatEyebrow: String(raw.leadChatEyebrow || raw.lead_chat_eyebrow || "Lead Chat"),
+          leadChatBadgeText: String(raw.leadChatBadgeText || raw.lead_chat_badge_text || localeCopy.readyBadge),
+          leadChatOfferTitle: String(raw.leadChatOfferTitle || raw.lead_chat_offer_title || localeCopy.offerTitle),
           leadChatOfferDescription: String(
             raw.leadChatOfferDescription ||
               raw.lead_chat_offer_description ||
-              "Estas en el momento mas caliente. Si aceptas el contacto ahora, IACloser toma tu contexto y prioriza el cierre.",
+              localeCopy.offerDescription,
           ),
-          leadChatCtaLabel: String(raw.leadChatCtaLabel || raw.lead_chat_cta_label || "Activar llamada"),
-          leadChatLiveToasts: normalizeStringArray(raw.leadChatLiveToasts ?? raw.lead_chat_live_toasts).slice(0, 12),
+          leadChatCtaLabel: String(raw.leadChatCtaLabel || raw.lead_chat_cta_label || localeCopy.offerCta),
+          leadChatLiveToasts: normalizeStringArray(raw.leadChatLiveToasts ?? raw.lead_chat_live_toasts)
+            .slice(0, 12),
         };
 
+        setLocale(resolvedLocale);
         setConfig(normalized);
         setMessages([
           {
             role: "assistant",
-            content: withBotEmoji(normalized.welcomeMessage || "Hola. Soy tu asistente virtual, te ayudo a encontrar la mejor opcion para ti."),
+            content: withBotEmoji(normalized.welcomeMessage || localeCopy.initialMessage),
           },
         ]);
       } catch (error: any) {
-        setChatError(error?.message || "No se pudo iniciar el chat.");
+        setChatError(error?.message || SALES_COPY.en.openLeadChat);
       } finally {
         setLoadingConfig(false);
       }
@@ -287,7 +523,7 @@ export default function LeadChat() {
       loadConfig();
     } else {
       setLoadingConfig(false);
-      setChatError("Falta identidad de Lead Chat.");
+      setChatError(SALES_COPY.en.missingIdentity);
     }
   }, [identity]);
 
@@ -309,7 +545,7 @@ export default function LeadChat() {
     if (!SpeechRecognitionCtor) return;
 
     const recognition = new SpeechRecognitionCtor();
-    recognition.lang = navigator.language || "en-US";
+    recognition.lang = locale === "es" ? "es-ES" : "en-US";
     recognition.interimResults = true;
     recognition.continuous = false;
     recognition.maxAlternatives = 1;
@@ -334,12 +570,15 @@ export default function LeadChat() {
       }
       recognitionRef.current = null;
     };
-  }, []);
+  }, [locale]);
 
-  const quickReplies = useMemo(
-    () => (Array.isArray(config?.quickReplies) ? config.quickReplies.filter(Boolean).slice(0, 8) : []),
-    [config?.quickReplies],
-  );
+  const quickReplies = useMemo(() => {
+    const parsed = Array.isArray(config?.quickReplies) ? config.quickReplies.filter(Boolean).slice(0, 8) : [];
+    if (shouldUseSalesQuickReplies(parsed)) {
+      return [...copy.quickReplies];
+    }
+    return parsed;
+  }, [config?.quickReplies, copy.quickReplies]);
 
   const testimonials = useMemo(
     () => (Array.isArray(config?.testimonials) ? config.testimonials.slice(0, 10) : []),
@@ -382,18 +621,14 @@ export default function LeadChat() {
   }, [testimonials.length]);
 
   useEffect(() => {
-    const fallbackMessages = [
-      "Nuevo lead activo hace 2 min",
-      "Un asesor IA acaba de cerrar una llamada",
-      "Conversiones en vivo: este chat esta funcionando",
-    ];
+    const fallbackMessages = copy.liveToasts;
     const customToasts = Array.isArray(config?.leadChatLiveToasts)
       ? config.leadChatLiveToasts.filter(Boolean).slice(0, 12)
       : [];
     const source = customToasts.length > 0
       ? customToasts
       : testimonials.length > 0
-      ? testimonials.map((item) => `${item.name || "Cliente"}: ${item.text || "Excelente experiencia"}`)
+      ? testimonials.map((item) => `${item.name || copy.defaultBusinessName}: ${item.text || copy.offerDescription}`)
       : fallbackMessages;
 
     let index = 0;
@@ -403,7 +638,7 @@ export default function LeadChat() {
       setSocialProofToast(source[index] || "");
     }, 7600);
     return () => window.clearInterval(interval);
-  }, [config?.leadChatLiveToasts, testimonials]);
+  }, [config?.leadChatLiveToasts, testimonials, copy.liveToasts, copy.defaultBusinessName, copy.offerDescription]);
 
   useEffect(() => {
     const source = Array.isArray(config?.teaserMessages) ? config.teaserMessages.filter(Boolean) : [];
@@ -469,7 +704,7 @@ export default function LeadChat() {
 
   const toggleSpeechInput = () => {
     if (!recognitionRef.current) {
-      setChatError("Tu navegador no soporta captura de voz. Usa Chrome o Edge actualizado.");
+      setChatError(copy.voiceUnsupported);
       return;
     }
     setChatError("");
@@ -494,11 +729,12 @@ export default function LeadChat() {
 
   const openConsentStep = () => {
     if (!handoffEligible) {
-      setChatError("Primero terminemos la precalificacion. Al final te pediremos confirmar el consentimiento.");
+      setChatError(copy.prequalifyFirstError);
       return;
     }
 
     setChatError("");
+    setLeadConsentAccepted(false);
     setOfferDismissed(true);
     setShowExitIntent(false);
     setConsentVisible(true);
@@ -541,12 +777,12 @@ export default function LeadChat() {
       });
       const payload = await response.json();
       if (!response.ok && !payload?.response) {
-        throw new Error(payload?.error || "No se pudo procesar el mensaje.");
+        throw new Error(payload?.error || "Could not process message.");
       }
 
       const aiText = String(payload?.response || "").trim();
       const parsed = parseIACCloserSeed(aiText);
-      const cleanResponse = parsed.cleanText || "Perfecto, continuemos.";
+      const cleanResponse = parsed.cleanText || copy.step3Description;
 
       await appendAssistantWithTypewriter(cleanResponse);
 
@@ -555,6 +791,7 @@ export default function LeadChat() {
         if (parsed.seed?.phone && !leadPhone) setLeadPhone(sanitizePhone(parsed.seed.phone));
         if (parsed.seed?.collected_info) setCollectedInfoSeed(parsed.seed.collected_info);
         setHandoffEligible(true);
+        setLeadConsentAccepted(false);
         setOfferDismissed(true);
         setShowExitIntent(false);
         setConsentVisible(true);
@@ -564,10 +801,10 @@ export default function LeadChat() {
         ...prev,
         {
           role: "assistant",
-          content: withBotEmoji("Tuvimos un problema de conexion. Puedes intentarlo nuevamente."),
+          content: withBotEmoji(copy.connectionIssue),
         },
       ]);
-      setChatError(error?.message || "Error en el chat.");
+      setChatError(error?.message || copy.connectionIssue);
     } finally {
       setSending(false);
     }
@@ -580,11 +817,11 @@ export default function LeadChat() {
     const cleanName = leadName.trim();
     const cleanPhone = sanitizePhone(leadPhone);
     if (!cleanName || cleanPhone.length < 8) {
-      setChatError("Completa nombre y telefono valido para continuar.");
+      setChatError(copy.invalidLeadData);
       return;
     }
-    if (!hasExplicitConsentYes(leadConsentAnswer)) {
-      setChatError("Para continuar debes escribir SI de forma expresa.");
+    if (!leadConsentAccepted) {
+      setChatError(copy.consentRequired);
       return;
     }
 
@@ -604,7 +841,7 @@ export default function LeadChat() {
           history: conversationHistory,
           consent: {
             accepted: true,
-            explicitResponse: leadConsentAnswer.trim(),
+            explicitResponse: locale === "en" ? "YES" : "SI",
             textVersion: config.consentTextVersion || "v1",
             text: config.consentText || "",
           },
@@ -612,26 +849,28 @@ export default function LeadChat() {
       });
       const payload = await response.json();
       if (!response.ok || payload?.success !== true) {
-        throw new Error(payload?.error || "No se pudo enviar el handoff a IACloser.");
+        throw new Error(payload?.error || "Could not send handoff to IACloser.");
       }
 
       const redirectUrl = String(payload?.redirectUrl || config.iacloserRedirectUrl || "").trim();
-      setHandoffMessage("Todo listo. IACloser te contactara en menos de 60 segundos.");
+      setHandoffMessage(copy.handoffSuccess);
       setMessages((prev) => [
         ...prev,
         {
-          role: "system",
-          content: "Consentimiento confirmado. Te estamos conectando con IACloser.",
+          role: "assistant",
+          content: withBotEmoji(copy.activationMessage),
         },
       ]);
+      setConsentVisible(false);
+      setLeadConsentAccepted(false);
 
       if (redirectUrl) {
         setTimeout(() => {
           window.location.href = redirectUrl;
-        }, 900);
+        }, 1800);
       }
     } catch (error: any) {
-      setChatError(error?.message || "No se pudo completar el handoff.");
+      setChatError(error?.message || "Could not complete handoff.");
     } finally {
       setHandoffLoading(false);
     }
@@ -642,7 +881,7 @@ export default function LeadChat() {
       <main className="min-h-screen grid place-items-center bg-slate-950 text-slate-100">
         <div className="flex items-center gap-3 text-sm">
           <Loader2 className="w-4 h-4 animate-spin" />
-          Cargando Lead Chat...
+          {copy.loading}
         </div>
       </main>
     );
@@ -652,8 +891,8 @@ export default function LeadChat() {
     return (
       <main className="min-h-screen grid place-items-center bg-slate-950 text-slate-100 px-4 text-center">
         <div className="space-y-2">
-          <p className="font-semibold">No pudimos abrir este Lead Chat.</p>
-          <p className="text-sm text-slate-300">{chatError || "Configuracion no encontrada."}</p>
+          <p className="font-semibold">{copy.chatLoadError}</p>
+          <p className="text-sm text-slate-300">{chatError || copy.openLeadChat}</p>
         </div>
       </main>
     );
@@ -676,17 +915,26 @@ export default function LeadChat() {
               <div className={`flex flex-wrap items-center justify-between gap-3 border-b px-4 py-4 sm:px-7 sm:py-5 ${isLightMode ? "border-slate-200" : "border-white/10"}`}>
                 <div className="min-w-0">
                   <p className={`text-[10px] uppercase tracking-[0.35em] ${isLightMode ? "text-sky-700/85" : "text-sky-200/90"}`}>
-                    {config.leadChatEyebrow || "Lead Chat publico"}
+                    {config.leadChatEyebrow || "Lead Chat"}
                   </p>
-                  <h1 className={`text-2xl font-semibold tracking-tight leading-tight sm:text-[2.15rem] ${isLightMode ? "text-slate-900" : "text-slate-100"}`}>{config.businessName || "Asistente comercial"}</h1>
+                  <h1 className={`text-2xl font-semibold tracking-tight leading-tight sm:text-[2.15rem] ${isLightMode ? "text-slate-900" : "text-slate-100"}`}>{config.businessName || copy.defaultBusinessName}</h1>
                   <p className={`mt-1 text-sm sm:text-base ${isLightMode ? "text-slate-700" : "text-slate-200/95"}`}>
-                    {config.leadChatHeadline || "Conversa, califica y activa tu llamada de cierre."}
+                    {config.leadChatHeadline || copy.offerTitle}
                   </p>
                   <p className={`mt-1 text-xs sm:text-sm ${isLightMode ? "text-slate-500" : "text-slate-300/80"}`}>
-                    {config.leadChatSubheadline || "Esta pagina esta enfocada en precalificar al lead y activar cierre rapido con IACloser."}
+                    {config.leadChatSubheadline || copy.step2Description}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col items-end gap-2">
+                  <div
+                    className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] ${
+                      isLightMode ? "border-rose-200 bg-rose-50 text-rose-700" : "border-rose-400/40 bg-rose-500/10 text-rose-100"
+                    }`}
+                  >
+                    <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" aria-hidden="true" />
+                    {copy.presenceNow}
+                  </div>
+                  <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => setThemeMode((prev) => (prev === "dark" ? "light" : "dark"))}
@@ -695,7 +943,7 @@ export default function LeadChat() {
                         ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
                         : "border-white/15 bg-white/5 text-slate-200 hover:bg-white/10"
                     }`}
-                    aria-label={isLightMode ? "Cambiar a modo oscuro" : "Cambiar a modo claro"}
+                    aria-label={isLightMode ? copy.themeAriaDark : copy.themeAriaLight}
                   >
                     {isLightMode ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
                   </button>
@@ -704,14 +952,19 @@ export default function LeadChat() {
                     onClick={openConsentStep}
                     disabled={!handoffEligible}
                     className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                      handoffEligible
+                      handoffEligible || handoffLoading || Boolean(handoffMessage)
                         ? "border-emerald-300/45 bg-emerald-400/12 text-emerald-100 hover:bg-emerald-400/20 hover:shadow-[0_0_0_1px_rgba(52,211,153,0.35)]"
                         : (isLightMode ? "cursor-not-allowed border-slate-300 bg-slate-100 text-slate-500" : "cursor-not-allowed border-white/15 bg-white/5 text-slate-400")
                     }`}
                   >
                     <PhoneCall className="h-3.5 w-3.5" />
-                    {handoffEligible ? (config.leadChatBadgeText || "IACloser en menos de 60s") : "Precalificando..."}
+                    {handoffLoading || handoffMessage
+                      ? copy.callingBadge
+                      : handoffEligible
+                        ? (config.leadChatBadgeText || copy.readyBadge)
+                        : copy.prequalifyingBadge}
                   </button>
+                </div>
                 </div>
               </div>
 
@@ -750,13 +1003,13 @@ export default function LeadChat() {
                       </div>
                       <div className="min-w-0">
                         <p className={`truncate text-[11px] font-medium ${isLightMode ? "text-slate-700" : "text-sky-100"}`}>
-                          {activeTestimonial.name || "Cliente"}
+                          {activeTestimonial.name || copy.defaultBusinessName}
                           <span className="ml-2 text-[10px] text-amber-300/90">
                             {"*".repeat(Math.max(1, Math.min(5, Number(activeTestimonial.stars || 5))))}
                           </span>
                         </p>
                         <p className={`truncate text-[11px] ${isLightMode ? "text-slate-500" : "text-slate-200/90"}`}>
-                          "{activeTestimonial.text || "Excelente experiencia."}"
+                          "{activeTestimonial.text || copy.offerDescription}"
                         </p>
                       </div>
                     </div>
@@ -800,7 +1053,7 @@ export default function LeadChat() {
                   <div className="flex justify-start">
                     <div className={`inline-flex items-center gap-2 rounded-2xl rounded-bl-md border px-3 py-2 text-xs ${isLightMode ? "border-slate-200 bg-white text-slate-500" : "border-white/10 bg-white/[0.04] text-slate-300 backdrop-blur"}`}>
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      Escribiendo...
+                      {copy.typing}
                     </div>
                   </div>
                 )}
@@ -808,19 +1061,19 @@ export default function LeadChat() {
                 {shouldShowInlineOffer && (
                   <div className="pt-2">
                     <div className="mx-auto w-full max-w-2xl rounded-2xl border border-amber-300/40 bg-slate-950/90 p-4 sm:p-5 animate-in fade-in zoom-in-95 duration-300">
-                      <p className="text-[11px] uppercase tracking-[0.25em] text-amber-200">Oferta activa</p>
+                      <p className="text-[11px] uppercase tracking-[0.25em] text-amber-200">{copy.offerTag}</p>
                       <h3 className="mt-2 text-lg font-semibold sm:text-xl">
-                        {config.leadChatOfferTitle || "Bloquea tu llamada de cierre ahora"}
+                        {config.leadChatOfferTitle || copy.offerTitle}
                       </h3>
                       <p className="mt-2 text-sm text-slate-300">
-                        {config.leadChatOfferDescription || "Estas en el momento mas caliente. Si aceptas el contacto ahora, IACloser toma tu contexto y prioriza el cierre."}
+                        {config.leadChatOfferDescription || copy.offerDescription}
                       </p>
                       <div className="mt-4 flex flex-wrap gap-2">
                         <Button type="button" onClick={openConsentStep}>
-                          {config.leadChatCtaLabel || "Activar llamada"}
+                          {config.leadChatCtaLabel || copy.offerCta}
                         </Button>
                         <Button type="button" variant="outline" onClick={() => setOfferDismissed(true)}>
-                          Continuar chat
+                          {copy.continueChat}
                         </Button>
                       </div>
                     </div>
@@ -832,53 +1085,67 @@ export default function LeadChat() {
                     <div className="mx-auto w-full max-w-2xl rounded-2xl border border-slate-700/80 bg-slate-950/90 p-4 sm:p-5 animate-in fade-in zoom-in-95 duration-300">
                       <h3 className="flex items-center gap-2 text-base font-semibold sm:text-lg">
                         <ShieldCheck className="h-4 w-4 text-emerald-400" />
-                        Consentimiento expreso
+                        {copy.step2Title}
                       </h3>
-                      <p className="mt-2 text-xs text-slate-300 sm:text-sm">
-                        Ya terminamos la precalificacion. Para activar tu llamada, confirma de forma expresa que SI aceptas el contacto.
-                      </p>
+                      <div className="mt-2 rounded-xl border border-white/10 bg-white/5 p-3 text-xs sm:text-sm">
+                        <p className="font-medium text-emerald-200">{copy.step1Title}</p>
+                        <p className="mt-1 text-slate-200/90">{copy.step1Description}</p>
+                        <p className="mt-3 font-medium text-emerald-200">{copy.step2Title}</p>
+                        <p className="mt-1 text-slate-200/90">{copy.step2Description}</p>
+                        <p className="mt-3 font-medium text-emerald-200">{copy.step3Title}</p>
+                        <p className="mt-1 text-slate-200/90">{copy.step3Description}</p>
+                      </div>
                       <form onSubmit={submitHandoff} className="mt-3 space-y-3">
                         <div className="space-y-1.5">
-                          <Label htmlFor="lead-name">Nombre</Label>
+                          <Label htmlFor="lead-name">{copy.nameLabel}</Label>
                           <Input
                             id="lead-name"
                             value={leadName}
                             onChange={(event) => setLeadName(event.target.value)}
-                            placeholder="Tu nombre completo"
+                            placeholder={copy.namePlaceholder}
                             className="border-slate-700 bg-slate-900"
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <Label htmlFor="lead-phone">Telefono</Label>
+                          <Label htmlFor="lead-phone">{copy.phoneLabel}</Label>
                           <Input
                             id="lead-phone"
                             value={leadPhone}
                             onChange={(event) => setLeadPhone(sanitizePhone(event.target.value))}
                             inputMode="tel"
-                            placeholder="Ej: 14155552671"
+                            placeholder={copy.phonePlaceholder}
                             className="border-slate-700 bg-slate-900"
                           />
                         </div>
-                        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2.5 text-xs text-emerald-100">
-                          {config.consentText || "Acepto ser contactado por telefono o mensajes para continuar con mi solicitud."}
+                        <div className="space-y-1 rounded-lg border border-sky-400/30 bg-sky-500/10 p-2.5 text-xs text-sky-100">
+                          {copy.trustBullets.map((item) => (
+                            <p key={item} className="flex items-center gap-2">
+                              <span aria-hidden="true">•</span>
+                              <span>{item}</span>
+                            </p>
+                          ))}
                         </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="lead-consent-answer">Escribe SI para autorizar contacto</Label>
-                          <Input
-                            id="lead-consent-answer"
-                            value={leadConsentAnswer}
-                            onChange={(event) => setLeadConsentAnswer(event.target.value)}
-                            placeholder='Escribe "SI"'
-                            className="border-slate-700 bg-slate-900 uppercase"
-                            autoComplete="off"
-                          />
+                        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2.5 text-xs text-emerald-100">
+                          {config.consentText || copy.consentCheckboxLabel}
+                        </div>
+                        <div className="space-y-2">
+                          <label htmlFor="lead-consent-checkbox" className="flex cursor-pointer items-start gap-2 rounded-lg border border-white/10 bg-white/5 p-2 text-xs text-slate-200">
+                            <input
+                              id="lead-consent-checkbox"
+                              type="checkbox"
+                              checked={leadConsentAccepted}
+                              onChange={(event) => setLeadConsentAccepted(event.target.checked)}
+                              className="mt-0.5 h-4 w-4 accent-emerald-500"
+                            />
+                            <span>{copy.consentCheckboxLabel}</span>
+                          </label>
                           <p className="text-[11px] text-slate-400">
-                            Solo te contactaremos para esta solicitud. No compartimos tu informacion con terceros ajenos a este proceso.
+                            {copy.privacyNote}
                           </p>
                         </div>
-                        <Button type="submit" disabled={handoffLoading || !hasExplicitConsentYes(leadConsentAnswer)} className="w-full gap-2">
+                        <Button type="submit" disabled={handoffLoading || !leadConsentAccepted} className="w-full gap-2">
                           {handoffLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <PhoneCall className="h-4 w-4" />}
-                          Enviar a IACloser
+                          {handoffLoading ? copy.connectingHandoff : copy.submitHandoff}
                         </Button>
                       </form>
                       {(chatError || handoffMessage) && (
@@ -944,7 +1211,7 @@ export default function LeadChat() {
                       variant="outline"
                       onClick={() => setEmojiPickerOpen((prev) => !prev)}
                       className={`h-10 w-10 p-0 ${isLightMode ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100" : "border-white/20 bg-white/[0.04] text-slate-200 hover:bg-white/[0.08]"}`}
-                      aria-label="Abrir selector de emojis"
+                      aria-label={copy.emojiAria}
                     >
                       <Smile className="h-4 w-4" />
                     </Button>
@@ -970,7 +1237,7 @@ export default function LeadChat() {
                     variant="outline"
                     onClick={toggleSpeechInput}
                     className={`h-10 w-10 p-0 ${isLightMode ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100" : "border-white/20 bg-white/[0.04] text-slate-200 hover:bg-white/[0.08]"}`}
-                    aria-label={speechListening ? "Detener grabacion de voz" : "Grabar voz"}
+                    aria-label={speechListening ? copy.micAriaStop : copy.micAriaStart}
                   >
                     {speechListening ? <MicOff className="h-4 w-4 text-rose-400" /> : <Mic className="h-4 w-4" />}
                   </Button>
@@ -978,7 +1245,7 @@ export default function LeadChat() {
                     ref={inputRef}
                     value={input}
                     onChange={(event) => setInput(event.target.value)}
-                    placeholder={config.chatPlaceholder || "Escribe tu mensaje..."}
+                    placeholder={config.chatPlaceholder || copy.chatPlaceholder}
                     className={`border text-sm focus-visible:ring-2 ${
                       isLightMode
                         ? "border-slate-300 bg-white text-slate-900 focus-visible:ring-sky-400/70"
@@ -990,9 +1257,17 @@ export default function LeadChat() {
                     <Send className="h-4 w-4" />
                   </Button>
                 </form>
+                <div className={`grid gap-1 text-[11px] ${isLightMode ? "text-slate-500" : "text-slate-300/80"}`}>
+                  {copy.trustBullets.map((item) => (
+                    <p key={`trust-footer-${item}`} className="flex items-center gap-2">
+                      <span aria-hidden="true">-</span>
+                      <span>{item}</span>
+                    </p>
+                  ))}
+                </div>
                 {speechListening ? (
                   <p className={`text-[11px] ${isLightMode ? "text-rose-600" : "text-rose-300"}`}>
-                    🎙️ Escuchando... habla ahora y te convertimos el audio en texto.
+                    {copy.listeningNow}
                   </p>
                 ) : null}
               </div>
@@ -1008,7 +1283,7 @@ export default function LeadChat() {
               ? "border-sky-200 bg-white/95 text-sky-700"
               : "border-cyan-400/30 bg-slate-950/95 text-cyan-100"
           }`}>
-            <p className={`font-semibold ${isLightMode ? "text-sky-700" : "text-cyan-200"}`}>✨ Actividad en vivo</p>
+            <p className={`font-semibold ${isLightMode ? "text-sky-700" : "text-cyan-200"}`}>{copy.liveActivityLabel}</p>
             <p className="mt-1 line-clamp-2">{socialProofToast}</p>
           </div>
         </div>
@@ -1025,14 +1300,14 @@ export default function LeadChat() {
                   ? "border-slate-300 bg-white text-slate-500 hover:text-slate-800"
                   : "border-slate-700 bg-slate-900 text-slate-300 hover:text-slate-100"
               }`}
-              aria-label="Cerrar pop de salida"
+              aria-label={copy.closeExitIntent}
             >
               <X className="h-4 w-4" />
             </button>
-            <p className={`text-[11px] uppercase tracking-[0.25em] ${isLightMode ? "text-sky-600" : "text-cyan-200"}`}>Intencion de salida detectada</p>
-            <h3 className={`mt-2 text-xl font-semibold ${isLightMode ? "text-slate-800" : "text-slate-100"}`}>{config.exitIntentTitle || "Espera"}</h3>
+            <p className={`text-[11px] uppercase tracking-[0.25em] ${isLightMode ? "text-sky-600" : "text-cyan-200"}`}>{copy.exitIntentDetected}</p>
+            <h3 className={`mt-2 text-xl font-semibold ${isLightMode ? "text-slate-800" : "text-slate-100"}`}>{config.exitIntentTitle || copy.exitIntentDetected}</h3>
             <p className={`mt-2 text-sm ${isLightMode ? "text-slate-600" : "text-slate-300"}`}>
-              {config.exitIntentDescription || "Antes de salir, mira como este Lead Chat acelera el cierre."}
+              {config.exitIntentDescription || copy.offerDescription}
             </p>
             <div className="mt-4 grid gap-2 sm:grid-cols-2">
               <Button
@@ -1042,10 +1317,10 @@ export default function LeadChat() {
                   inputRef.current?.focus();
                 }}
               >
-                {config.exitIntentCta || "Volver al chat"}
+                {config.exitIntentCta || copy.continueChat}
               </Button>
               <Button type="button" variant="outline" onClick={() => setShowExitIntent(false)}>
-                Continuar navegando
+                {copy.continueBrowsing}
               </Button>
             </div>
           </div>
