@@ -1649,13 +1649,13 @@ export default function Dashboard() {
           </TabsList>
 
           {/* Widget Config Tab */}
-          <TabsContent value="config" className="space-y-6 overflow-hidden">
-            <div className="sticky top-[7.25rem] sm:top-20 z-40 rounded-xl border border-border/70 bg-background/95 p-2 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-background/80">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <p className="px-2 text-[11px] font-medium text-muted-foreground">
+          <TabsContent value="config" className="mt-0 space-y-4 overflow-visible">
+            <div className="sticky top-[8.75rem] sm:top-[4.85rem] z-40 rounded-xl border border-border/70 bg-background/95 p-1.5 sm:p-2 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-background/80">
+              <div className="flex items-center justify-between gap-2">
+                <p className="hidden lg:block px-2 text-[11px] font-medium text-muted-foreground">
                   Guarda tus cambios para aplicarlos al instante.
                 </p>
-                <Button onClick={saveWidgetConfig} disabled={saving} className="w-full sm:w-auto sm:min-w-[190px]">
+                <Button onClick={saveWidgetConfig} disabled={saving} className="h-10 w-full sm:w-auto sm:min-w-[190px]">
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : t('dashboard.widget_config.save_btn')}
                 </Button>
               </div>

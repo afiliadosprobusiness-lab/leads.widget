@@ -1564,7 +1564,7 @@ export default function LeadChat() {
                     {statusActionRow}
                   </div>
                   {showLiveActivityStrip ? (
-                    <div className={`w-full max-w-[320px] rounded-xl border px-3 py-2 text-xs lg:w-auto ${
+                    <div className={`hidden max-w-[320px] rounded-xl border px-3 py-2 text-xs lg:block lg:w-auto ${
                       isLightMode
                         ? "border-sky-200 bg-white/95 text-slate-700"
                         : "border-cyan-400/30 bg-slate-950/85 text-slate-100"
