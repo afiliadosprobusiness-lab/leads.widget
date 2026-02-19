@@ -114,6 +114,7 @@ interface WidgetConfig {
   lead_chat_subheadline?: string;
   lead_chat_eyebrow?: string;
   lead_chat_badge_text?: string;
+  lead_chat_page_title?: string;
   lead_chat_offer_title?: string;
   lead_chat_offer_description?: string;
   lead_chat_cta_label?: string;
@@ -555,6 +556,7 @@ export default function Dashboard() {
     lead_chat_subheadline: initialLeadChatDefaults.leadChatSubheadline,
     lead_chat_eyebrow: initialLeadChatDefaults.leadChatEyebrow,
     lead_chat_badge_text: initialLeadChatDefaults.leadChatBadgeText,
+    lead_chat_page_title: 'Lead Widget',
     lead_chat_offer_title: initialLeadChatDefaults.leadChatOfferTitle,
     lead_chat_offer_description: initialLeadChatDefaults.leadChatOfferDescription,
     lead_chat_cta_label: initialLeadChatDefaults.leadChatCtaLabel,
@@ -682,6 +684,7 @@ export default function Dashboard() {
           lead_chat_subheadline: newUserLeadChatDefaults.leadChatSubheadline,
           lead_chat_eyebrow: newUserLeadChatDefaults.leadChatEyebrow,
           lead_chat_badge_text: newUserLeadChatDefaults.leadChatBadgeText,
+          lead_chat_page_title: 'Lead Widget',
           lead_chat_offer_title: newUserLeadChatDefaults.leadChatOfferTitle,
           lead_chat_offer_description: newUserLeadChatDefaults.leadChatOfferDescription,
           lead_chat_cta_label: newUserLeadChatDefaults.leadChatCtaLabel,
@@ -744,6 +747,7 @@ export default function Dashboard() {
           lead_chat_subheadline: configData.lead_chat_subheadline || configLeadChatDefaults.leadChatSubheadline,
           lead_chat_eyebrow: configData.lead_chat_eyebrow || configLeadChatDefaults.leadChatEyebrow,
           lead_chat_badge_text: configData.lead_chat_badge_text || configLeadChatDefaults.leadChatBadgeText,
+          lead_chat_page_title: configData.lead_chat_page_title || 'Lead Widget',
           lead_chat_offer_title: configData.lead_chat_offer_title || configLeadChatDefaults.leadChatOfferTitle,
           lead_chat_offer_description: configData.lead_chat_offer_description || configLeadChatDefaults.leadChatOfferDescription,
           lead_chat_cta_label: configData.lead_chat_cta_label || configLeadChatDefaults.leadChatCtaLabel,
@@ -967,6 +971,7 @@ export default function Dashboard() {
         lead_chat_subheadline: (formConfig.lead_chat_subheadline || '').trim(),
         lead_chat_eyebrow: (formConfig.lead_chat_eyebrow || '').trim(),
         lead_chat_badge_text: (formConfig.lead_chat_badge_text || '').trim(),
+        lead_chat_page_title: (formConfig.lead_chat_page_title || '').trim(),
         lead_chat_offer_title: (formConfig.lead_chat_offer_title || '').trim(),
         lead_chat_offer_description: (formConfig.lead_chat_offer_description || '').trim(),
         lead_chat_cta_label: (formConfig.lead_chat_cta_label || '').trim(),
@@ -1936,6 +1941,14 @@ export default function Dashboard() {
                           value={formConfig.lead_chat_badge_text}
                           onChange={(e) => setFormConfig({ ...formConfig, lead_chat_badge_text: e.target.value })}
                           placeholder="IACloser en menos de 60s"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Titulo de la pagina (pestana del navegador)</Label>
+                        <Input
+                          value={formConfig.lead_chat_page_title}
+                          onChange={(e) => setFormConfig({ ...formConfig, lead_chat_page_title: e.target.value })}
+                          placeholder="Lead Widget"
                         />
                       </div>
                     </div>

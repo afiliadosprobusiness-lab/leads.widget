@@ -43,6 +43,7 @@ type PublicWidgetConfig = {
   leadChatSubheadline?: string;
   leadChatEyebrow?: string;
   leadChatBadgeText?: string;
+  leadChatPageTitle?: string;
   leadChatOfferTitle?: string;
   leadChatOfferDescription?: string;
   leadChatCtaLabel?: string;
@@ -399,6 +400,71 @@ function parseFirestoreStringListField(field: any) {
 
   if (typeof field.stringValue === "string") return normalizeStringArray(field.stringValue);
   return [];
+}
+
+function parseFirestoreStringField(field: any) {
+  if (!field) return "";
+  if (typeof field === "string") return field.trim();
+  if (typeof field.stringValue === "string") return field.stringValue.trim();
+  return "";
+}
+
+type LeadChatHeaderFields = {
+  lead_chat_headline?: string;
+  lead_chat_subheadline?: string;
+  lead_chat_eyebrow?: string;
+  lead_chat_badge_text?: string;
+  lead_chat_page_title?: string;
+};
+
+async function fetchLeadChatHeaderFieldsFromFirestore(identity: string): Promise<LeadChatHeaderFields> {
+  if (!identity) return {};
+
+  const url = `https://firestore.googleapis.com/v1/projects/${PUBLIC_FIRESTORE_PROJECT_ID}/databases/(default)/documents:runQuery?key=${PUBLIC_FIRESTORE_API_KEY}`;
+  const candidates = [
+    { fieldPath: "lead_chat_slug", value: identity },
+    { fieldPath: "widget_id", value: identity },
+    { fieldPath: "user_id", value: identity },
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          structuredQuery: {
+            from: [{ collectionId: "widget_configs" }],
+            where: {
+              fieldFilter: {
+                field: { fieldPath: candidate.fieldPath },
+                op: "EQUAL",
+                value: { stringValue: candidate.value },
+              },
+            },
+            limit: 1,
+          },
+        }),
+      });
+
+      if (!response.ok) continue;
+      const data = (await response.json()) as FirestoreQueryResult;
+      const fields = data?.[0]?.document?.fields;
+      if (!fields) continue;
+
+      return {
+        lead_chat_headline: parseFirestoreStringField(fields.lead_chat_headline),
+        lead_chat_subheadline: parseFirestoreStringField(fields.lead_chat_subheadline),
+        lead_chat_eyebrow: parseFirestoreStringField(fields.lead_chat_eyebrow),
+        lead_chat_badge_text: parseFirestoreStringField(fields.lead_chat_badge_text),
+        lead_chat_page_title: parseFirestoreStringField(fields.lead_chat_page_title),
+      };
+    } catch {
+      // noop
+    }
+  }
+
+  return {};
 }
 
 async function fetchLeadChatLiveToastsFromFirestore(identity: string) {
@@ -850,6 +916,7 @@ export default function LeadChat() {
         if (resolvedLiveToasts.length === 0) {
           resolvedLiveToasts = await fetchLeadChatLiveToastsFromFirestore(identity);
         }
+        const headerFields = await fetchLeadChatHeaderFieldsFromFirestore(identity);
         const normalized: PublicWidgetConfig = {
           widgetId: String(raw.widgetId || raw.widget_id || identity || ""),
           language: resolvedLocale,
@@ -877,14 +944,36 @@ export default function LeadChat() {
           ),
           consentTextVersion: String(raw.consentTextVersion || raw.consent_text_version || "v1"),
           iacloserRedirectUrl: String(raw.iacloserRedirectUrl || raw.icloser_redirect_url || FIXED_IACLOSER_REDIRECT_URL),
-          leadChatHeadline: String(raw.leadChatHeadline || raw.lead_chat_headline || localeCopy.offerTitle),
+          leadChatHeadline: String(
+            headerFields.lead_chat_headline ||
+              raw.leadChatHeadline ||
+              raw.lead_chat_headline ||
+              localeCopy.offerTitle,
+          ),
           leadChatSubheadline: String(
-            raw.leadChatSubheadline ||
+            headerFields.lead_chat_subheadline ||
+              raw.leadChatSubheadline ||
               raw.lead_chat_subheadline ||
               localeCopy.step2Description,
           ),
-          leadChatEyebrow: String(raw.leadChatEyebrow || raw.lead_chat_eyebrow || "Lead Chat"),
-          leadChatBadgeText: String(raw.leadChatBadgeText || raw.lead_chat_badge_text || localeCopy.readyBadge),
+          leadChatEyebrow: String(
+            headerFields.lead_chat_eyebrow ||
+              raw.leadChatEyebrow ||
+              raw.lead_chat_eyebrow ||
+              "Lead Chat",
+          ),
+          leadChatBadgeText: String(
+            headerFields.lead_chat_badge_text ||
+              raw.leadChatBadgeText ||
+              raw.lead_chat_badge_text ||
+              localeCopy.readyBadge,
+          ),
+          leadChatPageTitle: String(
+            headerFields.lead_chat_page_title ||
+              raw.leadChatPageTitle ||
+              raw.lead_chat_page_title ||
+              "",
+          ),
           leadChatOfferTitle: String(raw.leadChatOfferTitle || raw.lead_chat_offer_title || localeCopy.offerTitle),
           leadChatOfferDescription: String(
             raw.leadChatOfferDescription ||
@@ -929,6 +1018,12 @@ export default function LeadChat() {
     const prefersLight = window.matchMedia("(prefers-color-scheme: light)").matches;
     setThemeMode(prefersLight ? "light" : "dark");
   }, []);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const tabTitle = String(config?.leadChatPageTitle || config?.businessName || "").trim();
+    document.title = tabTitle || "Lead Chat";
+  }, [config?.leadChatPageTitle, config?.businessName]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1508,6 +1603,13 @@ export default function LeadChat() {
                   <p className={`mt-1 text-xs sm:text-sm ${isLightMode ? "text-slate-500" : "text-slate-300/80"}`}>
                     {config.leadChatSubheadline || copy.step2Description}
                   </p>
+                  <div className="mt-2">
+                    <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-medium ${
+                      isLightMode ? "border-sky-200 bg-sky-50 text-sky-700" : "border-cyan-400/35 bg-cyan-400/10 text-cyan-100"
+                    }`}>
+                      {config.leadChatBadgeText || copy.readyBadge}
+                    </span>
+                  </div>
                 </div>
                 <div className="absolute right-4 top-4 inline-flex items-center justify-end gap-1.5 sm:static sm:ml-auto sm:gap-2">
                   <div

@@ -116,6 +116,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - En Dashboard > Configuracion del widget, la barra sticky de guardado usa layout compacto (sin huecos visuales), con offset responsive para que se vea correctamente en mobile y desktop sin perder area util.
 - En mobile del widget embebido, el teaser de recaptura es mas compacto/suave, aparece a la izquierda del launcher flotante y al cerrarlo con `X` no vuelve a mostrarse hasta recargar la pagina.
 - En dashboard, los defaults de Lead Chat quedan alineados al guion de conversion en 3 pasos y el selector de idioma (`es/en`) puede aplicar automaticamente copy EN/ES mientras no se haya personalizado manualmente.
+- En Dashboard > Configuracion del widget > Lead Chat, los textos de encabezado (`eyebrow`, titulo, subtitulo, badge) se editan y reflejan directamente en la cabecera del Lead Chat; ademas se puede personalizar el titulo de la pestana del navegador (`lead_chat_page_title`).
 - En IA > Prompt del Sistema, el dashboard ahora incluye plantillas predefinidas editables (campos `[REEMPLAZA_*]`) y prioriza flujo USA de llamada con consentimiento usando `ICALLCLOSER_READY`.
 - `WHATSAPP_REDIRECT` se mantiene como opcion secundaria; la guia permite alternar comando (ICallCloser/WhatsApp) e insertarlo al prompt con un boton.
 - En configuracion Lead Chat, la URL de redireccion post-consentimiento queda fija en `https://ai-call-closer.vercel.app/` y no es editable desde dashboard.
