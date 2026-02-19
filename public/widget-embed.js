@@ -116,6 +116,8 @@
   let speechRecognition = null;
   let isListening = false;
   let emojiPanelOpen = false;
+  let pendingVoiceAutoSend = false;
+  let latestVoiceTranscript = '';
 
   // Cleanup all timers and listeners
   function cleanupWidget() {
@@ -657,6 +659,9 @@
         --lw-muted: #475569;
         --lw-border: rgba(148, 163, 184, 0.28);
         --lw-shadow: 0 22px 48px rgba(15, 23, 42, 0.22);
+        --lw-testimonial-border: linear-gradient(120deg, rgba(14,165,233,0.52), rgba(56,189,248,0.24), rgba(148,163,184,0.42), rgba(14,165,233,0.52));
+        --lw-testimonial-overlay: radial-gradient(circle at var(--mx) var(--my), rgba(56,189,248,0.28) 0%, rgba(148,163,184,0.12) 44%, rgba(255,255,255,0) 72%);
+        --lw-theme-halo: rgba(56,189,248,0.45);
       }
       #lw-root[data-theme="dark"] {
         --lw-surface: #0b1220;
@@ -666,6 +671,9 @@
         --lw-muted: #9aa8bf;
         --lw-border: rgba(148, 163, 184, 0.22);
         --lw-shadow: 0 26px 56px rgba(2, 6, 23, 0.55);
+        --lw-testimonial-border: linear-gradient(120deg, #f58529, #dd2a7b, #8134af, #515bd4, #feda77, #f58529);
+        --lw-testimonial-overlay: radial-gradient(circle at var(--mx) var(--my), rgba(255,255,255,0.48) 0%, rgba(255,255,255,0.02) 44%);
+        --lw-theme-halo: rgba(34,211,238,0.5);
       }
 
       #lw-button {
@@ -812,6 +820,16 @@
       .lw-icon-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(255,255,255,0.75), 0 0 0 4px rgba(2,6,23,0.4); }
       .lw-chip-btn { min-width: 40px; height: 30px; padding: 0 10px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; }
       .lw-icon-btn { width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; }
+      @media (min-width: 1024px) {
+        #lw-theme-btn {
+          box-shadow: 0 0 0 1px var(--lw-theme-halo);
+          animation: lw-themePulse 2.8s ease-in-out infinite;
+        }
+      }
+      @keyframes lw-themePulse {
+        0%, 100% { box-shadow: 0 0 0 1px var(--lw-theme-halo); }
+        50% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--lw-theme-halo) 78%, transparent); }
+      }
       #lw-close-btn { border-color: rgba(255,255,255,0.28); }
 
       #lw-testimonial-bar {
@@ -823,7 +841,7 @@
         margin: 8px 10px 0;
         background:
           linear-gradient(color-mix(in srgb, var(--lw-surface) 94%, white 6%), color-mix(in srgb, var(--lw-surface) 90%, white 10%)) padding-box,
-          linear-gradient(120deg, #f58529, #dd2a7b, #8134af, #515bd4, #feda77, #f58529) border-box;
+          var(--lw-testimonial-border) border-box;
         background-size: 100% 100%, 220% 220%;
         animation: lw-instagramBorderShift 11s linear infinite;
         padding: 9px 12px;
@@ -840,7 +858,7 @@
         position: absolute;
         inset: -26%;
         background:
-          radial-gradient(circle at var(--mx) var(--my), rgba(255,255,255,0.48) 0%, rgba(255,255,255,0.02) 44%),
+          var(--lw-testimonial-overlay),
           conic-gradient(from 0deg, rgba(99,102,241,0), rgba(56,189,248,0.22), rgba(16,185,129,0.2), rgba(99,102,241,0));
         opacity: 0;
         pointer-events: none;
@@ -1407,16 +1425,31 @@
     }
 
     function initSpeechRecognition() {
-      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const SR =
+        window.SpeechRecognition ||
+        window.webkitSpeechRecognition ||
+        window.mozSpeechRecognition ||
+        window.msSpeechRecognition;
       if (!SR) return null;
       const recognition = new SR();
       recognition.continuous = false;
-      recognition.interimResults = false;
+      recognition.interimResults = true;
       recognition.maxAlternatives = 1;
       recognition.onresult = (event) => {
-        const transcript = event?.results?.[0]?.[0]?.transcript || '';
+        let finalTranscript = '';
+        let interimTranscript = '';
+        for (let index = event.resultIndex || 0; index < (event.results?.length || 0); index += 1) {
+          const chunk = event.results[index]?.[0]?.transcript || '';
+          if (event.results[index]?.isFinal) {
+            finalTranscript += chunk;
+          } else {
+            interimTranscript += chunk;
+          }
+        }
+        const transcript = `${finalTranscript} ${interimTranscript}`.trim();
         if (transcript) {
-          input.value = `${input.value}${input.value ? ' ' : ''}${transcript}`;
+          latestVoiceTranscript = transcript;
+          input.value = transcript;
           input.focus();
         }
       };
@@ -1427,9 +1460,18 @@
       recognition.onend = () => {
         isListening = false;
         if (micBtn) micBtn.classList.remove('active');
+        const transcript = (latestVoiceTranscript || '').trim();
+        const shouldAutoSend = pendingVoiceAutoSend;
+        pendingVoiceAutoSend = false;
+        latestVoiceTranscript = '';
+        if (shouldAutoSend && transcript) {
+          handleSendMessage(transcript);
+        }
       };
       recognition.onerror = () => {
         isListening = false;
+        pendingVoiceAutoSend = false;
+        latestVoiceTranscript = '';
         if (micBtn) micBtn.classList.remove('active');
       };
       return recognition;
@@ -1616,6 +1658,8 @@
         if (emojiBtn) emojiBtn.classList.remove('active');
         emojiPanelOpen = false;
         if (speechRecognition && isListening) {
+          pendingVoiceAutoSend = false;
+          latestVoiceTranscript = '';
           try { speechRecognition.stop(); } catch (_) { /* noop */ }
         }
         // Start teaser cycle after a short delay
@@ -1782,9 +1826,16 @@
             speechRecognition.stop();
             return;
           }
+          pendingVoiceAutoSend = true;
+          latestVoiceTranscript = '';
+          if (emojiPanel) emojiPanel.classList.remove('open');
+          if (emojiBtn) emojiBtn.classList.remove('active');
+          emojiPanelOpen = false;
           speechRecognition.lang = activeLanguage === 'es' ? 'es-ES' : 'en-US';
           speechRecognition.start();
         } catch (_) {
+          pendingVoiceAutoSend = false;
+          latestVoiceTranscript = '';
           isListening = false;
           micBtn.classList.remove('active');
         }

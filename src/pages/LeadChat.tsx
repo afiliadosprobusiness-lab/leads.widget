@@ -10,6 +10,7 @@ type ChatMessage = {
   content: string;
   audioUrl?: string;
 };
+type BrowserSpeechRecognitionCtor = new () => SpeechRecognition;
 
 type Testimonial = {
   id?: string;
@@ -261,8 +262,10 @@ const LEGACY_QUICK_REPLIES = [
 
 declare global {
   interface Window {
-    SpeechRecognition?: any;
-    webkitSpeechRecognition?: any;
+    SpeechRecognition?: BrowserSpeechRecognitionCtor;
+    webkitSpeechRecognition?: BrowserSpeechRecognitionCtor;
+    mozSpeechRecognition?: BrowserSpeechRecognitionCtor;
+    msSpeechRecognition?: BrowserSpeechRecognitionCtor;
   }
 }
 
@@ -707,7 +710,10 @@ export default function LeadChat() {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const consentPanelRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const voiceDraftRef = useRef("");
+  const pendingVoiceAutoSendRef = useRef(false);
+  const handleSendFromVoiceRef = useRef<(value: string) => void>(() => {});
   const copy = useMemo(() => SALES_COPY[locale], [locale]);
 
   const appendAssistantWithTypewriter = (text: string) =>
@@ -844,7 +850,11 @@ export default function LeadChat() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const SpeechRecognitionCtor =
+      window.SpeechRecognition ||
+      window.webkitSpeechRecognition ||
+      window.mozSpeechRecognition ||
+      window.msSpeechRecognition;
     if (!SpeechRecognitionCtor) return;
 
     const recognition = new SpeechRecognitionCtor();
@@ -853,16 +863,37 @@ export default function LeadChat() {
     recognition.continuous = false;
     recognition.maxAlternatives = 1;
 
-    recognition.onresult = (event: any) => {
-      let transcript = "";
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      let finalTranscript = "";
+      let interimTranscript = "";
       for (let index = event.resultIndex; index < event.results.length; index += 1) {
-        transcript += event.results[index][0]?.transcript || "";
+        const chunk = event.results[index][0]?.transcript || "";
+        if (event.results[index].isFinal) {
+          finalTranscript += chunk;
+        } else {
+          interimTranscript += chunk;
+        }
       }
-      setInput(transcript.trim());
+      const transcript = `${finalTranscript} ${interimTranscript}`.trim();
+      if (!transcript) return;
+      voiceDraftRef.current = transcript;
+      setInput(transcript);
     };
 
-    recognition.onend = () => setSpeechListening(false);
-    recognition.onerror = () => setSpeechListening(false);
+    recognition.onend = () => {
+      setSpeechListening(false);
+      const transcript = voiceDraftRef.current.trim();
+      const shouldAutoSend = pendingVoiceAutoSendRef.current;
+      pendingVoiceAutoSendRef.current = false;
+      voiceDraftRef.current = "";
+      if (shouldAutoSend && transcript) {
+        handleSendFromVoiceRef.current(transcript);
+      }
+    };
+    recognition.onerror = () => {
+      setSpeechListening(false);
+      pendingVoiceAutoSendRef.current = false;
+    };
 
     recognitionRef.current = recognition;
     return () => {
@@ -1040,16 +1071,26 @@ export default function LeadChat() {
       setChatError(copy.voiceUnsupported);
       return;
     }
+    if (sending || assistantTyping) return;
     setChatError("");
     if (speechListening) {
-      recognitionRef.current.stop();
-      setSpeechListening(false);
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        pendingVoiceAutoSendRef.current = false;
+        setSpeechListening(false);
+      }
       return;
     }
     try {
+      setEmojiPickerOpen(false);
+      voiceDraftRef.current = "";
+      pendingVoiceAutoSendRef.current = true;
+      recognitionRef.current.lang = locale === "es" ? "es-ES" : "en-US";
       recognitionRef.current.start();
       setSpeechListening(true);
     } catch {
+      pendingVoiceAutoSendRef.current = false;
       setSpeechListening(false);
     }
   };
@@ -1143,6 +1184,10 @@ export default function LeadChat() {
     }
   };
 
+  handleSendFromVoiceRef.current = (voiceText: string) => {
+    void handleSend(voiceText);
+  };
+
   const submitHandoff = async (event: FormEvent) => {
     event.preventDefault();
     if (!config?.widgetId) return;
@@ -1232,6 +1277,7 @@ export default function LeadChat() {
   }
 
   const isLightMode = themeMode === "light";
+  const themeDesktopLabel = isLightMode ? (locale === "es" ? "Oscuro" : "Dark") : (locale === "es" ? "Claro" : "Light");
   const statusActionRow = (
     <>
       <div
@@ -1242,48 +1288,36 @@ export default function LeadChat() {
         <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" aria-hidden="true" />
         <span className="max-w-[220px] truncate sm:max-w-[300px]">{activePresenceMessage}</span>
       </div>
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setThemeMode((prev) => (prev === "dark" ? "light" : "dark"))}
-          className={`inline-flex h-9 w-9 items-center justify-center rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-            isLightMode
-              ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
-              : "border-white/15 bg-white/5 text-slate-200 hover:bg-white/10"
-          }`}
-          aria-label={isLightMode ? copy.themeAriaDark : copy.themeAriaLight}
-        >
-          {isLightMode ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-        </button>
-        <button
-          type="button"
-          onClick={openConsentStep}
-          disabled={!handoffEligible}
-          className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-            handoffEligible || handoffLoading || Boolean(handoffMessage)
-              ? "border-emerald-300/45 bg-emerald-400/12 text-emerald-100 hover:bg-emerald-400/20 hover:shadow-[0_0_0_1px_rgba(52,211,153,0.35)]"
-              : (isLightMode ? "cursor-not-allowed border-slate-300 bg-slate-100 text-slate-500" : "cursor-not-allowed border-white/15 bg-white/5 text-slate-400")
-          }`}
-        >
-          <PhoneCall className="h-3.5 w-3.5" />
-          <span className="max-w-[145px] truncate sm:max-w-none">
-            {handoffLoading || handoffMessage
-              ? copy.callingBadge
-              : handoffEligible
-                ? (config.leadChatBadgeText || copy.readyBadge)
-                : copy.prequalifyingBadge}
-          </span>
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={openConsentStep}
+        disabled={!handoffEligible}
+        className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+          handoffEligible || handoffLoading || Boolean(handoffMessage)
+            ? (isLightMode
+              ? "border-emerald-300/75 bg-emerald-100 text-emerald-800 hover:bg-emerald-100/85"
+              : "border-emerald-300/45 bg-emerald-400/12 text-emerald-100 hover:bg-emerald-400/20 hover:shadow-[0_0_0_1px_rgba(52,211,153,0.35)]")
+            : (isLightMode ? "cursor-not-allowed border-slate-300 bg-slate-100 text-slate-500" : "cursor-not-allowed border-white/15 bg-white/5 text-slate-400")
+        }`}
+      >
+        <PhoneCall className="h-3.5 w-3.5" />
+        <span className="max-w-[145px] truncate sm:max-w-none">
+          {handoffLoading || handoffMessage
+            ? copy.callingBadge
+            : handoffEligible
+              ? (config.leadChatBadgeText || copy.readyBadge)
+              : copy.prequalifyingBadge}
+        </span>
+      </button>
     </>
   );
   const testimonialInstagramStyle = isLightMode
     ? {
         backgroundImage:
-          "linear-gradient(rgba(255,255,255,0.92), rgba(248,250,252,0.88)), linear-gradient(120deg, #f58529, #dd2a7b, #8134af, #515bd4, #feda77, #f58529)",
+          "linear-gradient(rgba(255,255,255,0.95), rgba(248,250,252,0.93)), linear-gradient(118deg, rgba(14,165,233,0.52), rgba(56,189,248,0.24), rgba(148,163,184,0.45), rgba(14,165,233,0.5))",
         backgroundOrigin: "border-box",
         backgroundClip: "padding-box, border-box",
-        backgroundSize: "100% 100%, 220% 220%",
+        backgroundSize: "100% 100%, 180% 180%",
       }
     : {
         backgroundImage:
@@ -1318,11 +1352,26 @@ export default function LeadChat() {
                     {config.leadChatSubheadline || copy.step2Description}
                   </p>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setThemeMode((prev) => (prev === "dark" ? "light" : "dark"))}
+                  className={`ml-auto inline-flex h-10 items-center gap-2 rounded-full border px-3 text-xs font-semibold uppercase tracking-[0.12em] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                    isLightMode
+                      ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100 lg:shadow-[0_0_0_1px_rgba(56,189,248,0.35)] lg:hover:shadow-[0_0_0_2px_rgba(56,189,248,0.5)]"
+                      : "border-white/15 bg-white/5 text-slate-200 hover:bg-white/10 lg:shadow-[0_0_0_1px_rgba(34,211,238,0.35)] lg:hover:shadow-[0_0_0_2px_rgba(34,211,238,0.5)]"
+                  }`}
+                  aria-label={isLightMode ? copy.themeAriaDark : copy.themeAriaLight}
+                >
+                  {isLightMode ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+                  <span className="hidden lg:inline">{themeDesktopLabel}</span>
+                </button>
               </div>
 
               <div className={`px-4 pb-3 pt-3 sm:px-7 ${isLightMode ? "border-b border-slate-200 bg-white/80" : "border-b border-white/10 bg-white/[0.03]"}`}>
-                <div className="flex flex-col items-center gap-2 lg:flex-row lg:justify-center lg:gap-3">
-                  {statusActionRow}
+                <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {statusActionRow}
+                  </div>
                   {showLiveActivityStrip ? (
                     <div className={`w-full max-w-[320px] rounded-xl border px-3 py-2 text-xs lg:w-auto ${
                       isLightMode
@@ -1347,14 +1396,15 @@ export default function LeadChat() {
                       isLightMode
                         ? "border-transparent text-slate-700"
                         : "border-transparent text-slate-100"
-                    } ${testimonialTransition ? (isLightMode ? "shadow-[0_0_35px_-18px_rgba(14,165,233,0.95)]" : "shadow-[0_0_35px_-16px_rgba(34,211,238,0.9)]") : ""}`}
+                    } ${testimonialTransition ? (isLightMode ? "shadow-[0_0_24px_-16px_rgba(56,189,248,0.6)]" : "shadow-[0_0_35px_-16px_rgba(34,211,238,0.9)]") : ""}`}
                     style={testimonialInstagramStyle}
                   >
                     <div
                       className={`pointer-events-none absolute -inset-16 transition-opacity duration-500 ${testimonialTransition ? "opacity-100" : "opacity-0"}`}
                       style={{
-                        background:
-                          "radial-gradient(circle at 50% 50%, rgba(125,211,252,0.42) 0%, rgba(52,211,153,0.25) 35%, rgba(2,6,23,0) 72%)",
+                        background: isLightMode
+                          ? "radial-gradient(circle at 50% 50%, rgba(56,189,248,0.28) 0%, rgba(148,163,184,0.2) 40%, rgba(255,255,255,0) 74%)"
+                          : "radial-gradient(circle at 50% 50%, rgba(125,211,252,0.42) 0%, rgba(52,211,153,0.25) 35%, rgba(2,6,23,0) 72%)",
                       }}
                     />
                     <div className="relative min-w-0">
@@ -1604,10 +1654,11 @@ export default function LeadChat() {
                       onClick={toggleSpeechInput}
                       className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition-colors ${
                         isLightMode
-                          ? "border-slate-300 bg-white text-slate-500 hover:bg-slate-100 hover:text-slate-700"
-                          : "border-white/15 bg-white/[0.04] text-slate-400 hover:bg-white/[0.1] hover:text-cyan-200"
+                          ? "border-slate-300 bg-white text-slate-500 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                          : "border-white/15 bg-white/[0.04] text-slate-400 hover:bg-white/[0.1] hover:text-cyan-200 disabled:cursor-not-allowed disabled:opacity-50"
                       }`}
                       aria-label={speechListening ? copy.micAriaStop : copy.micAriaStart}
+                      disabled={sending || assistantTyping}
                     >
                       {speechListening ? <MicOff className="h-3.5 w-3.5 text-rose-400" /> : <Mic className="h-3.5 w-3.5" />}
                     </button>

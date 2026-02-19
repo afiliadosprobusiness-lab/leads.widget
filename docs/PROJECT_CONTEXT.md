@@ -66,13 +66,16 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Landing principal `/` fue redisenada con estilo visual premium tipo Apple (glass + gradientes suaves), narrativa simplificada orientada a conversion, preview del widget embebido en hero y secciones actualizadas de capacidades/casos/testimonios/precio.
 - Testimonios de landing principal usan scroll horizontal con autoavance (desktop/mobile), controles prev/next y avatar por caso para reforzar prueba social.
 - Testimonios de landing principal, widget embebido y Lead Chat usan efecto visual tipo Instagram (anillo degradado + glow de transicion) para enfatizar prueba social sin bloquear lectura.
+- En modo claro, las barras de testimonios de Lead Chat/widget embebido usan una variante visual mas sobria (menos saturada) para mejorar legibilidad sin perder el efecto de prueba social.
 - Lead Chat (`/lead-chat/:identity`) usa layout inmersivo centrado en el chat (alto casi completo en desktop/mobile), deja espacio inferior para avisos dinamicos y mantiene consentimiento/handoff inline dentro del flujo principal del chat (sin panel lateral de opciones).
 - Lead Chat desktop prioriza UX centrada (ancho contenido acotado), estilo visual premium tipo glass y tarjeta de testimonios con efecto tornasol dinamico al hover.
 - Composer de Lead Chat incluye selector rapido de emojis, entrada por voz (speech-to-text) y control sutil de tema claro/oscuro para mejorar retencion de uso.
+- En Lead Chat desktop, el toggle claro/oscuro se prioriza en el header derecho con realce visual suave para ubicacion rapida.
 - Lead Chat agrega microcopy de reduccion de friccion debajo del input (`Demo real sin costo`, `Llamada en menos de 2 minutos`, `Sin tarjeta de credito`) y una barra superior de prueba social con pulsacion leve y mensajes dinamicos de volumen (cifras creibles).
 - Quick replies de Lead Chat y `SalesWidget` usan una sola fila con scroll horizontal suave (sin wrap) para mantener CTA compactos en todas las resoluciones.
 - Lead Chat consume `language` del widget config para defaults EN/ES (mensaje inicial, quick replies, consentimiento, estados y copys de conversion).
 - Widget embebido (`public/widget-embed.js`) replica mejoras de retencion: quick replies en una sola fila con scroll horizontal (mobile-first), selector de emojis, entrada por voz y toggle sutil claro/oscuro.
+- En Lead Chat/widget embebido/SalesWidget, la entrada por voz usa fallback `SpeechRecognition/webkitSpeechRecognition` y autoenvia el mensaje al terminar el dictado.
 - Widget embebido usa ingles por defecto y permite cambiar en 1 clic a espanol desde el header, aplicando textos UI y testimonios rotativos.
 - Widget embebido actualiza defaults comerciales EN/ES (mensaje de apertura y quick replies) al enfoque de llamada en menos de 2 minutos.
 - Widget embebido muestra una barra de testimonios en la parte superior del panel (debajo del header) con glow de transicion en cada cambio para reforzar prueba social sin interrumpir el chat.
@@ -81,6 +84,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - En Lead Chat (mobile y desktop), la barra de estado/acciones y la tarjeta de actividad en vivo se muestran en un bloque unico arriba de testimonios, con ajuste responsive para no romper el flujo principal.
 - El widget embebido no muestra `lead_chat_live_toasts`; mantiene solo la barra superior de testimonios.
 - El widget comercial (`SalesWidget`) tambien esta activo en `/partners`.
+- El `SalesWidget` de landing replica la experiencia visual del embebido (header con acciones, barra de testimonios, composer con emoji/voz) y agrega selector de color con contraste automatico para mantener legibilidad.
 - Dashboard partner incluye secciones:
   - Ventas/Atribucion
   - Clientes

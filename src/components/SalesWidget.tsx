@@ -1,471 +1,830 @@
-import { useState, useEffect, useRef } from 'react';
-import { MessageCircle, X, Send, Bot, Loader2 } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Bot, Loader2, MessageCircle, Mic, MicOff, Moon, Palette, Send, Smile, Sun, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
-interface Message {
-    role: 'user' | 'assistant' | 'system';
-    content: string;
-    actionUrl?: string;
+type Message = {
+  role: "user" | "assistant" | "system";
+  content: string;
+  actionUrl?: string;
+};
+
+type WidgetLocale = "es" | "en";
+type WidgetTheme = "light" | "dark";
+type BrowserSpeechRecognitionCtor = new () => SpeechRecognition;
+
+const MY_WIDGET_ID = "demo-landing";
+const COLOR_PRESETS = ["#00C185", "#0EA5E9", "#2563EB", "#8B5CF6", "#DB2777", "#EA580C", "#16A34A", "#0F766E"];
+const QUICK_EMOJIS = [
+  "\u{1F600}",
+  "\u{1F604}",
+  "\u{1F64F}",
+  "\u{2728}",
+  "\u{1F525}",
+  "\u{1F44D}",
+  "\u{1F3AF}",
+  "\u{1F4DE}",
+  "\u{2705}",
+  "\u{1F4AC}",
+  "\u{1F60A}",
+  "\u{1F680}",
+];
+
+const WIDGET_COPY: Record<
+  WidgetLocale,
+  {
+    businessName: string;
+    subtitle: string;
+    welcome: string;
+    placeholder: string;
+    blockedPlaceholder: string;
+    quickReplies: string[];
+    teaserMessages: string[];
+    testimonialLabel: string;
+    testimonials: Array<{ text: string; name: string; stars: number }>;
+    typing: string;
+    hint: string;
+    openingWhatsApp: string;
+    openWhatsAppNow: string;
+    blockedMessage: string;
+    connectionError: string;
+    chatTooltip: string;
+    poweredBy: string;
+    voiceUnsupported: string;
+    listeningNow: string;
+    closeAria: string;
+    emojiAria: string;
+    voiceStartAria: string;
+    voiceStopAria: string;
+    themeDarkAria: string;
+    themeLightAria: string;
+    colorAria: string;
+  }
+> = {
+  es: {
+    businessName: "Agencia Demo",
+    subtitle: "Instant replies",
+    welcome:
+      "Hola, soy tu asistente de pre-calificacion. En menos de 2 minutos podemos ayudarte a activar una llamada guiada.",
+    placeholder: "Escribe tu mensaje...",
+    blockedPlaceholder: "Chat bloqueado por seguridad",
+    quickReplies: ["Como funciona?", "Quiero mas informacion", "Ver precios"],
+    teaserMessages: ["Podemos ayudarte ahora mismo", "Tenemos respuestas en menos de 1 minuto", "Activa una llamada guiada"],
+    testimonialLabel: "Testimonios",
+    testimonials: [
+      { text: "Me gusto la demo. Fue directa y sin vueltas.", name: "Pepito Luna", stars: 5 },
+      { text: "Subimos la calidad de los leads en la primera semana.", name: "Andrea Ruiz", stars: 5 },
+      { text: "El flujo fue claro y el cierre mas rapido.", name: "Rocio Mena", stars: 5 },
+    ],
+    typing: "Escribiendo...",
+    hint: "Estamos listos para ayudarte",
+    openingWhatsApp: "Abriendo WhatsApp...",
+    openWhatsAppNow: "Abrir WhatsApp Ahora",
+    blockedMessage: "Acceso bloqueado por politicas de seguridad.",
+    connectionError: "Tuvimos un problema de conexion. Intenta nuevamente.",
+    chatTooltip: "Abrir chat",
+    poweredBy: "Powered by LeadWidget",
+    voiceUnsupported: "La entrada por voz no esta disponible en este navegador.",
+    listeningNow: "Escuchando... al terminar se envia automaticamente.",
+    closeAria: "Cerrar chat",
+    emojiAria: "Abrir selector de emojis",
+    voiceStartAria: "Grabar voz",
+    voiceStopAria: "Detener grabacion de voz",
+    themeDarkAria: "Cambiar a modo oscuro",
+    themeLightAria: "Cambiar a modo claro",
+    colorAria: "Cambiar color principal",
+  },
+  en: {
+    businessName: "Demo Agency",
+    subtitle: "Instant replies",
+    welcome:
+      "Hi, I am your qualification assistant. In under 2 minutes we can help you trigger a guided call.",
+    placeholder: "Type your message...",
+    blockedPlaceholder: "Chat blocked for security",
+    quickReplies: ["How it works?", "I want more information", "See pricing"],
+    teaserMessages: ["We can help you right now", "Get answers in under 1 minute", "Trigger a guided call now"],
+    testimonialLabel: "Testimonials",
+    testimonials: [
+      { text: "Great demo flow. Fast and clear.", name: "Peter Luna", stars: 5 },
+      { text: "Lead quality improved during week one.", name: "Andrea Ruiz", stars: 5 },
+      { text: "The path was clear and closing got faster.", name: "Rocio Mena", stars: 5 },
+    ],
+    typing: "Typing...",
+    hint: "We are ready to help",
+    openingWhatsApp: "Opening WhatsApp...",
+    openWhatsAppNow: "Open WhatsApp Now",
+    blockedMessage: "Access blocked by security policies.",
+    connectionError: "We had a connection issue. Please try again.",
+    chatTooltip: "Open chat",
+    poweredBy: "Powered by LeadWidget",
+    voiceUnsupported: "Voice input is not available in this browser.",
+    listeningNow: "Listening... message auto-sends when you finish.",
+    closeAria: "Close chat",
+    emojiAria: "Open emoji picker",
+    voiceStartAria: "Start voice input",
+    voiceStopAria: "Stop voice input",
+    themeDarkAria: "Switch to dark mode",
+    themeLightAria: "Switch to light mode",
+    colorAria: "Change main color",
+  },
+};
+
+declare global {
+  interface Window {
+    SpeechRecognition?: BrowserSpeechRecognitionCtor;
+    webkitSpeechRecognition?: BrowserSpeechRecognitionCtor;
+    mozSpeechRecognition?: BrowserSpeechRecognitionCtor;
+    msSpeechRecognition?: BrowserSpeechRecognitionCtor;
+    fbq?: (...args: unknown[]) => void;
+  }
+}
+
+function hexToRgb(hex: string) {
+  const raw = hex.replace("#", "");
+  const normalized = raw.length === 3 ? raw.split("").map((ch) => `${ch}${ch}`).join("") : raw;
+  const parsed = Number.parseInt(normalized, 16);
+  if (!Number.isFinite(parsed)) return { r: 0, g: 193, b: 133 };
+  return {
+    r: (parsed >> 16) & 255,
+    g: (parsed >> 8) & 255,
+    b: parsed & 255,
+  };
+}
+
+function adjustHex(hex: string, amount: number) {
+  const { r, g, b } = hexToRgb(hex);
+  const clamp = (value: number) => Math.max(0, Math.min(255, value));
+  const rr = clamp(r + amount);
+  const gg = clamp(g + amount);
+  const bb = clamp(b + amount);
+  return `#${[rr, gg, bb].map((item) => item.toString(16).padStart(2, "0")).join("")}`;
+}
+
+function getContrastText(hex: string) {
+  const { r, g, b } = hexToRgb(hex);
+  const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  return luminance > 0.62 ? "#0f172a" : "#ffffff";
+}
+
+function hexToRgba(hex: string, alpha: number) {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 export function SalesWidget() {
-    const { t, i18n } = useTranslation();
-    const [isOpen, setIsOpen] = useState(false);
+  const { i18n } = useTranslation();
+  const inferredLocale: WidgetLocale = String(i18n.language || "").toLowerCase().startsWith("en") ? "en" : "es";
 
-    // Configuration (Dynamic with i18n)
-    const config = {
-        primaryColor: '#00C185',
-        businessName: 'IA LeadWidget',
-        // Now using t() for initial strings. 
-        // Note: The updates below will handle the dynamic re-rendering of these values.
+  const [locale, setLocale] = useState<WidgetLocale>(inferredLocale);
+  const [themeMode, setThemeMode] = useState<WidgetTheme>("dark");
+  const [primaryColor, setPrimaryColor] = useState("#00C185");
+  const [isOpen, setIsOpen] = useState(false);
+  const [hasBeenClosedOnce, setHasBeenClosedOnce] = useState(false);
+  const [activeTeaser, setActiveTeaser] = useState("");
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [inputText, setInputText] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [speechListening, setSpeechListening] = useState(false);
+  const [activeTestimonialIndex, setActiveTestimonialIndex] = useState(0);
+  const [testimonialTransition, setTestimonialTransition] = useState(false);
+  const [isIdle, setIsIdle] = useState(false);
+
+  const copy = useMemo(() => WIDGET_COPY[locale], [locale]);
+  const isLightMode = themeMode === "light";
+  const headerTextColor = getContrastText(primaryColor);
+  const userBubbleTextColor = getContrastText(primaryColor);
+  const primaryStrong = adjustHex(primaryColor, -24);
+  const nextLanguageLabel = locale === "es" ? "EN" : "ES";
+
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const voiceDraftRef = useRef("");
+  const pendingVoiceAutoSendRef = useRef(false);
+  const handleSendFromVoiceRef = useRef<(value: string) => void>(() => {});
+
+  const testimonial = copy.testimonials[activeTestimonialIndex % copy.testimonials.length];
+
+  const closePaletteAndEmoji = () => {
+    setPaletteOpen(false);
+    setEmojiPickerOpen(false);
+  };
+
+  useEffect(() => {
+    setLocale(inferredLocale);
+  }, [inferredLocale]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const prefersLight = window.matchMedia("(prefers-color-scheme: light)").matches;
+    setThemeMode(prefersLight ? "light" : "dark");
+  }, []);
+
+  useEffect(() => {
+    setMessages((prev) => {
+      if (prev.length === 0) return [{ role: "assistant", content: copy.welcome }];
+      if (prev.length === 1 && prev[0]?.role === "assistant") return [{ role: "assistant", content: copy.welcome }];
+      return prev;
+    });
+  }, [copy.welcome]);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, isOpen, isLoading]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsOpen(true), 5000);
+    const handleExternalOpen = () => {
+      setIsOpen(true);
+      setHasBeenClosedOnce(false);
     };
-
-    const teaserMessages = [
-        t('demo_widget.teaser_1'),
-        t('demo_widget.teaser_2'),
-        t('demo_widget.teaser_3'),
-        t('demo_widget.teaser_4')
-    ];
-
-    const quickReplies = [
-        t('demo_widget.quick_1'),
-        t('demo_widget.quick_2'),
-        t('demo_widget.quick_3'),
-        t('demo_widget.quick_4'),
-        t('demo_widget.quick_5')
-    ];
-
-    // Static ID for Demo
-    const MY_WIDGET_ID = "demo-landing";
-
-    const [messages, setMessages] = useState<Message[]>([]);
-
-    // Initialize/Update welcome message when language changes
-    useEffect(() => {
-        // Only reset if it's the very first load or if we want to force update the welcome message
-        // Ideally we just update the first message if it's still the welcome message
-        setMessages(prev => {
-            if (prev.length === 0) {
-                return [{ role: 'assistant', content: t('demo_widget.welcome') }];
-            }
-            // If the user hasn't started chatting yet (only 1 message from assistant), update the welcome message
-            if (prev.length === 1 && prev[0].role === 'assistant') {
-                return [{ role: 'assistant', content: t('demo_widget.welcome') }];
-            }
-            return prev;
-        });
-    }, [t]);
-
-    // Force welcome message on mount if empty (handled above, but double check)
-    useEffect(() => {
-        if (messages.length === 0) {
-            setMessages([{ role: 'assistant', content: t('demo_widget.welcome') }]);
-        }
-    }, []);
-    const [inputText, setInputText] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const [isIdle, setIsIdle] = useState(false);
-    const [isBlocked, setIsBlocked] = useState(false);
-    const scrollRef = useRef<HTMLDivElement>(null);
-    const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-    // Auto-scroll to bottom
-    useEffect(() => {
-        if (scrollRef.current) {
-            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-        }
-    }, [messages, isOpen]);
-
-    // Attention grabbing logic
-    useEffect(() => {
-        if (!isOpen || inputText.trim() !== '' || isLoading || messages.length > 1) {
-            setIsIdle(false);
-            if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-            return;
-        }
-
-        const startIdleTimer = () => {
-            if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-            idleTimerRef.current = setTimeout(() => {
-                setIsIdle(true);
-            }, 5000); // Wait 5 seconds of total silence to start persistent vibration
-        };
-
-        startIdleTimer();
-
-        return () => {
-            if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-        };
-    }, [isOpen, inputText, isLoading, messages]);
-
-    const [hasBeenClosedOnce, setHasBeenClosedOnce] = useState(false);
-    const [activeTeaser, setActiveTeaser] = useState('');
-
-    // Auto-open
-    useEffect(() => {
-        const timer = setTimeout(() => setIsOpen(true), 5000);
-
-        // Listen for external trigger (e.g. "Ver Demo" button)
-        const handleOpen = () => {
-            setIsOpen(true);
-            setHasBeenClosedOnce(false); // Reset to hide teaser if opened manually
-        };
-        window.addEventListener('open-lead-widget', handleOpen);
-
-        return () => {
-            clearTimeout(timer);
-            window.removeEventListener('open-lead-widget', handleOpen);
-        };
-    }, []);
-
-    const handleSendMessage = async (overrideText?: string) => {
-        const textToSend = typeof overrideText === 'string' ? overrideText : inputText;
-        if (!textToSend.trim()) return;
-
-        const userMsg = textToSend.trim();
-
-        // If manual send, we handle UI updates here.
-        if (!overrideText) {
-            setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
-            setInputText('');
-        }
-
-        setIsLoading(true);
-
-        const currentHistory = messages.map(m => ({ role: m.role, content: m.content })).filter(m => m.role !== 'system');
-        const historyToSend = [...currentHistory, { role: 'user', content: userMsg }];
-
-        try {
-            const response = await fetch('/api/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    message: userMsg,
-                    history: historyToSend,
-                    widgetId: MY_WIDGET_ID,
-                    userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-                })
-            });
-
-            const data = await response.json();
-
-            if (data.blocked) {
-                setIsBlocked(true);
-                setMessages(prev => [...prev, {
-                    role: 'assistant',
-                    content: '🚫 Acceso bloqueado por violación de políticas de seguridad.'
-                }]);
-                return;
-            }
-
-            if (data.error) throw new Error(data.error);
-
-            // Check for lead collection action in AI response
-            // 1. Check for standard JSON action (Client Widgets)
-            const jsonMatch = data.response.match(/\{"action":\s*"collect_lead"[^}]*\}/);
-
-            // 2. Check for redirect tag (Demo Widget)
-            const redirectMatch = data.response.match(/\[WHATSAPP_REDIRECT:(.*?)\]/);
-
-            if (jsonMatch) {
-                // ... Existing Client Logic ...
-                let capturedData = { name: 'Cliente', interest: 'LeadWidget', budget: 'No mencionado' };
-                try {
-                    const leadPayload = JSON.parse(jsonMatch[0]);
-                    if (leadPayload.data) capturedData = { ...capturedData, ...leadPayload.data };
-                } catch (e) { console.error('Data parse error:', e); }
-
-                const cleanResponse = data.response.replace(jsonMatch[0], '').trim();
-
-                // ... Construction logic ...
-                let messageBody = `¡Hola! Vengo del chat de demo.\n\n`;
-                const emojis = ["👤", "🎯", "💰", "🏠", "📍", "🩺", "🔧", "⏰"];
-                let emojiIdx = 0;
-
-                Object.entries(capturedData).forEach(([key, value]) => {
-                    const label = key.charAt(0).toUpperCase() + key.slice(1);
-                    const emoji = emojis[emojiIdx % emojis.length];
-                    messageBody += `${emoji} *${label}:* ${value}\n`;
-                    emojiIdx++;
-                });
-
-                const waUrl = `https://wa.me/51924464410?text=${encodeURIComponent(messageBody)}`;
-
-                if (cleanResponse) setMessages(prev => [...prev, { role: 'assistant', content: cleanResponse }]);
-
-                setMessages(prev => [...prev, {
-                    role: 'system',
-                    content: '✅ ¡Entendido! Te estamos conectando con WhatsApp...',
-                    actionUrl: waUrl
-                }]);
-
-                setTimeout(() => window.open(waUrl, '_blank'), 4000);
-
-            } else if (redirectMatch) {
-                // --- NEW DEMO LOGIC ---
-                const contentBody = redirectMatch[1].trim(); // The content inside: "Hola, soy Juan..."
-                const cleanResponse = data.response.replace(redirectMatch[0], '').trim(); // Remove the tag from UI
-
-                const waUrl = `https://wa.me/51924464410?text=${encodeURIComponent(contentBody)}`;
-
-                if (cleanResponse) {
-                    setMessages(prev => [...prev, { role: 'assistant', content: cleanResponse }]);
-                }
-
-                // FIRE PIXEL LEAD EVENT
-                // @ts-ignore
-                if (window.fbq) {
-                    // @ts-ignore
-                    window.fbq('track', 'Lead');
-                    console.log('Pixel Event Fired: Lead (WhatsApp Redirect)');
-                }
-
-                setMessages(prev => [...prev, {
-                    role: 'system',
-                    content: '✅ Opening WhatsApp...', // Simple universal message or use t()
-                    actionUrl: waUrl
-                }]);
-
-                setTimeout(() => window.open(waUrl, '_blank'), 3000);
-
-            } else {
-                setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
-            }
-
-        } catch (error) {
-            console.error('Chat error:', error);
-            setMessages(prev => [...prev, { role: 'assistant', content: 'Lo siento, tuve un error de conexión. ¿Puedes intentar de nuevo?' }]);
-        } finally {
-            setIsLoading(false);
-        }
+    window.addEventListener("open-lead-widget", handleExternalOpen);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("open-lead-widget", handleExternalOpen);
     };
+  }, []);
 
-    const handleClose = () => {
-        setIsOpen(false);
-        setHasBeenClosedOnce(true);
-        const randomMsg = teaserMessages[Math.floor(Math.random() * teaserMessages.length)];
-        setActiveTeaser(randomMsg);
-    };
-
-    if (!isOpen) {
-        return (
-            <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3 translate-y-0 animate-in slide-in-from-bottom-5 duration-500 font-sans">
-                {hasBeenClosedOnce && (
-                    <div
-                        onClick={() => {
-                            setIsOpen(true);
-                            // @ts-ignore
-                            if (window.fbq) {
-                                // @ts-ignore
-                                window.fbq('trackCustom', 'WidgetInteraction');
-                            }
-                        }}
-                        className="bg-white px-4 py-2 rounded-2xl shadow-xl border border-slate-100 cursor-pointer animate-in fade-in slide-in-from-right-4 duration-300 relative group max-w-[220px]"
-                    >
-                        <p className="text-xs font-semibold text-slate-800 leading-tight">
-                            {activeTeaser}
-                        </p>
-                        {/* Caret */}
-                        <div className="absolute -bottom-2 right-6 w-4 h-4 bg-white rotate-45 border-r border-b border-slate-100"></div>
-                        <div className="absolute top-1 -right-1 w-2 h-2 rounded-full animate-ping" style={{ backgroundColor: config.primaryColor }}></div>
-                    </div>
-                )}
-
-                <button
-                    onClick={() => {
-                        setIsOpen(true);
-                        setHasBeenClosedOnce(false);
-                        // @ts-ignore
-                        if (window.fbq) {
-                            // @ts-ignore
-                            window.fbq('trackCustom', 'WidgetInteraction');
-                        }
-                    }}
-                    className="w-16 h-16 rounded-full shadow-lg hover:scale-110 transition-transform flex items-center justify-center relative group"
-                    style={{ backgroundColor: config.primaryColor }}
-                >
-                    <Bot className="w-8 h-8 text-white group-hover:rotate-12 transition-transform" />
-                    <span className="absolute -top-1 -right-1 flex h-5 w-5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-5 w-5 bg-red-500 text-[10px] text-white font-bold items-center justify-center">1</span>
-                    </span>
-                    {/* Hover tooltip */}
-                    <div className="absolute right-20 bg-slate-900 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                        {t('demo_widget.chat_tooltip')}
-                    </div>
-                </button>
-            </div>
-        );
+  useEffect(() => {
+    if (!isOpen || inputText.trim() || isLoading || messages.length > 1) {
+      setIsIdle(false);
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      return;
     }
 
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    idleTimerRef.current = setTimeout(() => setIsIdle(true), 5000);
+    return () => {
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    };
+  }, [isOpen, inputText, isLoading, messages.length]);
+
+  useEffect(() => {
+    if (!hasBeenClosedOnce || isOpen) return;
+    const pickTeaser = () => {
+      const pool = copy.teaserMessages;
+      setActiveTeaser(pool[Math.floor(Math.random() * pool.length)] || "");
+    };
+    pickTeaser();
+    const interval = setInterval(pickTeaser, 8500);
+    return () => clearInterval(interval);
+  }, [copy.teaserMessages, hasBeenClosedOnce, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || copy.testimonials.length <= 1) return;
+    const interval = setInterval(() => {
+      setActiveTestimonialIndex((prev) => (prev + 1) % copy.testimonials.length);
+    }, 4600);
+    return () => clearInterval(interval);
+  }, [copy.testimonials.length, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setTestimonialTransition(true);
+    const timeout = setTimeout(() => setTestimonialTransition(false), 700);
+    return () => clearTimeout(timeout);
+  }, [activeTestimonialIndex, isOpen]);
+
+  useEffect(() => {
+    const SR =
+      window.SpeechRecognition ||
+      window.webkitSpeechRecognition ||
+      window.mozSpeechRecognition ||
+      window.msSpeechRecognition;
+    if (!SR) {
+      recognitionRef.current = null;
+      return;
+    }
+
+    const recognition = new SR();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+    recognition.lang = locale === "es" ? "es-ES" : "en-US";
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      let finalTranscript = "";
+      let interimTranscript = "";
+      for (let index = event.resultIndex || 0; index < (event.results?.length || 0); index += 1) {
+        const chunk = event.results[index]?.[0]?.transcript || "";
+        if (event.results[index]?.isFinal) {
+          finalTranscript += chunk;
+        } else {
+          interimTranscript += chunk;
+        }
+      }
+      const transcript = `${finalTranscript} ${interimTranscript}`.trim();
+      if (!transcript) return;
+      voiceDraftRef.current = transcript;
+      setInputText(transcript);
+    };
+
+    recognition.onend = () => {
+      setSpeechListening(false);
+      const transcript = voiceDraftRef.current.trim();
+      const shouldAutoSend = pendingVoiceAutoSendRef.current;
+      pendingVoiceAutoSendRef.current = false;
+      voiceDraftRef.current = "";
+      if (shouldAutoSend && transcript) {
+        handleSendFromVoiceRef.current(transcript);
+      }
+    };
+
+    recognition.onerror = () => {
+      setSpeechListening(false);
+      pendingVoiceAutoSendRef.current = false;
+      voiceDraftRef.current = "";
+    };
+
+    recognitionRef.current = recognition;
+    return () => {
+      pendingVoiceAutoSendRef.current = false;
+      voiceDraftRef.current = "";
+      try {
+        recognition.stop();
+      } catch {
+        // noop
+      }
+      recognitionRef.current = null;
+    };
+  }, [locale]);
+
+  const handleSendMessage = useCallback(
+    async (overrideText?: string) => {
+      const textToSend = typeof overrideText === "string" ? overrideText : inputText;
+      const userMessage = textToSend.trim();
+      if (!userMessage || isLoading || isBlocked) return;
+
+      closePaletteAndEmoji();
+      setIsIdle(false);
+      setInputText("");
+      setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
+      setIsLoading(true);
+
+      const history = [...messages.filter((item) => item.role !== "system").map((item) => ({ role: item.role, content: item.content })), { role: "user", content: userMessage }];
+
+      try {
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: userMessage,
+            history,
+            widgetId: MY_WIDGET_ID,
+            userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          }),
+        });
+
+        const payload = await response.json();
+
+        if (payload?.blocked) {
+          setIsBlocked(true);
+          setMessages((prev) => [...prev, { role: "assistant", content: copy.blockedMessage }]);
+          return;
+        }
+
+        if (payload?.error && !payload?.response) {
+          throw new Error(payload.error);
+        }
+
+        let aiResponse = String(payload?.response || "").trim();
+        const redirectMatch = aiResponse.match(/\[\s*WHATSAPP_REDIRECT\s*:\s*([\s\S]*?)\]/i);
+        let actionUrl = "";
+
+        if (redirectMatch) {
+          const redirectBody = redirectMatch[1]?.trim().replace(/^["']|["']$/g, "");
+          aiResponse = aiResponse.replace(redirectMatch[0], "").trim();
+          const whatsappTarget = "51924464410";
+          actionUrl = `https://wa.me/${whatsappTarget}?text=${encodeURIComponent(redirectBody || userMessage)}`;
+        }
+
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: aiResponse || copy.hint },
+          ...(actionUrl ? [{ role: "system" as const, content: copy.openingWhatsApp, actionUrl }] : []),
+        ]);
+
+        if (actionUrl) {
+          if (window.fbq) window.fbq("track", "Lead");
+          window.setTimeout(() => {
+            window.open(actionUrl, "_blank");
+          }, 1600);
+        }
+      } catch (error) {
+        console.error("SalesWidget chat error", error);
+        setMessages((prev) => [...prev, { role: "assistant", content: copy.connectionError }]);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [copy.blockedMessage, copy.connectionError, copy.hint, copy.openingWhatsApp, inputText, isBlocked, isLoading, messages],
+  );
+
+  useEffect(() => {
+    handleSendFromVoiceRef.current = (voiceText: string) => {
+      void handleSendMessage(voiceText);
+    };
+  }, [handleSendMessage]);
+
+  const toggleSpeechInput = () => {
+    if (!recognitionRef.current) {
+      setMessages((prev) => [...prev, { role: "system", content: copy.voiceUnsupported }]);
+      return;
+    }
+    if (isLoading || isBlocked) return;
+
+    setEmojiPickerOpen(false);
+    setPaletteOpen(false);
+
+    if (speechListening) {
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        pendingVoiceAutoSendRef.current = false;
+        setSpeechListening(false);
+      }
+      return;
+    }
+
+    try {
+      pendingVoiceAutoSendRef.current = true;
+      voiceDraftRef.current = "";
+      recognitionRef.current.lang = locale === "es" ? "es-ES" : "en-US";
+      recognitionRef.current.start();
+      setSpeechListening(true);
+    } catch {
+      pendingVoiceAutoSendRef.current = false;
+      setSpeechListening(false);
+    }
+  };
+
+  const handleClose = () => {
+    setIsOpen(false);
+    setHasBeenClosedOnce(true);
+    closePaletteAndEmoji();
+    pendingVoiceAutoSendRef.current = false;
+    voiceDraftRef.current = "";
+    if (recognitionRef.current && speechListening) {
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        // noop
+      }
+    }
+  };
+
+  const testimonialBarStyle = isLightMode
+    ? {
+        backgroundImage:
+          "linear-gradient(rgba(255,255,255,0.95), rgba(248,250,252,0.93)), linear-gradient(118deg, rgba(14,165,233,0.55), rgba(56,189,248,0.2), rgba(148,163,184,0.45), rgba(14,165,233,0.55))",
+        backgroundOrigin: "border-box",
+        backgroundClip: "padding-box, border-box",
+        backgroundSize: "100% 100%, 180% 180%",
+      }
+    : {
+        backgroundImage:
+          "linear-gradient(rgba(2,6,23,0.9), rgba(2,6,23,0.86)), linear-gradient(120deg, #f58529, #dd2a7b, #8134af, #515bd4, #feda77, #f58529)",
+        backgroundOrigin: "border-box",
+        backgroundClip: "padding-box, border-box",
+        backgroundSize: "100% 100%, 220% 220%",
+      };
+
+  const headerChipStyles =
+    headerTextColor === "#ffffff"
+      ? "border-white/35 bg-white/15 text-white hover:bg-white/25"
+      : "border-slate-900/25 bg-slate-900/10 text-slate-900 hover:bg-slate-900/18";
+
+  if (!isOpen) {
     return (
-        <div className="fixed bottom-4 right-4 left-4 sm:left-auto sm:bottom-6 sm:right-6 w-auto sm:w-[360px] z-50 pb-20 sm:pb-0">
-            <div className={`relative h-[70vh] max-h-[550px] sm:h-[500px] bg-white rounded-3xl shadow-2xl overflow-hidden border border-border flex flex-col font-sans animate-in slide-in-from-bottom-5 duration-300 ${isIdle ? 'animate-vibrate-subtle' : ''}`}>
-                {/* Header */}
-                <div className="p-4 flex items-center justify-between text-white shadow-md" style={{ backgroundColor: config.primaryColor }}>
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center relative">
-                            <Bot className="w-6 h-6" />
-                            <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 rounded-full" style={{ borderColor: config.primaryColor }}></div>
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-sm">{config.businessName}</h3>
-                            <p className="text-[10px] opacity-90 text-white/90">{t('demo_widget.subtitle')}</p>
-                        </div>
-                    </div>
-                    {/* Desktop Close Button */}
-                    <button
-                        onClick={handleClose}
-                        className="hidden sm:flex hover:bg-black/10 p-1.5 rounded-lg transition-colors"
-                        aria-label="Cerrar chat"
-                    >
-                        <X className="w-5 h-5 text-white/80 hover:text-white" />
-                    </button>
-                </div>
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3 font-sans">
+        {hasBeenClosedOnce && Boolean(activeTeaser) ? (
+          <button
+            type="button"
+            onClick={() => {
+              setIsOpen(true);
+              setHasBeenClosedOnce(false);
+            }}
+            className="relative max-w-[240px] rounded-2xl border border-slate-200 bg-white px-4 py-2 text-left text-xs font-semibold text-slate-800 shadow-xl transition hover:shadow-2xl"
+          >
+            {activeTeaser}
+            <span className="absolute -bottom-2 right-6 h-4 w-4 rotate-45 border-b border-r border-slate-200 bg-white" />
+            <span className="absolute -right-1 top-1 h-2 w-2 rounded-full animate-ping" style={{ backgroundColor: primaryColor }} />
+          </button>
+        ) : null}
 
-                {/* Chat Area */}
-                <div className="flex-1 bg-slate-50 overflow-y-auto p-4 space-y-4" ref={scrollRef}>
-                    {messages.map((msg, idx) => (
-                        <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                            {msg.role === 'system' ? (
-                                <div className="w-full text-center my-2 space-y-2 animate-in fade-in zoom-in-95 duration-300">
-                                    <p className="text-xs text-slate-500 bg-slate-100 py-1 px-3 rounded-full inline-block">{msg.content}</p>
-                                    {msg.actionUrl && (
-                                        <Button
-                                            onClick={() => window.open(msg.actionUrl, '_blank')}
-                                            className="bg-[#25D366] hover:bg-[#128C7E] text-white w-full gap-2 shadow-sm font-semibold h-12"
-                                        >
-                                            <MessageCircle className="w-4 h-4" />
-                                            Abrir WhatsApp Ahora
-                                        </Button>
-                                    )}
-                                </div>
-                            ) : (
-                                <div
-                                    className={`max-w-[85%] p-3 rounded-2xl text-sm shadow-sm ${msg.role === 'user'
-                                        ? 'text-white rounded-br-none'
-                                        : 'bg-white text-slate-800 border border-slate-100 rounded-bl-none'
-                                        }`}
-                                    style={msg.role === 'user' ? { backgroundColor: config.primaryColor } : {}}
-                                >
-                                    {msg.content}
-                                </div>
-                            )}
-                        </div>
-                    ))}
+        <button
+          type="button"
+          onClick={() => {
+            setIsOpen(true);
+            setHasBeenClosedOnce(false);
+          }}
+          className="group relative grid h-16 w-16 place-items-center rounded-full text-white shadow-lg transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+          style={{
+            background: `linear-gradient(140deg, ${primaryColor} 0%, ${primaryStrong} 100%)`,
+            color: headerTextColor,
+          }}
+          aria-label={copy.chatTooltip}
+        >
+          <Bot className="h-8 w-8 transition-transform group-hover:rotate-12" />
+          <span className="absolute -right-1 -top-1 flex h-5 w-5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+            <span className="relative inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">1</span>
+          </span>
+        </button>
+      </div>
+    );
+  }
 
-                    {/* Fake interaction hint */}
-                    {(isLoading || (isIdle && messages.length === 1)) && (
-                        <div className="flex justify-start animate-pulse-subtle">
-                            <div className="bg-white p-3 rounded-2xl rounded-bl-none border border-slate-100 shadow-sm flex items-center gap-2">
-                                <div className="flex gap-1">
-                                    <span className="w-1.5 h-1.5 rounded-full animate-bounce delay-0" style={{ backgroundColor: config.primaryColor }}></span>
-                                    <span className="w-1.5 h-1.5 rounded-full animate-bounce delay-150" style={{ backgroundColor: config.primaryColor }}></span>
-                                    <span className="w-1.5 h-1.5 rounded-full animate-bounce delay-300" style={{ backgroundColor: config.primaryColor }}></span>
-                                </div>
-                                <span className="text-[10px] text-slate-400 font-medium">
-                                    {isLoading ? t('demo_widget.writing') : t('demo_widget.hint_message')}
-                                </span>
-                            </div>
-                        </div>
-                    )}
-                </div>
+  return (
+    <div className="fixed bottom-4 left-4 right-4 z-50 pb-20 font-sans sm:bottom-6 sm:left-auto sm:right-6 sm:w-[390px] sm:pb-0">
+      <div
+        className={`relative flex h-[72vh] max-h-[620px] min-h-[540px] flex-col overflow-hidden rounded-3xl border shadow-2xl ${
+          isLightMode ? "border-slate-200 bg-white text-slate-900" : "border-white/10 bg-[#081427] text-slate-100"
+        } ${isIdle ? "ring-2 ring-emerald-400/30" : ""}`}
+      >
+        <div
+          className="flex items-center justify-between gap-3 px-4 py-3"
+          style={{
+            background: `linear-gradient(135deg, ${primaryColor} 0%, ${primaryStrong} 100%)`,
+            color: headerTextColor,
+          }}
+        >
+          <div className="flex min-w-0 items-center gap-3">
+            <div
+              className={`relative grid h-10 w-10 place-items-center rounded-full ${headerTextColor === "#ffffff" ? "bg-white/20" : "bg-slate-900/10"}`}
+            >
+              <Bot className="h-5 w-5" />
+              <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-current bg-green-400" />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold">{copy.businessName}</p>
+              <p className={`truncate text-[10px] ${headerTextColor === "#ffffff" ? "text-white/90" : "text-slate-900/80"}`}>{copy.subtitle}</p>
+            </div>
+          </div>
 
-                {/* Input Area */}
-                <div className="p-4 bg-white border-t border-slate-100 space-y-3">
-
-                    {/* Quick Actions */}
-                    {messages.length < 3 && (
-                        <div className="mb-2 flex flex-nowrap gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:overflow-x-visible sm:pb-0">
-                            {quickReplies.map((text, i) => (
-                                <button
-                                    key={i}
-                                    onClick={() => {
-                                        if (isBlocked) return;
-                                        setMessages(prev => [...prev, { role: 'user', content: text }]);
-                                        setInputText('');
-                                        handleSendMessage(text);
-                                    }}
-                                    disabled={isBlocked}
-                                    className="shrink-0 whitespace-nowrap text-[11px] bg-slate-100 hover:text-white text-slate-600 px-3 py-1.5 rounded-full transition-colors border border-slate-200 sm:shrink"
-                                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = config.primaryColor; e.currentTarget.style.color = 'white'; }}
-                                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; e.currentTarget.style.color = '#475569'; }}
-                                >
-                                    {text}
-                                </button>
-                            ))}
-                        </div>
-                    )}
-
-                    {isIdle && messages.length === 1 && (
-                        <div className="text-center animate-bounce-subtle">
-                            <span className="text-[11px] bg-primary/10 text-primary px-3 py-1 rounded-full font-semibold border border-primary/20"
-                                style={{ backgroundColor: `${config.primaryColor}20`, color: config.primaryColor }}>
-                                {t('demo_widget.teaser_2')}
-                            </span>
-                        </div>
-                    )}
-                    <form
-                        onSubmit={(e) => {
-                            e.preventDefault();
-                            handleSendMessage();
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setLocale((prev) => (prev === "es" ? "en" : "es"))}
+              className={`inline-flex h-8 min-w-8 items-center justify-center rounded-full border px-2 text-[11px] font-bold tracking-[0.06em] transition ${headerChipStyles}`}
+              aria-label="Toggle language"
+            >
+              {nextLanguageLabel}
+            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => {
+                  setPaletteOpen((prev) => !prev);
+                  setEmojiPickerOpen(false);
+                }}
+                className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition ${headerChipStyles}`}
+                aria-label={copy.colorAria}
+              >
+                <Palette className="h-4 w-4" />
+              </button>
+              {paletteOpen ? (
+                <div className={`absolute right-0 top-10 z-30 w-44 rounded-xl border p-2 shadow-2xl ${isLightMode ? "border-slate-200 bg-white" : "border-white/15 bg-slate-900/95 backdrop-blur"}`}>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {COLOR_PRESETS.map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() => {
+                          setPrimaryColor(color);
+                          setPaletteOpen(false);
                         }}
-                        className={`flex gap-2 transition-transform duration-500 ${isIdle ? 'scale-[1.02]' : ''}`}
-                    >
-                        <Input
-                            value={inputText}
-                            onChange={(e) => setInputText(e.target.value)}
-                            onFocus={() => setIsIdle(false)}
-                            placeholder={isBlocked ? t('demo_widget.blocked_placeholder') : t('demo_widget.placeholder')}
-                            className={`flex-1 bg-slate-50 text-slate-900 border-slate-200 focus-visible:ring-[#00C185] h-12 shadow-inner transition-all ${isIdle ? 'ring-2 ring-primary/30 border-primary/50' : ''} ${isBlocked ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            disabled={isLoading || isBlocked}
-                        />
-                        <Button
-                            type="submit"
-                            size="icon"
-                            className={`text-white shrink-0 h-12 w-12 shadow-lg transition-all ${isIdle ? 'animate-pulse' : ''} ${isBlocked ? 'opacity-50' : ''}`}
-                            style={{ backgroundColor: config.primaryColor }}
-                            disabled={isLoading || isBlocked}
-                        >
-                            <Send className="w-5 h-5" />
-                        </Button>
-                    </form>
-                    <div className="text-center flex justify-center items-center gap-1">
-                        <div className="w-1 h-1 rounded-full" style={{ backgroundColor: config.primaryColor }}></div>
-                        <p className="text-[9px] text-slate-400 font-medium uppercase tracking-wider">
-                            {t('demo_widget.powered_by')}
-                        </p>
-                        <div className="w-1 h-1 rounded-full" style={{ backgroundColor: config.primaryColor }}></div>
-                    </div>
+                        className={`h-7 w-7 rounded-full border ${primaryColor === color ? "ring-2 ring-offset-2 ring-cyan-400 ring-offset-transparent" : ""}`}
+                        style={{ backgroundColor: color, borderColor: hexToRgba(color, 0.4) }}
+                        aria-label={`Color ${color}`}
+                      />
+                    ))}
+                  </div>
                 </div>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              onClick={() => setThemeMode((prev) => (prev === "dark" ? "light" : "dark"))}
+              className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition ${headerChipStyles} lg:animate-[pulse_3.2s_ease-in-out_infinite]`}
+              aria-label={isLightMode ? copy.themeDarkAria : copy.themeLightAria}
+            >
+              {isLightMode ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+            </button>
+            <button
+              type="button"
+              onClick={handleClose}
+              className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition ${headerChipStyles}`}
+              aria-label={copy.closeAria}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        <div
+          className={`relative mx-3 mt-3 overflow-hidden rounded-xl border px-3 py-2 text-xs transition-all duration-500 ${
+            testimonialTransition
+              ? isLightMode
+                ? "shadow-[0_0_24px_-16px_rgba(56,189,248,0.6)]"
+                : "shadow-[0_0_35px_-16px_rgba(34,211,238,0.9)]"
+              : ""
+          }`}
+          style={testimonialBarStyle}
+        >
+          <div
+            className={`pointer-events-none absolute -inset-16 transition-opacity duration-500 ${testimonialTransition ? "opacity-100" : "opacity-0"}`}
+            style={{
+              background: isLightMode
+                ? "radial-gradient(circle at 50% 50%, rgba(56,189,248,0.28) 0%, rgba(148,163,184,0.2) 40%, rgba(255,255,255,0) 74%)"
+                : "radial-gradient(circle at 50% 50%, rgba(125,211,252,0.42) 0%, rgba(52,211,153,0.25) 35%, rgba(2,6,23,0) 72%)",
+            }}
+          />
+          <div className="relative min-w-0">
+            <p className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${isLightMode ? "text-sky-700" : "text-cyan-200"}`}>{copy.testimonialLabel}</p>
+            <p className="mt-0.5 truncate text-xs">"{testimonial.text}"</p>
+            <p className={`mt-0.5 truncate text-[11px] ${isLightMode ? "text-slate-500" : "text-slate-300"}`}>
+              {testimonial.name} • {"*".repeat(testimonial.stars)}
+            </p>
+          </div>
+        </div>
+
+        <div
+          ref={scrollRef}
+          className={`flex-1 space-y-3 overflow-y-auto px-4 py-4 ${
+            isLightMode ? "bg-slate-50/70" : "bg-[#041024]"
+          }`}
+        >
+          {messages.map((msg, index) => (
+            <div key={`${msg.role}-${index}`} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+              {msg.role === "system" ? (
+                <div className="w-full space-y-2 text-center">
+                  <p className={`inline-block rounded-full px-3 py-1 text-xs ${isLightMode ? "bg-slate-200 text-slate-600" : "bg-white/10 text-slate-200"}`}>{msg.content}</p>
+                  {msg.actionUrl ? (
+                    <Button type="button" className="h-10 w-full gap-2 bg-[#25D366] font-semibold text-white hover:bg-[#1ea955]" onClick={() => window.open(msg.actionUrl, "_blank")}>
+                      <MessageCircle className="h-4 w-4" />
+                      {copy.openWhatsAppNow}
+                    </Button>
+                  ) : null}
+                </div>
+              ) : (
+                <div
+                  className={`max-w-[86%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
+                    msg.role === "user"
+                      ? "rounded-br-md"
+                      : isLightMode
+                        ? "rounded-bl-md border border-slate-200 bg-white text-slate-700"
+                        : "rounded-bl-md border border-white/10 bg-white/[0.04] text-slate-100"
+                  }`}
+                  style={msg.role === "user" ? { backgroundColor: primaryColor, color: userBubbleTextColor } : undefined}
+                >
+                  {msg.content}
+                </div>
+              )}
+            </div>
+          ))}
+
+          {isLoading ? (
+            <div className="flex justify-start">
+              <div className={`inline-flex items-center gap-2 rounded-2xl rounded-bl-md border px-3 py-2 text-xs ${isLightMode ? "border-slate-200 bg-white text-slate-500" : "border-white/10 bg-white/[0.04] text-slate-300"}`}>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                {copy.typing}
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        <div className={`space-y-3 border-t px-4 py-4 ${isLightMode ? "border-slate-200 bg-white" : "border-white/10 bg-[#081427]"}`}>
+          {messages.length < 3 ? (
+            <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {copy.quickReplies.map((text) => (
+                <button
+                  key={text}
+                  type="button"
+                  onClick={() => void handleSendMessage(text)}
+                  disabled={isBlocked || isLoading}
+                  className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs transition ${
+                    isLightMode
+                      ? "border-slate-300 bg-white text-slate-700 hover:border-sky-300 hover:text-sky-700"
+                      : "border-slate-700 bg-slate-900 text-slate-200 hover:border-cyan-400/60 hover:text-cyan-200"
+                  } disabled:cursor-not-allowed disabled:opacity-50`}
+                >
+                  {text}
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void handleSendMessage();
+            }}
+            className={`flex items-center gap-2 transition ${isIdle ? "scale-[1.01]" : ""}`}
+          >
+            <div
+              className={`relative flex h-12 min-w-0 flex-1 items-center gap-2 rounded-[14px] border px-2.5 ${
+                isLightMode ? "border-slate-300 bg-white" : "border-cyan-500/35 bg-[#0a1627]/92"
+              }`}
+            >
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmojiPickerOpen((prev) => !prev);
+                    setPaletteOpen(false);
+                  }}
+                  className={`inline-flex h-7 w-7 items-center justify-center rounded-full border ${
+                    isLightMode
+                      ? "border-slate-300 bg-white text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                      : "border-white/15 bg-white/[0.04] text-slate-400 hover:bg-white/[0.1] hover:text-cyan-200"
+                  }`}
+                  aria-label={copy.emojiAria}
+                >
+                  <Smile className="h-3.5 w-3.5" />
+                </button>
+                {emojiPickerOpen ? (
+                  <div className={`absolute bottom-10 left-0 z-30 w-56 rounded-xl border p-2 shadow-2xl ${isLightMode ? "border-slate-200 bg-white" : "border-white/15 bg-[#0a1627]/95 backdrop-blur"}`}>
+                    <div className="grid grid-cols-6 gap-1">
+                      {QUICK_EMOJIS.map((emoji) => (
+                        <button
+                          key={emoji}
+                          type="button"
+                          onClick={() => setInputText((prev) => `${prev}${emoji}`)}
+                          className={`rounded-md p-1.5 text-base ${isLightMode ? "hover:bg-slate-100" : "hover:bg-white/10"}`}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
+              <button
+                type="button"
+                onClick={toggleSpeechInput}
+                className={`inline-flex h-7 w-7 items-center justify-center rounded-full border ${
+                  isLightMode
+                    ? "border-slate-300 bg-white text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                    : "border-white/15 bg-white/[0.04] text-slate-400 hover:bg-white/[0.1] hover:text-cyan-200"
+                } disabled:cursor-not-allowed disabled:opacity-50`}
+                aria-label={speechListening ? copy.voiceStopAria : copy.voiceStartAria}
+                disabled={isLoading || isBlocked}
+              >
+                {speechListening ? <MicOff className="h-3.5 w-3.5 text-rose-400" /> : <Mic className="h-3.5 w-3.5" />}
+              </button>
+
+              <Input
+                value={inputText}
+                onChange={(event) => setInputText(event.target.value)}
+                onFocus={() => setIsIdle(false)}
+                placeholder={isBlocked ? copy.blockedPlaceholder : copy.placeholder}
+                className={`h-9 min-w-0 border-0 bg-transparent px-0 text-sm shadow-none placeholder:text-slate-400 focus-visible:ring-0 ${
+                  isLightMode ? "text-slate-900" : "text-slate-100"
+                }`}
+                disabled={isLoading || isBlocked}
+              />
             </div>
 
-            {/* Floating Close Button - Mobile Only - Outside overflow container */}
             <button
-                onClick={handleClose}
-                className="absolute bottom-2 left-1/2 -translate-x-1/2 sm:hidden w-14 h-14 rounded-full bg-red-600 hover:bg-red-700 active:scale-95 transition-all flex items-center justify-center shadow-2xl border-4 border-white z-50"
-                aria-label="Cerrar chat"
+              type="submit"
+              disabled={isLoading || isBlocked || !inputText.trim()}
+              className="inline-flex h-12 w-12 items-center justify-center rounded-[14px] transition hover:-translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
+              style={{
+                background: `linear-gradient(140deg, ${primaryColor} 0%, ${primaryStrong} 100%)`,
+                boxShadow: `0 8px 16px ${hexToRgba(primaryColor, 0.28)}`,
+                color: getContrastText(primaryColor),
+              }}
             >
-                <X className="w-6 h-6 text-white stroke-[3]" />
+              <Send className="h-4 w-4" />
             </button>
+          </form>
+
+          <div className="flex items-center justify-center gap-1">
+            <span className="h-1 w-1 rounded-full" style={{ backgroundColor: primaryColor }} />
+            <p className={`text-[10px] font-medium uppercase tracking-[0.15em] ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>{copy.poweredBy}</p>
+            <span className="h-1 w-1 rounded-full" style={{ backgroundColor: primaryColor }} />
+          </div>
+          {speechListening ? <p className={`text-center text-[11px] ${isLightMode ? "text-rose-600" : "text-rose-300"}`}>{copy.listeningNow}</p> : null}
         </div>
-    );
+      </div>
+
+      <button
+        type="button"
+        onClick={handleClose}
+        className="absolute bottom-2 left-1/2 z-50 grid h-14 w-14 -translate-x-1/2 place-items-center rounded-full border-4 border-white bg-red-600 text-white shadow-2xl transition active:scale-95 sm:hidden"
+        aria-label={copy.closeAria}
+      >
+        <X className="h-6 w-6" />
+      </button>
+    </div>
+  );
 }
 
-// Add simple CSS animation for subtle vibrate if not exists in global css
-const style = document.createElement('style');
-style.innerHTML = `
-  @keyframes vibrate-subtle {
-    0% { transform: translate(0); }
-    20% { transform: translate(-1px, 1px); }
-    40% { transform: translate(-1px, -1px); }
-    60% { transform: translate(1px, 1px); }
-    80% { transform: translate(1px, -1px); }
-    100% { transform: translate(0); }
-  }
-  .animate-vibrate-subtle { animation: vibrate-subtle 0.3s linear infinite paused; }
-  .animate-vibrate-subtle:hover { animation-play-state: running; }
-`;
-document.head.appendChild(style);
