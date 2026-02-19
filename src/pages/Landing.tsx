@@ -1,157 +1,277 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
-import { Link } from 'react-router-dom';
-import { useTranslation, Trans } from 'react-i18next';
-import { LanguageSwitcher } from '@/components/LanguageSwitcher';
-import { Button } from '@/components/ui/button';
-import { SalesWidget } from '@/components/SalesWidget';
-import { SocialProofToast } from '@/components/SocialProofToast';
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { Button } from "@/components/ui/button";
+import { SalesWidget } from "@/components/SalesWidget";
+import { SocialProofToast } from "@/components/SocialProofToast";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
-  MessageCircle,
-  Zap,
-  BarChart3,
-  Smartphone,
-  Check,
   ArrowRight,
-  Star,
-  Menu,
-  X as CloseIcon,
-  MousePointer2,
-  ShieldCheck,
-  Play,
   Bot,
+  CheckCircle2,
+  Menu,
+  MessageCircle,
+  Mic,
+  Play,
   Send,
+  ShieldCheck,
+  Smile,
   Sparkles,
-  Cloud,
-  Database,
-  Lock,
-} from 'lucide-react';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+  Star,
+  X as CloseIcon,
+} from "lucide-react";
+
+type LandingTestimonial = {
+  quote: string;
+  name: string;
+  role: string;
+  result: string;
+  avatar: string;
+};
+
 export default function Landing() {
-  const { t, i18n } = useTranslation();
-  const [activeTemplate, setActiveTemplate] = useState('real_estate');
+  const { i18n } = useTranslation();
+  const isEn = String(i18n.language || "").toLowerCase().startsWith("en");
+
+  const copy = {
+    heroBadge: isEn ? "IACloser + Lead Chat stack" : "Sistema IACloser + Lead Chat",
+    heroTitle: isEn
+      ? "Close conversations in under 2 minutes"
+      : "Cierra conversaciones en menos de 2 minutos",
+    heroSubtitle: isEn
+      ? "Capture, pre-qualify, collect explicit consent, and trigger outbound calls from one conversion flow."
+      : "Capta, precalifica, recoge consentimiento explicito y activa llamadas outbound en un solo flujo.",
+    ctaPrimary: isEn ? "Start free" : "Empezar gratis",
+    ctaSecondary: isEn ? "Watch live demo" : "Ver demo en vivo",
+    modesTitle: isEn ? "Two ways to convert" : "Dos modos para vender",
+    capabilitiesTitle: isEn ? "New conversion capabilities" : "Nuevas capacidades de conversion",
+    useCasesTitle: isEn ? "Use cases with real close speed" : "Casos de uso con velocidad de cierre",
+    testimonialsTitle: isEn ? "Updated testimonials" : "Testimonios actualizados",
+    pricingTitle: isEn ? "Simple plan, fast launch" : "Plan simple, lanzamiento rapido",
+    finalTitle: isEn
+      ? "If you already have traffic, this is your next move"
+      : "Si ya tienes trafico, este es tu siguiente paso",
+    finalSubtitle: isEn
+      ? "Turn visits into qualified conversations and conversations into real calls."
+      : "Convierte visitas en conversaciones calificadas y conversaciones en llamadas reales.",
+    navLogin: isEn ? "Login" : "Iniciar sesion",
+    navRegister: isEn ? "Create account" : "Crear cuenta",
+    navTry: isEn ? "Try demo" : "Probar demo",
+    footerRights: isEn
+      ? "2026 Lead Widget. All rights reserved."
+      : "2026 Lead Widget. Todos los derechos reservados.",
+    exitTitle: isEn ? "Before you leave" : "Antes de salir",
+    exitSubtitle: isEn
+      ? "Run the complete flow and compare your current lead quality."
+      : "Prueba el flujo completo y compara la calidad de tus leads.",
+    exitCta: isEn ? "Open demo now" : "Abrir demo ahora",
+    exitDismiss: isEn ? "Keep browsing" : "Seguir navegando",
+  };
+
+  const capabilities = isEn
+    ? [
+        {
+          title: "One-row quick replies",
+          body: "Compact CTAs with smooth horizontal scroll and higher first-response rate.",
+        },
+        {
+          title: "Premium composer",
+          body: "Emoji, voice input, and cleaner send control aligned with the embedded widget UX.",
+        },
+        {
+          title: "Dynamic social proof",
+          body: "Instagram-like testimonial glow and live activity strips without interrupting the chat.",
+        },
+        {
+          title: "Consent + IACloser handoff",
+          body: "Explicit SI/YES consent gate before triggering call handoff payload.",
+        },
+      ]
+    : [
+        {
+          title: "Quick replies en una sola fila",
+          body: "CTA compactos con scroll horizontal suave y mejor tasa de primera respuesta.",
+        },
+        {
+          title: "Composer premium",
+          body: "Emoji, voz y control de envio limpio alineado al UX del widget embebido.",
+        },
+        {
+          title: "Prueba social dinamica",
+          body: "Glow tipo Instagram en testimonios y actividad en vivo sin interrumpir el chat.",
+        },
+        {
+          title: "Consentimiento + handoff IACloser",
+          body: "Bloqueo por consentimiento explicito SI/YES antes de activar payload de llamada.",
+        },
+      ];
+
+  const useCases = isEn
+    ? [
+        "Clinics and dentistry",
+        "Real estate teams",
+        "High-ticket services",
+        "Consultative ecommerce",
+        "Partner agencies",
+        "Businesses without website",
+      ]
+    : [
+        "Clinicas y odontologia",
+        "Equipos inmobiliarios",
+        "Servicios high ticket",
+        "Ecommerce consultivo",
+        "Agencias partner",
+        "Negocios sin web",
+      ];
+
+  const testimonials = useMemo<LandingTestimonial[]>(
+    () =>
+      isEn
+        ? [
+            {
+              quote:
+                "Lead quality improved in week one. We now spend time only on prospects that are ready for a call.",
+              name: "Daniela Rojas",
+              role: "Commercial Director",
+              result: "2.4x qualified calls",
+              avatar: "https://i.pravatar.cc/160?img=48",
+            },
+            {
+              quote:
+                "Public Lead Chat gave us a strong conversion channel while our website was still under construction.",
+              name: "Carlos Mena",
+              role: "Founder",
+              result: "+39% useful leads",
+              avatar: "https://i.pravatar.cc/160?img=14",
+            },
+            {
+              quote:
+                "The consent step reduced legal risk and clarified operations. Team only jumps in on real intent.",
+              name: "Valeria Torres",
+              role: "Operations Lead",
+              result: "-34% wasted handling time",
+              avatar: "https://i.pravatar.cc/160?img=23",
+            },
+          ]
+        : [
+            {
+              quote:
+                "La calidad de lead subio desde la primera semana. Ahora solo atendemos prospectos listos para llamada.",
+              name: "Daniela Rojas",
+              role: "Directora Comercial",
+              result: "2.4x llamadas calificadas",
+              avatar: "https://i.pravatar.cc/160?img=48",
+            },
+            {
+              quote:
+                "Lead Chat publico nos dio conversion real mientras nuestra web aun estaba en desarrollo.",
+              name: "Carlos Mena",
+              role: "Founder",
+              result: "+39% leads utiles",
+              avatar: "https://i.pravatar.cc/160?img=14",
+            },
+            {
+              quote:
+                "El paso de consentimiento redujo riesgo legal y ordeno la operacion. El equipo entra solo con intencion real.",
+              name: "Valeria Torres",
+              role: "Lider de Operaciones",
+              result: "-34% tiempo improductivo",
+              avatar: "https://i.pravatar.cc/160?img=23",
+            },
+          ],
+    [isEn],
+  );
+
+  const loopedTestimonials = useMemo(
+    () => (testimonials.length > 1 ? [...testimonials, ...testimonials] : testimonials),
+    [testimonials],
+  );
+
   const [showExitPopup, setShowExitPopup] = useState(false);
   const [hasShownExit, setHasShownExit] = useState(false);
-  const testimonialsScrollRef = useRef<HTMLDivElement | null>(null);
-  const testimonialsRaw = t('landing_testimonials.items', { returnObjects: true }) as unknown;
-  const landingTestimonials = Array.isArray(testimonialsRaw)
-    ? testimonialsRaw as Array<{ quote: string; name: string; role: string; result: string; avatar?: string }>
-    : [];
-  const loopingLandingTestimonials = useMemo(
-    () => (landingTestimonials.length > 1 ? [...landingTestimonials, ...landingTestimonials] : landingTestimonials),
-    [landingTestimonials],
-  );
-  const leadChatFlowRaw = t('lead_chat_landing.flow_steps', { returnObjects: true }) as unknown;
-  const leadChatFlow = Array.isArray(leadChatFlowRaw) ? leadChatFlowRaw as string[] : [];
+  const testimonialsRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const handleMouseLeave = (e: MouseEvent) => {
-      if (e.clientY <= 0 && !hasShownExit) {
+    const desktopPointer = window.matchMedia("(min-width: 1024px) and (pointer:fine)").matches;
+    if (!desktopPointer) return;
+
+    const onExit = (event: MouseEvent) => {
+      const isExit = event.clientY <= 6 || (event.relatedTarget === null && event.clientY < 10);
+      if (isExit && !hasShownExit) {
         setShowExitPopup(true);
         setHasShownExit(true);
       }
     };
-    document.addEventListener('mouseleave', handleMouseLeave);
-    return () => document.removeEventListener('mouseleave', handleMouseLeave);
+
+    document.addEventListener("mouseout", onExit);
+    document.addEventListener("mouseleave", onExit);
+    return () => {
+      document.removeEventListener("mouseout", onExit);
+      document.removeEventListener("mouseleave", onExit);
+    };
   }, [hasShownExit]);
 
-  // ViewContent 50% Scroll Tracker
   useEffect(() => {
-    let viewContentTriggered = false;
+    const container = testimonialsRef.current;
+    if (!container || testimonials.length < 2) return;
 
-    const handleScroll = () => {
-      const scrollTop = window.scrollY;
-      const windowHeight = window.innerHeight;
-      const documentHeight = document.documentElement.scrollHeight;
-
-      // Calculate percentage scrolled
-      const scrollPercent = ((scrollTop + windowHeight) / documentHeight) * 100;
-
-      // Debugging: Uncomment to see scroll % in console
-      // console.log('Scroll %:', Math.round(scrollPercent));
-
-      if (scrollPercent >= 50 && !viewContentTriggered) {
-        // Safe Pixel Event Dispatch
-        // @ts-ignore
-        if (window.fbq) {
-          // @ts-ignore
-          window.fbq('track', 'ViewContent');
-          console.log('Pixel Event Fired: ViewContent (Scroll > 50%)');
-        } else {
-          console.warn('Facebook Pixel not found (fbq is undefined)');
-        }
-
-        viewContentTriggered = true;
-        window.removeEventListener('scroll', handleScroll);
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  useEffect(() => {
-    const container = testimonialsScrollRef.current;
-    if (!container || landingTestimonials.length < 2) return;
-
-    let animationFrame = 0;
-    let previousTimestamp = 0;
-    const speedPxPerSecond = 22;
+    let raf = 0;
+    let prev = 0;
+    const speed = 20;
     const loopPoint = container.scrollWidth / 2;
 
-    const step = (timestamp: number) => {
-      if (!previousTimestamp) previousTimestamp = timestamp;
-      const delta = (timestamp - previousTimestamp) / 1000;
-      previousTimestamp = timestamp;
+    const tick = (ts: number) => {
+      if (!prev) prev = ts;
+      const delta = (ts - prev) / 1000;
+      prev = ts;
 
-      if (!container.matches(':hover') && !document.hidden) {
-        container.scrollLeft += speedPxPerSecond * delta;
-        if (container.scrollLeft >= loopPoint) {
-          container.scrollLeft -= loopPoint;
-        }
+      if (!container.matches(":hover") && !document.hidden) {
+        container.scrollLeft += speed * delta;
+        if (container.scrollLeft >= loopPoint) container.scrollLeft -= loopPoint;
       }
-
-      animationFrame = window.requestAnimationFrame(step);
+      raf = window.requestAnimationFrame(tick);
     };
 
-    animationFrame = window.requestAnimationFrame(step);
+    raf = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(raf);
+  }, [testimonials.length, loopedTestimonials.length]);
 
-    return () => window.cancelAnimationFrame(animationFrame);
-  }, [landingTestimonials.length, loopingLandingTestimonials.length]);
+  const openDemoWidget = () => {
+    window.dispatchEvent(new Event("open-lead-widget"));
+  };
 
-  const handleTestimonialsScroll = (direction: 'prev' | 'next') => {
-    const container = testimonialsScrollRef.current;
+  const scrollTestimonials = (direction: "prev" | "next") => {
+    const container = testimonialsRef.current;
     if (!container) return;
-    const card = container.querySelector('[data-testimonial-card]') as HTMLElement | null;
+    const card = container.querySelector("[data-testimonial-card]") as HTMLElement | null;
     const step = (card?.offsetWidth || 320) + 16;
     const loopPoint = container.scrollWidth / 2;
 
-    if (direction === 'prev') {
+    if (direction === "prev") {
       if (container.scrollLeft <= step) {
-        container.scrollTo({ left: Math.max(loopPoint - step, 0), behavior: 'smooth' });
+        container.scrollTo({ left: Math.max(loopPoint - step, 0), behavior: "smooth" });
         return;
       }
-      container.scrollBy({ left: -step, behavior: 'smooth' });
+      container.scrollBy({ left: -step, behavior: "smooth" });
       return;
     }
 
     if (container.scrollLeft + step >= loopPoint) {
-      container.scrollTo({ left: 0, behavior: 'smooth' });
+      container.scrollTo({ left: 0, behavior: "smooth" });
       return;
     }
-    container.scrollBy({ left: step, behavior: 'smooth' });
-  };
-
-  const handleOpenDemoFromPopup = () => {
-    setShowExitPopup(false);
-    setTimeout(() => {
-      window.dispatchEvent(new Event('open-lead-widget'));
-    }, 100);
+    container.scrollBy({ left: step, behavior: "smooth" });
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground transition-colors duration-300 selection:bg-primary/20">
+    <main className="min-h-screen overflow-x-hidden bg-[#f7f9fc] text-slate-900 selection:bg-cyan-200/70">
       <style>{`
+        @keyframes floatSoft {
+          0% { transform: translate3d(0,0,0); }
+          50% { transform: translate3d(0,-12px,0); }
+          100% { transform: translate3d(0,0,0); }
+        }
         @keyframes igBorderShift {
           0% { background-position: 0% 50%; }
           50% { background-position: 100% 50%; }
@@ -159,8 +279,8 @@ export default function Landing() {
         }
         @keyframes igShineSweep {
           0% { transform: translateX(-140%) skewX(-20deg); opacity: 0; }
-          20% { opacity: 0.4; }
-          60% { opacity: 0.16; }
+          20% { opacity: 0.36; }
+          60% { opacity: 0.12; }
           100% { transform: translateX(240%) skewX(-20deg); opacity: 0; }
         }
         .ig-testimonial-card {
@@ -168,7 +288,7 @@ export default function Landing() {
           overflow: hidden;
           border: 1px solid transparent;
           background-image:
-            linear-gradient(hsl(var(--card) / 0.9), hsl(var(--card) / 0.84)),
+            linear-gradient(rgba(255,255,255,0.96), rgba(255,255,255,0.92)),
             linear-gradient(115deg, #f58529, #dd2a7b, #8134af, #515bd4, #feda77, #f58529);
           background-origin: border-box;
           background-clip: padding-box, border-box;
@@ -182,70 +302,45 @@ export default function Landing() {
           left: -120%;
           width: 42%;
           pointer-events: none;
-          background: linear-gradient(110deg, transparent, rgba(255,255,255,0.2), transparent);
-          animation: igShineSweep 6.2s ease-in-out infinite;
+          background: linear-gradient(110deg, transparent, rgba(255,255,255,0.22), transparent);
+          animation: igShineSweep 6s ease-in-out infinite;
         }
       `}</style>
 
-      {/* Background Mesh/Grid Effect */}
-      <div className="fixed inset-0 z-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05]"
-        style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%239C92AC' fill-opacity='0.4'%3E%3Cpath d='M36 34v2H20v-2h16zm0-8v2H20v-2h16zm-16-8v2h16v-2H20zM0 0h60v60H0V0zm1 1h58v58H1V1z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")` }}>
+      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+        <div className="absolute -left-28 top-24 h-[380px] w-[380px] rounded-full bg-cyan-300/30 blur-3xl" style={{ animation: "floatSoft 9s ease-in-out infinite" }} />
+        <div className="absolute right-[-120px] top-[-100px] h-[420px] w-[420px] rounded-full bg-indigo-300/25 blur-3xl" style={{ animation: "floatSoft 11s ease-in-out infinite" }} />
       </div>
 
-      {/* --- SOCIAL PROOF TOAST --- */}
       <SocialProofToast />
 
-      {/* --- NAVIGATION --- */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 group">
-            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center group-hover:scale-105 transition-transform">
-              <MessageCircle className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <span className="font-bold text-lg tracking-tight">Lead Widget</span>
+      <nav className="fixed inset-x-0 top-0 z-50 border-b border-slate-200/70 bg-white/80 backdrop-blur-xl">
+        <div className="mx-auto flex h-16 w-full max-w-[1160px] items-center justify-between px-4 sm:px-6">
+          <Link to="/" className="flex items-center gap-2">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-500 text-white shadow-md">
+              <MessageCircle className="h-5 w-5" />
+            </span>
+            <span className="text-sm font-semibold tracking-tight sm:text-base">Lead Widget</span>
           </Link>
 
-          {/* Desktop Nav */}
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden items-center gap-3 md:flex">
             <LanguageSwitcher />
-            <Link to="/login" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-              {t('nav.login')}
-            </Link>
-            <div className="flex items-center gap-2 pl-2 border-l border-border">
-              <Link to="/register">
-                <Button className="font-bold shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all btn-iridescent text-white">
-                  {t('nav.try_free')} <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-              </Link>
-            </div>
+            <Link to="/partners" className="rounded-full px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900">Partners</Link>
+            <Link to="/login" className="rounded-full px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900">{copy.navLogin}</Link>
+            <Link to="/register"><Button className="h-10 rounded-full px-5 font-semibold text-white">{copy.navRegister}</Button></Link>
           </div>
 
-          {/* Mobile Nav */}
-          <div className="md:hidden flex items-center gap-2">
+          <div className="flex items-center gap-2 md:hidden">
             <LanguageSwitcher />
-            <Link to="/register">
-              <Button size="sm" className="font-bold">
-                {t('nav.try')}
-              </Button>
-            </Link>
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <Menu className="w-5 h-5" />
-                </Button>
+                <Button variant="ghost" size="icon" className="rounded-full"><Menu className="h-5 w-5" /></Button>
               </SheetTrigger>
-              <SheetContent side="right">
-                <div className="flex flex-col gap-6 mt-10">
-                  <Link to="/" className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                      <MessageCircle className="w-4 h-4 text-primary-foreground" />
-                    </div>
-                    <span className="font-bold text-lg">Lead Widget</span>
-                  </Link>
-                  <div className="grid gap-3">
-                    <Link to="/login"><Button variant="outline" className="w-full justify-start">{t('nav.login')}</Button></Link>
-                    <Link to="/register"><Button className="w-full justify-start">{t('nav.create_account')}</Button></Link>
-                  </div>
+              <SheetContent side="right" className="w-[300px]">
+                <div className="mt-10 grid gap-3">
+                  <Link to="/partners"><Button variant="outline" className="w-full justify-start">Partners</Button></Link>
+                  <Link to="/login"><Button variant="outline" className="w-full justify-start">{copy.navLogin}</Button></Link>
+                  <Link to="/register"><Button className="w-full justify-start">{copy.navRegister}</Button></Link>
                 </div>
               </SheetContent>
             </Sheet>
@@ -253,1035 +348,187 @@ export default function Landing() {
         </div>
       </nav>
 
-      {/* --- HERO SECTION --- */}
-      <section className="relative pt-24 pb-16 lg:pt-48 lg:pb-32 px-4 overflow-hidden">
-        {/* Background Gradients */}
-        <div className="absolute top-0 inset-x-0 h-[600px] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-background to-background dark:from-primary/5 dark:via-background dark:to-background -z-10" />
+      <section className="relative z-10 px-4 pb-18 pt-28 sm:px-6 lg:pt-32">
+        <div className="mx-auto grid w-full max-w-[1160px] gap-10 lg:grid-cols-[1.04fr_0.96fr] lg:items-center">
+          <div className="space-y-6">
+            <span className="inline-flex items-center gap-2 rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-cyan-700"><Sparkles className="h-3.5 w-3.5" />{copy.heroBadge}</span>
+            <h1 className="text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">{copy.heroTitle}</h1>
+            <p className="max-w-2xl text-base leading-relaxed text-slate-600 sm:text-lg">{copy.heroSubtitle}</p>
 
-        <div className="container mx-auto max-w-6xl">
-          <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
-
-            {/* Left Content */}
-            <div className="flex-1 space-y-6 lg:space-y-8 text-center lg:text-left z-10 w-full">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs sm:text-sm font-semibold border border-primary/20 animate-fade-in-up">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
-                </span>
-                {t('hero.system_badge')} • <span>{t('hero.users_online', { count: 124 })}</span>
-              </div>
-
-              <h1 className="text-4xl sm:text-5xl lg:text-7xl font-extrabold tracking-tight leading-[1.1] text-balance">
-                {t('hero.title_1')} <br className="hidden lg:block" />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-emerald-600 dark:to-emerald-400">
-                  {t('hero.title_2')}
-                </span>
-              </h1>
-
-              <p className="text-lg sm:text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto lg:mx-0 text-pretty">
-                <Trans i18nKey="hero.subtitle" components={[<strong className="text-foreground" key="0" />, <strong className="text-foreground" key="1" />]} />
-              </p>
-
-              <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start w-full sm:w-auto">
-                <Link to="/register" className="w-full sm:w-auto">
-                  <Button size="xl" className="w-full sm:w-auto text-lg font-bold h-14 px-8 shadow-xl shadow-primary/25 hover:shadow-primary/40 hover:-translate-y-1 transition-all btn-iridescent text-white">
-                    {t('hero.cta_primary')}
-                  </Button>
-                </Link>
-                <Button
-                  variant="outline"
-                  size="xl"
-                  className="w-full sm:w-auto h-14 px-8 border-2 group"
-                  onClick={() => window.dispatchEvent(new Event('open-lead-widget'))}
-                >
-                  <Play className="w-4 h-4 mr-2 fill-current opacity-50 group-hover:opacity-100 transition-opacity" />
-                  {t('hero.cta_secondary')}
-                </Button>
-              </div>
-
-              <div className="pt-4 lg:pt-8 flex flex-wrap justify-center lg:justify-start gap-8 lg:gap-12 opacity-80">
-                <div className="text-center lg:text-left">
-                  <p className="text-2xl font-bold text-foreground">22%</p>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">{t('hero.stats.conversion')}</p>
-                </div>
-                <div className="text-center lg:text-left">
-                  <p className="text-2xl font-bold text-foreground">+500</p>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">{t('hero.stats.leads')}</p>
-                </div>
-                <div className="text-center lg:text-left">
-                  <p className="text-2xl font-bold text-foreground">2min</p>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">{t('hero.stats.time')}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Right Image/Mockup */}
-            <div className="flex-1 relative w-full max-w-[350px] sm:max-w-[500px] lg:max-w-none mx-auto lg:mx-0 mt-8 lg:mt-0">
-              <div className="absolute inset-0 bg-gradient-to-tr from-primary/20 to-purple-500/20 rounded-full blur-3xl opacity-30 animate-pulse-slow" />
-              <div className="relative bg-card border border-border/50 rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden p-2 transform hover:scale-[1.01] transition-transform duration-500">
-                <img
-                  src="/assets/hero-mockup.png"
-                  alt="Dashboard Preview"
-                  className="w-full rounded-[1.5rem] sm:rounded-[2rem] shadow-inner bg-muted/50"
-                />
-                {/* Floating elements - Hidden on very small screens */}
-                <div className="hidden sm:flex absolute -right-4 top-10 bg-white dark:bg-slate-800 p-3 sm:p-4 rounded-xl shadow-xl items-center gap-3 animate-float border border-border scale-90 sm:scale-100">
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-[#25D366] rounded-full flex items-center justify-center text-white">
-                    <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] sm:text-xs font-bold opacity-60">Nuevo Lead</p>
-                    <p className="font-bold text-xs sm:text-sm">+51 902 *** ***</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </section>
-
-      {/* --- TRUST BADGE SECTION --- */}
-      <section className="py-12 lg:py-16 bg-background overflow-hidden">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-10 max-w-xs mx-auto md:max-w-none">
-            <div className="h-px w-12 bg-primary mx-auto mb-4 opacity-50" />
-            <p className="text-[10px] sm:text-xs font-black text-muted-foreground uppercase tracking-[0.3em] mb-2 px-6">
-              {t('trust_badge.title')}
-            </p>
-          </div>
-
-          <div className="flex flex-wrap justify-center items-center gap-x-12 gap-y-10 md:gap-20 opacity-90">
-            {/* WordPress */}
-            <div className="flex flex-col items-center gap-3 transition-all duration-300 hover:-translate-y-1 group">
-              <svg viewBox="0 0 24 24" fill="currentColor" className="w-10 h-10 text-slate-400 group-hover:text-[#21759b] transition-colors">
-                <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 0 1-8-8c0-1.8.6-3.5 1.6-4.8L17 19a7.9 7.9 0 0 1-5 1zm6.9-3.1L13.8 9h-.8l-3.3 9.4a8 8 0 0 1-2.8-5.7c0-2.3 1-4.4 2.6-5.9l5.6 13.1c1.2-1 2.2-2.3 2.8-3.8z" />
-              </svg>
-              <span className="text-xs font-semibold text-muted-foreground group-hover:text-primary transition-colors">WordPress</span>
-            </div>
-
-            {/* Shopify */}
-            <div className="flex flex-col items-center gap-3 transition-all duration-300 hover:-translate-y-1 group">
-              <svg viewBox="0 0 24 24" fill="currentColor" className="w-10 h-10 text-slate-400 group-hover:text-[#95BF47] transition-colors">
-                <path d="M19.5 6h-2.9c-.3-1.6-1.6-2.5-1.6-2.5S14.3.4 12 .4s-3 3.1-3 3.1-1.3.9-1.6 2.5H4.5L2.8 23.6h18.4L19.5 6zM12 2.4c1.2 0 1.9 2.1 2 3.6H10c.1-1.5.8-3.6 2-3.6z" />
-              </svg>
-              <span className="text-xs font-semibold text-muted-foreground group-hover:text-primary transition-colors">Shopify</span>
-            </div>
-
-            {/* Squarespace */}
-            <div className="flex flex-col items-center gap-3 transition-all duration-300 hover:-translate-y-1 group">
-              <svg viewBox="0 0 24 24" fill="currentColor" className="w-10 h-10 text-slate-400 group-hover:text-foreground transition-colors">
-                <path d="M12.9 13.2c0-2.6 2.1-4.7 4.7-4.7 2.9 0 4.7 2.2 4.7 5.5 0 2.6-2.1 4.7-4.7 4.7-3 0-4.7-2.3-4.7-5.5zM1.7 10.8c0 2.6 2.1 4.7 4.7 4.7 2.9 0 4.7-2.2 4.7-5.5 0-2.6-2.1-4.7-4.7-4.7-2.9 0-4.7 2.2-4.7 5.5z" />
-              </svg>
-              <span className="text-xs font-semibold text-muted-foreground group-hover:text-primary transition-colors">Squarespace</span>
-            </div>
-
-            {/* Wix */}
-            <div className="flex flex-col items-center gap-3 transition-all duration-300 hover:-translate-y-1 group">
-              <svg viewBox="0 0 40 20" fill="currentColor" className="w-12 h-8 text-slate-400 group-hover:text-foreground transition-colors">
-                <text x="50%" y="50%" dominantBaseline="middle" textAnchor="middle" fontSize="16" fontWeight="900" fontFamily="sans-serif">WiX</text>
-              </svg>
-              <span className="text-xs font-semibold text-muted-foreground group-hover:text-primary transition-colors">Wix</span>
-            </div>
-
-            {/* Webflow */}
-            <div className="flex flex-col items-center gap-3 transition-all duration-300 hover:-translate-y-1 group">
-              <svg viewBox="0 0 24 24" fill="currentColor" className="w-10 h-10 text-slate-400 group-hover:text-[#4353FF] transition-colors">
-                <path d="M12 0C5.37 0 0 5.37 0 12s5.37 12 12 12 12-5.37 12-12S18.63 0 12 0zm5.5 13.5l-2.2-6.5h-1.6l-1.5 5-1.5-5H9l-2.2 6.5h1.7l1.1-3.5 1.5 4.8h1.6l1.5-4.8 1.1 3.5h1.7z" />
-              </svg>
-              <span className="text-xs font-semibold text-muted-foreground group-hover:text-primary transition-colors">Webflow</span>
-            </div>
-
-            {/* Carrd */}
-            <div className="flex flex-col items-center gap-3 transition-all duration-300 hover:-translate-y-1 group">
-              <div className="w-10 h-10 rounded-lg border-2 border-slate-400 group-hover:border-slate-800 dark:group-hover:border-slate-200 flex items-center justify-center transition-colors">
-                <span className="font-black text-[10px] text-slate-400 group-hover:text-foreground">CARRD</span>
-              </div>
-              <span className="text-xs font-semibold text-muted-foreground group-hover:text-primary transition-colors">Carrd</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* --- TESTIMONIALS CAROUSEL --- */}
-      <section className="py-16 lg:py-24 px-4 border-b border-border/50 bg-gradient-to-b from-background to-slate-50/70 dark:to-slate-900/20">
-        <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-10 lg:mb-14 max-w-3xl mx-auto">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-wide mb-4">
-              <Star className="w-3.5 h-3.5" />
-              {t('landing_testimonials.badge')}
-            </div>
-            <h2 className="text-3xl md:text-5xl font-bold text-balance mb-4">
-              {t('landing_testimonials.title')}
-            </h2>
-            <p className="text-base sm:text-lg text-muted-foreground text-pretty">
-              {t('landing_testimonials.subtitle')}
-            </p>
-          </div>
-
-          {landingTestimonials.length > 0 ? (
-            <div className="relative">
-              <div className="pointer-events-none absolute left-0 top-0 h-full w-8 bg-gradient-to-r from-background to-transparent z-10" />
-              <div className="pointer-events-none absolute right-0 top-0 h-full w-8 bg-gradient-to-l from-background to-transparent z-10" />
-
-              <div
-                ref={testimonialsScrollRef}
-                className="flex gap-4 overflow-x-auto pb-2 px-1 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-                aria-label={t('landing_testimonials.scroll_aria')}
-              >
-                {loopingLandingTestimonials.map((item, idx) => {
-                  const isDuplicate = loopingLandingTestimonials.length > landingTestimonials.length && idx >= landingTestimonials.length;
-                  const name = item.name || 'Cliente';
-                  return (
-                    <article
-                      key={`${name}-${idx}`}
-                      data-testimonial-card="true"
-                      aria-hidden={isDuplicate}
-                      className="ig-testimonial-card min-w-[86%] sm:min-w-[70%] lg:min-w-[42%] xl:min-w-[32%] snap-start rounded-3xl backdrop-blur-sm p-6 sm:p-7 shadow-xl shadow-slate-200/20 dark:shadow-black/30 transition-transform duration-300 hover:-translate-y-1"
-                    >
-                      <div className="flex items-start justify-between gap-3 mb-5">
-                        <div className="flex items-center gap-1 text-amber-500" aria-label="5 estrellas">
-                          {[...Array(5)].map((_, i) => (
-                            <Star key={i} className="w-4 h-4 fill-current" />
-                          ))}
-                        </div>
-                        <span className="inline-flex rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary">
-                          {item.result}
-                        </span>
-                      </div>
-
-                      <p className="text-sm sm:text-base leading-relaxed text-foreground/90 mb-6 min-h-[112px]">
-                        &ldquo;{item.quote}&rdquo;
-                      </p>
-
-                      <div className="flex items-center gap-3">
-                        <div className="relative w-12 h-12 rounded-full overflow-hidden border border-primary/30 bg-primary/10 flex-shrink-0">
-                          <span className="absolute inset-0 text-primary font-bold text-sm flex items-center justify-center">
-                            {name.split(' ').map((word) => word[0]).join('').slice(0, 2).toUpperCase()}
-                          </span>
-                          {item.avatar ? (
-                            <img
-                              src={item.avatar}
-                              alt={t('landing_testimonials.avatar_alt', { name })}
-                              loading="lazy"
-                              className="relative z-10 w-full h-full object-cover"
-                              onError={(event) => {
-                                event.currentTarget.style.display = 'none';
-                              }}
-                            />
-                          ) : null}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-bold text-sm truncate">{name}</p>
-                          <p className="text-xs text-muted-foreground truncate">{item.role}</p>
-                        </div>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-
-              <div className="mt-6 flex items-center justify-center gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={() => handleTestimonialsScroll('prev')}
-                  className="rounded-full border-border/70 bg-background/80 backdrop-blur hover:bg-background"
-                  aria-label={t('landing_testimonials.prev')}
-                >
-                  <ArrowRight className="w-4 h-4 rotate-180" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={() => handleTestimonialsScroll('next')}
-                  className="rounded-full border-border/70 bg-background/80 backdrop-blur hover:bg-background"
-                  aria-label={t('landing_testimonials.next')}
-                >
-                  <ArrowRight className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-border/50 bg-card/60 p-8 text-center text-muted-foreground">
-              {t('landing_testimonials.empty')}
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* --- PAIN POINTS SECTION (Dark Style) --- */}
-      <section className="py-16 lg:py-24 px-4 bg-slate-950 text-white relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent"></div>
-
-        <div className="container mx-auto max-w-6xl relative z-10">
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-            <div className="order-2 lg:order-1">
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-black mb-6 leading-tight text-balance">
-                <Trans i18nKey="pain_points.title" components={[<span className="text-primary italic" key="0" />]} />
-              </h2>
-              <p className="text-slate-400 text-base sm:text-lg mb-8 leading-relaxed text-pretty">
-                {t('pain_points.description')}
-              </p>
-
-              <div className="space-y-4">
-                {[
-                  t('pain_points.point_1'),
-                  t('pain_points.point_2'),
-                  t('pain_points.point_3'),
-                ].map((item, i) => (
-                  <div key={i} className="flex items-start gap-4 p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
-                    <div className="w-6 h-6 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <CloseIcon className="w-3.5 h-3.5" />
-                    </div>
-                    <span className="text-slate-300 font-medium text-sm sm:text-base">{item}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="relative order-1 lg:order-2">
-              <div className="absolute -inset-1 bg-gradient-to-r from-primary to-blue-600 rounded-3xl blur opacity-30"></div>
-              <div className="relative bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-800 shadow-2xl">
-                <div className="flex items-center gap-4 mb-6 border-b border-slate-800 pb-4">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary/20 flex items-center justify-center">
-                    <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-base sm:text-lg">{t('pain_points.solution_title')}</h3>
-                    <p className="text-slate-400 text-xs sm:text-sm">{t('pain_points.solution_subtitle')}</p>
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  {[
-                    { t: t('pain_points.step_1_title'), d: t('pain_points.step_1_desc') },
-                    { t: t('pain_points.step_2_title'), d: t('pain_points.step_2_desc') },
-                    { t: t('pain_points.step_3_title'), d: t('pain_points.step_3_desc') },
-                  ].map((step, idx) => (
-                    <div key={idx} className="flex gap-4">
-                      <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-primary font-bold flex items-center justify-center text-sm border border-primary/20 flex-shrink-0">
-                        {idx + 1}
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-white mb-1 text-sm sm:text-base">{step.t}</h4>
-                        <p className="text-slate-400 text-xs sm:text-sm">{step.d}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* --- FEATURES GRID --- */}
-      <section className="py-16 lg:py-24 px-4 bg-background" id="features">
-        <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-12 lg:mb-16 max-w-3xl mx-auto">
-            <h2 className="text-3xl md:text-5xl font-bold mb-4 text-balance">{t('features.title')}</h2>
-            <p className="text-base sm:text-lg text-muted-foreground text-pretty px-4">{t('features.subtitle')}</p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 relative z-10">
-            {[
-              { icon: Bot, t: t('features.predictive_ai_title'), d: t('features.predictive_ai_desc'), color: "emerald" },
-              { icon: Zap, t: t('features.auto_redirect_title'), d: t('features.auto_redirect_desc'), color: "blue" },
-              { icon: ShieldCheck, t: t('features.anti_abuse_title'), d: t('features.anti_abuse_desc'), color: "red" },
-              { icon: MousePointer2, t: t('features.triggers_title'), d: t('features.triggers_desc'), color: "orange" },
-              { icon: BarChart3, t: t('features.dashboard_title'), d: t('features.dashboard_desc'), color: "purple" },
-              { icon: Smartphone, t: t('features.mobile_title'), d: t('features.mobile_desc'), color: "pink" },
-              { icon: Star, t: t('features.social_proof_title'), d: t('features.social_proof_desc'), color: "yellow" },
-            ].map((f, i) => (
-              <div key={i} className="group p-6 sm:p-8 rounded-3xl bg-card/50 backdrop-blur-sm border border-border/50 hover:border-primary/50 hover:shadow-[0_0_30px_-10px_rgba(0,193,133,0.2)] transition-all duration-500">
-                <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-4 sm:mb-6 group-hover:scale-110 group-hover:bg-primary group-hover:text-white transition-all duration-500`}>
-                  <f.icon className="w-6 h-6 sm:w-7 sm:h-7" />
-                </div>
-                <h3 className="text-lg sm:text-xl font-bold mb-2 sm:mb-3 group-hover:text-primary transition-colors">{f.t}</h3>
-                <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">{f.d}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* --- LEAD CHAT MODE SECTION --- */}
-      <section className="py-16 lg:py-24 px-4 bg-gradient-to-b from-background to-emerald-50/40 dark:to-emerald-900/10 border-y border-border/50">
-        <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-12 lg:mb-16 max-w-3xl mx-auto">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-wide mb-4">
-              <Bot className="w-3.5 h-3.5" />
-              {t('lead_chat_landing.badge')}
-            </div>
-            <h2 className="text-3xl md:text-5xl font-bold text-balance mb-4">
-              {t('lead_chat_landing.title')}
-            </h2>
-            <p className="text-base sm:text-lg text-muted-foreground text-pretty">
-              {t('lead_chat_landing.subtitle')}
-            </p>
-          </div>
-
-          <div className="grid lg:grid-cols-2 gap-6 lg:gap-8">
-            <article className="rounded-3xl border border-border/60 bg-card/70 p-6 sm:p-8 shadow-lg">
-              <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-primary mb-4">
-                <MessageCircle className="w-3.5 h-3.5" />
-                {t('lead_chat_landing.widget_mode_badge')}
-              </div>
-              <h3 className="text-xl font-bold mb-3">{t('lead_chat_landing.widget_mode_title')}</h3>
-              <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-                {t('lead_chat_landing.widget_mode_desc')}
-              </p>
-            </article>
-
-            <article className="rounded-3xl border border-primary/30 bg-slate-950 text-white p-6 sm:p-8 shadow-2xl shadow-primary/10 relative overflow-hidden">
-              <div className="absolute -top-16 -right-10 w-36 h-36 rounded-full bg-primary/20 blur-2xl" />
-              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300/30 bg-emerald-300/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-300 mb-4 relative z-10">
-                <Sparkles className="w-3.5 h-3.5" />
-                {t('lead_chat_landing.chat_mode_badge')}
-              </div>
-              <h3 className="text-xl font-bold mb-3 relative z-10">{t('lead_chat_landing.chat_mode_title')}</h3>
-              <p className="text-sm sm:text-base text-slate-300 leading-relaxed relative z-10">
-                {t('lead_chat_landing.chat_mode_desc')}
-              </p>
-              <div className="mt-5 inline-flex items-center gap-2 rounded-xl border border-emerald-300/30 bg-emerald-300/10 px-3 py-2 text-xs text-emerald-200 relative z-10">
-                <ShieldCheck className="w-4 h-4" />
-                {t('lead_chat_landing.compliance_note')}
-              </div>
-            </article>
-          </div>
-
-          {leadChatFlow.length > 0 ? (
-            <div className="mt-10 lg:mt-12 rounded-3xl border border-border/60 bg-card/70 p-6 sm:p-8">
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground mb-5">
-                {t('lead_chat_landing.flow_title')}
-              </p>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {leadChatFlow.map((step, index) => (
-                  <div key={`${step}-${index}`} className="rounded-2xl border border-border/70 bg-background/70 px-4 py-3 flex items-start gap-3">
-                    <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0">
-                      {index + 1}
-                    </span>
-                    <span className="text-sm text-foreground/90 leading-relaxed">{step}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          <div className="mt-8 flex flex-col sm:flex-row items-center gap-3 sm:gap-4 justify-center">
-            <Link to="/register" className="w-full sm:w-auto">
-              <Button size="lg" className="w-full sm:w-auto font-bold">
-                {t('lead_chat_landing.cta_primary')}
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Link to="/register"><Button size="xl" className="w-full rounded-full px-8 text-white sm:w-auto">{copy.ctaPrimary}</Button></Link>
+              <Button size="xl" variant="outline" className="w-full rounded-full border-slate-300 px-8 text-slate-800 hover:bg-slate-100 sm:w-auto" onClick={openDemoWidget}>
+                <Play className="mr-2 h-4 w-4" />{copy.ctaSecondary}
               </Button>
-            </Link>
-            <Link to="/lc/demo-landing" className="w-full sm:w-auto">
-              <Button size="lg" variant="outline" className="w-full sm:w-auto font-semibold">
-                {t('lead_chat_landing.cta_secondary')}
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* --- DATA SAFETY SECTION --- */}
-      <section className="py-20 bg-slate-50 dark:bg-slate-900/30 border-y border-border/50">
-        <div className="container mx-auto max-w-6xl px-4">
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs font-bold uppercase tracking-wide mb-4">
-              <ShieldCheck className="w-3 h-3" />
-              {t('data_safety.badge')}
-            </div>
-            <h2 className="text-3xl md:text-5xl font-black text-slate-900 dark:text-white mb-6">
-              <Trans i18nKey="data_safety.title" components={[<span className="text-blue-600" key="0" />]} />
-            </h2>
-            <p className="text-base sm:text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
-              {t('data_safety.description')}
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6 lg:gap-8 max-w-5xl mx-auto">
-            {/* Card 1 */}
-            <div className="bg-white dark:bg-slate-950 p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-none relative overflow-hidden group hover:-translate-y-1 transition-transform duration-300">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 dark:bg-blue-900/20 rounded-bl-[100px] -mr-8 -mt-8 transition-transform group-hover:scale-110" />
-              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/50 rounded-2xl flex items-center justify-center text-blue-600 dark:text-blue-400 mb-6 relative z-10">
-                <Cloud className="w-6 h-6" />
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3 relative z-10">{t('data_safety.card_1_title')}</h3>
-              <p className="text-slate-500 dark:text-slate-400 leading-relaxed relative z-10 text-sm">
-                {t('data_safety.card_1_desc')}
-              </p>
             </div>
 
-            {/* Card 2 */}
-            <div className="bg-white dark:bg-slate-950 p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-none relative overflow-hidden group hover:-translate-y-1 transition-transform duration-300">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 dark:bg-emerald-900/20 rounded-bl-[100px] -mr-8 -mt-8 transition-transform group-hover:scale-110" />
-              <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/50 rounded-2xl flex items-center justify-center text-emerald-600 dark:text-emerald-400 mb-6 relative z-10">
-                <Lock className="w-6 h-6" />
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3 relative z-10">{t('data_safety.card_2_title')}</h3>
-              <p className="text-slate-500 dark:text-slate-400 leading-relaxed relative z-10 text-sm">
-                {t('data_safety.card_2_desc')}
-              </p>
-            </div>
-
-            {/* Card 3 */}
-            <div className="bg-white dark:bg-slate-950 p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-none relative overflow-hidden group hover:-translate-y-1 transition-transform duration-300">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-purple-50 dark:bg-purple-900/20 rounded-bl-[100px] -mr-8 -mt-8 transition-transform group-hover:scale-110" />
-              <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/50 rounded-2xl flex items-center justify-center text-purple-600 dark:text-purple-400 mb-6 relative z-10">
-                <Database className="w-6 h-6" />
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3 relative z-10">{t('data_safety.card_3_title')}</h3>
-              <p className="text-slate-500 dark:text-slate-400 leading-relaxed relative z-10 text-sm">
-                {t('data_safety.card_3_desc')}
-              </p>
+            <div className="grid gap-3 pt-2 sm:grid-cols-3">
+              <div className="rounded-2xl border border-slate-200/80 bg-white/70 p-4"><p className="text-xl font-semibold">&lt; 5 min</p><p className="mt-1 text-xs uppercase tracking-[0.12em] text-slate-500">Go live</p></div>
+              <div className="rounded-2xl border border-slate-200/80 bg-white/70 p-4"><p className="text-xl font-semibold">3 steps</p><p className="mt-1 text-xs uppercase tracking-[0.12em] text-slate-500">Closing flow</p></div>
+              <div className="rounded-2xl border border-slate-200/80 bg-white/70 p-4"><p className="text-xl font-semibold">&lt; 2 min</p><p className="mt-1 text-xs uppercase tracking-[0.12em] text-slate-500">AI callback</p></div>
             </div>
           </div>
 
-          <div className="mt-12 text-center">
-            <div className="inline-flex items-center gap-4 px-6 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm mx-auto">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Infraestructura</span>
-              <div className="flex items-center gap-2 opacity-80">
-                <Cloud className="w-4 h-4 text-slate-500" />
-                <span className="font-bold text-slate-600 dark:text-slate-300 text-sm">Google Cloud</span>
-              </div>
-              <div className="h-4 w-px bg-slate-300 dark:bg-slate-700 mx-2"></div>
-              <div className="flex items-center gap-2 opacity-80">
-                <span className="font-bold text-[#FFCA28] text-sm">Firebase</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* --- SECURITY SHIELD SECTION --- */}
-      <section className="py-20 lg:py-32 px-4 bg-slate-950 relative overflow-hidden">
-        {/* Decorative Grid */}
-        <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(#ffffff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
-
-        <div className="container mx-auto max-w-6xl relative z-10">
-          <div className="flex flex-col lg:flex-row items-center gap-16">
-            <div className="flex-1 text-center lg:text-left space-y-8">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-red-500/10 text-red-500 border border-red-500/20 text-sm font-bold">
-                <ShieldCheck className="w-4 h-4" /> SEGURIDAD DE GRADO MILITAR
-              </div>
-              <h2 className="text-4xl lg:text-6xl font-black text-white leading-tight">
-                <Trans i18nKey="data_safety.security_shield_title" components={[<span className="text-red-500" key="0" />]} />
-              </h2>
-              <p className="text-slate-400 text-lg sm:text-xl leading-relaxed max-w-xl mx-auto lg:mx-0">
-                {t('data_safety.security_shield_desc')}
-              </p>
-
-              <div className="grid sm:grid-cols-2 gap-4 text-left">
-                {[
-                  { t: t('data_safety.shield_features.keyword_filter'), d: t('data_safety.shield_features.keyword_filter_desc') },
-                  { t: t('data_safety.shield_features.ip_block'), d: t('data_safety.shield_features.ip_block_desc') },
-                  { t: t('data_safety.shield_features.refusal_analysis'), d: t('data_safety.shield_features.refusal_analysis_desc') },
-                  { t: t('data_safety.shield_features.dashboard_mgmt'), d: t('data_safety.shield_features.dashboard_mgmt_desc') },
-                ].map((item, i) => (
-                  <div key={i} className="p-4 rounded-2xl bg-white/5 border border-white/10">
-                    <Check className="w-5 h-5 text-red-500 mb-2" />
-                    <h4 className="text-white font-bold text-sm mb-1">{item.t}</h4>
-                    <p className="text-slate-500 text-xs leading-relaxed">{item.d}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex-1 relative w-full max-w-md mx-auto">
-              {/* Security Shield Visual */}
-              <div className="relative aspect-square flex items-center justify-center">
-                <div className="absolute inset-0 bg-red-500/20 rounded-full blur-[120px] animate-pulse" />
-                <div className="relative w-72 h-72 lg:w-96 lg:h-96 border-2 border-red-500/30 rounded-full flex items-center justify-center animate-spin-slow">
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-8 h-8 bg-red-500 rounded-full shadow-[0_0_20px_rgba(239,68,68,0.5)]" />
-                  <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-8 h-8 bg-red-500 rounded-full shadow-[0_0_20px_rgba(239,68,68,0.5)]" />
-                </div>
-                <div className="absolute w-48 h-48 lg:w-64 lg:h-64 border border-white/10 rounded-full flex items-center justify-center animate-spin-reverse">
-                  <ShieldCheck className="w-24 h-24 lg:w-32 lg:h-32 text-red-500 drop-shadow-[0_0_15px_rgba(239,68,68,0.3)]" />
-                </div>
-                {/* Floating alert */}
-                <div className="absolute top-1/4 -right-10 bg-slate-900 border border-red-500/50 p-4 rounded-xl shadow-2xl animate-bounce-slow">
-                  <p className="text-red-500 font-bold text-xs">⚠️ ATENTADO BLOQUEADO</p>
-                  <p className="text-white text-[10px]">IP: 190.11.**.*.89 - Bloqueada</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section >
-
-      {/* --- SALES FLOW SECTION --- */}
-      < section className="py-20 lg:py-32 bg-background relative overflow-hidden" >
-        <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-16 lg:mb-24">
-            <h2 className="text-4xl lg:text-5xl font-black mb-6">
-              <Trans i18nKey="sales_flow.title" components={[<span className="text-primary" key="0" />]} />
-            </h2>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">{t('sales_flow.subtitle')}</p>
-          </div>
-
-          <div className="grid md:grid-cols-4 gap-8 relative">
-            {/* Connecting Line (Desktop) */}
-            <div className="hidden md:block absolute top-1/4 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-border to-transparent -z-10" />
-
-            {[
-              {
-                icon: Zap,
-                t: t('sales_flow.step_1_title'),
-                d: t('sales_flow.step_1_desc'),
-                badge: t('sales_flow.step_1_badge')
-              },
-              {
-                icon: MousePointer2,
-                t: t('sales_flow.step_2_title'),
-                d: t('sales_flow.step_2_desc'),
-                badge: t('sales_flow.step_2_badge')
-              },
-              {
-                icon: Bot,
-                t: t('sales_flow.step_3_title'),
-                d: t('sales_flow.step_3_desc'),
-                badge: t('sales_flow.step_3_badge')
-              },
-              {
-                icon: MessageCircle,
-                t: t('sales_flow.step_4_title'),
-                d: t('sales_flow.step_4_desc'),
-                badge: t('sales_flow.step_4_badge')
-              }
-            ].map((step, i) => (
-              <div key={i} className="group flex flex-col items-center text-center p-6 rounded-3xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-300">
-                <div className="w-16 h-16 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-6 shadow-lg shadow-primary/10 group-hover:scale-110 transition-transform">
-                  <step.icon className="w-8 h-8" />
-                </div>
-                <div className="inline-block px-2 py-1 rounded bg-primary/10 text-primary text-[10px] font-bold uppercase mb-3 tracking-widest">
-                  {step.badge}
-                </div>
-                <h3 className="text-xl font-bold mb-3 group-hover:text-foreground">{step.t}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed group-hover:text-muted-foreground/90">{step.d}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section >
-
-      {/* --- TEMPLATES SHOWCASE --- */}
-      <section className="py-16 lg:py-24 px-4 bg-slate-950 text-white relative border-y border-white/5" id="templates">
-        <div className="container mx-auto max-w-5xl">
-          <div className="mb-8 md:mb-12">
-            <div className="text-left mb-6">
-              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white mb-2">{t('templates_section.title')}</h2>
-              <p className="text-slate-400 text-sm sm:text-base">{t('templates_section.subtitle')}</p>
-            </div>
-            <div className="flex flex-wrap gap-3 w-full overflow-x-auto pb-2 no-scrollbar">
-              {[
-                { key: 'real_estate', emoji: '🏠' },
-                { key: 'clinics', emoji: '🏥' },
-                { key: 'workshops', emoji: '🔧' },
-                { key: 'delivery', emoji: '🛵' },
-                { key: 'ecommerce', emoji: '🛍️' },
-                { key: 'general', emoji: '💼' },
-              ].map(template => (
-                <button
-                  key={template.key}
-                  onClick={() => setActiveTemplate(template.key)}
-                  className={`px-5 py-2.5 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-all border flex items-center gap-2 ${activeTemplate === template.key
-                    ? 'bg-primary border-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105'
-                    : 'bg-slate-900 border-white/10 text-slate-400 hover:border-white/20 hover:text-white'
-                    }`}
-                >
-                  <span className="text-lg">{template.emoji}</span> {t(`templates_section.industries.${template.key}.name`)}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="bg-white/5 rounded-3xl p-6 md:p-8 border border-white/10 shadow-sm flex flex-col md:flex-row gap-8 items-center backdrop-blur-sm">
-            <div className="flex-1 space-y-4 w-full">
-              <h3 className="text-xl sm:text-2xl font-bold text-white">
-                {t(`templates_section.industries.${activeTemplate}.name`)}
-              </h3>
-              <p className="text-base sm:text-lg text-slate-400">
-                {t(`templates_section.industries.${activeTemplate}.desc`)}
-              </p>
-              <ul className="space-y-3 pt-4">
-                {[
-                  t('templates_section.features.preconfigured'),
-                  t('templates_section.features.tone'),
-                  t('templates_section.features.capture')
-                ].map((item, i) => (
-                  <li key={i} className="flex items-center gap-3">
-                    <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 flex items-center justify-center flex-shrink-0">
-                      <Check className="w-3 h-3" />
-                    </div>
-                    <span className="text-sm sm:text-base">{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="flex-1 bg-slate-950 rounded-2xl p-4 sm:p-6 w-full flex flex-col min-h-[300px] border border-white/10 shadow-2xl overflow-hidden relative group">
-              {/* Header Simulation */}
-              <div className="flex items-center justify-between mb-4 border-b border-white/5 pb-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-                    <Bot className="w-4 h-4 text-white" />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-[10px] font-bold text-white">{t('templates_section.demo.assistant_role')}</p>
-                    <p className="text-[8px] text-primary">{t('templates_section.demo.status')}</p>
+          <div className="relative">
+            <div className="pointer-events-none absolute inset-0 rounded-[34px] bg-gradient-to-br from-cyan-300/30 via-indigo-300/20 to-emerald-300/25 blur-2xl" />
+            <div className="relative rounded-[32px] border border-white/70 bg-white/80 p-3 shadow-[0_35px_90px_-45px_rgba(14,116,144,0.45)] backdrop-blur-xl">
+              <div className="overflow-hidden rounded-[26px] border border-slate-200/70 bg-[#061326] text-slate-100">
+                <div className="flex items-center justify-between bg-gradient-to-r from-emerald-600 to-emerald-500 px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <span className="grid h-8 w-8 place-items-center rounded-full bg-white/20"><Bot className="h-4 w-4" /></span>
+                    <div><p className="text-sm font-semibold leading-none">Agencia Demo</p><p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-emerald-50/90">instant replies</p></div>
                   </div>
                 </div>
-              </div>
 
-              {/* Messages Simulation */}
-              <div className="space-y-3 mb-4 flex-1">
-                <div className="bg-white/5 p-3 rounded-2xl rounded-bl-none max-w-[80%] text-left">
-                  <p className="text-[11px] text-slate-300">
-                    {t(`templates_section.demo.messages.${activeTemplate}`)}
-                  </p>
+                <div className="mx-3 mt-3 rounded-xl border border-cyan-300/30 bg-slate-950/80 px-3 py-2 text-xs">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-200">Testimonios</p>
+                  <p className="mt-1 truncate">"Me gusto la llamada de demo, fue rapida y clara"</p>
+                  <p className="mt-1 text-[11px] text-slate-300">Andrea Ruiz - *****</p>
                 </div>
-                <div className="bg-primary/20 p-3 rounded-2xl rounded-br-none max-w-[80%] ml-auto text-right border border-primary/20">
-                  <p className="text-[11px] text-primary-foreground font-medium italic">{t('templates_section.demo.client_label')}</p>
-                </div>
-                <div className="bg-white/5 p-3 rounded-2xl rounded-bl-none max-w-[80%] text-left animate-pulse">
-                  <p className="text-[11px] text-slate-400">{t('templates_section.demo.typing')}</p>
-                </div>
-              </div>
 
-              {/* Input Area Simulation */}
-              <div className="mt-auto flex gap-2">
-                <div className="h-8 flex-1 bg-white/5 rounded-full border border-white/10 px-3 flex items-center">
-                  <p className="text-[10px] text-slate-500">{t('templates_section.demo.input_placeholder')}</p>
-                </div>
-                <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-                  <Send className="w-3.5 h-3.5 text-white" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* --- PRICING --- */}
-      < section className="py-16 lg:py-24 px-4 bg-slate-950 text-white" id="pricing" >
-        <div className="container mx-auto max-w-4xl">
-          <div className="text-center mb-10 lg:mb-12">
-            <h2 className="text-3xl sm:text-4xl font-extrabold mb-4">{t('pricing.title')}</h2>
-            <p className="text-lg sm:text-xl text-slate-400">{t('pricing.subtitle')}</p>
-          </div>
-
-          <div className="relative max-w-md mx-auto md:max-w-none">
-            {/* Gradient Outline Effect */}
-            <div className="absolute -inset-1 rounded-[2.5rem] bg-gradient-to-b from-primary/50 to-transparent blur-sm opacity-50" />
-
-            <div className="relative bg-card rounded-[2rem] border shadow-2xl overflow-hidden">
-              {/* Badge */}
-              <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-primary via-emerald-400 to-primary" />
-              <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
-                <span className="bg-primary/10 text-primary border border-primary/20 px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wide">
-                  Oferta Lanzamiento
-                </span>
-              </div>
-
-              <div className="p-6 sm:p-10 md:p-12 flex flex-col md:flex-row gap-8 md:gap-12 items-center">
-
-                {/* Left: Price & Features */}
-                <div className="flex-1 w-full text-center md:text-left mt-6 md:mt-0">
-                  <p className="text-sm font-semibold text-muted-foreground uppercase tracking-widest mb-2">{t('pricing.plan_name')}</p>
-                  <div className="flex items-baseline justify-center md:justify-start gap-1 mb-8">
-                    <span className="text-5xl sm:text-7xl font-black tracking-tighter text-foreground">
-                      {(i18n.language?.startsWith('en') || i18n.language?.includes('US')) ? '$15' : 'S/ 30'}
-                    </span>
-                    <span className="text-lg text-muted-foreground font-medium">{t('pricing.period')}</span>
-                  </div>
-
-                  <div className="space-y-4 mb-8 text-left max-w-xs mx-auto md:mx-0">
-                    {[
-                      t('pricing.feature_1'),
-                      t('pricing.feature_2'),
-                      t('pricing.feature_3'),
-                      t('pricing.feature_4')
-                    ].map((f, i) => (
-                      <div key={i} className="flex items-start gap-3">
-                        <div className="rounded-full bg-primary/10 p-1 mt-0.5">
-                          <Check className="w-3.5 h-3.5 text-primary" />
-                        </div>
-                        <span className="font-medium text-sm sm:text-base">{f}</span>
-                      </div>
+                <div className="space-y-3 px-3 pb-3 pt-3">
+                  <div className="max-w-[86%] rounded-2xl rounded-bl-md border border-white/10 bg-white/[0.05] px-3 py-2 text-sm">Hola. En menos de 2 minutos podemos activar una llamada guiada.</div>
+                  <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    {[(isEn ? "How it works?" : "Como funciona?"), (isEn ? "Book demo" : "Quiero demo"), (isEn ? "See pricing" : "Ver precios")].map((item) => (
+                      <span key={item} className="shrink-0 rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs text-slate-200">{item}</span>
                     ))}
                   </div>
-
-                  <Link to="/register" className="block w-full">
-                    <Button size="lg" className="w-full font-bold text-base sm:text-lg h-12 sm:h-14 btn-iridescent text-white shadow-lg sm:shadow-xl shadow-primary/20 rounded-xl hover:scale-[1.02] transition-transform">
-                      {t('pricing.cta')}
-                    </Button>
-                  </Link>
-                  <p className="text-center text-xs text-muted-foreground mt-3">No requiere tarjeta de crédito</p>
-                </div>
-
-                {/* Right: Payment Methods */}
-                {/* Right: Payment Methods - Ultra Premium Redesign */}
-                <div className="w-full md:w-80 relative group/card">
-                  {/* Cinematic Glow Background */}
-                  <div className="absolute -inset-1 bg-gradient-to-br from-primary/30 to-purple-500/30 rounded-[2rem] blur-2xl opacity-20 group-hover/card:opacity-40 transition-opacity duration-1000" />
-
-                  <div className="relative bg-[#0A0A0A]/90 backdrop-blur-xl rounded-3xl p-6 border border-white/5 shadow-2xl overflow-hidden">
-                    {/* Subtle Grid Pattern Overlay */}
-                    <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 mix-blend-overlay"></div>
-
-                    <h4 className="relative font-bold mb-6 text-[10px] text-white/30 uppercase tracking-[0.2em] text-center">
-                      {i18n.language?.startsWith('es') ? 'Pagos Locales' : 'Secure Checkout'}
-                    </h4>
-
-                    {i18n.language?.startsWith('es') ? (
-                      // Spanish: Local Payments PREMIUM GRID
-                      <div className="relative grid grid-cols-2 gap-4">
-                        {/* YAPE - Neobrutalism Pop */}
-                        <div className="group cursor-default relative">
-                          <div className="absolute inset-0 bg-[#742284] rounded-2xl blur-md opacity-0 group-hover:opacity-40 transition-opacity duration-500" />
-                          <div className="relative h-28 bg-[#1a1a1a] border border-white/5 rounded-2xl flex flex-col items-center justify-center gap-3 hover:border-[#742284]/50 hover:-translate-y-1 transition-all duration-300">
-                            <div className="w-12 h-12 rounded-xl bg-[#742284] flex items-center justify-center text-white font-black italic text-xs shadow-lg shadow-[#742284]/30">Yape</div>
-                            <span className="text-[10px] font-bold text-white/50 tracking-wider">INSTANT</span>
-                          </div>
-                        </div>
-
-                        {/* PLIN */}
-                        <div className="group cursor-default relative">
-                          <div className="absolute inset-0 bg-[#00D1D1] rounded-2xl blur-md opacity-0 group-hover:opacity-40 transition-opacity duration-500" />
-                          <div className="relative h-28 bg-[#1a1a1a] border border-white/5 rounded-2xl flex flex-col items-center justify-center gap-3 hover:border-[#00D1D1]/50 hover:-translate-y-1 transition-all duration-300">
-                            <div className="w-12 h-12 rounded-xl bg-[#00D1D1] flex items-center justify-center text-white font-bold text-xs shadow-lg shadow-[#00D1D1]/30">Plin</div>
-                            <span className="text-[10px] font-bold text-white/50 tracking-wider">INSTANT</span>
-                          </div>
-                        </div>
-
-                        {/* Scotiabank - Sleek Strip */}
-                        <div className="col-span-2 relative group cursor-default">
-                          <div className="bg-[#1a1a1a] border border-white/5 p-3 rounded-xl flex items-center justify-center gap-3 hover:bg-red-500/5 hover:border-red-500/30 transition-all">
-                            <div className="flex space-x-1">
-                              <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                              <div className="w-1.5 h-1.5 rounded-full bg-red-500/50" />
-                            </div>
-                            <span className="text-[10px] font-medium text-white/60 group-hover:text-red-400 transition-colors tracking-widest uppercase">Transferencias Scotiabank</span>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      // English: PayPal PREMIUM CARD
-                      <div className="relative flex flex-col items-center justify-center h-full space-y-5">
-                        <div className="w-full relative group cursor-pointer overflow-hidden rounded-2xl">
-                          <div className="absolute inset-0 bg-gradient-to-r from-[#0070BA] to-[#1546A0] opacity-10 group-hover:opacity-20 transition-opacity duration-500" />
-                          <div className="relative bg-[#1a1a1a] border border-white/5 p-6 rounded-2xl flex flex-col items-center gap-4 hover:border-[#0070BA]/50 transition-all duration-300 group-hover:shadow-[0_0_30px_-5px_rgba(0,112,186,0.3)]">
-                            <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 rounded-full bg-[#0070BA] flex items-center justify-center text-white shadow-lg">
-                                <span className="font-bold italic text-xs">P</span>
-                              </div>
-                              <span className="text-lg font-bold text-white tracking-tight">PayPal</span>
-                            </div>
-
-                            {/* Card Pills */}
-                            <div className="flex items-center gap-2 opacity-60 grayscale group-hover:grayscale-0 transition-all duration-500">
-                              <div className="h-5 w-8 rounded bg-white/10 flex items-center justify-center border border-white/5"><div className="w-3 h-3 rounded-full bg-red-400/80" /></div>
-                              <div className="h-5 w-8 rounded bg-white/10 flex items-center justify-center border border-white/5"><div className="w-3 h-3 rounded-full bg-orange-400/80" /></div>
-                              <div className="h-5 w-8 rounded bg-white/10 flex items-center justify-center border border-white/5"><div className="w-3 h-3 rounded-full bg-blue-400/80" /></div>
-                            </div>
-
-                            <span className="text-[10px] text-white/30 uppercase tracking-widest mt-1">World Class Security</span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 text-[9px] text-white/20 uppercase tracking-widest">
-                          <ShieldCheck className="w-3 h-3" />
-                          256-bit SSL Encrypted
-                        </div>
-                      </div>
-                    )}
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-[14px] border border-cyan-500/35 bg-[#0a1627]/92 px-2.5">
+                      <span className="grid h-7 w-7 place-items-center rounded-full border border-white/20 bg-white/5 text-slate-300"><Smile className="h-3.5 w-3.5" /></span>
+                      <span className="grid h-7 w-7 place-items-center rounded-full border border-white/20 bg-white/5 text-slate-300"><Mic className="h-3.5 w-3.5" /></span>
+                      <span className="text-sm text-slate-400">Type your message...</span>
+                    </div>
+                    <button type="button" className="grid h-11 w-11 place-items-center rounded-[14px] text-white" style={{ background: "linear-gradient(140deg,#00C185 0%,#00a36d 100%)", boxShadow: "0 8px 16px rgba(0,193,133,0.2)" }}>
+                      <Send className="h-4 w-4" />
+                    </button>
                   </div>
                 </div>
-
               </div>
             </div>
           </div>
         </div>
-      </section >
+      </section>
 
-      {/* --- FAQ --- */}
-      < section className="py-16 lg:py-24 px-4 bg-slate-950 text-white border-t border-white/5" >
-        <div className="container mx-auto max-w-3xl">
-          <h2 className="text-2xl sm:text-3xl font-bold text-center mb-8 sm:mb-12">{t('faq.title')}</h2>
-          <Accordion type="single" collapsible className="w-full">
-            {[
-              {
-                q: t('faq.q1'),
-                a: t('faq.a1')
-              },
-              {
-                q: t('faq.q2'),
-                a: t('faq.a2')
-              },
-              {
-                q: t('faq.q3'),
-                a: t('faq.a3')
-              },
-              {
-                q: t('faq.q4'),
-                a: t('faq.a4')
-              }
-            ].map((faq, i) => (
-              <AccordionItem key={i} value={`item-${i}`} className="border-white/10">
-                <AccordionTrigger className="text-base sm:text-lg font-medium text-left hover:text-primary transition-colors">{faq.q}</AccordionTrigger>
-                <AccordionContent className="text-slate-400 text-sm sm:text-base">
-                  {faq.a}
-                </AccordionContent>
-              </AccordionItem>
+      <section className="relative z-10 border-y border-slate-200/70 bg-white/70 px-4 py-16 backdrop-blur sm:px-6 lg:py-20">
+        <div className="mx-auto w-full max-w-[1160px]">
+          <div className="mb-10 text-center"><h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">{copy.modesTitle}</h2></div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <article className="rounded-3xl border border-slate-200/80 bg-white/85 p-6">
+              <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">Widget embebido</span>
+              <h3 className="mt-4 text-2xl font-semibold">{isEn ? "Embedded widget" : "Widget embebido"}</h3>
+              <p className="mt-3 text-sm leading-relaxed text-slate-600">{isEn ? "Install script, keep users in your website, and capture intent with one-row quick replies and social proof." : "Instala script, mantienes al usuario en tu web y capturas intencion con quick replies y prueba social."}</p>
+            </article>
+            <article className="rounded-3xl border border-slate-200/80 bg-white/85 p-6">
+              <span className="inline-flex items-center gap-2 rounded-full bg-cyan-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-700">Lead Chat publico</span>
+              <h3 className="mt-4 text-2xl font-semibold">{isEn ? "Public Lead Chat" : "Lead Chat publico"}</h3>
+              <p className="mt-3 text-sm leading-relaxed text-slate-600">{isEn ? "Share one URL, qualify leads without website, gather consent, and trigger IACloser outbound handoff." : "Comparte una URL, califica leads sin web, recoge consentimiento y activa handoff outbound con IACloser."}</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section className="relative z-10 px-4 py-16 sm:px-6 lg:py-20">
+        <div className="mx-auto w-full max-w-[1160px]">
+          <div className="mb-10 text-center"><h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">{copy.capabilitiesTitle}</h2></div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {capabilities.map((item) => (
+              <article key={item.title} className="rounded-2xl border border-slate-200/80 bg-white/90 p-5">
+                <h3 className="text-lg font-semibold">{item.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600">{item.body}</p>
+              </article>
             ))}
-          </Accordion>
-        </div>
-      </section >
-
-      {/* --- CTA BOTTOM --- */}
-      < section className="py-16 sm:py-20 px-4" >
-        <div className="container mx-auto max-w-5xl">
-          <div className="relative rounded-[2rem] sm:rounded-[3rem] bg-slate-900 overflow-hidden px-6 py-12 sm:px-8 sm:py-16 md:p-20 text-center shadow-2xl">
-            <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(68,68,68,.2)_50%,transparent_75%,transparent_100%)] bg-[length:250%_250%,100%_100%] bg-[position:-100%_0,0_0] bg-no-repeat animate-[shine_3s_infinite]" />
-            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/20 rounded-full blur-[100px]" />
-
-            <h2 className="text-3xl md:text-5xl font-black text-white mb-6 relative z-10 text-balance">
-              {t('cta_bottom.title')}
-            </h2>
-            <p className="text-slate-400 text-base sm:text-lg mb-8 sm:mb-10 max-w-2xl mx-auto relative z-10 text-pretty">
-              {t('cta_bottom.subtitle')}
-            </p>
-            <Link to="/register" className="relative z-10 w-full sm:w-auto block sm:inline-block">
-              <Button size="xl" className="btn-iridescent text-white hover:scale-105 font-bold h-14 sm:h-16 px-8 sm:px-12 text-base sm:text-lg shadow-xl hover:shadow-2xl transition-all border-none w-full sm:w-auto">
-                {t('cta_bottom.btn')}
-              </Button>
-            </Link>
-            <p className="text-slate-500 text-xs sm:text-sm mt-6 relative z-10">{t('cta_bottom.made_in')}</p>
           </div>
         </div>
-      </section >
+      </section>
 
-      {/* --- FOOTER --- */}
-      < footer className="py-16 border-t border-white/10 bg-slate-950 text-white relative overflow-hidden px-4" >
-        <div className="container mx-auto">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-12 mb-12">
-            <div className="col-span-2 md:col-span-1">
-              <div className="flex items-center gap-2 mb-6">
-                <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/20">
-                  <MessageCircle className="w-6 h-6" />
-                </div>
-                <span className="font-black text-xl tracking-tight">Lead Widget</span>
-              </div>
-              <p className="text-sm text-slate-400 leading-relaxed">
-                {t('footer.description')}
-              </p>
+      <section className="relative z-10 border-y border-slate-200/70 bg-gradient-to-b from-white to-slate-50 px-4 py-16 sm:px-6 lg:py-20">
+        <div className="mx-auto w-full max-w-[1160px]">
+          <div className="mb-10 text-center"><h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">{copy.useCasesTitle}</h2></div>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{useCases.map((item) => <article key={item} className="rounded-2xl border border-slate-200 bg-white/90 p-5"><p className="font-semibold">{item}</p></article>)}</div>
+        </div>
+      </section>
+
+      <section className="relative z-10 px-4 py-16 sm:px-6 lg:py-20">
+        <div className="mx-auto w-full max-w-[1160px]">
+          <div className="mb-10 text-center"><h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">{copy.testimonialsTitle}</h2></div>
+          <div className="relative">
+            <div className="pointer-events-none absolute left-0 top-0 z-10 h-full w-8 bg-gradient-to-r from-[#f7f9fc] to-transparent" />
+            <div className="pointer-events-none absolute right-0 top-0 z-10 h-full w-8 bg-gradient-to-l from-[#f7f9fc] to-transparent" />
+            <div ref={testimonialsRef} className="flex gap-4 overflow-x-auto pb-2 px-1 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+              {loopedTestimonials.map((item, idx) => {
+                const duplicate = loopedTestimonials.length > testimonials.length && idx >= testimonials.length;
+                const initials = item.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+                return (
+                  <article key={`${item.name}-${idx}`} data-testimonial-card aria-hidden={duplicate} className="ig-testimonial-card min-w-[86%] snap-start rounded-3xl p-6 shadow-xl shadow-slate-200/50 sm:min-w-[68%] lg:min-w-[40%] xl:min-w-[31%]">
+                    <div className="mb-5 flex items-start justify-between gap-3"><div className="flex items-center gap-1 text-amber-500">{[...Array(5)].map((_, i) => <Star key={`${item.name}-${i}`} className="h-4 w-4 fill-current" />)}</div><span className="rounded-full border border-cyan-300/60 bg-cyan-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-cyan-700">{item.result}</span></div>
+                    <p className="min-h-[98px] text-sm leading-relaxed text-slate-700">"{item.quote}"</p>
+                    <div className="mt-5 flex items-center gap-3"><div className="relative h-12 w-12 overflow-hidden rounded-full border border-cyan-300/60 bg-slate-100"><span className="absolute inset-0 grid place-items-center text-xs font-bold text-cyan-700">{initials}</span><img src={item.avatar} alt={item.name} loading="lazy" className="relative z-10 h-full w-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} /></div><div className="min-w-0"><p className="truncate text-sm font-semibold">{item.name}</p><p className="truncate text-xs text-slate-500">{item.role}</p></div></div>
+                  </article>
+                );
+              })}
             </div>
-            <div>
-              <h4 className="font-bold mb-6 text-sm uppercase tracking-widest text-white">{t('footer.product')}</h4>
-              <ul className="space-y-4 text-sm text-slate-400">
-                <li><button onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })} className="hover:text-primary transition-colors">{t('footer.features')}</button></li>
-                <li><button onClick={() => document.getElementById('templates')?.scrollIntoView({ behavior: 'smooth' })} className="hover:text-primary transition-colors">{t('footer.templates')}</button></li>
-                <li><button onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })} className="hover:text-primary transition-colors">{t('footer.integrations')}</button></li>
-                <li><button onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })} className="hover:text-primary transition-colors">{t('footer.pricing')}</button></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-bold mb-6 text-sm uppercase tracking-widest text-white">{t('footer.company')}</h4>
-              <ul className="space-y-4 text-sm text-slate-400">
-                <li><button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="hover:text-primary transition-colors">{t('footer.about')}</button></li>
-                <li><button className="hover:text-primary transition-colors opacity-50 cursor-not-allowed">{t('footer.success_stories')}</button></li>
-                <li><button className="hover:text-primary transition-colors opacity-50 cursor-not-allowed">{t('footer.blog')}</button></li>
-                <li><button onClick={() => window.dispatchEvent(new Event('open-lead-widget'))} className="hover:text-primary transition-colors">{t('footer.support')}</button></li>
-                <li>
-                  <Link to="/partners" className="hover:text-primary transition-colors">
-                    {t('footer.partners')}
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-bold mb-6 text-sm uppercase tracking-widest text-white">{t('footer.legal')}</h4>
-              <ul className="space-y-4 text-sm text-slate-400">
-                <li>
-                  <Link to="/legal/privacy" className="hover:text-primary transition-colors">
-                    {t('footer.privacy')}
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/legal/terms" className="hover:text-primary transition-colors">
-                    {t('footer.terms')}
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/legal/claims" className="hover:text-primary transition-colors">
-                    {t('footer.claims')}
-                  </Link>
-                </li>
-              </ul>
-            </div>
-          </div>
-          <div className="pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-slate-500">
-            <p>{t('footer.rights')}</p>
-            <div className="flex gap-6">
-              <span className="hover:text-primary transition-colors cursor-pointer">Instagram</span>
-              <span className="hover:text-primary transition-colors cursor-pointer">LinkedIn</span>
-              <span className="hover:text-primary transition-colors cursor-pointer">WhatsApp</span>
+            <div className="mt-6 flex justify-center gap-3">
+              <Button type="button" variant="outline" size="icon" onClick={() => scrollTestimonials("prev")} className="rounded-full border-slate-300 bg-white" aria-label="Previous testimonial"><ArrowRight className="h-4 w-4 rotate-180" /></Button>
+              <Button type="button" variant="outline" size="icon" onClick={() => scrollTestimonials("next")} className="rounded-full border-slate-300 bg-white" aria-label="Next testimonial"><ArrowRight className="h-4 w-4" /></Button>
             </div>
           </div>
         </div>
-      </footer >
+      </section>
+
+      <section className="relative z-10 px-4 py-16 sm:px-6 lg:py-20">
+        <div className="mx-auto max-w-[820px] rounded-[30px] border border-slate-200/90 bg-white/92 p-8 text-center shadow-[0_34px_80px_-50px_rgba(2,132,199,0.45)]">
+          <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">{copy.pricingTitle}</h2>
+          <div className="mt-7 flex items-end justify-center gap-2"><span className="text-5xl font-semibold tracking-tight sm:text-6xl">{isEn ? "$11.90" : "S/ 30"}</span><span className="pb-2 text-sm uppercase tracking-[0.14em] text-slate-500">{isEn ? "/ month" : "/ mes"}</span></div>
+          <div className="mx-auto mt-7 grid max-w-xl gap-3 text-left">
+            {[
+              isEn ? "Embedded widget + Public Lead Chat" : "Widget embebido + Lead Chat publico",
+              isEn ? "Quick replies, emoji, voice, theme" : "Quick replies, emoji, voz, tema",
+              isEn ? "Live activity + dynamic testimonials" : "Actividad en vivo + testimonios dinamicos",
+              isEn ? "Consent flow + IACloser handoff" : "Flujo de consentimiento + handoff IACloser",
+            ].map((item) => <p key={item} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-700"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" /><span>{item}</span></p>)}
+          </div>
+          <Link to="/register" className="mt-8 inline-block"><Button size="xl" className="rounded-full px-9 text-white">{copy.navRegister}</Button></Link>
+        </div>
+      </section>
+
+      <section className="relative z-10 px-4 pb-20 sm:px-6 lg:pb-24">
+        <div className="mx-auto max-w-[980px] rounded-[34px] border border-slate-200/80 bg-gradient-to-br from-slate-900 via-slate-900 to-cyan-900 px-8 py-14 text-center text-white shadow-[0_40px_110px_-55px_rgba(15,23,42,0.75)] sm:px-12">
+          <h2 className="text-3xl font-semibold tracking-tight sm:text-5xl">{copy.finalTitle}</h2>
+          <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-slate-300 sm:text-base">{copy.finalSubtitle}</p>
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <Link to="/register"><Button size="xl" className="rounded-full px-8 text-white">{copy.navRegister}</Button></Link>
+            <Button size="xl" variant="outline" className="rounded-full border-white/30 bg-white/10 px-8 text-white hover:bg-white/15" onClick={openDemoWidget}>{copy.navTry}</Button>
+          </div>
+        </div>
+      </section>
+
+      <footer className="relative z-10 border-t border-slate-200/80 bg-white/80 px-4 py-12 backdrop-blur sm:px-6">
+        <div className="mx-auto flex w-full max-w-[1160px] flex-col items-center justify-between gap-4 text-center sm:flex-row sm:text-left">
+          <div><p className="text-sm font-semibold">Lead Widget</p><p className="text-sm text-slate-600">{isEn ? "Conversion system for capture and outbound handoff." : "Sistema de conversion para captura y handoff outbound."}</p></div>
+          <div className="flex gap-4 text-sm text-slate-600"><Link to="/legal/privacy" className="hover:text-slate-900">Privacy</Link><Link to="/legal/terms" className="hover:text-slate-900">Terms</Link><Link to="/legal/claims" className="hover:text-slate-900">Claims</Link></div>
+        </div>
+        <div className="mx-auto mt-6 w-full max-w-[1160px] border-t border-slate-200 pt-5 text-xs text-slate-500">{copy.footerRights}</div>
+      </footer>
 
       <SalesWidget />
 
-      {/* Exit Popup */}
-      {
-        showExitPopup && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-md animate-in fade-in duration-500">
-            <div className="bg-card w-full max-w-lg p-1 sm:p-2 rounded-[2.5rem] border shadow-2xl relative animate-in zoom-in-95 duration-300">
-              <div className="bg-background rounded-[2rem] p-8 md:p-12 text-center space-y-6 relative overflow-hidden">
-                {/* Decorative background circle */}
-                <div className="absolute -top-12 -right-12 w-32 h-32 bg-primary/10 rounded-full blur-2xl" />
-
-                <button
-                  onClick={() => setShowExitPopup(false)}
-                  className="absolute top-6 right-6 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <CloseIcon className="w-5 h-5" />
-                </button>
-
-                <div className="w-16 h-16 bg-gradient-to-tr from-primary to-emerald-400 rounded-2xl flex items-center justify-center mx-auto text-white shadow-xl shadow-primary/20 rotate-6 transform transition-transform group-hover:rotate-0">
-                  <Sparkles className="w-8 h-8" />
-                </div>
-
-                <div className="space-y-2">
-                  <h3 className="text-3xl font-black tracking-tight">{t('exit_popup.title')}</h3>
-                  <p className="text-muted-foreground text-lg text-balance">
-                    {t('exit_popup.subtitle')}
-                  </p>
-                </div>
-
-                <div className="pt-2">
-                  <Button
-                    onClick={handleOpenDemoFromPopup}
-                    className="w-full font-bold h-14 text-lg btn-iridescent text-white shadow-xl shadow-primary/30 rounded-xl"
-                    size="lg"
-                  >
-                    {t('exit_popup.cta')}
-                  </Button>
-                  <button
-                    onClick={() => setShowExitPopup(false)}
-                    className="mt-4 text-sm text-muted-foreground hover:text-foreground transition-colors underline underline-offset-4"
-                  >
-                    {t('exit_popup.dismiss')}
-                  </button>
-                </div>
+      {showExitPopup ? (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-[30px] border border-slate-200 bg-white p-6 shadow-2xl sm:p-8">
+            <button type="button" onClick={() => setShowExitPopup(false)} className="ml-auto grid h-8 w-8 place-items-center rounded-full border border-slate-300 text-slate-500 transition hover:text-slate-900" aria-label="Close"><CloseIcon className="h-4 w-4" /></button>
+            <div className="mt-2 text-center">
+              <span className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-cyan-100 text-cyan-700"><ShieldCheck className="h-7 w-7" /></span>
+              <h3 className="text-3xl font-semibold tracking-tight text-slate-900">{copy.exitTitle}</h3>
+              <p className="mx-auto mt-3 max-w-md text-slate-600">{copy.exitSubtitle}</p>
+              <div className="mt-6 grid gap-2 sm:grid-cols-2">
+                <Button type="button" onClick={() => { setShowExitPopup(false); openDemoWidget(); }}>{copy.exitCta}</Button>
+                <Button type="button" variant="outline" onClick={() => setShowExitPopup(false)}>{copy.exitDismiss}</Button>
               </div>
             </div>
           </div>
-        )
-      }
-
-    </div >
+        </div>
+      ) : null}
+    </main>
   );
 }
