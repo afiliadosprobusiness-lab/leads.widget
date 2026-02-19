@@ -1235,12 +1235,12 @@ export default function LeadChat() {
   const statusActionRow = (
     <>
       <div
-        className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] transition-all duration-500 animate-[pulse_3.2s_ease-in-out_infinite] ${
+        className={`inline-flex max-w-full items-center gap-2 rounded-full border px-3 py-1 text-[11px] transition-all duration-500 animate-[pulse_3.2s_ease-in-out_infinite] ${
           isLightMode ? "border-rose-200 bg-rose-50 text-rose-700" : "border-rose-400/40 bg-rose-500/10 text-rose-100"
         }`}
       >
         <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" aria-hidden="true" />
-        {activePresenceMessage}
+        <span className="max-w-[220px] truncate sm:max-w-[300px]">{activePresenceMessage}</span>
       </div>
       <div className="flex items-center gap-2">
         <button
@@ -1266,11 +1266,13 @@ export default function LeadChat() {
           }`}
         >
           <PhoneCall className="h-3.5 w-3.5" />
-          {handoffLoading || handoffMessage
-            ? copy.callingBadge
-            : handoffEligible
-              ? (config.leadChatBadgeText || copy.readyBadge)
-              : copy.prequalifyingBadge}
+          <span className="max-w-[145px] truncate sm:max-w-none">
+            {handoffLoading || handoffMessage
+              ? copy.callingBadge
+              : handoffEligible
+                ? (config.leadChatBadgeText || copy.readyBadge)
+                : copy.prequalifyingBadge}
+          </span>
         </button>
       </div>
     </>
@@ -1301,8 +1303,25 @@ export default function LeadChat() {
                     {config.leadChatSubheadline || copy.step2Description}
                   </p>
                 </div>
-                <div className="flex flex-col items-end gap-2 lg:hidden">
+              </div>
+
+              <div className={`px-4 pb-3 pt-3 sm:px-7 ${isLightMode ? "border-b border-slate-200 bg-white/80" : "border-b border-white/10 bg-white/[0.03]"}`}>
+                <div className="flex flex-col items-end gap-2">
                   {statusActionRow}
+                  {showLiveActivityStrip ? (
+                    <div className={`w-full max-w-[320px] rounded-xl border px-3 py-2 text-xs ${
+                      isLightMode
+                        ? "border-sky-200 bg-white/95 text-slate-700"
+                        : "border-cyan-400/30 bg-slate-950/85 text-slate-100"
+                    } ${liveActivityTransition ? (isLightMode ? "shadow-[0_0_28px_-16px_rgba(14,165,233,0.9)]" : "shadow-[0_0_28px_-14px_rgba(34,211,238,0.85)]") : ""}`}>
+                      <p className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${isLightMode ? "text-sky-700" : "text-cyan-200"}`}>
+                        {copy.liveActivityLabel}
+                      </p>
+                      <p className="mt-0.5 line-clamp-2">
+                        {activeLiveActivityMessage}
+                      </p>
+                    </div>
+                  ) : null}
                 </div>
               </div>
 
@@ -1338,25 +1357,6 @@ export default function LeadChat() {
               ) : null}
 
               <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4 sm:px-7">
-                <div className="hidden lg:flex lg:justify-end">
-                  <div className="flex max-w-[320px] flex-col items-end gap-2">
-                    {statusActionRow}
-                    {showLiveActivityStrip ? (
-                      <div className={`max-w-[320px] rounded-xl border px-3 py-2 text-xs ${
-                        isLightMode
-                          ? "border-sky-200 bg-white/95 text-slate-700"
-                          : "border-cyan-400/30 bg-slate-950/85 text-slate-100"
-                      } ${liveActivityTransition ? (isLightMode ? "shadow-[0_0_28px_-16px_rgba(14,165,233,0.9)]" : "shadow-[0_0_28px_-14px_rgba(34,211,238,0.85)]") : ""}`}>
-                        <p className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${isLightMode ? "text-sky-700" : "text-cyan-200"}`}>
-                          {copy.liveActivityLabel}
-                        </p>
-                        <p className="mt-0.5 line-clamp-2">
-                          {activeLiveActivityMessage}
-                        </p>
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
                 {messages.map((msg, index) => (
                   <div key={`${msg.role}-${index}`} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                     <div
@@ -1544,59 +1544,81 @@ export default function LeadChat() {
                     event.preventDefault();
                     void handleSend();
                   }}
-                  className="flex gap-2"
+                  className="flex items-center gap-2"
                 >
-                  <div className="relative">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setEmojiPickerOpen((prev) => !prev)}
-                      className={`h-10 w-10 p-0 ${isLightMode ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100" : "border-white/20 bg-white/[0.04] text-slate-200 hover:bg-white/[0.08]"}`}
-                      aria-label={copy.emojiAria}
-                    >
-                      <Smile className="h-4 w-4" />
-                    </Button>
-                    {emojiPickerOpen ? (
-                      <div className={`absolute bottom-12 left-0 z-30 w-56 rounded-xl border p-2 shadow-2xl ${isLightMode ? "border-slate-200 bg-white" : "border-white/15 bg-[#0a1627]/95 backdrop-blur"}`}>
-                        <div className="grid grid-cols-6 gap-1">
-                          {QUICK_EMOJIS.map((emoji) => (
-                            <button
-                              key={emoji}
-                              type="button"
-                              onClick={() => appendEmojiToInput(emoji)}
-                              className={`rounded-md p-1.5 text-base transition-colors ${isLightMode ? "hover:bg-slate-100" : "hover:bg-white/10"}`}
-                            >
-                              {emoji}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={toggleSpeechInput}
-                    className={`h-10 w-10 p-0 ${isLightMode ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100" : "border-white/20 bg-white/[0.04] text-slate-200 hover:bg-white/[0.08]"}`}
-                    aria-label={speechListening ? copy.micAriaStop : copy.micAriaStart}
-                  >
-                    {speechListening ? <MicOff className="h-4 w-4 text-rose-400" /> : <Mic className="h-4 w-4" />}
-                  </Button>
-                  <Input
-                    ref={inputRef}
-                    value={input}
-                    onChange={(event) => setInput(event.target.value)}
-                    placeholder={config.chatPlaceholder || copy.chatPlaceholder}
-                    className={`border text-sm focus-visible:ring-2 ${
+                  <div
+                    className={`relative flex h-12 min-w-0 flex-1 items-center gap-2 rounded-[14px] border px-2.5 transition-all duration-200 ${
                       isLightMode
-                        ? "border-slate-300 bg-white text-slate-900 focus-visible:ring-sky-400/70"
-                        : "border-white/20 bg-white/[0.04] text-slate-100 backdrop-blur focus-visible:ring-cyan-300/70"
+                        ? "border-slate-300/90 bg-white"
+                        : "border-cyan-500/35 bg-[#0a1627]/92 backdrop-blur"
                     }`}
-                    disabled={sending || assistantTyping}
-                  />
-                  <Button type="submit" disabled={sending || assistantTyping || !input.trim()} className="shrink-0 rounded-xl">
+                  >
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setEmojiPickerOpen((prev) => !prev)}
+                        className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition-colors ${
+                          isLightMode
+                            ? "border-slate-300 bg-white text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                            : "border-white/15 bg-white/[0.04] text-slate-400 hover:bg-white/[0.1] hover:text-cyan-200"
+                        }`}
+                        aria-label={copy.emojiAria}
+                      >
+                        <Smile className="h-3.5 w-3.5" />
+                      </button>
+                      {emojiPickerOpen ? (
+                        <div className={`absolute bottom-10 left-0 z-30 w-56 rounded-xl border p-2 shadow-2xl ${isLightMode ? "border-slate-200 bg-white" : "border-white/15 bg-[#0a1627]/95 backdrop-blur"}`}>
+                          <div className="grid grid-cols-6 gap-1">
+                            {QUICK_EMOJIS.map((emoji) => (
+                              <button
+                                key={emoji}
+                                type="button"
+                                onClick={() => appendEmojiToInput(emoji)}
+                                className={`rounded-md p-1.5 text-base transition-colors ${isLightMode ? "hover:bg-slate-100" : "hover:bg-white/10"}`}
+                              >
+                                {emoji}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={toggleSpeechInput}
+                      className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition-colors ${
+                        isLightMode
+                          ? "border-slate-300 bg-white text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                          : "border-white/15 bg-white/[0.04] text-slate-400 hover:bg-white/[0.1] hover:text-cyan-200"
+                      }`}
+                      aria-label={speechListening ? copy.micAriaStop : copy.micAriaStart}
+                    >
+                      {speechListening ? <MicOff className="h-3.5 w-3.5 text-rose-400" /> : <Mic className="h-3.5 w-3.5" />}
+                    </button>
+                    <Input
+                      ref={inputRef}
+                      value={input}
+                      onChange={(event) => setInput(event.target.value)}
+                      placeholder={config.chatPlaceholder || copy.chatPlaceholder}
+                      className={`h-9 min-w-0 border-0 bg-transparent px-0 text-sm shadow-none placeholder:text-slate-400 focus-visible:ring-0 focus-visible:ring-offset-0 ${
+                        isLightMode
+                          ? "text-slate-900"
+                          : "text-slate-100 placeholder:text-slate-400"
+                      }`}
+                      disabled={sending || assistantTyping}
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={sending || assistantTyping || !input.trim()}
+                    className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] text-white transition hover:-translate-y-[1px] hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
+                    style={{
+                      background: `linear-gradient(140deg, ${config.primaryColor || "#00C185"} 0%, #00a36d 100%)`,
+                      boxShadow: "0 8px 16px rgba(0, 193, 133, 0.2)",
+                    }}
+                  >
                     <Send className="h-4 w-4" />
-                  </Button>
+                  </button>
                 </form>
                 <div className={`grid gap-1 text-[11px] ${isLightMode ? "text-slate-500" : "text-slate-300/80"}`}>
                   {copy.trustBullets.map((item) => (
@@ -1606,20 +1628,6 @@ export default function LeadChat() {
                     </p>
                   ))}
                 </div>
-                {showLiveActivityStrip ? (
-                  <div className={`rounded-xl border px-3 py-2 text-xs lg:hidden ${
-                    isLightMode
-                      ? "border-sky-200 bg-white/95 text-slate-700"
-                      : "border-cyan-400/30 bg-slate-950/85 text-slate-100"
-                  } ${liveActivityTransition ? (isLightMode ? "shadow-[0_0_28px_-16px_rgba(14,165,233,0.9)]" : "shadow-[0_0_28px_-14px_rgba(34,211,238,0.85)]") : ""}`}>
-                    <p className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${isLightMode ? "text-sky-700" : "text-cyan-200"}`}>
-                      {copy.liveActivityLabel}
-                    </p>
-                    <p className="mt-0.5 line-clamp-2">
-                      {activeLiveActivityMessage}
-                    </p>
-                  </div>
-                ) : null}
                 {speechListening ? (
                   <p className={`text-[11px] ${isLightMode ? "text-rose-600" : "text-rose-300"}`}>
                     {copy.listeningNow}
