@@ -70,6 +70,7 @@ const SALES_COPY: Record<
     chatPlaceholder: string;
     quickReplies: string[];
     presenceNow: string;
+    presenceNowMessages: string[];
     prequalifyingBadge: string;
     readyBadge: string;
     callingBadge: string;
@@ -102,6 +103,7 @@ const SALES_COPY: Record<
     handoffSuccess: string;
     activationMessage: string;
     openLeadChat: string;
+    liveActivityLabel: string;
     testimonialLabel: string;
     exitIntentDetected: string;
     closeExitIntent: string;
@@ -124,6 +126,11 @@ const SALES_COPY: Record<
     chatPlaceholder: "Escribe tu mensaje...",
     quickReplies: ["Agendar clientes", "Cerrar ventas por llamada", "Ver como funciona"],
     presenceNow: "3 personas probando la demo ahora",
+    presenceNowMessages: [
+      "3 personas probando la demo ahora",
+      "5 personas viendo resultados en vivo",
+      "2 negocios activando llamada en menos de 2 min",
+    ],
     prequalifyingBadge: "Precalificando...",
     readyBadge: "Llamada en menos de 2 min",
     callingBadge: "IA llamando...",
@@ -156,6 +163,7 @@ const SALES_COPY: Record<
     handoffSuccess: "Todo listo. Te llamaremos en menos de 2 minutos.",
     activationMessage: "Perfecto. Estamos iniciando tu llamada de prueba ahora mismo...",
     openLeadChat: "No pudimos iniciar el chat.",
+    liveActivityLabel: "Actividad en vivo",
     testimonialLabel: "Testimonios",
     exitIntentDetected: "Intencion de salida detectada",
     closeExitIntent: "Cerrar pop de salida",
@@ -177,6 +185,11 @@ const SALES_COPY: Record<
     chatPlaceholder: "Type your message...",
     quickReplies: ["Book more appointments", "Close deals by phone", "See how it works"],
     presenceNow: "3 people are testing this demo right now",
+    presenceNowMessages: [
+      "3 people are testing this demo right now",
+      "5 visitors are watching live outcomes",
+      "2 teams are starting a call in under 2 min",
+    ],
     prequalifyingBadge: "Pre-qualifying...",
     readyBadge: "Call in under 2 min",
     callingBadge: "AI calling...",
@@ -209,6 +222,7 @@ const SALES_COPY: Record<
     handoffSuccess: "All set. We will call you in under 2 minutes.",
     activationMessage: "Perfect. We are starting your demo call right now...",
     openLeadChat: "We could not start the chat.",
+    liveActivityLabel: "Live activity",
     testimonialLabel: "Testimonials",
     exitIntentDetected: "Exit intent detected",
     closeExitIntent: "Close exit popup",
@@ -387,6 +401,7 @@ export default function LeadChat() {
   const [handoffMessage, setHandoffMessage] = useState("");
   const [offerDismissed, setOfferDismissed] = useState(false);
   const [activeTestimonialIndex, setActiveTestimonialIndex] = useState(0);
+  const [presenceNowIndex, setPresenceNowIndex] = useState(0);
   const [testimonialTransition, setTestimonialTransition] = useState(false);
   const [activeTeaser, setActiveTeaser] = useState("");
   const [teaserVisible, setTeaserVisible] = useState(false);
@@ -572,6 +587,12 @@ export default function LeadChat() {
     () => (Array.isArray(config?.testimonials) ? config.testimonials.slice(0, 10) : []),
     [config?.testimonials],
   );
+  const liveActivityMessages = useMemo(
+    () => (Array.isArray(config?.leadChatLiveToasts) ? config.leadChatLiveToasts.filter(Boolean).slice(0, 12) : []),
+    [config?.leadChatLiveToasts],
+  );
+  const showLiveActivityStrip = liveActivityMessages.length > 0;
+  const socialStripLength = showLiveActivityStrip ? liveActivityMessages.length : testimonials.length;
 
   const userMessageCount = useMemo(
     () => messages.filter((msg) => msg.role === "user").length,
@@ -587,21 +608,57 @@ export default function LeadChat() {
     if (testimonials.length === 0) return null;
     return testimonials[activeTestimonialIndex % testimonials.length];
   }, [activeTestimonialIndex, testimonials]);
+  const activeLiveActivityMessage = useMemo(() => {
+    if (liveActivityMessages.length === 0) return "";
+    return liveActivityMessages[activeTestimonialIndex % liveActivityMessages.length] || "";
+  }, [activeTestimonialIndex, liveActivityMessages]);
+  const socialStripLabel = showLiveActivityStrip ? copy.liveActivityLabel : copy.testimonialLabel;
+  const socialStripText = showLiveActivityStrip
+    ? activeLiveActivityMessage
+    : (activeTestimonial?.text || copy.offerDescription);
+  const socialStripMeta = showLiveActivityStrip
+    ? ""
+    : `${activeTestimonial?.name || copy.defaultBusinessName} • ${"★".repeat(Math.max(1, Math.min(5, Number(activeTestimonial?.stars || 5))))}`;
+  const hasSocialStrip = Boolean(socialStripText);
+  const presenceMessages = useMemo(() => {
+    const source = Array.isArray(copy.presenceNowMessages) ? copy.presenceNowMessages.filter(Boolean) : [];
+    return source.length > 0 ? source : [copy.presenceNow];
+  }, [copy.presenceNowMessages, copy.presenceNow]);
+  const activePresenceMessage = useMemo(
+    () => presenceMessages[presenceNowIndex % presenceMessages.length] || copy.presenceNow,
+    [copy.presenceNow, presenceMessages, presenceNowIndex],
+  );
 
   useEffect(() => {
-    if (testimonials.length <= 1) return;
+    setActiveTestimonialIndex(0);
+  }, [showLiveActivityStrip, liveActivityMessages.length, testimonials.length]);
+
+  useEffect(() => {
+    if (socialStripLength <= 1) return;
     const interval = window.setInterval(() => {
-      setActiveTestimonialIndex((prev) => (prev + 1) % testimonials.length);
+      setActiveTestimonialIndex((prev) => (prev + 1) % socialStripLength);
     }, 4200);
     return () => window.clearInterval(interval);
-  }, [testimonials.length]);
+  }, [socialStripLength]);
 
   useEffect(() => {
-    if (!activeTestimonial) return;
+    if (!hasSocialStrip) return;
     setTestimonialTransition(true);
     const timeoutId = window.setTimeout(() => setTestimonialTransition(false), 650);
     return () => window.clearTimeout(timeoutId);
-  }, [activeTestimonialIndex, activeTestimonial]);
+  }, [activeTestimonialIndex, hasSocialStrip, socialStripText]);
+
+  useEffect(() => {
+    setPresenceNowIndex(0);
+  }, [presenceMessages]);
+
+  useEffect(() => {
+    if (presenceMessages.length <= 1) return;
+    const interval = window.setInterval(() => {
+      setPresenceNowIndex((prev) => (prev + 1) % presenceMessages.length);
+    }, 6200);
+    return () => window.clearInterval(interval);
+  }, [presenceMessages]);
 
   useEffect(() => {
     const source = Array.isArray(config?.teaserMessages) ? config.teaserMessages.filter(Boolean) : [];
@@ -890,12 +947,12 @@ export default function LeadChat() {
                 </div>
                 <div className="flex flex-col items-end gap-2">
                   <div
-                    className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] ${
+                    className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] transition-all duration-500 animate-[pulse_3.2s_ease-in-out_infinite] ${
                       isLightMode ? "border-rose-200 bg-rose-50 text-rose-700" : "border-rose-400/40 bg-rose-500/10 text-rose-100"
                     }`}
                   >
                     <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" aria-hidden="true" />
-                    {copy.presenceNow}
+                    {activePresenceMessage}
                   </div>
                   <div className="flex items-center gap-2">
                   <button
@@ -931,7 +988,7 @@ export default function LeadChat() {
                 </div>
               </div>
 
-              {activeTestimonial ? (
+              {hasSocialStrip ? (
                 <div className={`px-4 pb-3 pt-3 sm:px-7 ${isLightMode ? "border-b border-slate-200 bg-white/80" : "border-b border-white/10 bg-white/[0.03]"}`}>
                   <div
                     className={`relative overflow-hidden rounded-xl border px-3 py-2 text-xs transition-all duration-500 ${
@@ -949,14 +1006,16 @@ export default function LeadChat() {
                     />
                     <div className="relative min-w-0">
                       <p className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${isLightMode ? "text-sky-700" : "text-cyan-200"}`}>
-                        {copy.testimonialLabel}
+                        {socialStripLabel}
                       </p>
                       <p className="mt-0.5 truncate text-xs">
-                        "{activeTestimonial.text || copy.offerDescription}"
+                        {showLiveActivityStrip ? socialStripText : `"${socialStripText}"`}
                       </p>
-                      <p className={`mt-0.5 truncate text-[11px] ${isLightMode ? "text-slate-500" : "text-slate-300"}`}>
-                        {(activeTestimonial.name || copy.defaultBusinessName)} • {"★".repeat(Math.max(1, Math.min(5, Number(activeTestimonial.stars || 5))))}
-                      </p>
+                      {!showLiveActivityStrip ? (
+                        <p className={`mt-0.5 truncate text-[11px] ${isLightMode ? "text-slate-500" : "text-slate-300"}`}>
+                          {socialStripMeta}
+                        </p>
+                      ) : null}
                     </div>
                   </div>
                 </div>
