@@ -816,7 +816,6 @@ export default function LeadChat() {
   const [handoffEligible, setHandoffEligible] = useState(false);
   const [collectedInfoSeed, setCollectedInfoSeed] = useState("");
   const [handoffMessage, setHandoffMessage] = useState("");
-  const [offerDismissed, setOfferDismissed] = useState(false);
   const [activeTestimonialIndex, setActiveTestimonialIndex] = useState(0);
   const [activeLiveActivityIndex, setActiveLiveActivityIndex] = useState(0);
   const [presenceNowIndex, setPresenceNowIndex] = useState(0);
@@ -1139,16 +1138,6 @@ export default function LeadChat() {
   );
   const showLiveActivityStrip = liveActivityMessages.length > 0;
 
-  const userMessageCount = useMemo(
-    () => messages.filter((msg) => msg.role === "user").length,
-    [messages],
-  );
-
-  const shouldShowInlineOffer = useMemo(
-    () => handoffEligible && !consentVisible && !handoffMessage && !offerDismissed && userMessageCount >= 2,
-    [handoffEligible, consentVisible, handoffMessage, offerDismissed, userMessageCount],
-  );
-
   const activeTestimonial = useMemo(() => {
     if (testimonials.length === 0) return null;
     return testimonials[activeTestimonialIndex % testimonials.length];
@@ -1336,7 +1325,6 @@ export default function LeadChat() {
 
     setChatError("");
     setLeadConsentAccepted(false);
-    setOfferDismissed(true);
     setShowExitIntent(false);
     setConsentVisible(true);
     window.setTimeout(() => {
@@ -1444,7 +1432,6 @@ export default function LeadChat() {
             setHandoffMessage(SALES_COPY[responseLocale].handoffSuccess);
             setConsentVisible(false);
             setLeadConsentAccepted(false);
-            setOfferDismissed(true);
             setShowExitIntent(false);
             setLeadName(autoName);
             setLeadPhone(autoPhone);
@@ -1468,7 +1455,6 @@ export default function LeadChat() {
 
         setHandoffEligible(true);
         setLeadConsentAccepted(false);
-        setOfferDismissed(true);
         setShowExitIntent(false);
         setConsentVisible(true);
       }
@@ -1810,28 +1796,6 @@ export default function LeadChat() {
                     <div className={`inline-flex items-center gap-2 rounded-2xl rounded-bl-md border px-3 py-2 text-xs ${isLightMode ? "border-slate-200 bg-white text-slate-500" : "border-white/10 bg-white/[0.04] text-slate-300 backdrop-blur"}`}>
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       {copy.typing}
-                    </div>
-                  </div>
-                )}
-
-                {shouldShowInlineOffer && (
-                  <div className="pt-2">
-                    <div className="mx-auto w-full max-w-2xl rounded-2xl border border-amber-300/40 bg-slate-950/90 p-4 sm:p-5 animate-in fade-in zoom-in-95 duration-300">
-                      <p className="text-[11px] uppercase tracking-[0.25em] text-amber-200">{copy.offerTag}</p>
-                      <h3 className="mt-2 text-lg font-semibold sm:text-xl">
-                        {config.leadChatOfferTitle || copy.offerTitle}
-                      </h3>
-                      <p className="mt-2 text-sm text-slate-300">
-                        {config.leadChatOfferDescription || copy.offerDescription}
-                      </p>
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        <Button type="button" onClick={openConsentStep}>
-                          {config.leadChatCtaLabel || copy.offerCta}
-                        </Button>
-                        <Button type="button" variant="outline" onClick={() => setOfferDismissed(true)}>
-                          {copy.continueChat}
-                        </Button>
-                      </div>
                     </div>
                   </div>
                 )}

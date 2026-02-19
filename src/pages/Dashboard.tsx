@@ -1954,34 +1954,6 @@ export default function Dashboard() {
                     </div>
 
                     <div className="space-y-3 rounded-xl border bg-muted/20 p-3">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Oferta y conversion</p>
-                      <div className="space-y-2">
-                        <Label>Titulo de oferta dentro del chat</Label>
-                        <Input
-                          value={formConfig.lead_chat_offer_title}
-                          onChange={(e) => setFormConfig({ ...formConfig, lead_chat_offer_title: e.target.value })}
-                          placeholder="Bloquea tu llamada de cierre ahora"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Descripcion de oferta dentro del chat</Label>
-                        <textarea
-                          value={formConfig.lead_chat_offer_description}
-                          onChange={(e) => setFormConfig({ ...formConfig, lead_chat_offer_description: e.target.value })}
-                          className="w-full p-2 text-sm border rounded-md bg-background min-h-[72px]"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Texto CTA de la oferta</Label>
-                        <Input
-                          value={formConfig.lead_chat_cta_label}
-                          onChange={(e) => setFormConfig({ ...formConfig, lead_chat_cta_label: e.target.value })}
-                          placeholder="Activar llamada"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-3 rounded-xl border bg-muted/20 p-3">
                       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Consentimiento y handoff</p>
                       <div className="space-y-2">
                         <Label>URL de redireccion IACloser</Label>

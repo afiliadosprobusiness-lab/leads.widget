@@ -44,7 +44,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
   6. AICloser ejecuta llamada outbound en menos de 2 minutos y la UI muestra estado `IA llamando...`.
 - El flujo comercial de cierre cambia: no se prioriza llamada manual o WhatsApp como paso final del demo; el handoff primario es redireccion automatica a pagina/landing de IACloser.
 - Lead Chat debe funcionar tambien para clientes sin website como pagina publica full-screen (link compartible), independiente del script embebible.
-- En la experiencia publica de Lead Chat, la oferta comercial no se muestra como modal inicial; aparece de forma inline cuando la conversacion ya tiene intencion.
+- En la experiencia publica de Lead Chat, no se muestra bloque de oferta comercial inline: el flujo va directo de conversacion a consentimiento/handoff para reducir friccion y evitar duplicidad con la estrategia de Prompt IA.
 - La pagina Lead Chat ahora replica elementos de retencion del widget embebido: pop de intencion de salida en PC, teaser de recaptura y efecto de escritura en respuestas del asistente.
 
 ## Integracion de datos a IACloser (contexto funcional)
@@ -110,7 +110,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - En Superadmin/Agencias, la accion de payout es contextual: muestra `Aprobar payout` o `Marcar pagado` segun existan payouts pendientes.
 - Plan PLUS: branding del widget admite `branding_text` y `branding_link` para personalizar texto y URL del footer (fallback seguro a `/crear-ahora?ref=<clientId>`).
 - En `experience_mode=lead_chat`, el dashboard prioriza compartir enlace publico del chat; no depende de instalar script en una web.
-- El dashboard expone controles Lead Chat-only (eyebrow del header, headline/subheadline, badge superior, bloque de oferta inline, CTA y mensajes de actividad/testimonios) con aviso de alcance exclusivo para la pagina Lead Chat.
+- El dashboard expone controles Lead Chat-only (eyebrow del header, headline/subheadline, badge superior y mensajes de actividad/testimonios) con aviso de alcance exclusivo para la pagina Lead Chat; la oferta inline se controla por estrategia conversacional desde Prompt IA.
 - En Dashboard, acciones primarias de guardado (configuracion de widget y cuenta) usan barra sticky para mantener CTA visible durante scroll largo.
 - En Dashboard > Configuracion del widget, el boton `Guardar Cambios` se fija arriba del formulario (sticky) con microcopy para que sea ubicable y evitar perdidas por no guardar.
 - En dashboard, el CTA `Guardar Cambios` de la pestana Configuracion se muestra en una barra sticky superior del tab para que permanezca visible durante todo el scroll.
