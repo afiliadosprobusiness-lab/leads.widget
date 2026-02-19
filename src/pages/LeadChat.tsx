@@ -128,8 +128,12 @@ const SALES_COPY: Record<
     presenceNow: "3 personas probando la demo ahora",
     presenceNowMessages: [
       "3 personas probando la demo ahora",
-      "5 personas viendo resultados en vivo",
-      "2 negocios activando llamada en menos de 2 min",
+      "4 personas evaluando resultados en vivo",
+      "6 personas revisando esta demo ahora",
+      "5 negocios comparando planes en este momento",
+      "7 interesados activos en este chat",
+      "8 personas viendo como activar llamadas en menos de 2 min",
+      "6 empresas pidiendo una demostracion guiada",
     ],
     prequalifyingBadge: "Precalificando...",
     readyBadge: "Llamada en menos de 2 min",
@@ -187,8 +191,12 @@ const SALES_COPY: Record<
     presenceNow: "3 people are testing this demo right now",
     presenceNowMessages: [
       "3 people are testing this demo right now",
-      "5 visitors are watching live outcomes",
-      "2 teams are starting a call in under 2 min",
+      "4 people are checking live outcomes now",
+      "6 visitors are reviewing this demo right now",
+      "5 businesses are comparing plans at this moment",
+      "7 prospects are active in this chat",
+      "8 people are learning how to trigger calls in under 2 min",
+      "6 companies requested a guided walkthrough",
     ],
     prequalifyingBadge: "Pre-qualifying...",
     readyBadge: "Call in under 2 min",
@@ -279,7 +287,15 @@ function normalizeText(value: string) {
 function normalizeStringArray(value: unknown): string[] {
   if (Array.isArray(value)) {
     return value
-      .map((item) => (typeof item === "string" ? item.trim() : ""))
+      .map((item) => {
+        if (typeof item === "string") return item.trim();
+        if (item && typeof item === "object") {
+          const record = item as Record<string, unknown>;
+          const candidate = record.message ?? record.text ?? record.label ?? "";
+          return typeof candidate === "string" ? candidate.trim() : "";
+        }
+        return "";
+      })
       .filter(Boolean);
   }
   if (typeof value === "string") {
@@ -288,6 +304,23 @@ function normalizeStringArray(value: unknown): string[] {
       .map((item) => item.trim())
       .filter(Boolean);
   }
+  return [];
+}
+
+function resolveLeadChatLiveToasts(raw: Record<string, unknown>) {
+  const candidates = [
+    raw.leadChatLiveToasts,
+    raw.lead_chat_live_toasts,
+    raw.liveActivities,
+    raw.liveActivityMessages,
+    raw.live_activities,
+  ];
+
+  for (const candidate of candidates) {
+    const parsed = normalizeStringArray(candidate).slice(0, 12);
+    if (parsed.length > 0) return parsed;
+  }
+
   return [];
 }
 
@@ -503,8 +536,7 @@ export default function LeadChat() {
               localeCopy.offerDescription,
           ),
           leadChatCtaLabel: String(raw.leadChatCtaLabel || raw.lead_chat_cta_label || localeCopy.offerCta),
-          leadChatLiveToasts: normalizeStringArray(raw.leadChatLiveToasts ?? raw.lead_chat_live_toasts)
-            .slice(0, 12),
+          leadChatLiveToasts: resolveLeadChatLiveToasts(raw),
         };
 
         setLocale(resolvedLocale);
