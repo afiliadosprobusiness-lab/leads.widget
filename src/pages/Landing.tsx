@@ -94,22 +94,29 @@ export default function Landing() {
     const container = testimonialsScrollRef.current;
     if (!container || landingTestimonials.length < 2) return;
 
-    const intervalId = window.setInterval(() => {
-      const card = container.querySelector('[data-testimonial-card]') as HTMLElement | null;
-      const step = (card?.offsetWidth || 320) + 16;
-      const maxScroll = container.scrollWidth - container.clientWidth;
-      if (maxScroll <= 0) return;
-      const loopPoint = container.scrollWidth / 2;
+    let animationFrame = 0;
+    let previousTimestamp = 0;
+    const speedPxPerSecond = 22;
+    const loopPoint = container.scrollWidth / 2;
 
-      if (container.scrollLeft + step >= loopPoint) {
-        container.scrollTo({ left: 0, behavior: 'auto' });
-        return;
+    const step = (timestamp: number) => {
+      if (!previousTimestamp) previousTimestamp = timestamp;
+      const delta = (timestamp - previousTimestamp) / 1000;
+      previousTimestamp = timestamp;
+
+      if (!container.matches(':hover') && !document.hidden) {
+        container.scrollLeft += speedPxPerSecond * delta;
+        if (container.scrollLeft >= loopPoint) {
+          container.scrollLeft -= loopPoint;
+        }
       }
 
-      container.scrollBy({ left: step, behavior: 'smooth' });
-    }, 4500);
+      animationFrame = window.requestAnimationFrame(step);
+    };
 
-    return () => window.clearInterval(intervalId);
+    animationFrame = window.requestAnimationFrame(step);
+
+    return () => window.cancelAnimationFrame(animationFrame);
   }, [landingTestimonials.length, loopingLandingTestimonials.length]);
 
   const handleTestimonialsScroll = (direction: 'prev' | 'next') => {
@@ -384,7 +391,7 @@ export default function Landing() {
 
               <div
                 ref={testimonialsScrollRef}
-                className="flex gap-4 overflow-x-auto pb-2 px-1 snap-x snap-mandatory scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                className="flex gap-4 overflow-x-auto pb-2 px-1 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
                 aria-label={t('landing_testimonials.scroll_aria')}
               >
                 {loopingLandingTestimonials.map((item, idx) => {

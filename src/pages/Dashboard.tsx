@@ -112,6 +112,8 @@ interface WidgetConfig {
   icloser_redirect_url?: string;
   lead_chat_headline?: string;
   lead_chat_subheadline?: string;
+  lead_chat_eyebrow?: string;
+  lead_chat_badge_text?: string;
   lead_chat_offer_title?: string;
   lead_chat_offer_description?: string;
   lead_chat_cta_label?: string;
@@ -449,6 +451,8 @@ export default function Dashboard() {
     icloser_redirect_url: '',
     lead_chat_headline: 'Conversa, califica y activa tu llamada de cierre.',
     lead_chat_subheadline: 'Este Lead Chat esta optimizado para convertir en pantalla completa.',
+    lead_chat_eyebrow: 'Lead Chat publico',
+    lead_chat_badge_text: 'IACloser en menos de 60s',
     lead_chat_offer_title: 'Bloquea tu llamada de cierre ahora',
     lead_chat_offer_description: 'IACloser toma tu contexto y prioriza el cierre comercial en menos de 60 segundos.',
     lead_chat_cta_label: 'Activar llamada',
@@ -575,6 +579,8 @@ export default function Dashboard() {
           icloser_redirect_url: '',
           lead_chat_headline: 'Conversa, califica y activa tu llamada de cierre.',
           lead_chat_subheadline: 'Este Lead Chat esta optimizado para convertir en pantalla completa.',
+          lead_chat_eyebrow: 'Lead Chat publico',
+          lead_chat_badge_text: 'IACloser en menos de 60s',
           lead_chat_offer_title: 'Bloquea tu llamada de cierre ahora',
           lead_chat_offer_description: 'IACloser toma tu contexto y prioriza el cierre comercial en menos de 60 segundos.',
           lead_chat_cta_label: 'Activar llamada',
@@ -635,6 +641,8 @@ export default function Dashboard() {
           icloser_redirect_url: configData.icloser_redirect_url || '',
           lead_chat_headline: configData.lead_chat_headline || 'Conversa, califica y activa tu llamada de cierre.',
           lead_chat_subheadline: configData.lead_chat_subheadline || 'Este Lead Chat esta optimizado para convertir en pantalla completa.',
+          lead_chat_eyebrow: configData.lead_chat_eyebrow || 'Lead Chat publico',
+          lead_chat_badge_text: configData.lead_chat_badge_text || 'IACloser en menos de 60s',
           lead_chat_offer_title: configData.lead_chat_offer_title || 'Bloquea tu llamada de cierre ahora',
           lead_chat_offer_description: configData.lead_chat_offer_description || 'IACloser toma tu contexto y prioriza el cierre comercial en menos de 60 segundos.',
           lead_chat_cta_label: configData.lead_chat_cta_label || 'Activar llamada',
@@ -856,6 +864,8 @@ export default function Dashboard() {
         icloser_redirect_url: (formConfig.icloser_redirect_url || '').trim(),
         lead_chat_headline: (formConfig.lead_chat_headline || '').trim(),
         lead_chat_subheadline: (formConfig.lead_chat_subheadline || '').trim(),
+        lead_chat_eyebrow: (formConfig.lead_chat_eyebrow || '').trim(),
+        lead_chat_badge_text: (formConfig.lead_chat_badge_text || '').trim(),
         lead_chat_offer_title: (formConfig.lead_chat_offer_title || '').trim(),
         lead_chat_offer_description: (formConfig.lead_chat_offer_description || '').trim(),
         lead_chat_cta_label: (formConfig.lead_chat_cta_label || '').trim(),
@@ -1695,124 +1705,151 @@ export default function Dashboard() {
                       <Rocket className="w-4 h-4" />
                       Lead Chat + IACloser
                     </h4>
+                    <p className="text-[11px] text-amber-600">
+                      Lead Chat abre una pagina completa con URL propia. Widget embebido se instala dentro de tu web.
+                    </p>
 
-                    <div className="space-y-2">
-                      <Label>Modo de experiencia del cliente</Label>
-                      <Select
-                        value={formConfig.experience_mode}
-                        onValueChange={(value) => setFormConfig({
-                          ...formConfig,
-                          experience_mode: value === 'lead_chat' ? 'lead_chat' : 'widget',
-                        })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="widget">Widget embebido (dentro de tu web)</SelectItem>
-                          <SelectItem value="lead_chat">Lead Chat publico (pagina completa)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <p className="text-[11px] text-amber-600">
-                        Lead Chat abre una pagina completa con URL propia. Widget embebido se instala dentro de tu web.
-                      </p>
-                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-2 sm:col-span-2">
+                        <Label>Modo de experiencia del cliente</Label>
+                        <Select
+                          value={formConfig.experience_mode}
+                          onValueChange={(value) => setFormConfig({
+                            ...formConfig,
+                            experience_mode: value === 'lead_chat' ? 'lead_chat' : 'widget',
+                          })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="widget">Widget embebido (dentro de tu web)</SelectItem>
+                            <SelectItem value="lead_chat">Lead Chat publico (pagina completa)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-                    <div className="space-y-2">
-                      <Label>Slug de Lead Chat</Label>
-                      <Input
-                        value={formConfig.lead_chat_slug}
-                        onChange={(e) => setFormConfig({ ...formConfig, lead_chat_slug: e.target.value })}
-                        placeholder="mi-negocio-chat"
-                      />
-                      <Input
-                        value={getLeadChatUrl() || 'Guarda el slug para generar el enlace publico'}
-                        readOnly
-                        className="text-xs"
-                      />
-                      <div className="flex items-center gap-2">
-                        <Button type="button" variant="outline" size="sm" onClick={copyLeadChatLink}>
-                          <Copy className="w-4 h-4 mr-2" />
-                          Copiar link de Lead Chat
-                        </Button>
-                        <p className="text-[11px] text-muted-foreground">Comparte este link cuando no tengas web o quieras una campana de chat independiente.</p>
+                      <div className="space-y-2">
+                        <Label>Slug de Lead Chat</Label>
+                        <Input
+                          value={formConfig.lead_chat_slug}
+                          onChange={(e) => setFormConfig({ ...formConfig, lead_chat_slug: e.target.value })}
+                          placeholder="mi-negocio-chat"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>URL publica de Lead Chat</Label>
+                        <Input
+                          value={getLeadChatUrl() || 'Guarda el slug para generar el enlace publico'}
+                          readOnly
+                          className="text-xs"
+                        />
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label>URL de redireccion IACloser</Label>
-                      <Input
-                        type="url"
-                        value={formConfig.icloser_redirect_url}
-                        onChange={(e) => setFormConfig({ ...formConfig, icloser_redirect_url: e.target.value })}
-                        placeholder="https://tu-landing-ia-closer.com"
-                      />
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button type="button" variant="outline" size="sm" onClick={copyLeadChatLink}>
+                        <Copy className="w-4 h-4 mr-2" />
+                        Copiar link de Lead Chat
+                      </Button>
+                      <p className="text-[11px] text-muted-foreground">Comparte este link cuando no tengas web o quieras una campana de chat independiente.</p>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label>Texto de consentimiento</Label>
-                      <textarea
-                        value={formConfig.consent_text}
-                        onChange={(e) => setFormConfig({ ...formConfig, consent_text: e.target.value })}
-                        className="w-full p-2 text-sm border rounded-md bg-background min-h-[72px]"
-                      />
-                      <p className="text-[11px] text-muted-foreground">
-                        Se muestra antes del handoff a IACloser. El usuario debe aceptarlo expresamente.
-                      </p>
+                    <div className="space-y-3 rounded-xl border bg-muted/20 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Textos del encabezado</p>
+                      <div className="space-y-2">
+                        <Label>Etiqueta superior (eyebrow)</Label>
+                        <Input
+                          value={formConfig.lead_chat_eyebrow}
+                          onChange={(e) => setFormConfig({ ...formConfig, lead_chat_eyebrow: e.target.value })}
+                          placeholder="Lead Chat publico"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Titulo principal de Lead Chat</Label>
+                        <Input
+                          value={formConfig.lead_chat_headline}
+                          onChange={(e) => setFormConfig({ ...formConfig, lead_chat_headline: e.target.value })}
+                          placeholder="Conversa, califica y activa tu llamada de cierre."
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Subtitulo principal de Lead Chat</Label>
+                        <textarea
+                          value={formConfig.lead_chat_subheadline}
+                          onChange={(e) => setFormConfig({ ...formConfig, lead_chat_subheadline: e.target.value })}
+                          className="w-full p-2 text-sm border rounded-md bg-background min-h-[64px]"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Badge superior de confianza</Label>
+                        <Input
+                          value={formConfig.lead_chat_badge_text}
+                          onChange={(e) => setFormConfig({ ...formConfig, lead_chat_badge_text: e.target.value })}
+                          placeholder="IACloser en menos de 60s"
+                        />
+                      </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label>Version legal del consentimiento</Label>
-                      <Input
-                        value={formConfig.consent_text_version}
-                        onChange={(e) => setFormConfig({ ...formConfig, consent_text_version: e.target.value })}
-                        placeholder="v1"
-                      />
+                    <div className="space-y-3 rounded-xl border bg-muted/20 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Oferta y conversion</p>
+                      <div className="space-y-2">
+                        <Label>Titulo de oferta dentro del chat</Label>
+                        <Input
+                          value={formConfig.lead_chat_offer_title}
+                          onChange={(e) => setFormConfig({ ...formConfig, lead_chat_offer_title: e.target.value })}
+                          placeholder="Bloquea tu llamada de cierre ahora"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Descripcion de oferta dentro del chat</Label>
+                        <textarea
+                          value={formConfig.lead_chat_offer_description}
+                          onChange={(e) => setFormConfig({ ...formConfig, lead_chat_offer_description: e.target.value })}
+                          className="w-full p-2 text-sm border rounded-md bg-background min-h-[72px]"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Texto CTA de la oferta</Label>
+                        <Input
+                          value={formConfig.lead_chat_cta_label}
+                          onChange={(e) => setFormConfig({ ...formConfig, lead_chat_cta_label: e.target.value })}
+                          placeholder="Activar llamada"
+                        />
+                      </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label>Titulo principal de Lead Chat</Label>
-                      <Input
-                        value={formConfig.lead_chat_headline}
-                        onChange={(e) => setFormConfig({ ...formConfig, lead_chat_headline: e.target.value })}
-                        placeholder="Conversa, califica y activa tu llamada de cierre."
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Subtitulo principal de Lead Chat</Label>
-                      <textarea
-                        value={formConfig.lead_chat_subheadline}
-                        onChange={(e) => setFormConfig({ ...formConfig, lead_chat_subheadline: e.target.value })}
-                        className="w-full p-2 text-sm border rounded-md bg-background min-h-[64px]"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Titulo de oferta dentro del chat</Label>
-                      <Input
-                        value={formConfig.lead_chat_offer_title}
-                        onChange={(e) => setFormConfig({ ...formConfig, lead_chat_offer_title: e.target.value })}
-                        placeholder="Bloquea tu llamada de cierre ahora"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Descripcion de oferta dentro del chat</Label>
-                      <textarea
-                        value={formConfig.lead_chat_offer_description}
-                        onChange={(e) => setFormConfig({ ...formConfig, lead_chat_offer_description: e.target.value })}
-                        className="w-full p-2 text-sm border rounded-md bg-background min-h-[72px]"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Texto CTA de la oferta</Label>
-                      <Input
-                        value={formConfig.lead_chat_cta_label}
-                        onChange={(e) => setFormConfig({ ...formConfig, lead_chat_cta_label: e.target.value })}
-                        placeholder="Activar llamada"
-                      />
+                    <div className="space-y-3 rounded-xl border bg-muted/20 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Consentimiento y handoff</p>
+                      <div className="space-y-2">
+                        <Label>URL de redireccion IACloser</Label>
+                        <Input
+                          type="url"
+                          value={formConfig.icloser_redirect_url}
+                          onChange={(e) => setFormConfig({ ...formConfig, icloser_redirect_url: e.target.value })}
+                          placeholder="https://tu-landing-ia-closer.com"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Texto de consentimiento</Label>
+                        <textarea
+                          value={formConfig.consent_text}
+                          onChange={(e) => setFormConfig({ ...formConfig, consent_text: e.target.value })}
+                          className="w-full p-2 text-sm border rounded-md bg-background min-h-[72px]"
+                        />
+                        <p className="text-[11px] text-muted-foreground">
+                          Se muestra antes del handoff a IACloser. El usuario debe aceptarlo expresamente.
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Version legal del consentimiento</Label>
+                        <Input
+                          value={formConfig.consent_text_version}
+                          onChange={(e) => setFormConfig({ ...formConfig, consent_text_version: e.target.value })}
+                          placeholder="v1"
+                        />
+                      </div>
                     </div>
 
                     <div className="space-y-2">
