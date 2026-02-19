@@ -76,6 +76,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Lead Chat agrega microcopy de reduccion de friccion debajo del input (`Demo real sin costo`, `Llamada en menos de 2 minutos`, `Sin tarjeta de credito`) y una barra superior de prueba social con pulsacion leve y mensajes dinamicos de volumen (cifras creibles).
 - Lead Chat actualiza el microcopy inferior del composer a formato compacto horizontal con emojis y badge de actividad en vivo para mejorar escaneo rapido en mobile/desktop.
 - En Lead Chat, los mensajes teaser dinamicos (barra de captacion encima de quick replies/composer) cambian de idioma junto al selector `ES/EN`.
+- En Lead Chat, la pildora superior de actividad (encima de testimonios) usa contador aleatorio dinamico entre `3` y `300` para reforzar prueba social sin saturar el header.
 - En Lead Chat, cuando el asistente emite `ICALLCLOSER_READY`, el frontend abre siempre la tarjeta de consentimiento (nombre/telefono prellenados si el asistente los capturo). El handoff solo se ejecuta al enviar el formulario con checkbox de consentimiento obligatorio; luego muestra cuenta regresiva (`3..2..1`) y redirige.
 - En la tarjeta de consentimiento de Lead Chat, `nombre` y `telefono` son obligatorios; el boton `Enviar` permanece deshabilitado hasta que ambos sean validos y el checkbox este aceptado.
 - Quick replies de Lead Chat y `SalesWidget` usan una sola fila con scroll horizontal suave (sin wrap) para mantener CTA compactos en todas las resoluciones.
@@ -83,9 +84,11 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Widget embebido (`public/widget-embed.js`) replica mejoras de retencion: quick replies en una sola fila con scroll horizontal (mobile-first), selector de emojis, entrada por voz y toggle sutil claro/oscuro.
 - En Lead Chat/widget embebido/SalesWidget, la entrada por voz usa fallback `SpeechRecognition/webkitSpeechRecognition` y autoenvia el mensaje al terminar el dictado.
 - En Lead Chat/widget embebido/SalesWidget, el idioma por defecto del chat es ingles; si el usuario escribe en espanol el flujo cambia automaticamente a espanol y continua en ese idioma.
-- Widget embebido usa ingles por defecto y permite cambiar en 1 clic a espanol desde el header, aplicando textos UI y testimonios rotativos.
+- Widget embebido usa ingles por defecto y permite cambiar en 1 clic a espanol desde el header, aplicando textos UI, saludo inicial y testimonios rotativos (incluyendo compatibilidad con textos legacy EN/ES).
 - Widget embebido actualiza defaults comerciales EN/ES (mensaje de apertura y quick replies) al enfoque de llamada en menos de 2 minutos.
 - Widget embebido muestra una barra de testimonios en la parte superior del panel (debajo del header) con glow de transicion en cada cambio para reforzar prueba social sin interrumpir el chat.
+- Widget embebido agrega una pildora compacta de actividad encima de testimonios con contador aleatorio dinamico (`3` a `300`) y mensajes localizados EN/ES.
+- Widget embebido muestra mensajes teaser dinamicos inline sobre el composer (sin reservar altura extra del layout) para no quitar espacio util al usuario.
 - Lead Chat mantiene una barra superior de testimonios debajo del header (igual que el widget embebido), con glow de transicion en cada cambio para reforzar prueba social.
 - Lead Chat reutiliza `lead_chat_live_toasts` (dashboard: mensajes de actividad en vivo) con aliases (`liveActivities`, `liveActivityMessages`) y shape Firestore (`arrayValue`/`stringValue`) para compatibilidad de payload. Si el endpoint publico no trae ese campo, hace fallback de lectura directa a Firestore para `widget_configs` por `lead_chat_slug/widget_id/user_id`.
 - En Lead Chat, la barra de estado/acciones se mantiene arriba de testimonios en mobile y desktop; la tarjeta `Live activity` se muestra solo en desktop (`lg+`) para no quitar espacio util al usuario movil.

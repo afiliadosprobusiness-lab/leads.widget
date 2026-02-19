@@ -77,6 +77,7 @@ const SALES_COPY: Record<
     teaserMessages: string[];
     presenceNow: string;
     presenceNowMessages: string[];
+    presenceNowSuffix: string;
     prequalifyingBadge: string;
     readyBadge: string;
     callingBadge: string;
@@ -147,6 +148,7 @@ const SALES_COPY: Record<
       "8 personas viendo como activar llamadas en menos de 2 min",
       "6 empresas pidiendo una demostracion guiada",
     ],
+    presenceNowSuffix: "personas revisando resultados en vivo ahora",
     prequalifyingBadge: "Precalificando...",
     readyBadge: "Llamada en menos de 2 min",
     callingBadge: "IA llamando...",
@@ -216,6 +218,7 @@ const SALES_COPY: Record<
       "8 people are learning how to trigger calls in under 2 min",
       "6 companies requested a guided walkthrough",
     ],
+    presenceNowSuffix: "people are checking live outcomes now",
     prequalifyingBadge: "Pre-qualifying...",
     readyBadge: "Call in under 2 min",
     callingBadge: "AI calling...",
@@ -310,6 +313,10 @@ function normalizeText(value: string) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/\s+/g, " ");
+}
+
+function getRandomPresenceCount() {
+  return Math.floor(Math.random() * 298) + 3;
 }
 
 function normalizeStringArray(value: unknown): string[] {
@@ -818,7 +825,7 @@ export default function LeadChat() {
   const [handoffMessage, setHandoffMessage] = useState("");
   const [activeTestimonialIndex, setActiveTestimonialIndex] = useState(0);
   const [activeLiveActivityIndex, setActiveLiveActivityIndex] = useState(0);
-  const [presenceNowIndex, setPresenceNowIndex] = useState(0);
+  const [presenceNowCount, setPresenceNowCount] = useState(() => getRandomPresenceCount());
   const [testimonialTransition, setTestimonialTransition] = useState(false);
   const [liveActivityTransition, setLiveActivityTransition] = useState(false);
   const [activeTeaser, setActiveTeaser] = useState("");
@@ -1151,13 +1158,9 @@ export default function LeadChat() {
   const testimonialStarsCount = Math.max(1, Math.min(5, Number(activeTestimonial?.stars || 5)));
   const testimonialStripStars = Array.from({ length: testimonialStarsCount }, () => "\u2B50").join("");
   const hasTestimonialStrip = Boolean(activeTestimonial);
-  const presenceMessages = useMemo(() => {
-    const source = Array.isArray(copy.presenceNowMessages) ? copy.presenceNowMessages.filter(Boolean) : [];
-    return source.length > 0 ? source : [copy.presenceNow];
-  }, [copy.presenceNowMessages, copy.presenceNow]);
   const activePresenceMessage = useMemo(
-    () => presenceMessages[presenceNowIndex % presenceMessages.length] || copy.presenceNow,
-    [copy.presenceNow, presenceMessages, presenceNowIndex],
+    () => `${presenceNowCount} ${copy.presenceNowSuffix}`,
+    [copy.presenceNowSuffix, presenceNowCount],
   );
 
   useEffect(() => {
@@ -1199,16 +1202,12 @@ export default function LeadChat() {
   }, [showLiveActivityStrip, activeLiveActivityIndex, activeLiveActivityMessage]);
 
   useEffect(() => {
-    setPresenceNowIndex(0);
-  }, [presenceMessages]);
-
-  useEffect(() => {
-    if (presenceMessages.length <= 1) return;
+    setPresenceNowCount(getRandomPresenceCount());
     const interval = window.setInterval(() => {
-      setPresenceNowIndex((prev) => (prev + 1) % presenceMessages.length);
-    }, 6200);
+      setPresenceNowCount(getRandomPresenceCount());
+    }, 5600);
     return () => window.clearInterval(interval);
-  }, [presenceMessages]);
+  }, [locale]);
 
   useEffect(() => {
     const source = teaserMessages;

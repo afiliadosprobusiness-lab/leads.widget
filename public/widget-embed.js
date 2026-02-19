@@ -45,6 +45,11 @@
     es: ['Como podemos ayudarte? 👋', 'Tienes alguna duda? ✨', 'Estamos en linea ahora 🚀']
   };
 
+  const LEGACY_SHORT_WELCOME = {
+    en: 'Hello! Choose one of these options',
+    es: 'Hola! Elige una de estas opciones'
+  };
+
   const LIVE_ACTIVITY_DEFAULTS = {
     en: [
       'Mark got the ICallCloser system.',
@@ -60,12 +65,27 @@
     ]
   };
 
+  const LEGACY_TESTIMONIALS = {
+    en: [{ name: 'Mark Dirac', text: 'I love this service!!', stars: 5, avatar_url: '' }],
+    es: [{ name: 'Mark Dirac', text: 'Me gusta este servicio!!', stars: 5, avatar_url: '' }]
+  };
+
+  const LEGACY_TESTIMONIAL_SINGLE_TEXTS = [
+    'I love this service!!',
+    'I love this service!',
+    'Me gusta este servicio!!',
+    'Me gusta este servicio!',
+    'Me gusto este servicio!!',
+    'Me gusto este servicio!'
+  ];
+
   const I18N = {
     en: {
       headerSubtitle: 'Instant AI replies',
       chatPlaceholder: 'Type your message...',
       closeExitIntent: 'No thanks',
       testimonialLabel: 'Testimonials',
+      presenceNowSuffix: 'people are checking live outcomes now',
       viralTexts: ['Powered by LeadWidget', 'Want this chat on your website?', 'Create your FREE widget here'],
       aiUnavailableWithWa: 'The AI assistant is not configured yet. You can contact us on WhatsApp for immediate support.',
       aiUnavailableNoWa: 'The AI assistant is not configured yet. The admin must add an OpenAI or Anthropic API key.',
@@ -83,6 +103,7 @@
       chatPlaceholder: 'Escribe tu mensaje...',
       closeExitIntent: 'No gracias',
       testimonialLabel: 'Testimonios',
+      presenceNowSuffix: 'personas revisando resultados en vivo ahora',
       viralTexts: ['Potenciado por LeadWidget', 'Quieres este chat en tu web?', 'Crea tu widget GRATIS aqui'],
       aiUnavailableWithWa: 'El asistente de IA aun no esta configurado. Puedes escribirnos por WhatsApp para atencion inmediata.',
       aiUnavailableNoWa: 'El asistente de IA aun no esta configurado. El administrador debe agregar la API key de OpenAI o Anthropic.',
@@ -110,6 +131,8 @@
   let configRefreshInterval = null;
   let vibrationInterval = null;
   let testimonialInterval = null;
+  let presenceInterval = null;
+  let inlineTeaserInterval = null;
   let autoOpenTimeout = null;
   let teaserStartTimeout = null;
   let themeMode = 'light';
@@ -125,12 +148,16 @@
     if (teaserInterval) clearInterval(teaserInterval);
     if (vibrationInterval) clearInterval(vibrationInterval);
     if (testimonialInterval) clearInterval(testimonialInterval);
+    if (presenceInterval) clearInterval(presenceInterval);
+    if (inlineTeaserInterval) clearInterval(inlineTeaserInterval);
     if (autoOpenTimeout) clearTimeout(autoOpenTimeout);
     if (teaserStartTimeout) clearTimeout(teaserStartTimeout);
 
     teaserInterval = null;
     vibrationInterval = null;
     testimonialInterval = null;
+    presenceInterval = null;
+    inlineTeaserInterval = null;
     autoOpenTimeout = null;
     teaserStartTimeout = null;
   }
@@ -270,8 +297,45 @@
     return currentLiveActivities;
   }
 
+  function testimonialsLooselyMatch(a, b) {
+    const left = normalizeTestimonials(a);
+    const right = normalizeTestimonials(b);
+    if (left.length !== right.length) return false;
+
+    return left.every((item, idx) => {
+      const other = right[idx] || {};
+      return (
+        normalizeText(item.text) === normalizeText(other.text) &&
+        normalizeText(item.name) === normalizeText(other.name)
+      );
+    });
+  }
+
+  function shouldUseLocalizedTestimonials(currentTestimonials) {
+    const normalized = normalizeTestimonials(currentTestimonials);
+    if (normalized.length === 0) return false;
+
+    if (testimonialsLooselyMatch(normalized, LEGACY_TESTIMONIALS.en) || testimonialsLooselyMatch(normalized, LEGACY_TESTIMONIALS.es)) {
+      return true;
+    }
+
+    if (normalized.length === 1) {
+      const singleText = normalizeText(normalized[0].text);
+      return LEGACY_TESTIMONIAL_SINGLE_TEXTS.some(item => normalizeText(item) === singleText);
+    }
+
+    return false;
+  }
+
   function getLocalizedTestimonials(currentTestimonials) {
-    return normalizeTestimonials(currentTestimonials);
+    const normalized = normalizeTestimonials(currentTestimonials);
+    if (normalized.length === 0) return [];
+
+    if (shouldUseLocalizedTestimonials(normalized)) {
+      return normalizeTestimonials(LEGACY_TESTIMONIALS[activeLanguage]);
+    }
+
+    return normalized;
   }
 
   function containsEmoji(text) {
@@ -289,14 +353,27 @@
     return `${pool[Math.floor(Math.random() * pool.length)]} ${text}`;
   }
 
+  function randomPresenceCount() {
+    return Math.floor(Math.random() * 298) + 3;
+  }
+
+  function buildPresenceMessage(count) {
+    return `${count} ${getText('presenceNowSuffix')}`;
+  }
+
   function updateLocalizedDefaults() {
-    const welcomeDefaults = [
+    const salesWelcomeDefaults = [
       'Hi! I am your virtual assistant. How can I help you today?',
       "Hi! I'm the qualification assistant. In under 2 minutes, our AI can call you and help you book or close customers live. What would you like to do?",
       'Hola! Soy tu asistente virtual. En que puedo ayudarte hoy?',
       'Hola, soy el asistente de pre-calificacion. En menos de 2 minutos podemos llamarte y ayudarte a cerrar o agendar clientes. Que te gustaria hacer ahora?'
     ];
-    if (welcomeDefaults.some(item => normalizeText(config.welcomeMessage) === normalizeText(item))) {
+    const normalizedWelcome = normalizeText(config.welcomeMessage);
+    if (normalizedWelcome.includes('choose one of these options') || normalizedWelcome.includes('elige una de estas opciones')) {
+      config.welcomeMessage = activeLanguage === 'es'
+        ? LEGACY_SHORT_WELCOME.es
+        : LEGACY_SHORT_WELCOME.en;
+    } else if (salesWelcomeDefaults.some(item => normalizeText(config.welcomeMessage) === normalizeText(item))) {
       config.welcomeMessage = activeLanguage === 'es'
         ? 'Hola, soy el asistente de pre-calificacion. En menos de 2 minutos podemos llamarte y ayudarte a cerrar o agendar clientes. Que te gustaria hacer ahora?'
         : "Hi! I'm the qualification assistant. In under 2 minutes, our AI can call you and help you book or close customers live. What would you like to do?";
@@ -874,6 +951,52 @@
       }
       #lw-close-btn { border-color: rgba(255,255,255,0.28); }
 
+      #lw-presence-row {
+        margin: 8px 10px 0;
+        display: flex;
+        align-items: center;
+      }
+      #lw-presence-pill {
+        display: inline-flex;
+        max-width: 100%;
+        align-items: center;
+        gap: 7px;
+        border-radius: 999px;
+        border: 1px solid;
+        padding: 4px 10px;
+        font-size: 11px;
+        line-height: 1.2;
+      }
+      #lw-root[data-theme='dark'] #lw-presence-pill {
+        border-color: rgba(244, 114, 182, 0.45);
+        background: rgba(244, 63, 94, 0.1);
+        color: #fecdd3;
+      }
+      #lw-root[data-theme='light'] #lw-presence-pill {
+        border-color: rgba(251, 113, 133, 0.42);
+        background: rgba(255, 241, 242, 0.9);
+        color: #be123c;
+      }
+      .lw-presence-dot {
+        width: 7px;
+        height: 7px;
+        flex-shrink: 0;
+        border-radius: 999px;
+        background: #f43f5e;
+        box-shadow: 0 0 0 4px rgba(244, 63, 94, 0.16);
+        animation: lw-presencePulse 1.8s ease-in-out infinite;
+      }
+      @keyframes lw-presencePulse {
+        0%, 100% { transform: scale(1); opacity: 0.9; }
+        50% { transform: scale(1.18); opacity: 1; }
+      }
+      #lw-presence-text {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
       #lw-testimonial-bar {
         --mx: 50%;
         --my: 50%;
@@ -1032,9 +1155,36 @@
       @keyframes lw-bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
 
       #lw-input-area {
+        position: relative;
         padding: 10px 12px 10px;
         background: var(--lw-surface);
         border-top: 1px solid var(--lw-border);
+      }
+      #lw-inline-teaser {
+        position: absolute;
+        left: 12px;
+        right: 12px;
+        top: -14px;
+        border-radius: 10px;
+        border: 1px solid;
+        padding: 5px 10px;
+        font-size: 11px;
+        line-height: 1.25;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: none;
+        z-index: 2;
+      }
+      #lw-root[data-theme='dark'] #lw-inline-teaser {
+        border-color: rgba(34, 211, 238, 0.35);
+        background: rgba(17, 94, 89, 0.3);
+        color: #cffafe;
+      }
+      #lw-root[data-theme='light'] #lw-inline-teaser {
+        border-color: rgba(56, 189, 248, 0.45);
+        background: rgba(224, 242, 254, 0.88);
+        color: #075985;
       }
       #lw-quick-replies {
         display: flex;
@@ -1345,6 +1495,13 @@
             </div>
           </div>
 
+          <div id="lw-presence-row" aria-live="polite">
+            <div id="lw-presence-pill">
+              <span class="lw-presence-dot" aria-hidden="true"></span>
+              <span id="lw-presence-text"></span>
+            </div>
+          </div>
+
           <div id="lw-testimonial-bar" aria-live="polite">
             <div class="lw-testimonial-content">
               <span id="lw-testimonial-label" class="lw-testimonial-label">${getText('testimonialLabel')}</span>
@@ -1355,6 +1512,7 @@
           <div id="lw-messages"></div>
 
           <div id="lw-input-area">
+            <button type="button" id="lw-inline-teaser"></button>
             <div id="lw-quick-replies"></div>
             <form id="lw-form">
               <div id="lw-composer">
@@ -1452,6 +1610,8 @@
     const testimonialBar = document.getElementById('lw-testimonial-bar');
     const testimonialTextEl = document.getElementById('lw-testimonial-text');
     const testimonialMetaEl = document.getElementById('lw-testimonial-meta');
+    const presenceTextEl = document.getElementById('lw-presence-text');
+    const inlineTeaserEl = document.getElementById('lw-inline-teaser');
     const viralTextEl = document.getElementById('lw-viral-text');
 
     const quickEmojiSet = ['😀', '😄', '😊', '🔥', '👍', '✨', '🙌', '📞', '🚀', '🎯'];
@@ -1480,6 +1640,59 @@
       if (themeBtn) themeBtn.innerHTML = themeIconMarkup();
     }
 
+    function updatePresenceNowMessage() {
+      if (!presenceTextEl) return;
+      presenceTextEl.textContent = buildPresenceMessage(randomPresenceCount());
+    }
+
+    function startPresenceTicker() {
+      if (presenceInterval) {
+        clearInterval(presenceInterval);
+        presenceInterval = null;
+      }
+      updatePresenceNowMessage();
+      presenceInterval = setInterval(updatePresenceNowMessage, 5600);
+    }
+
+    function stopPresenceTicker() {
+      if (presenceInterval) {
+        clearInterval(presenceInterval);
+        presenceInterval = null;
+      }
+    }
+
+    function startInlineTeaserCycle() {
+      if (!inlineTeaserEl) return;
+      if (inlineTeaserInterval) {
+        clearInterval(inlineTeaserInterval);
+        inlineTeaserInterval = null;
+      }
+      const source = getLocalizedTeaserMessages(config.teaserMessages);
+      if (!isOpen || !Array.isArray(source) || source.length === 0) {
+        inlineTeaserEl.style.display = 'none';
+        return;
+      }
+      let index = Math.floor(Math.random() * source.length);
+      const showInlineTeaser = () => {
+        const text = source[index] || '';
+        if (!text || !isOpen) return;
+        inlineTeaserEl.textContent = text;
+        inlineTeaserEl.style.opacity = input.value.trim() ? '0' : '1';
+        inlineTeaserEl.style.display = 'block';
+        index = (index + 1) % source.length;
+      };
+      showInlineTeaser();
+      inlineTeaserInterval = setInterval(showInlineTeaser, 6200);
+    }
+
+    function stopInlineTeaserCycle() {
+      if (inlineTeaserInterval) {
+        clearInterval(inlineTeaserInterval);
+        inlineTeaserInterval = null;
+      }
+      if (inlineTeaserEl) inlineTeaserEl.style.display = 'none';
+    }
+
     function renderEmojiPanel() {
       if (!emojiPanel) return;
       emojiPanel.innerHTML = quickEmojiSet
@@ -1496,6 +1709,25 @@
           if (emojiBtn) emojiBtn.classList.remove('active');
         });
       });
+    }
+
+    function syncInitialAssistantMessageLanguage() {
+      if (!Array.isArray(messages) || messages.length !== 1) return false;
+      if (messages[0]?.role !== 'assistant') return false;
+
+      const normalizedCurrent = normalizeText(messages[0].content || '');
+      const looksLikeWelcome =
+        normalizedCurrent.includes('choose one of these options') ||
+        normalizedCurrent.includes('elige una de estas opciones') ||
+        normalizedCurrent.includes(normalizeText('Hi! I am your virtual assistant. How can I help you today?')) ||
+        normalizedCurrent.includes(normalizeText("Hi! I'm the qualification assistant. In under 2 minutes, our AI can call you and help you book or close customers live. What would you like to do?")) ||
+        normalizedCurrent.includes(normalizeText('Hola! Soy tu asistente virtual. En que puedo ayudarte hoy?')) ||
+        normalizedCurrent.includes(normalizeText('Hola, soy el asistente de pre-calificacion. En menos de 2 minutos podemos llamarte y ayudarte a cerrar o agendar clientes. Que te gustaria hacer ahora?'));
+
+      if (!looksLikeWelcome) return false;
+
+      messages = [{ role: 'assistant', content: withBotEmoji(config.welcomeMessage) }];
+      return true;
     }
 
     function applyLanguageUI() {
@@ -1515,8 +1747,21 @@
       if (emojiBtn) emojiBtn.setAttribute('aria-label', getText('emojiLabel'));
       if (micBtn) micBtn.setAttribute('aria-label', getText('voiceLabel'));
       if (themeBtn) themeBtn.setAttribute('aria-label', getText('themeLabel'));
+      updatePresenceNowMessage();
+      if (isOpen) {
+        startPresenceTicker();
+        startInlineTeaserCycle();
+      } else {
+        stopPresenceTicker();
+        stopInlineTeaserCycle();
+      }
+      const welcomeSynced = syncInitialAssistantMessageLanguage();
       updateViralText();
-      renderQuickReplies();
+      if (welcomeSynced) {
+        renderMessages();
+      } else {
+        renderQuickReplies();
+      }
       if (isOpen) {
         startTestimonialRotator();
       } else {
@@ -1752,6 +1997,8 @@
       if (show) {
         stopVibration();
         stopTeaserCycle();
+        startPresenceTicker();
+        startInlineTeaserCycle();
         if (messages.length === 0) {
           messages.push({ role: 'assistant', content: withBotEmoji(config.welcomeMessage) });
           renderMessages();
@@ -1774,6 +2021,8 @@
           }, 2000);
         }
 
+        stopPresenceTicker();
+        stopInlineTeaserCycle();
         stopTestimonialRotator();
       }
     }
@@ -1913,6 +2162,16 @@
       e.preventDefault();
       handleSendMessage();
     });
+    input.addEventListener('input', () => {
+      if (!inlineTeaserEl) return;
+      inlineTeaserEl.style.opacity = input.value.trim() ? '0' : '1';
+    });
+    if (inlineTeaserEl) {
+      inlineTeaserEl.addEventListener('click', () => {
+        const teaserValue = (inlineTeaserEl.textContent || '').trim();
+        if (teaserValue) handleSendMessage(teaserValue);
+      });
+    }
 
     if (langBtn) {
       langBtn.addEventListener('click', () => {
@@ -2083,6 +2342,10 @@
       const remoteConfig = await getWidgetConfig(widgetId || clientId);
       if (remoteConfig) {
         Object.assign(config, remoteConfig);
+        const normalizedLanguage = String(config.language || '').toLowerCase();
+        if (normalizedLanguage === 'es' || normalizedLanguage === 'en') {
+          activeLanguage = normalizedLanguage;
+        }
         console.log('LeadWidget: Loaded configuration for', config.businessName);
         console.log('LeadWidget: Teaser messages:', config.teaserMessages);
         console.log('LeadWidget: Vibration:', config.vibrationIntensity);
