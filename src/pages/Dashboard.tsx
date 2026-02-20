@@ -1183,6 +1183,79 @@ export default function Dashboard() {
     }
   };
 
+  const saveAIConfig = async () => {
+    if (!user || !widgetConfig) return;
+    setSavingAI(true);
+    try {
+      const safeAiMaxTokens = normalizeAiMaxTokens(aiConfig.ai_max_tokens, AI_MAX_TOKENS_DEFAULT);
+      const normalizedContextPrompt = String(aiConfig.context_prompt || '').trim();
+      const normalizedImprovementsPrompt = String(aiConfig.ai_improvements_prompt || '').trim();
+      const normalizedSystemPrompt = String(aiConfig.system_prompt || '').trim();
+      const compiledPrompt = composeAiSystemPrompt({
+        contextPrompt: normalizedContextPrompt,
+        improvementsPrompt: normalizedImprovementsPrompt,
+        systemPrompt: normalizedSystemPrompt,
+        closingMode: promptCommandMode,
+      });
+      // Save to profiles (for dashboard access)
+      await updateDoc(doc(db, 'profiles', user.uid), {
+        ai_enabled: true,
+        ai_provider: aiConfig.ai_provider,
+        ai_api_key: aiConfig.ai_api_key,
+        ai_model: aiConfig.ai_model,
+        ai_temperature: aiConfig.ai_temperature,
+        ai_max_tokens: safeAiMaxTokens,
+        business_description: normalizedContextPrompt,
+        ai_context_prompt: normalizedContextPrompt,
+        ai_improvements_prompt: normalizedImprovementsPrompt,
+        ai_system_base_prompt: normalizedSystemPrompt,
+        ai_closing_channel: promptCommandMode,
+        ai_system_prompt: compiledPrompt,
+        ai_security_prompt: aiConfig.ai_security_prompt,
+        updated_at: new Date().toISOString(),
+      });
+
+      // ALSO save to widget_configs (for embedded widget public access)
+      await updateDoc(doc(db, 'widget_configs', widgetConfig.id), {
+        ai_enabled: true,
+        ai_provider: aiConfig.ai_provider,
+        ai_api_key: aiConfig.ai_api_key,
+        ai_model: aiConfig.ai_model,
+        ai_temperature: aiConfig.ai_temperature,
+        ai_max_tokens: safeAiMaxTokens,
+        business_description: normalizedContextPrompt,
+        ai_context_prompt: normalizedContextPrompt,
+        ai_improvements_prompt: normalizedImprovementsPrompt,
+        ai_system_base_prompt: normalizedSystemPrompt,
+        ai_closing_channel: promptCommandMode,
+        ai_system_prompt: compiledPrompt,
+        ai_security_prompt: aiConfig.ai_security_prompt,
+        updated_at: new Date().toISOString(),
+      });
+      setAiConfig((prev) => ({
+        ...prev,
+        ai_max_tokens: safeAiMaxTokens,
+        context_prompt: normalizedContextPrompt,
+        ai_improvements_prompt: normalizedImprovementsPrompt,
+        system_prompt: normalizedSystemPrompt,
+        ai_system_prompt: compiledPrompt,
+      }));
+
+      toast({
+        title: `✅ ${t('dashboard.ai_config.saved_toast')}`,
+        description: t('dashboard.ai_config.saved_desc'),
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingAI(false);
+    }
+  };
+
   // Widget config form state
   const initialLeadChatDefaults = getLeadChatCopyDefaults('es');
   const [formConfig, setFormConfig] = useState({
@@ -3562,7 +3635,18 @@ export default function Dashboard() {
           </TabsContent>
 
           {/* AI Configuration Tab */}
-          <TabsContent value="ai" className="space-y-6">
+          <TabsContent value="ai" className="mt-0 space-y-4 overflow-visible">
+            <div className="sticky top-[8.75rem] sm:top-[4.85rem] z-40 rounded-xl border border-border/70 bg-background/95 p-1.5 sm:p-2 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-background/80">
+              <div className="flex items-center justify-between gap-2">
+                <p className="hidden lg:block px-2 text-[11px] font-medium text-muted-foreground">
+                  Guarda la configuracion IA para aplicarla al instante.
+                </p>
+                <Button onClick={() => void saveAIConfig()} disabled={savingAI} className="h-10 w-full sm:w-auto sm:min-w-[230px]">
+                  {savingAI ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Check className="w-4 h-4 mr-2" />}
+                  {t('dashboard.ai_config.save_btn')}
+                </Button>
+              </div>
+            </div>
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
@@ -3870,87 +3954,6 @@ export default function Dashboard() {
                     {t('dashboard.ai_config.security_prompt_sub')}
                   </p>
                 </div>
-
-                {/* Save Button */}
-                <Button
-                  onClick={async () => {
-                    if (!user || !widgetConfig) return;
-                    setSavingAI(true);
-                    try {
-                      const safeAiMaxTokens = normalizeAiMaxTokens(aiConfig.ai_max_tokens, AI_MAX_TOKENS_DEFAULT);
-                      const normalizedContextPrompt = String(aiConfig.context_prompt || '').trim();
-                      const normalizedImprovementsPrompt = String(aiConfig.ai_improvements_prompt || '').trim();
-                      const normalizedSystemPrompt = String(aiConfig.system_prompt || '').trim();
-                      const compiledPrompt = composeAiSystemPrompt({
-                        contextPrompt: normalizedContextPrompt,
-                        improvementsPrompt: normalizedImprovementsPrompt,
-                        systemPrompt: normalizedSystemPrompt,
-                        closingMode: promptCommandMode,
-                      });
-                      // Save to profiles (for dashboard access)
-                      await updateDoc(doc(db, 'profiles', user.uid), {
-                        ai_enabled: true,
-                        ai_provider: aiConfig.ai_provider,
-                        ai_api_key: aiConfig.ai_api_key,
-                        ai_model: aiConfig.ai_model,
-                        ai_temperature: aiConfig.ai_temperature,
-                        ai_max_tokens: safeAiMaxTokens,
-                        business_description: normalizedContextPrompt,
-                        ai_context_prompt: normalizedContextPrompt,
-                        ai_improvements_prompt: normalizedImprovementsPrompt,
-                        ai_system_base_prompt: normalizedSystemPrompt,
-                        ai_closing_channel: promptCommandMode,
-                        ai_system_prompt: compiledPrompt,
-                        ai_security_prompt: aiConfig.ai_security_prompt,
-                        updated_at: new Date().toISOString(),
-                      });
-
-                      // ALSO save to widget_configs (for embedded widget public access)
-                      await updateDoc(doc(db, 'widget_configs', widgetConfig.id), {
-                        ai_enabled: true,
-                        ai_provider: aiConfig.ai_provider,
-                        ai_api_key: aiConfig.ai_api_key,
-                        ai_model: aiConfig.ai_model,
-                        ai_temperature: aiConfig.ai_temperature,
-                        ai_max_tokens: safeAiMaxTokens,
-                        business_description: normalizedContextPrompt,
-                        ai_context_prompt: normalizedContextPrompt,
-                        ai_improvements_prompt: normalizedImprovementsPrompt,
-                        ai_system_base_prompt: normalizedSystemPrompt,
-                        ai_closing_channel: promptCommandMode,
-                        ai_system_prompt: compiledPrompt,
-                        ai_security_prompt: aiConfig.ai_security_prompt,
-                        updated_at: new Date().toISOString(),
-                      });
-                      setAiConfig((prev) => ({
-                        ...prev,
-                        ai_max_tokens: safeAiMaxTokens,
-                        context_prompt: normalizedContextPrompt,
-                        ai_improvements_prompt: normalizedImprovementsPrompt,
-                        system_prompt: normalizedSystemPrompt,
-                        ai_system_prompt: compiledPrompt,
-                      }));
-
-                      toast({
-                        title: `✅ ${t('dashboard.ai_config.saved_toast')}`,
-                        description: t('dashboard.ai_config.saved_desc'),
-                      });
-                    } catch (error: any) {
-                      toast({
-                        title: 'Error',
-                        description: error.message,
-                        variant: 'destructive',
-                      });
-                    } finally {
-                      setSavingAI(false);
-                    }
-                  }}
-                  disabled={savingAI}
-                  className="w-full"
-                >
-                  {savingAI ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Check className="w-4 h-4 mr-2" />}
-                  {t('dashboard.ai_config.save_btn')}
-                </Button>
 
                 {/* Info Card */}
                 <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-xl">
@@ -5812,5 +5815,6 @@ export default function Dashboard() {
     </div >
   );
 }
+
 
 
