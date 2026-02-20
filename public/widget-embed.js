@@ -1548,6 +1548,23 @@
       .lw-audio-el {
         display: none;
       }
+      @media (max-width: 480px) {
+        .lw-audio-premium {
+          max-width: 262px;
+          padding: 6px 8px;
+          border-radius: 12px;
+        }
+        .lw-audio-controls {
+          gap: 8px;
+        }
+        .lw-audio-btn {
+          width: 28px;
+          height: 28px;
+        }
+        .lw-audio-row {
+          margin-bottom: 4px;
+        }
+      }
       @keyframes lw-audioPulse {
         0% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.55); }
         70% { box-shadow: 0 0 0 9px rgba(52, 211, 153, 0); }
@@ -2496,20 +2513,7 @@
           ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(m.imageAlt || 'Assistant image')}" loading="lazy" style="margin-top:8px;width:100%;max-width:260px;border-radius:12px;border:1px solid var(--lw-border);display:block;">`
           : '';
         const audioMarkup = audioUrl
-          ? `<div class="lw-audio-premium" data-audio-card data-audio-id="audio-${messageIndex}">
-              <div class="lw-audio-row">
-                <span class="lw-audio-title"><span class="lw-audio-dot"></span>${escapeHtml(getText('talkNow'))}</span>
-                <span class="lw-audio-time" data-audio-time>0:00 / --:--</span>
-              </div>
-              <div class="lw-audio-controls">
-                <button type="button" class="lw-audio-btn" data-audio-play aria-label="Play audio"><span class="lw-audio-glyph" data-audio-play-glyph>\u25B6</span></button>
-                <button type="button" class="lw-audio-track" data-audio-track aria-label="Seek audio">
-                  <span class="lw-audio-fill" data-audio-fill></span>
-                </button>
-                <button type="button" class="lw-audio-btn" data-audio-mute aria-label="Mute audio"><span class="lw-audio-glyph" data-audio-mute-glyph>\uD83D\uDD0A</span></button>
-              </div>
-              <audio preload="metadata" class="lw-audio-el" data-audio-el><source src="${escapeHtml(audioUrl)}"></audio>
-            </div>`
+          ? `<div class="lw-audio-premium" data-audio-card data-audio-id="audio-${messageIndex}"><div class="lw-audio-row"><span class="lw-audio-title"><span class="lw-audio-dot"></span>${escapeHtml(getText('talkNow'))}</span><span class="lw-audio-time" data-audio-time>0:00 / --:--</span></div><div class="lw-audio-controls"><button type="button" class="lw-audio-btn" data-audio-play aria-label="Play audio"><span class="lw-audio-glyph" data-audio-play-glyph>\u25B6</span></button><button type="button" class="lw-audio-track" data-audio-track aria-label="Seek audio"><span class="lw-audio-fill" data-audio-fill></span></button><button type="button" class="lw-audio-btn" data-audio-mute aria-label="Mute audio"><span class="lw-audio-glyph" data-audio-mute-glyph>\uD83D\uDD0A</span></button></div><audio preload="metadata" class="lw-audio-el" data-audio-el><source src="${escapeHtml(audioUrl)}"></audio></div>`
           : '';
         return `<div class="lw-msg lw-msg-${m.role}${(isMediaOnly || shouldExpandForAudio) ? ' lw-msg-media-only' : ''}">${textMarkup}${imageMarkup}${audioMarkup}</div>`;
       }).join('');
