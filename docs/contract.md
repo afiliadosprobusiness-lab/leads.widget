@@ -312,6 +312,7 @@ Codigo observado:
 - `POST|OPTIONS /api/chat` (proxy a backend externo)
 - `POST|OPTIONS /api/chat-event` (persistencia local de eventos por conversacion)
 - `POST|OPTIONS /api/analyze-conversation` (diagnostico IA/heuristico de conversaciones no completadas)
+- `POST|OPTIONS /api/generate-prompt` (generacion de bloque prompt contexto/sistema usando OpenAI del cliente autenticado)
 - `POST|OPTIONS /api/track` (proxy a backend externo)
 - `POST|OPTIONS /api/verify-payment` (proxy a backend externo)
 - `GET /api/w/:widgetId.js` (proxy a backend externo)
@@ -323,6 +324,25 @@ Asuncion:
 - En produccion, las funciones locales en `api/*.js` se resuelven primero; rutas `/api/*` sin archivo local caen al backend externo via fallback.
 - El proxy local de `POST /api/chat` ademas persiste trazas resumidas de cada intercambio en `ai_chat_logs` para consola de debugging en Dashboard (sin cambiar el contrato de respuesta hacia el cliente).
 - `POST /api/analyze-conversation` requiere `Authorization: Bearer <Firebase ID token>` del usuario dashboard; usa `profiles.ai_api_key` (o fallback `widget_configs.ai_api_key` del mismo owner) para ejecutar analisis OpenAI. Si no hay key configurada, responde analisis heuristico (`provider: heuristic_no_client_key`).
+- `POST /api/generate-prompt` requiere `Authorization: Bearer <Firebase ID token>` del usuario dashboard; usa `profiles.ai_api_key` (o fallback `widget_configs.ai_api_key`) para generar texto de prompt via OpenAI y devuelve `creditsConsumed: true`.
+
+#### `POST /api/generate-prompt`
+
+- Headers:
+  - `Authorization: Bearer <Firebase ID token>` (requerido)
+- Body JSON:
+  - `promptType: "context" | "system"` (requerido)
+  - `locale: "es" | "en"` (opcional)
+  - `widgetId` (opcional, ayuda a resolver config owner)
+  - `closingMode: "icallcloser" | "whatsapp"` (opcional para `system`)
+  - `industry` (opcional)
+  - `contextData` o `systemData` (objeto de campos del modal)
+- Respuestas:
+  - `200`: `{ success: true, prompt: string, promptType, provider: "openai", model: string, creditsConsumed: true }`
+  - `400`: `{ error: "promptType must be context or system" }`
+  - `400`: `{ error: "No OpenAI API key configured in IA settings." }`
+  - `401`: `{ error: "Unauthorized" }`
+  - `500`: `{ error: "Could not generate prompt", details?: string }`
 
 ## Formato de errores
 
@@ -445,3 +465,7 @@ Cambios de comportamiento relevantes:
 - Cambio: configuracion IA en dashboard persiste bloques separados (`ai_context_prompt`, `ai_improvements_prompt`, `ai_system_base_prompt`) y `ai_closing_channel`, compilando `ai_system_prompt` final al guardar.
 - Tipo: non-breaking
 - Impacto: mejora mantenibilidad del prompt por cliente sin romper campos legacy (`business_description`, `ai_system_prompt`).
+- Fecha: 2026-02-20
+- Cambio: nuevo endpoint local `POST /api/generate-prompt` para generar `promptType=context|system` con OpenAI usando la API key del cliente autenticado; UI agrega CTA `Generar con IA` con aviso de consumo.
+- Tipo: non-breaking
+- Impacto: habilita ingenieria de prompt asistida por IA en dashboard sin exponer credenciales y con costo imputado a cada cliente.

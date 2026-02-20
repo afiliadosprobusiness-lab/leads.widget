@@ -904,6 +904,8 @@ export default function Dashboard() {
   const [promptCommandMode, setPromptCommandMode] = useState<AiClosingMode>('icallcloser');
   const [contextBuilderOpen, setContextBuilderOpen] = useState(false);
   const [systemBuilderOpen, setSystemBuilderOpen] = useState(false);
+  const [generatingContextWithAI, setGeneratingContextWithAI] = useState(false);
+  const [generatingSystemWithAI, setGeneratingSystemWithAI] = useState(false);
   const [contextBuilderForm, setContextBuilderForm] = useState({
     businessName: '',
     niche: '',
@@ -1093,6 +1095,80 @@ export default function Dashboard() {
     ];
     setAiConfig((prev) => ({ ...prev, system_prompt: lines.join('\n') }));
     setSystemBuilderOpen(false);
+  };
+
+  const generatePromptWithAI = async (promptType: 'context' | 'system') => {
+    if (!user) {
+      throw new Error(dashboardIsEnglish ? 'You must be logged in.' : 'Debes iniciar sesion.');
+    }
+    const idToken = await user.getIdToken();
+    const response = await fetch('/api/generate-prompt', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${idToken}`,
+      },
+      body: JSON.stringify({
+        promptType,
+        locale: dashboardIsEnglish ? 'en' : 'es',
+        widgetId: widgetConfig?.widget_id || '',
+        closingMode: promptCommandMode,
+        industry: formConfig.template || 'general',
+        contextData: contextBuilderForm,
+        systemData: systemBuilderForm,
+      }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload?.success || !String(payload?.prompt || '').trim()) {
+      throw new Error(String(payload?.error || (dashboardIsEnglish ? 'Could not generate prompt with AI.' : 'No se pudo generar el prompt con IA.')));
+    }
+    return String(payload.prompt || '').trim();
+  };
+
+  const generateContextPromptWithAI = async () => {
+    setGeneratingContextWithAI(true);
+    try {
+      const prompt = await generatePromptWithAI('context');
+      setAiConfig((prev) => ({ ...prev, context_prompt: prompt }));
+      setContextBuilderOpen(false);
+      toast({
+        title: dashboardIsEnglish ? 'Context prompt generated' : 'Prompt de contexto generado',
+        description: dashboardIsEnglish
+          ? 'Credits were consumed from your configured OpenAI API key.'
+          : 'Se consumieron creditos de tu API key OpenAI configurada.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: String(error?.message || (dashboardIsEnglish ? 'Could not generate context prompt.' : 'No se pudo generar el prompt de contexto.')),
+        variant: 'destructive',
+      });
+    } finally {
+      setGeneratingContextWithAI(false);
+    }
+  };
+
+  const generateSystemPromptWithAI = async () => {
+    setGeneratingSystemWithAI(true);
+    try {
+      const prompt = await generatePromptWithAI('system');
+      setAiConfig((prev) => ({ ...prev, system_prompt: prompt }));
+      setSystemBuilderOpen(false);
+      toast({
+        title: dashboardIsEnglish ? 'System prompt generated' : 'Prompt del sistema generado',
+        description: dashboardIsEnglish
+          ? 'Credits were consumed from your configured OpenAI API key.'
+          : 'Se consumieron creditos de tu API key OpenAI configurada.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: String(error?.message || (dashboardIsEnglish ? 'Could not generate system prompt.' : 'No se pudo generar el prompt del sistema.')),
+        variant: 'destructive',
+      });
+    } finally {
+      setGeneratingSystemWithAI(false);
+    }
   };
 
   // Widget config form state
@@ -5423,12 +5499,28 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={() => setContextBuilderOpen(false)}>
+          <p className="text-xs text-amber-700/90 dark:text-amber-300/90">
+            {dashboardIsEnglish
+              ? 'Generating with AI consumes credits from your configured OpenAI API key.'
+              : 'Generar con IA consumira creditos de tu API key OpenAI configurada.'}
+          </p>
+
+          <div className="flex flex-wrap justify-end gap-2 pt-2">
+            <Button type="button" variant="outline" onClick={() => setContextBuilderOpen(false)} disabled={generatingContextWithAI}>
               {dashboardIsEnglish ? 'Cancel' : 'Cancelar'}
             </Button>
-            <Button type="button" onClick={generateContextPromptFromBuilder}>
-              {dashboardIsEnglish ? 'Generate context prompt' : 'Generar prompt de contexto'}
+            <Button type="button" variant="outline" onClick={generateContextPromptFromBuilder} disabled={generatingContextWithAI}>
+              {dashboardIsEnglish ? 'Generate fast (no AI)' : 'Generar rapido (sin IA)'}
+            </Button>
+            <Button type="button" onClick={() => void generateContextPromptWithAI()} disabled={generatingContextWithAI}>
+              {generatingContextWithAI ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {dashboardIsEnglish ? 'Generating...' : 'Generando...'}
+                </>
+              ) : (
+                dashboardIsEnglish ? 'Generate with AI' : 'Generar con IA'
+              )}
             </Button>
           </div>
         </DialogContent>
@@ -5592,12 +5684,28 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={() => setSystemBuilderOpen(false)}>
+          <p className="text-xs text-amber-700/90 dark:text-amber-300/90">
+            {dashboardIsEnglish
+              ? 'Generating with AI consumes credits from your configured OpenAI API key.'
+              : 'Generar con IA consumira creditos de tu API key OpenAI configurada.'}
+          </p>
+
+          <div className="flex flex-wrap justify-end gap-2 pt-2">
+            <Button type="button" variant="outline" onClick={() => setSystemBuilderOpen(false)} disabled={generatingSystemWithAI}>
               {dashboardIsEnglish ? 'Cancel' : 'Cancelar'}
             </Button>
-            <Button type="button" onClick={generateSystemPromptFromBuilder}>
-              {dashboardIsEnglish ? 'Generate system prompt' : 'Generar prompt del sistema'}
+            <Button type="button" variant="outline" onClick={generateSystemPromptFromBuilder} disabled={generatingSystemWithAI}>
+              {dashboardIsEnglish ? 'Generate fast (no AI)' : 'Generar rapido (sin IA)'}
+            </Button>
+            <Button type="button" onClick={() => void generateSystemPromptWithAI()} disabled={generatingSystemWithAI}>
+              {generatingSystemWithAI ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {dashboardIsEnglish ? 'Generating...' : 'Generando...'}
+                </>
+              ) : (
+                dashboardIsEnglish ? 'Generate with AI' : 'Generar con IA'
+              )}
             </Button>
           </div>
         </DialogContent>
