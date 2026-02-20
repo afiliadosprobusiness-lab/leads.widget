@@ -941,10 +941,6 @@ export default function Dashboard() {
     return currentValue as string;
   };
 
-  const applySystemPromptTemplate = (template: string) => {
-    setAiConfig((prev) => ({ ...prev, system_prompt: template }));
-  };
-
   const openPromptSuggestionDialog = (suggestion: string) => {
     const safeSuggestion = String(suggestion || '').trim();
     if (!safeSuggestion) return;
@@ -1019,11 +1015,6 @@ export default function Dashboard() {
     } finally {
       setApplyingPromptSuggestion(false);
     }
-  };
-
-  const applySelectedNichePromptTemplate = () => {
-    const nicheTemplate = getNichePromptTemplate(formConfig.template);
-    applySystemPromptTemplate(nicheTemplate);
   };
 
   const openContextBuilder = () => {
@@ -3734,29 +3725,6 @@ export default function Dashboard() {
                       {dashboardIsEnglish ? 'Create prompt' : 'Crear prompt'}
                     </Button>
                   </div>
-                  <div className="rounded-lg border border-emerald-300/40 bg-emerald-500/5 p-3 space-y-2">
-                    <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">
-                      {t('dashboard.ai_config.prompt_templates_title')}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {t('dashboard.ai_config.prompt_templates_desc')}
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={applySelectedNichePromptTemplate}
-                      >
-                        {t('dashboard.ai_config.apply_call_template_btn')}
-                      </Button>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground">
-                      {t('dashboard.widget_config.industry')}: {t(templates.find((item) => item.value === formConfig.template)?.label || 'dashboard.templates.general_label')}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {t('dashboard.ai_config.template_placeholder_hint')}
-                    </p>
-                  </div>
                   <textarea
                     value={aiConfig.system_prompt}
                     onChange={(e) => setAiConfig({ ...aiConfig, system_prompt: e.target.value })}
@@ -3794,41 +3762,6 @@ export default function Dashboard() {
                   <p className="text-xs text-red-600 dark:text-red-400 font-medium">
                     {t('dashboard.ai_config.security_prompt_sub')}
                   </p>
-                </div>
-
-                <div className="rounded-lg border border-emerald-300/40 bg-emerald-500/10 p-4 space-y-3">
-                  <p className="font-semibold text-emerald-900 dark:text-emerald-300 flex items-center gap-2">
-                    <Sparkles className="w-4 h-4" />
-                    {dashboardIsEnglish ? 'Automatic closing command' : 'Comando de cierre automatico'}
-                  </p>
-                  <p className="text-xs text-emerald-800/90 dark:text-emerald-300/90">
-                    {dashboardIsEnglish
-                      ? 'Choose your final handoff channel. The command is inserted automatically when generating/saving the prompt.'
-                      : 'Elige el canal final de cierre. El comando se inserta automaticamente al generar/guardar el prompt.'}
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={promptCommandMode === 'icallcloser' ? 'default' : 'outline'}
-                      onClick={() => setPromptCommandMode('icallcloser')}
-                    >
-                      {dashboardIsEnglish ? 'Close with ICallCloser' : 'Cerrar con ICallCloser'}
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={promptCommandMode === 'whatsapp' ? 'default' : 'outline'}
-                      onClick={() => setPromptCommandMode('whatsapp')}
-                    >
-                      {dashboardIsEnglish ? 'Close with WhatsApp' : 'Cerrar con WhatsApp'}
-                    </Button>
-                  </div>
-                  <div className="rounded-md border border-emerald-300/50 bg-background/75 p-2.5 text-[11px] font-mono text-muted-foreground break-words">
-                    {promptCommandMode === 'icallcloser'
-                      ? '[ICALLCLOSER_READY: {"name":"[REPLACE_NAME]","phone":"[REPLACE_PHONE]","collected_info":"[REPLACE_CASE_SUMMARY]"}]'
-                      : '[WHATSAPP_REDIRECT: Customer [REPLACE_NAME] wants [REPLACE_SERVICE] on [REPLACE_DATE]]'}
-                  </div>
                 </div>
 
                 {/* Save Button */}

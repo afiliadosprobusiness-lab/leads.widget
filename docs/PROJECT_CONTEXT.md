@@ -139,7 +139,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - En Dashboard > Configuracion del widget > Lead Chat, los textos de encabezado (`eyebrow`, titulo, subtitulo, badge) se editan y reflejan directamente en la cabecera del Lead Chat; ademas se puede personalizar el titulo de la pestana del navegador (`lead_chat_page_title`).
 - En Dashboard > IA, la configuracion de prompt se separa en 3 bloques: `Prompt de contexto`, `Mejoras IA` (solo lectura auto), y `Prompt del sistema`.
 - En Dashboard > IA, `Prompt de contexto` y `Prompt del sistema` tienen boton `Crear prompt` con modal guiado para generar texto estructurado por formulario (negocio/nicho/reglas/comercial).
-- En Dashboard > IA, el canal de cierre (`ICallCloser` o `WhatsApp`) se selecciona una vez y el comando se inserta automaticamente al compilar/guardar el prompt.
+- En Dashboard > IA, el canal de cierre (`ICallCloser` o `WhatsApp`) se selecciona desde el modal `Crear prompt` del sistema; el comando se inserta automaticamente al compilar/guardar el prompt.
 - En IA > Prompt del Sistema, el dashboard mantiene boton de plantilla por `Industria / Nicho` (`general`, `inmobiliaria`, `clinica`, `taller`, `delivery`; en `personalizado` usa base general), con enfoque de conversion y soporte de bloque `IMAGE`.
 - En IA > Prompt del Sistema (plantillas por nicho), cuando el lead pregunta por precio/costo/inversion, el guion responde la oferta exacta: `S/ 80 mensual + S/ 200 implementacion unica`.
 - `WHATSAPP_REDIRECT` se mantiene como opcion secundaria frente a `ICALLCLOSER_READY`; ya no se usa la guia manual de insercion, ahora el comando se agrega automaticamente segun el canal seleccionado.
