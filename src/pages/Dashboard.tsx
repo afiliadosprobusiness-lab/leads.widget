@@ -420,6 +420,7 @@ export default function Dashboard() {
   const [aiChatEvents, setAiChatEvents] = useState<AiChatEvent[]>([]);
   const [aiChatStatusFilter, setAiChatStatusFilter] = useState<'all' | AiChatLogStatus>('all');
   const [aiConversationFilter, setAiConversationFilter] = useState<AiConversationFilter>('all');
+  const [showTechnicalDiagnostics, setShowTechnicalDiagnostics] = useState(false);
   const [aiConversationAnalysisById, setAiConversationAnalysisById] = useState<Record<string, AiConversationAnalysisState>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -783,6 +784,14 @@ export default function Dashboard() {
         },
       }));
     }
+  };
+
+  const toggleTechnicalDiagnostics = () => {
+    setShowTechnicalDiagnostics((prev) => {
+      const next = !prev;
+      if (!next) setAiChatStatusFilter('all');
+      return next;
+    });
   };
 
 
@@ -3931,24 +3940,39 @@ export default function Dashboard() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  {[
-                    { id: 'all', label: dashboardIsEnglish ? 'All status' : 'Todos los estados' },
-                    { id: 'ok', label: dashboardIsEnglish ? 'OK' : 'Correcto' },
-                    { id: 'blocked', label: dashboardIsEnglish ? 'Blocked' : 'Bloqueado' },
-                    { id: 'rate_limited', label: dashboardIsEnglish ? 'Rate limited' : 'Limite de tasa' },
-                    { id: 'error', label: dashboardIsEnglish ? 'Error' : 'Error' },
-                  ].map((option) => (
-                    <Button
-                      key={option.id}
-                      type="button"
-                      size="sm"
-                      variant={aiChatStatusFilter === option.id ? 'default' : 'outline'}
-                      onClick={() => setAiChatStatusFilter(option.id as 'all' | AiChatLogStatus)}
-                    >
-                      {option.label}
-                    </Button>
-                  ))}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={showTechnicalDiagnostics ? 'default' : 'outline'}
+                    onClick={toggleTechnicalDiagnostics}
+                  >
+                    {showTechnicalDiagnostics
+                      ? (dashboardIsEnglish ? 'Hide technical diagnostics' : 'Ocultar diagnostico tecnico')
+                      : (dashboardIsEnglish ? 'View technical diagnostics' : 'Ver diagnostico tecnico')}
+                  </Button>
                 </div>
+
+                {showTechnicalDiagnostics ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    {[
+                      { id: 'all', label: dashboardIsEnglish ? 'All status' : 'Todos los estados' },
+                      { id: 'ok', label: dashboardIsEnglish ? 'OK' : 'Correcto' },
+                      { id: 'blocked', label: dashboardIsEnglish ? 'Blocked' : 'Bloqueado' },
+                      { id: 'rate_limited', label: dashboardIsEnglish ? 'Rate limited' : 'Limite de tasa' },
+                      { id: 'error', label: dashboardIsEnglish ? 'Error' : 'Error' },
+                    ].map((option) => (
+                      <Button
+                        key={option.id}
+                        type="button"
+                        size="sm"
+                        variant={aiChatStatusFilter === option.id ? 'default' : 'outline'}
+                        onClick={() => setAiChatStatusFilter(option.id as 'all' | AiChatLogStatus)}
+                      >
+                        {option.label}
+                      </Button>
+                    ))}
+                  </div>
+                ) : null}
 
                 {filteredAiConversationGroups.length === 0 ? (
                   <div className="rounded-xl border-2 border-dashed border-slate-200 p-6 text-center text-sm text-muted-foreground dark:border-slate-800">
