@@ -63,7 +63,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Estados de carga/error/vacio en dashboards.
 - Landing `/partners` con bloques de confianza (testimonios en carrusel horizontal) y FAQ en acordeon accesible.
 - Landing principal `/` ahora comunica dos modos de producto: widget embebible y Lead Chat como pagina publica sin web.
-- Landing principal `/` muestra pricing comercial actualizado: `S/ 80` mensual + implementacion unica `S/ 200` (copy EN/ES).
+- Landing principal `/` muestra pricing comercial actualizado: `S/ 100` mensual + implementacion unica `S/ 200` (copy EN/ES).
 - Landing principal `/` fue redisenada con estilo visual premium tipo Apple (glass + gradientes suaves), narrativa simplificada orientada a conversion, preview del widget embebido en hero y secciones actualizadas de capacidades/casos/testimonios/precio.
 - Landing principal `/` incluye toggle claro/oscuro visible en navbar (desktop/mobile) y copy reforzado a conversion para trafico pago + cierre por llamada.
 - Testimonios de landing principal usan scroll horizontal con autoavance (desktop/mobile), controles prev/next y avatar por caso para reforzar prueba social.
