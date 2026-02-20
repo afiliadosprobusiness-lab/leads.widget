@@ -526,7 +526,10 @@ export default function Landing() {
       <section className="relative z-10 px-4 py-16 sm:px-6 lg:py-20">
         <div className={`mx-auto max-w-[820px] rounded-[30px] border p-8 text-center shadow-[0_34px_80px_-50px_rgba(2,132,199,0.45)] ${isLandingDark ? "border-slate-700 bg-slate-900/85" : "border-slate-200/90 bg-white/92"}`}>
           <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">{copy.pricingTitle}</h2>
-          <div className="mt-7 flex items-end justify-center gap-2"><span className="text-5xl font-semibold tracking-tight sm:text-6xl">49 USD</span><span className={`pb-2 text-sm uppercase tracking-[0.14em] ${isLandingDark ? "text-slate-400" : "text-slate-500"}`}>{isEn ? "/ month" : "/ mes"}</span></div>
+          <div className="mt-7 flex items-end justify-center gap-2"><span className="text-5xl font-semibold tracking-tight sm:text-6xl">S/ 80</span><span className={`pb-2 text-sm uppercase tracking-[0.14em] ${isLandingDark ? "text-slate-400" : "text-slate-500"}`}>{isEn ? "/ month" : "/ mes"}</span></div>
+          <p className={`mt-2 text-sm font-medium ${isLandingDark ? "text-cyan-200" : "text-cyan-700"}`}>
+            {isEn ? "One-time setup: S/ 200" : "Implementacion unica: S/ 200"}
+          </p>
           <div className="mx-auto mt-7 grid max-w-xl gap-3 text-left">
             {[
               isEn ? "Embedded widget + Public Lead Chat" : "Widget embebido + Lead Chat publico",
@@ -543,6 +546,9 @@ export default function Landing() {
         <div className="mx-auto max-w-[980px] rounded-[34px] border border-slate-200/80 bg-gradient-to-br from-slate-900 via-slate-900 to-cyan-900 px-8 py-14 text-center text-white shadow-[0_40px_110px_-55px_rgba(15,23,42,0.75)] sm:px-12">
           <h2 className="text-3xl font-semibold tracking-tight sm:text-5xl">{copy.finalTitle}</h2>
           <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-slate-300 sm:text-base">{copy.finalSubtitle}</p>
+          <p className="mx-auto mt-2 max-w-2xl text-sm font-medium text-cyan-200">
+            {isEn ? "Current offer: S/ 80 / month + S/ 200 one-time setup." : "Oferta actual: S/ 80 / mes + S/ 200 implementacion unica."}
+          </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link to="/register"><Button size="xl" className="rounded-full px-8 text-white">{copy.navRegister}</Button></Link>
             <Button size="xl" variant="outline" className="rounded-full border-white/30 bg-white/10 px-8 text-white hover:bg-white/15" onClick={openDemoWidget}>{copy.navTry}</Button>

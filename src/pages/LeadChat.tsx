@@ -64,6 +64,9 @@ const HAS_EMOJI_RE = /[\p{Extended_Pictographic}]/u;
 const QUICK_EMOJIS = ["😀", "😄", "🙏", "✨", "🔥", "👍", "🎯", "📞", "✅", "💬", "😊", "🚀"];
 const PUBLIC_FIRESTORE_PROJECT_ID = "leads-widget";
 const PUBLIC_FIRESTORE_API_KEY = "AIzaSyCXNFoeg1nrYcFHzU9TEKNnDPg1mHU3_tA";
+const IDLE_TEASER_DELAY_MS = 6200;
+const IDLE_TEASER_VISIBLE_MS = 3800;
+const IDLE_TEASER_ROTATE_MS = 8500;
 
 type ChatLocale = "es" | "en";
 
@@ -832,6 +835,8 @@ export default function LeadChat() {
   const [liveActivityTransition, setLiveActivityTransition] = useState(false);
   const [activeTeaser, setActiveTeaser] = useState("");
   const [teaserVisible, setTeaserVisible] = useState(false);
+  const [hasUserInteracted, setHasUserInteracted] = useState(false);
+  const [lastUserInteractionAt, setLastUserInteractionAt] = useState(0);
   const [showExitIntent, setShowExitIntent] = useState(false);
   const [exitIntentShown, setExitIntentShown] = useState(false);
   const [themeMode, setThemeMode] = useState<"dark" | "light">("dark");
@@ -849,6 +854,11 @@ export default function LeadChat() {
   const redirectCountdownIntervalRef = useRef<number | null>(null);
   const redirectCountdownTimeoutRef = useRef<number | null>(null);
   const copy = useMemo(() => SALES_COPY[locale], [locale]);
+  const markUserInteraction = () => {
+    setHasUserInteracted(true);
+    setLastUserInteractionAt(Date.now());
+    setTeaserVisible(false);
+  };
 
   const clearRedirectCountdown = () => {
     if (redirectCountdownIntervalRef.current !== null) {
@@ -1028,6 +1038,10 @@ export default function LeadChat() {
 
         setLocale(resolvedLocale);
         setConfig(normalized);
+        setHasUserInteracted(false);
+        setLastUserInteractionAt(0);
+        setActiveTeaser("");
+        setTeaserVisible(false);
         setMessages([
           {
             role: "assistant",
@@ -1218,31 +1232,53 @@ export default function LeadChat() {
 
   useEffect(() => {
     const source = teaserMessages;
-    if (source.length === 0 || consentVisible || !!handoffMessage || !!input.trim() || sending || assistantTyping) {
+    if (
+      source.length === 0 ||
+      !hasUserInteracted ||
+      consentVisible ||
+      !!handoffMessage ||
+      !!input.trim() ||
+      sending ||
+      assistantTyping
+    ) {
       setTeaserVisible(false);
       return;
     }
 
     let index = Math.floor(Math.random() * source.length);
+    let intervalId: number | undefined;
     let hideTimeout: number | undefined;
-    const startupDelay = Math.max(4, Number(config?.triggerDelay || 5)) * 1000;
+    const startupDelay = Math.max(IDLE_TEASER_DELAY_MS, Math.max(4, Number(config?.triggerDelay || 5)) * 1000);
 
     const showTeaser = () => {
       setActiveTeaser(source[index] || "");
       setTeaserVisible(true);
       index = (index + 1) % source.length;
-      hideTimeout = window.setTimeout(() => setTeaserVisible(false), 4200);
+      if (hideTimeout) window.clearTimeout(hideTimeout);
+      hideTimeout = window.setTimeout(() => setTeaserVisible(false), IDLE_TEASER_VISIBLE_MS);
     };
 
-    const startTimeout = window.setTimeout(showTeaser, startupDelay);
-    const intervalId = window.setInterval(showTeaser, 8500);
+    const startTimeout = window.setTimeout(() => {
+      showTeaser();
+      intervalId = window.setInterval(showTeaser, IDLE_TEASER_ROTATE_MS);
+    }, startupDelay);
 
     return () => {
       window.clearTimeout(startTimeout);
-      window.clearInterval(intervalId);
+      if (intervalId) window.clearInterval(intervalId);
       if (hideTimeout) window.clearTimeout(hideTimeout);
     };
-  }, [teaserMessages, config?.triggerDelay, consentVisible, handoffMessage, input, sending, assistantTyping]);
+  }, [
+    teaserMessages,
+    config?.triggerDelay,
+    consentVisible,
+    handoffMessage,
+    input,
+    sending,
+    assistantTyping,
+    hasUserInteracted,
+    lastUserInteractionAt,
+  ]);
 
   useEffect(() => {
     if (!teaserVisible || teaserMessages.length === 0) return;
@@ -1294,6 +1330,7 @@ export default function LeadChat() {
       return;
     }
     if (sending || assistantTyping) return;
+    markUserInteraction();
     setChatError("");
     if (speechListening) {
       try {
@@ -1318,6 +1355,7 @@ export default function LeadChat() {
   };
 
   const appendEmojiToInput = (emoji: string) => {
+    markUserInteraction();
     setInput((prev) => `${prev}${emoji}`);
     setEmojiPickerOpen(false);
     inputRef.current?.focus();
@@ -1363,6 +1401,7 @@ export default function LeadChat() {
     if (!config?.widgetId || sending || assistantTyping) return;
     const text = (overrideText ?? input).trim();
     if (!text) return;
+    markUserInteraction();
 
     const detectedLocale = detectMessageLocale(text, locale);
     const responseLocale = languageLocked ? locale : (detectedLocale === "es" ? "es" : locale);
@@ -1980,7 +2019,7 @@ export default function LeadChat() {
                   <button
                     type="button"
                     onClick={() => void handleSend(activeTeaser)}
-                    className={`w-full rounded-xl border px-3 py-2 text-left text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 animate-in fade-in slide-in-from-bottom-2 duration-300 ${
+                    className={`w-full rounded-xl border px-3 py-2 text-left text-xs shadow-sm transition-all duration-300 hover:-translate-y-[1px] focus-visible:outline-none focus-visible:ring-2 motion-safe:animate-[pulse_3.8s_ease-in-out_infinite] ${
                       isLightMode
                         ? "border-sky-200 bg-sky-100/70 text-sky-800 hover:bg-sky-100 focus-visible:ring-sky-400"
                         : "border-cyan-400/35 bg-cyan-400/10 text-cyan-100 hover:bg-cyan-400/15 focus-visible:ring-cyan-300"
@@ -2075,7 +2114,12 @@ export default function LeadChat() {
                     <Input
                       ref={inputRef}
                       value={input}
-                      onChange={(event) => setInput(event.target.value)}
+                      onChange={(event) => {
+                        const nextValue = event.target.value;
+                        setInput(nextValue);
+                        if (nextValue.trim()) markUserInteraction();
+                      }}
+                      onFocus={markUserInteraction}
                       placeholder={config.chatPlaceholder || copy.chatPlaceholder}
                       className={`h-9 min-w-0 border-0 bg-transparent px-0 text-sm shadow-none placeholder:text-slate-400 focus-visible:ring-0 focus-visible:ring-offset-0 ${
                         isLightMode

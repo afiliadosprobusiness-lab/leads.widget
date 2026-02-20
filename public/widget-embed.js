@@ -157,6 +157,12 @@
   let emojiPanelOpen = false;
   let pendingVoiceAutoSend = false;
   let latestVoiceTranscript = '';
+  let hasUserInteracted = false;
+  let inlineTeaserStartTimeout = null;
+  let inlineTeaserHideTimeout = null;
+  const INLINE_TEASER_IDLE_DELAY_MS = 6200;
+  const INLINE_TEASER_ROTATE_MS = 8200;
+  const INLINE_TEASER_VISIBLE_MS = 3600;
 
   // Cleanup all timers and listeners
   function cleanupWidget() {
@@ -165,6 +171,8 @@
     if (testimonialInterval) clearInterval(testimonialInterval);
     if (presenceInterval) clearInterval(presenceInterval);
     if (inlineTeaserInterval) clearInterval(inlineTeaserInterval);
+    if (inlineTeaserStartTimeout) clearTimeout(inlineTeaserStartTimeout);
+    if (inlineTeaserHideTimeout) clearTimeout(inlineTeaserHideTimeout);
     if (autoOpenTimeout) clearTimeout(autoOpenTimeout);
     if (teaserStartTimeout) clearTimeout(teaserStartTimeout);
 
@@ -173,6 +181,8 @@
     testimonialInterval = null;
     presenceInterval = null;
     inlineTeaserInterval = null;
+    inlineTeaserStartTimeout = null;
+    inlineTeaserHideTimeout = null;
     autoOpenTimeout = null;
     teaserStartTimeout = null;
   }
@@ -1607,6 +1617,10 @@
         text-overflow: ellipsis;
         display: none;
         z-index: 2;
+        transition: opacity 0.24s ease, transform 0.24s ease;
+      }
+      #lw-inline-teaser.lw-inline-teaser-attention {
+        animation: lw-teaser-in 0.24s ease-out, lw-inline-teaser-breathe 3.8s ease-in-out infinite;
       }
       #lw-root[data-theme='dark'] #lw-inline-teaser {
         border-color: rgba(34, 211, 238, 0.35);
@@ -1617,6 +1631,10 @@
         border-color: rgba(56, 189, 248, 0.45);
         background: rgba(224, 242, 254, 0.88);
         color: #075985;
+      }
+      @keyframes lw-inline-teaser-breathe {
+        0%, 100% { transform: translateY(0) scale(1); }
+        50% { transform: translateY(-1px) scale(1.01); }
       }
       #lw-quick-replies {
         display: flex;
@@ -2204,36 +2222,77 @@
       }
     }
 
+    function hideInlineTeaser() {
+      if (!inlineTeaserEl) return;
+      inlineTeaserEl.classList.remove('lw-inline-teaser-attention');
+      inlineTeaserEl.style.opacity = '0';
+      inlineTeaserEl.style.display = 'none';
+    }
+
+    function markUserInteraction() {
+      hasUserInteracted = true;
+      startInlineTeaserCycle();
+    }
+
     function startInlineTeaserCycle() {
       if (!inlineTeaserEl) return;
+      if (inlineTeaserStartTimeout) {
+        clearTimeout(inlineTeaserStartTimeout);
+        inlineTeaserStartTimeout = null;
+      }
       if (inlineTeaserInterval) {
         clearInterval(inlineTeaserInterval);
         inlineTeaserInterval = null;
       }
+      if (inlineTeaserHideTimeout) {
+        clearTimeout(inlineTeaserHideTimeout);
+        inlineTeaserHideTimeout = null;
+      }
       const source = getLocalizedTeaserMessages(config.teaserMessages);
-      if (!isOpen || !Array.isArray(source) || source.length === 0) {
-        inlineTeaserEl.style.display = 'none';
+      if (!isOpen || !hasUserInteracted || isLoading || input.value.trim() || !Array.isArray(source) || source.length === 0) {
+        hideInlineTeaser();
         return;
       }
+
+      const idleDelay = Math.max(INLINE_TEASER_IDLE_DELAY_MS, Math.max(4, Number(config.triggerDelay || 5)) * 1000);
       let index = Math.floor(Math.random() * source.length);
       const showInlineTeaser = () => {
         const text = source[index] || '';
-        if (!text || !isOpen) return;
+        if (!text || !isOpen || isLoading || input.value.trim()) return;
         inlineTeaserEl.textContent = text;
-        inlineTeaserEl.style.opacity = input.value.trim() ? '0' : '1';
         inlineTeaserEl.style.display = 'block';
+        inlineTeaserEl.style.opacity = '1';
+        inlineTeaserEl.classList.remove('lw-inline-teaser-attention');
+        void inlineTeaserEl.offsetWidth;
+        inlineTeaserEl.classList.add('lw-inline-teaser-attention');
+        if (inlineTeaserHideTimeout) clearTimeout(inlineTeaserHideTimeout);
+        inlineTeaserHideTimeout = setTimeout(() => {
+          if (!inlineTeaserEl) return;
+          inlineTeaserEl.classList.remove('lw-inline-teaser-attention');
+          inlineTeaserEl.style.opacity = '0';
+        }, INLINE_TEASER_VISIBLE_MS);
         index = (index + 1) % source.length;
       };
-      showInlineTeaser();
-      inlineTeaserInterval = setInterval(showInlineTeaser, 6200);
+      inlineTeaserStartTimeout = setTimeout(() => {
+        showInlineTeaser();
+        inlineTeaserInterval = setInterval(showInlineTeaser, INLINE_TEASER_ROTATE_MS);
+      }, idleDelay);
     }
 
     function stopInlineTeaserCycle() {
+      if (inlineTeaserStartTimeout) {
+        clearTimeout(inlineTeaserStartTimeout);
+        inlineTeaserStartTimeout = null;
+      }
       if (inlineTeaserInterval) {
         clearInterval(inlineTeaserInterval);
         inlineTeaserInterval = null;
       }
-      if (inlineTeaserEl) inlineTeaserEl.style.display = 'none';
+      if (inlineTeaserHideTimeout) {
+        clearTimeout(inlineTeaserHideTimeout);
+        inlineTeaserHideTimeout = null;
+      }
+      hideInlineTeaser();
     }
 
     function renderEmojiPanel() {
@@ -2245,6 +2304,7 @@
       emojiPanel.querySelectorAll('.lw-emoji-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           const emoji = btn.getAttribute('data-emoji') || '';
+          markUserInteraction();
           input.value = `${input.value}${emoji}`;
           input.focus();
           emojiPanelOpen = false;
@@ -2545,6 +2605,7 @@
     async function handleSendMessage(text) {
       const userMessage = text || input.value.trim();
       if (!userMessage || isLoading) return;
+      markUserInteraction();
 
       const detectedLocale = detectMessageLocale(userMessage, activeLanguage);
       if (detectedLocale === 'es' && activeLanguage !== 'es') {
@@ -2701,6 +2762,7 @@
       }
 
       renderMessages();
+      startInlineTeaserCycle();
 
       if (isBlocked) {
         disableChatInput();
@@ -2908,9 +2970,14 @@
       handleSendMessage();
     });
     input.addEventListener('input', () => {
-      if (!inlineTeaserEl) return;
-      inlineTeaserEl.style.opacity = input.value.trim() ? '0' : '1';
+      markUserInteraction();
+      if (input.value.trim()) {
+        hideInlineTeaser();
+        return;
+      }
+      startInlineTeaserCycle();
     });
+    input.addEventListener('focus', () => markUserInteraction());
     if (inlineTeaserEl) {
       inlineTeaserEl.addEventListener('click', () => {
         const teaserValue = (inlineTeaserEl.textContent || '').trim();
@@ -2920,6 +2987,7 @@
 
     if (langBtn) {
       langBtn.addEventListener('click', () => {
+        markUserInteraction();
         activeLanguage = activeLanguage === 'en' ? 'es' : 'en';
         applyLanguageUI();
       });
@@ -2927,6 +2995,7 @@
 
     if (themeBtn) {
       themeBtn.addEventListener('click', () => {
+        markUserInteraction();
         themeMode = themeMode === 'dark' ? 'light' : 'dark';
         applyTheme();
       });
@@ -2934,6 +3003,7 @@
 
     if (emojiBtn && emojiPanel) {
       emojiBtn.addEventListener('click', () => {
+        markUserInteraction();
         emojiPanelOpen = !emojiPanelOpen;
         emojiPanel.classList.toggle('open', emojiPanelOpen);
         emojiBtn.classList.toggle('active', emojiPanelOpen);
@@ -2943,6 +3013,7 @@
     if (micBtn) {
       speechRecognition = initSpeechRecognition();
       micBtn.addEventListener('click', () => {
+        markUserInteraction();
         if (!speechRecognition) {
           messages.push({ role: 'system', content: getText('systemAudioUnsupported') });
           renderMessages();
@@ -2972,6 +3043,7 @@
 
     if (voiceStopBtn) {
       voiceStopBtn.addEventListener('click', () => {
+        markUserInteraction();
         if (!speechRecognition || !isListening) return;
         try {
           speechRecognition.stop();

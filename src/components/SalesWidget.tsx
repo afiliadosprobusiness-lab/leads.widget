@@ -37,6 +37,9 @@ const QUICK_EMOJIS = [
   "\u{1F60A}",
   "\u{1F680}",
 ];
+const IDLE_TEASER_DELAY_MS = 6200;
+const IDLE_TEASER_ROTATE_MS = 8200;
+const IDLE_TEASER_VISIBLE_MS = 3600;
 
 const WIDGET_COPY: Record<
   WidgetLocale,
@@ -229,7 +232,9 @@ export function SalesWidget() {
   const [primaryColor, setPrimaryColor] = useState("#00C185");
   const [isOpen, setIsOpen] = useState(false);
   const [hasBeenClosedOnce, setHasBeenClosedOnce] = useState(false);
-  const [activeTeaser, setActiveTeaser] = useState("");
+  const [closedTeaser, setClosedTeaser] = useState("");
+  const [idleTeaser, setIdleTeaser] = useState("");
+  const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -250,6 +255,7 @@ export function SalesWidget() {
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const idleTeaserIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const voiceDraftRef = useRef("");
   const pendingVoiceAutoSendRef = useRef(false);
@@ -262,6 +268,11 @@ export function SalesWidget() {
     setPaletteOpen(false);
     setEmojiPickerOpen(false);
   };
+  const markUserInteraction = useCallback(() => {
+    setHasUserInteracted(true);
+    setIsIdle(false);
+    setIdleTeaser("");
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -297,24 +308,50 @@ export function SalesWidget() {
   }, []);
 
   useEffect(() => {
-    if (!isOpen || inputText.trim() || isLoading || messages.length > 1) {
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    if (idleTeaserIntervalRef.current) clearInterval(idleTeaserIntervalRef.current);
+
+    if (!isOpen || !hasUserInteracted || isLoading || isBlocked || inputText.trim()) {
       setIsIdle(false);
-      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      setIdleTeaser("");
       return;
     }
 
-    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-    idleTimerRef.current = setTimeout(() => setIsIdle(true), 5000);
+    const teaserPool = copy.teaserMessages.filter(Boolean);
+    if (teaserPool.length === 0) {
+      setIsIdle(false);
+      setIdleTeaser("");
+      return;
+    }
+
+    let index = Math.floor(Math.random() * teaserPool.length);
+    let hideTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    const showIdleTeaser = () => {
+      setIdleTeaser(teaserPool[index] || "");
+      setIsIdle(true);
+      index = (index + 1) % teaserPool.length;
+      if (hideTimeout) clearTimeout(hideTimeout);
+      hideTimeout = setTimeout(() => setIsIdle(false), IDLE_TEASER_VISIBLE_MS);
+    };
+
+    idleTimerRef.current = setTimeout(() => {
+      showIdleTeaser();
+      idleTeaserIntervalRef.current = setInterval(showIdleTeaser, IDLE_TEASER_ROTATE_MS);
+    }, IDLE_TEASER_DELAY_MS);
+
     return () => {
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      if (idleTeaserIntervalRef.current) clearInterval(idleTeaserIntervalRef.current);
+      if (hideTimeout) clearTimeout(hideTimeout);
     };
-  }, [isOpen, inputText, isLoading, messages.length]);
+  }, [copy.teaserMessages, hasUserInteracted, inputText, isBlocked, isLoading, isOpen]);
 
   useEffect(() => {
     if (!hasBeenClosedOnce || isOpen) return;
     const pickTeaser = () => {
       const pool = copy.teaserMessages;
-      setActiveTeaser(pool[Math.floor(Math.random() * pool.length)] || "");
+      setClosedTeaser(pool[Math.floor(Math.random() * pool.length)] || "");
     };
     pickTeaser();
     const interval = setInterval(pickTeaser, 8500);
@@ -405,6 +442,7 @@ export function SalesWidget() {
       const textToSend = typeof overrideText === "string" ? overrideText : inputText;
       const userMessage = textToSend.trim();
       if (!userMessage || isLoading || isBlocked) return;
+      markUserInteraction();
 
       const detectedLocale = detectMessageLocale(userMessage, locale);
       const responseLocale: WidgetLocale = detectedLocale === "es" ? "es" : locale;
@@ -559,6 +597,7 @@ export function SalesWidget() {
       isBlocked,
       isLoading,
       locale,
+      markUserInteraction,
       messages,
     ],
   );
@@ -575,6 +614,7 @@ export function SalesWidget() {
       return;
     }
     if (isLoading || isBlocked) return;
+    markUserInteraction();
 
     setEmojiPickerOpen(false);
     setPaletteOpen(false);
@@ -604,6 +644,8 @@ export function SalesWidget() {
   const handleClose = () => {
     setIsOpen(false);
     setHasBeenClosedOnce(true);
+    setIsIdle(false);
+    setIdleTeaser("");
     closePaletteAndEmoji();
     pendingVoiceAutoSendRef.current = false;
     voiceDraftRef.current = "";
@@ -641,7 +683,7 @@ export function SalesWidget() {
   if (!isOpen) {
     return (
       <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3 font-sans">
-        {hasBeenClosedOnce && Boolean(activeTeaser) ? (
+        {hasBeenClosedOnce && Boolean(closedTeaser) ? (
           <button
             type="button"
             onClick={() => {
@@ -650,7 +692,7 @@ export function SalesWidget() {
             }}
             className="relative max-w-[240px] rounded-2xl border border-slate-200 bg-white px-4 py-2 text-left text-xs font-semibold text-slate-800 shadow-xl transition hover:shadow-2xl"
           >
-            {activeTeaser}
+            {closedTeaser}
             <span className="absolute -bottom-2 right-6 h-4 w-4 rotate-45 border-b border-r border-slate-200 bg-white" />
             <span className="absolute -right-1 top-1 h-2 w-2 rounded-full animate-ping" style={{ backgroundColor: primaryColor }} />
           </button>
@@ -861,6 +903,21 @@ export function SalesWidget() {
         </div>
 
         <div className={`space-y-3 border-t px-4 py-4 ${isLightMode ? "border-slate-200 bg-white" : "border-white/10 bg-[#081427]"}`}>
+          {isIdle && Boolean(idleTeaser) ? (
+            <button
+              type="button"
+              onClick={() => void handleSendMessage(idleTeaser)}
+              disabled={isBlocked || isLoading}
+              className={`w-full rounded-xl border px-3 py-2 text-left text-xs shadow-sm transition-all duration-300 hover:-translate-y-[1px] focus-visible:outline-none focus-visible:ring-2 motion-safe:animate-[pulse_3.8s_ease-in-out_infinite] ${
+                isLightMode
+                  ? "border-sky-200 bg-sky-100/70 text-sky-800 hover:bg-sky-100 focus-visible:ring-sky-400"
+                  : "border-cyan-400/35 bg-cyan-400/10 text-cyan-100 hover:bg-cyan-400/15 focus-visible:ring-cyan-300"
+              } disabled:cursor-not-allowed disabled:opacity-50`}
+            >
+              {idleTeaser}
+            </button>
+          ) : null}
+
           {messages.length < 3 ? (
             <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {copy.quickReplies.map((text) => (
@@ -916,7 +973,10 @@ export function SalesWidget() {
                         <button
                           key={emoji}
                           type="button"
-                          onClick={() => setInputText((prev) => `${prev}${emoji}`)}
+                          onClick={() => {
+                            markUserInteraction();
+                            setInputText((prev) => `${prev}${emoji}`);
+                          }}
                           className={`rounded-md p-1.5 text-base ${isLightMode ? "hover:bg-slate-100" : "hover:bg-white/10"}`}
                         >
                           {emoji}
@@ -943,8 +1003,15 @@ export function SalesWidget() {
 
               <Input
                 value={inputText}
-                onChange={(event) => setInputText(event.target.value)}
-                onFocus={() => setIsIdle(false)}
+                onChange={(event) => {
+                  const nextValue = event.target.value;
+                  setInputText(nextValue);
+                  if (nextValue.trim()) markUserInteraction();
+                }}
+                onFocus={() => {
+                  setIsIdle(false);
+                  markUserInteraction();
+                }}
                 placeholder={isBlocked ? copy.blockedPlaceholder : copy.placeholder}
                 className={`h-9 min-w-0 border-0 bg-transparent px-0 text-sm shadow-none placeholder:text-slate-400 focus-visible:ring-0 ${
                   isLightMode ? "text-slate-900" : "text-slate-100"

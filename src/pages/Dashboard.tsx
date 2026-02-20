@@ -222,6 +222,9 @@ const AI_WHATSAPP_COMMAND_SNIPPET = [
   "[WHATSAPP_REDIRECT: Customer [REPLACE_NAME] wants [REPLACE_SERVICE] on [REPLACE_DATE]]",
 ].join('\n');
 const FIXED_IACLOSER_REDIRECT_URL = 'https://ai-call-closer.vercel.app/';
+const AI_MAX_TOKENS_DEFAULT = 500;
+const AI_MAX_TOKENS_MIN = 100;
+const AI_MAX_TOKENS_MAX = 4000;
 const CLOUDINARY_CLOUD_NAME = String(import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '').trim();
 const CLOUDINARY_UPLOAD_PRESET = String(import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || '').trim();
 type WelcomeMediaKind = 'image' | 'audio';
@@ -236,6 +239,13 @@ function sanitizeMediaUrl(value: unknown) {
   } catch {
     return '';
   }
+}
+
+function normalizeAiMaxTokens(value: unknown, fallback = AI_MAX_TOKENS_DEFAULT) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  const rounded = Math.round(parsed);
+  return Math.min(AI_MAX_TOKENS_MAX, Math.max(AI_MAX_TOKENS_MIN, rounded));
 }
 
 const LEAD_CHAT_COPY_DEFAULTS = {
@@ -496,7 +506,7 @@ export default function Dashboard() {
     ai_api_key: '',
     ai_model: 'gpt-4o-mini',
     ai_temperature: 0.7,
-    ai_max_tokens: 500,
+    ai_max_tokens: AI_MAX_TOKENS_DEFAULT,
     business_description: AI_DEFAULT_BUSINESS_TEMPLATE,
     ai_system_prompt: AI_DEFAULT_SYSTEM_PROMPT_TEMPLATE,
     ai_security_prompt: AI_DEFAULT_SECURITY_PROMPT,
@@ -723,7 +733,7 @@ export default function Dashboard() {
           ai_api_key: profileData.ai_api_key || '',
           ai_model: profileData.ai_model || 'gpt-4o-mini',
           ai_temperature: profileData.ai_temperature || 0.7,
-          ai_max_tokens: 500,
+          ai_max_tokens: normalizeAiMaxTokens(profileData.ai_max_tokens, AI_MAX_TOKENS_DEFAULT),
           business_description: resolveAiTemplate(
             profileData.business_description,
             AI_DEFAULT_BUSINESS_TEMPLATE,
@@ -2823,9 +2833,13 @@ export default function Dashboard() {
                   <Input
                     type="number"
                     value={aiConfig.ai_max_tokens}
-                    onChange={(e) => setAiConfig({ ...aiConfig, ai_max_tokens: parseInt(e.target.value) })}
-                    min={100}
-                    max={4000}
+                    onChange={(e) => {
+                      const nextValue = Number.parseInt(e.target.value, 10);
+                      if (!Number.isFinite(nextValue)) return;
+                      setAiConfig((prev) => ({ ...prev, ai_max_tokens: nextValue }));
+                    }}
+                    min={AI_MAX_TOKENS_MIN}
+                    max={AI_MAX_TOKENS_MAX}
                   />
                   <p className="text-xs text-muted-foreground">{t('dashboard.ai_config.tokens_desc')}</p>
                 </div>
@@ -2997,6 +3011,7 @@ export default function Dashboard() {
                     if (!user || !widgetConfig) return;
                     setSavingAI(true);
                     try {
+                      const safeAiMaxTokens = normalizeAiMaxTokens(aiConfig.ai_max_tokens, AI_MAX_TOKENS_DEFAULT);
                       // Save to profiles (for dashboard access)
                       await updateDoc(doc(db, 'profiles', user.uid), {
                         ai_enabled: true,
@@ -3004,7 +3019,7 @@ export default function Dashboard() {
                         ai_api_key: aiConfig.ai_api_key,
                         ai_model: aiConfig.ai_model,
                         ai_temperature: aiConfig.ai_temperature,
-                        ai_max_tokens: aiConfig.ai_max_tokens,
+                        ai_max_tokens: safeAiMaxTokens,
                         business_description: aiConfig.business_description,
                         ai_system_prompt: aiConfig.ai_system_prompt,
                         ai_security_prompt: aiConfig.ai_security_prompt,
@@ -3017,12 +3032,13 @@ export default function Dashboard() {
                         ai_api_key: aiConfig.ai_api_key,
                         ai_model: aiConfig.ai_model,
                         ai_temperature: aiConfig.ai_temperature,
-                        ai_max_tokens: aiConfig.ai_max_tokens,
+                        ai_max_tokens: safeAiMaxTokens,
                         business_description: aiConfig.business_description,
                         ai_system_prompt: aiConfig.ai_system_prompt,
                         ai_security_prompt: aiConfig.ai_security_prompt,
                         updated_at: new Date().toISOString(),
                       });
+                      setAiConfig((prev) => ({ ...prev, ai_max_tokens: safeAiMaxTokens }));
 
                       toast({
                         title: `✅ ${t('dashboard.ai_config.saved_toast')}`,

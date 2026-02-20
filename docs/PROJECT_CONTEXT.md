@@ -63,6 +63,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Estados de carga/error/vacio en dashboards.
 - Landing `/partners` con bloques de confianza (testimonios en carrusel horizontal) y FAQ en acordeon accesible.
 - Landing principal `/` ahora comunica dos modos de producto: widget embebible y Lead Chat como pagina publica sin web.
+- Landing principal `/` muestra pricing comercial actualizado: `S/ 80` mensual + implementacion unica `S/ 200` (copy EN/ES).
 - Landing principal `/` fue redisenada con estilo visual premium tipo Apple (glass + gradientes suaves), narrativa simplificada orientada a conversion, preview del widget embebido en hero y secciones actualizadas de capacidades/casos/testimonios/precio.
 - Landing principal `/` incluye toggle claro/oscuro visible en navbar (desktop/mobile) y copy reforzado a conversion para trafico pago + cierre por llamada.
 - Testimonios de landing principal usan scroll horizontal con autoavance (desktop/mobile), controles prev/next y avatar por caso para reforzar prueba social.
@@ -95,6 +96,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - En Lead Chat/widget embebido/SalesWidget, el flujo aplica presupuesto de audio dinamico por conversacion (maximo 1 adicional, o 2 en total si existe audio de bienvenida) para controlar costos.
 - El popup de exit intent en Lead Chat/widget embebido fue ajustado para textos largos EN/ES (wrap de titulo/descripcion/CTA y botones sin overflow horizontal).
 - En Lead Chat/widget embebido/SalesWidget, el idioma por defecto del chat es ingles; si el usuario escribe en espanol el flujo cambia automaticamente a espanol y continua en ese idioma.
+- En Lead Chat/widget embebido/SalesWidget, los mensajes teaser de recaptura dentro del chat se muestran solo despues de que el usuario ya interactuo y luego queda inactivo (con animacion sutil de pulso para llamar la atencion sin ser intrusiva).
 - Widget embebido usa ingles por defecto y permite cambiar en 1 clic a espanol desde el header, aplicando textos UI, saludo inicial y testimonios rotativos (incluyendo compatibilidad con textos legacy EN/ES).
 - Widget embebido actualiza defaults comerciales EN/ES (mensaje de apertura y quick replies) al enfoque de llamada en menos de 2 minutos.
 - Widget embebido muestra una barra de testimonios en la parte superior del panel (debajo del header) con glow de transicion en cada cambio para reforzar prueba social sin interrumpir el chat.
@@ -136,7 +138,9 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - En Dashboard > Configuracion del widget > Lead Chat, los textos de encabezado (`eyebrow`, titulo, subtitulo, badge) se editan y reflejan directamente en la cabecera del Lead Chat; ademas se puede personalizar el titulo de la pestana del navegador (`lead_chat_page_title`).
 - En IA > Prompt del Sistema, el dashboard ahora incluye plantillas predefinidas editables en ingles (campos `[REPLACE_*]`) y prioriza flujo USA de llamada con consentimiento usando `ICALLCLOSER_READY`.
 - En IA > Prompt del Sistema, el boton de plantilla aplica automaticamente un guion especializado segun `Industria / Nicho` (`general`, `inmobiliaria`, `clinica`, `taller`, `delivery`; en `personalizado` usa base general), manteniendo comandos de conversion `ICALLCLOSER`/`WHATSAPP` y soporte de bloque `IMAGE`.
+- En IA > Prompt del Sistema (plantillas por nicho), cuando el lead pregunta por precio/costo/inversion, el guion responde la oferta exacta: `S/ 80 mensual + S/ 200 implementacion unica`.
 - `WHATSAPP_REDIRECT` se mantiene como opcion secundaria; la guia permite alternar comando (ICallCloser/WhatsApp) e insertarlo al prompt con un boton.
 - Upload de bienvenida en dashboard usa Cloudinary cuando existen `VITE_CLOUDINARY_CLOUD_NAME` + `VITE_CLOUDINARY_UPLOAD_PRESET`; si no existen, usa fallback a Firebase Storage.
 - Para reducir costo de tokens, Lead Chat/widget embebido/SalesWidget ahora envian al backend una directiva compacta de respuesta y una ventana de historial acotada (ultimos 12 mensajes no-system).
+- En Dashboard > IA, `ai_max_tokens` ahora respeta el valor persistido y se normaliza al rango `100..4000` al guardar (evita fallback visual involuntario a `500` tras recargar).
 - En configuracion Lead Chat, la URL de redireccion post-consentimiento queda fija en `https://ai-call-closer.vercel.app/` y no es editable desde dashboard.
