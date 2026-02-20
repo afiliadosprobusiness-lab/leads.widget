@@ -805,6 +805,10 @@ export function SalesWidget() {
                   ) : null}
                 </div>
               ) : (
+                (() => {
+                  const hasMediaOnly = !msg.content && (Boolean(msg.imageUrl) || Boolean(msg.audioUrl));
+                  const shouldExpandForAudio = Boolean(msg.audioUrl);
+                  return (
                 <div
                   className={`max-w-[86%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
                     msg.role === "user"
@@ -812,7 +816,7 @@ export function SalesWidget() {
                       : isLightMode
                         ? "rounded-bl-md border border-slate-200 bg-white text-slate-700"
                         : "rounded-bl-md border border-white/10 bg-white/[0.04] text-slate-100"
-                  }`}
+                  } ${hasMediaOnly || shouldExpandForAudio ? "min-w-[220px]" : ""}`}
                   style={msg.role === "user" ? { backgroundColor: primaryColor, color: userBubbleTextColor } : undefined}
                 >
                   {msg.content ? <p>{msg.content}</p> : null}
@@ -825,11 +829,30 @@ export function SalesWidget() {
                     />
                   ) : null}
                   {msg.audioUrl ? (
-                    <audio controls preload="metadata" className="mt-2 w-full max-w-[250px]">
-                      <source src={msg.audioUrl} />
-                    </audio>
+                    <div className={`mt-2 rounded-xl border px-2.5 py-2 ${
+                      isLightMode
+                        ? "border-slate-200 bg-slate-50"
+                        : "border-white/15 bg-slate-900/60"
+                    }`}>
+                      <div className={`mb-1 flex items-center gap-2 text-[11px] font-medium ${
+                        isLightMode ? "text-slate-600" : "text-slate-200/90"
+                      }`}>
+                        <span className={`h-2 w-2 rounded-full animate-pulse ${isLightMode ? "bg-emerald-500" : "bg-emerald-300"}`} />
+                        <span>{copy.talkNow}</span>
+                      </div>
+                      <audio
+                        controls
+                        preload="metadata"
+                        className="block w-full min-w-[210px] max-w-[250px]"
+                        style={{ colorScheme: isLightMode ? "light" : "dark" }}
+                      >
+                        <source src={msg.audioUrl} />
+                      </audio>
+                    </div>
                   ) : null}
                 </div>
+                  );
+                })()
               )}
             </div>
           ))}

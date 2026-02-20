@@ -1823,6 +1823,10 @@ export default function LeadChat() {
                         </Button>
                       </div>
                     ) : (
+                      (() => {
+                        const hasMediaOnly = !msg.content && (Boolean(msg.imageUrl) || Boolean(msg.audioUrl));
+                        const shouldExpandForAudio = Boolean(msg.audioUrl);
+                        return (
                       <div
                         className={`max-w-[88%] break-words rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed animate-in fade-in slide-in-from-bottom-2 duration-300 ${
                           msg.role === "user"
@@ -1834,7 +1838,7 @@ export default function LeadChat() {
                               : (isLightMode
                                 ? "rounded-bl-md border border-slate-200 bg-white text-slate-700"
                                 : "rounded-bl-md border border-white/10 bg-white/[0.045] text-slate-100 backdrop-blur")
-                        }`}
+                        } ${hasMediaOnly || shouldExpandForAudio ? "min-w-[230px]" : ""}`}
                         style={msg.role === "user" ? { backgroundColor: config.primaryColor || "#00C185" } : {}}
                       >
                         {msg.content ? <p>{msg.content}</p> : null}
@@ -1847,9 +1851,29 @@ export default function LeadChat() {
                           />
                         ) : null}
                         {msg.audioUrl ? (
-                          <audio controls src={msg.audioUrl} className="mt-2 h-8 w-full max-w-[240px]" preload="metadata" />
+                          <div className={`mt-2 rounded-xl border px-2.5 py-2 ${
+                            isLightMode
+                              ? "border-slate-200 bg-slate-50"
+                              : "border-white/15 bg-slate-900/60"
+                          }`}>
+                            <div className={`mb-1 flex items-center gap-2 text-[11px] font-medium ${
+                              isLightMode ? "text-slate-600" : "text-slate-200/90"
+                            }`}>
+                              <span className={`h-2 w-2 rounded-full animate-pulse ${isLightMode ? "bg-emerald-500" : "bg-emerald-300"}`} />
+                              <span>{copy.talkNow}</span>
+                            </div>
+                            <audio
+                              controls
+                              src={msg.audioUrl}
+                              className="block w-full min-w-[210px] max-w-[280px]"
+                              preload="metadata"
+                              style={{ colorScheme: isLightMode ? "light" : "dark" }}
+                            />
+                          </div>
                         ) : null}
                       </div>
+                        );
+                      })()
                     )}
                   </div>
                 ))}

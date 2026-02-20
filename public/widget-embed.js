@@ -614,6 +614,54 @@
     return '/api';
   }
 
+  async function fetchWelcomeMediaFromFirestore(identity) {
+    if (!identity) return { welcomeImageUrl: '', welcomeAudioUrl: '' };
+
+    try {
+      const projectId = config.projectId || defaultConfig.projectId;
+      const apiKey = config.apiKey || defaultConfig.apiKey;
+      const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:runQuery?key=${apiKey}`;
+      const candidates = [
+        { fieldPath: 'widget_id', value: identity },
+        { fieldPath: 'user_id', value: identity },
+        { fieldPath: 'lead_chat_slug', value: identity }
+      ];
+
+      for (const candidate of candidates) {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            structuredQuery: {
+              from: [{ collectionId: 'widget_configs' }],
+              where: {
+                fieldFilter: {
+                  field: { fieldPath: candidate.fieldPath },
+                  op: 'EQUAL',
+                  value: { stringValue: candidate.value }
+                }
+              },
+              limit: 1
+            }
+          })
+        });
+        if (!response.ok) continue;
+        const data = await response.json();
+        const fields = data?.[0]?.document?.fields;
+        if (!fields) continue;
+
+        return {
+          welcomeImageUrl: sanitizeHttpUrl(fields.welcome_image_url?.stringValue || ''),
+          welcomeAudioUrl: sanitizeHttpUrl(fields.welcome_audio_url?.stringValue || '')
+        };
+      }
+    } catch (err) {
+      console.warn('LeadWidget: Could not read welcome media fallback from Firestore', err);
+    }
+
+    return { welcomeImageUrl: '', welcomeAudioUrl: '' };
+  }
+
   // Get widget config from Firestore
   async function getWidgetConfig(identity) {
     if (!identity) return null;
@@ -644,10 +692,16 @@
             payload.config.leadChatLiveToasts
           );
           const testimonials = normalizeTestimonials(payload.config.testimonials);
+          const backendWelcomeImage = sanitizeHttpUrl(payload.config.welcomeImageUrl || payload.config.welcome_image_url || '');
+          const backendWelcomeAudio = sanitizeHttpUrl(payload.config.welcomeAudioUrl || payload.config.welcome_audio_url || '');
+          const firestoreWelcomeFallback =
+            (!backendWelcomeImage || !backendWelcomeAudio)
+              ? await fetchWelcomeMediaFromFirestore(identity)
+              : { welcomeImageUrl: '', welcomeAudioUrl: '' };
           return {
             ...payload.config,
-            welcomeImageUrl: sanitizeHttpUrl(payload.config.welcomeImageUrl || payload.config.welcome_image_url || ''),
-            welcomeAudioUrl: sanitizeHttpUrl(payload.config.welcomeAudioUrl || payload.config.welcome_audio_url || ''),
+            welcomeImageUrl: backendWelcomeImage || firestoreWelcomeFallback.welcomeImageUrl,
+            welcomeAudioUrl: backendWelcomeAudio || firestoreWelcomeFallback.welcomeAudioUrl,
             quickReplies: quickReplies.length > 0 ? quickReplies : [...config.quickReplies],
             teaserMessages: teaserMessages.length > 0 ? teaserMessages : [...config.teaserMessages],
             testimonials: testimonials.length > 0 ? testimonials : [],
@@ -1321,6 +1375,9 @@
         word-wrap: break-word;
         white-space: pre-wrap;
       }
+      .lw-msg-media-only {
+        min-width: 220px;
+      }
       @keyframes lw-fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
       .lw-msg-assistant {
         background: var(--lw-surface);
@@ -1369,6 +1426,48 @@
       .lw-system-action-btn:focus-visible {
         outline: none;
         box-shadow: 0 0 0 2px rgba(37, 211, 102, 0.35);
+      }
+      .lw-audio-card {
+        margin-top: 8px;
+        border: 1px solid var(--lw-border);
+        border-radius: 12px;
+        padding: 8px 10px;
+        background: var(--lw-surface-soft);
+      }
+      .lw-audio-meta {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 6px;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--lw-muted);
+      }
+      .lw-audio-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #34d399;
+        box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.55);
+        animation: lw-audioPulse 1.6s ease-out infinite;
+      }
+      .lw-audio-el {
+        width: 100%;
+        min-width: 210px;
+        max-width: 260px;
+        height: 34px;
+        display: block;
+      }
+      #lw-root[data-theme='dark'] .lw-audio-el {
+        color-scheme: dark;
+      }
+      #lw-root[data-theme='light'] .lw-audio-el {
+        color-scheme: light;
+      }
+      @keyframes lw-audioPulse {
+        0% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.55); }
+        70% { box-shadow: 0 0 0 9px rgba(52, 211, 153, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
       }
 
       #lw-typing {
@@ -2227,14 +2326,16 @@
         }
         const imageUrl = sanitizeHttpUrl(m.imageUrl || '');
         const audioUrl = sanitizeHttpUrl(m.audioUrl || '');
+        const isMediaOnly = !m.content && (imageUrl || audioUrl);
+        const shouldExpandForAudio = Boolean(audioUrl);
         const textMarkup = m.content ? `<div>${m.content}</div>` : '';
         const imageMarkup = imageUrl
           ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(m.imageAlt || 'Assistant image')}" loading="lazy" style="margin-top:8px;width:100%;max-width:260px;border-radius:12px;border:1px solid var(--lw-border);display:block;">`
           : '';
         const audioMarkup = audioUrl
-          ? `<audio controls preload="metadata" style="margin-top:8px;width:100%;max-width:260px;"><source src="${escapeHtml(audioUrl)}"></audio>`
+          ? `<div class="lw-audio-card"><div class="lw-audio-meta"><span class="lw-audio-dot"></span><span>${escapeHtml(getText('talkNow'))}</span></div><audio controls preload="metadata" class="lw-audio-el"><source src="${escapeHtml(audioUrl)}"></audio></div>`
           : '';
-        return `<div class="lw-msg lw-msg-${m.role}">${textMarkup}${imageMarkup}${audioMarkup}</div>`;
+        return `<div class="lw-msg lw-msg-${m.role}${(isMediaOnly || shouldExpandForAudio) ? ' lw-msg-media-only' : ''}">${textMarkup}${imageMarkup}${audioMarkup}</div>`;
       }).join('');
 
       if (isLoading) {
