@@ -294,11 +294,11 @@ Codigo observado:
 - `POST|OPTIONS /api/verify-payment` (proxy a backend externo)
 - `GET /api/w/:widgetId.js` (proxy a backend externo)
 - `GET /api/debug` (verifica acceso Firebase Admin; retorna `status/env`, y en error incluye `stack`)
-- `vercel.json` define rewrite global: `/api/(.*)` -> backend externo Cloud Run
+- `vercel.json` usa `routes` con `handle: filesystem` primero, y luego fallback `/api/(.*)` -> backend externo Cloud Run
 
 Asuncion:
 
-- En produccion, la precedencia exacta entre rewrite global y archivos `api/*.js` depende del runtime de despliegue. El frontend consume `/api/*` y espera contrato del backend externo.
+- En produccion, las funciones locales en `api/*.js` se resuelven primero; rutas `/api/*` sin archivo local caen al backend externo via fallback.
 - El proxy local de `POST /api/chat` ademas persiste trazas resumidas de cada intercambio en `ai_chat_logs` para consola de debugging en Dashboard (sin cambiar el contrato de respuesta hacia el cliente).
 
 ## Formato de errores

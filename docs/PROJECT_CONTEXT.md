@@ -122,6 +122,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 
 ## Configuracion relevante
 - Front usa rutas `/api/*` (rewrite a backend Cloud Run).
+- `vercel.json` prioriza `filesystem` para que funciones locales `api/*.js` (ej. `api/chat.js`) se ejecuten antes del fallback `/api/*` al backend externo.
 - Firestore rules ampliadas para colecciones partner, manteniendo mutacion directa restringida a superadmin en cliente web.
 - Superadmin incorpora fallback de compatibilidad a Firestore para modulo de agencias cuando el backend aun no expone `/api/admin/partners*` en el entorno desplegado.
 - Eliminacion de usuario desde superadmin usa borrado completo (Firebase Auth + datos principales), no solo soft delete.
