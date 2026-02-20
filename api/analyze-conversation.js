@@ -1,3 +1,6 @@
+import { getAuth } from "firebase-admin/auth";
+import { db } from "./_firebase.js";
+
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 const DEFAULT_MODEL = process.env.OPENAI_ANALYSIS_MODEL || "gpt-4o-mini";
 
@@ -16,6 +19,7 @@ function normalizeLogs(rawLogs) {
     .slice(-16)
     .map((item) => ({
       status: trimText(item.status || "unknown", 20).toLowerCase(),
+      widget_id: trimText(item.widget_id || item.widgetId || "", 140),
       user_message: trimText(item.user_message || "", 600),
       ai_response: trimText(item.ai_response || "", 700),
       error_message: trimText(item.error_message || "", 320),
@@ -131,9 +135,9 @@ function buildTranscript(logs) {
     .join("\n\n");
 }
 
-async function callOpenAIAnalysis(logs, locale) {
-  const apiKey = String(process.env.OPENAI_API_KEY || "").trim();
-  if (!apiKey) return null;
+async function callOpenAIAnalysis(logs, locale, apiKey) {
+  const resolvedApiKey = String(apiKey || "").trim();
+  if (!resolvedApiKey) return null;
 
   const isEnglish = String(locale || "").toLowerCase().startsWith("en");
   const transcript = buildTranscript(logs);
@@ -153,7 +157,7 @@ async function callOpenAIAnalysis(logs, locale) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${resolvedApiKey}`,
     },
     body: JSON.stringify({
       model: DEFAULT_MODEL,
@@ -181,6 +185,51 @@ async function callOpenAIAnalysis(logs, locale) {
   return extractJsonObject(content);
 }
 
+function getBearerToken(req) {
+  const authHeader = String(req.headers.authorization || "").trim();
+  if (!authHeader) return "";
+  const match = authHeader.match(/^Bearer\s+(.+)$/i);
+  if (!match) return "";
+  return String(match[1] || "").trim();
+}
+
+async function resolveUserOpenAiKey(uid, widgetId) {
+  const userId = String(uid || "").trim();
+  if (!userId) return "";
+
+  const profileSnap = await db.collection("profiles").doc(userId).get();
+  const profileData = profileSnap.exists ? profileSnap.data() || {} : {};
+  const profileApiKey = trimText(profileData.ai_api_key || "", 300);
+  if (profileApiKey) return profileApiKey;
+
+  const widgetIdentity = trimText(widgetId || "", 140);
+  if (widgetIdentity) {
+    const lookups = ["widget_id", "lead_chat_slug"];
+    for (const field of lookups) {
+      const snap = await db
+        .collection("widget_configs")
+        .where("user_id", "==", userId)
+        .where(field, "==", widgetIdentity)
+        .limit(1)
+        .get();
+      if (!snap.empty) {
+        const row = snap.docs[0]?.data() || {};
+        const fromWidget = trimText(row.ai_api_key || "", 300);
+        if (fromWidget) return fromWidget;
+      }
+    }
+  }
+
+  const fallbackWidgetSnap = await db.collection("widget_configs").where("user_id", "==", userId).limit(1).get();
+  if (!fallbackWidgetSnap.empty) {
+    const row = fallbackWidgetSnap.docs[0]?.data() || {};
+    const fromWidget = trimText(row.ai_api_key || "", 300);
+    if (fromWidget) return fromWidget;
+  }
+
+  return "";
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -190,9 +239,20 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   try {
+    const bearerToken = getBearerToken(req);
+    if (!bearerToken) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const decoded = await getAuth().verifyIdToken(bearerToken);
+    const uid = String(decoded?.uid || "").trim();
+    if (!uid) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
     const body = req.body || {};
     const locale = String(body.locale || "es").toLowerCase();
     const logs = normalizeLogs(body.logs);
+    const widgetId = trimText(body.widgetId || logs[0]?.widget_id || "", 140);
 
     if (logs.length === 0) {
       return res.status(400).json({ error: "logs are required" });
@@ -200,21 +260,33 @@ export default async function handler(req, res) {
 
     let provider = "heuristic";
     let analysis = buildHeuristicAnalysis(logs, locale);
+    const userApiKey = await resolveUserOpenAiKey(uid, widgetId);
 
-    try {
-      const aiOutput = await callOpenAIAnalysis(logs, locale);
-      if (aiOutput) {
-        analysis = normalizeAnalysis(aiOutput, locale);
-        provider = "openai";
+    if (userApiKey) {
+      try {
+        const aiOutput = await callOpenAIAnalysis(logs, locale, userApiKey);
+        if (aiOutput) {
+          analysis = normalizeAnalysis(aiOutput, locale);
+          provider = "openai";
+        }
+      } catch (error) {
+        console.error("analyze-conversation: openai fallback", error?.message || error);
       }
-    } catch (error) {
-      console.error("analyze-conversation: openai fallback", error?.message || error);
+    } else {
+      provider = "heuristic_no_client_key";
+      analysis = {
+        ...analysis,
+        summary: String(locale || "").toLowerCase().startsWith("en")
+          ? "No OpenAI API key is configured in your IA settings. Heuristic analysis was used."
+          : "No hay API key de OpenAI configurada en tu seccion IA. Se uso analisis heuristico.",
+      };
     }
 
     return res.status(200).json({
       success: true,
       provider,
       analysis,
+      creditsConsumed: provider === "openai",
     });
   } catch (error) {
     return res.status(500).json({

@@ -422,6 +422,9 @@ export default function Dashboard() {
   const [aiConversationFilter, setAiConversationFilter] = useState<AiConversationFilter>('all');
   const [showTechnicalDiagnostics, setShowTechnicalDiagnostics] = useState(false);
   const [aiConversationAnalysisById, setAiConversationAnalysisById] = useState<Record<string, AiConversationAnalysisState>>({});
+  const [promptSuggestionDialogOpen, setPromptSuggestionDialogOpen] = useState(false);
+  const [pendingPromptSuggestion, setPendingPromptSuggestion] = useState('');
+  const [applyingPromptSuggestion, setApplyingPromptSuggestion] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -723,9 +726,10 @@ export default function Dashboard() {
 
   const handleAnalyzeConversation = async (
     conversationId: string,
+    widgetId: string,
     logs: AiChatLog[],
   ) => {
-    if (!conversationId || !Array.isArray(logs) || logs.length === 0) return;
+    if (!conversationId || !Array.isArray(logs) || logs.length === 0 || !user) return;
     setAiConversationAnalysisById((prev) => ({
       ...prev,
       [conversationId]: {
@@ -736,14 +740,20 @@ export default function Dashboard() {
     }));
 
     try {
+      const idToken = await user.getIdToken();
       const response = await fetch('/api/analyze-conversation', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+        },
         body: JSON.stringify({
           locale: dashboardIsEnglish ? 'en' : 'es',
           conversationId,
+          widgetId: String(widgetId || '').trim(),
           logs: logs.slice(-12).map((item) => ({
             status: item.status,
+            widget_id: item.widget_id,
             user_message: item.user_message,
             ai_response: item.ai_response,
             error_message: item.error_message || '',
@@ -875,6 +885,61 @@ export default function Dashboard() {
       ...prev,
       ai_system_prompt: appendPromptSnippet(prev.ai_system_prompt, snippet),
     }));
+  };
+
+  const openPromptSuggestionDialog = (suggestion: string) => {
+    const safeSuggestion = String(suggestion || '').trim();
+    if (!safeSuggestion) return;
+    setPendingPromptSuggestion(safeSuggestion);
+    setPromptSuggestionDialogOpen(true);
+  };
+
+  const applyPromptSuggestionToContext = async () => {
+    if (!user || !widgetConfig) return;
+    const safeSuggestion = String(pendingPromptSuggestion || '').trim();
+    if (!safeSuggestion) return;
+
+    const nextPrompt = appendPromptSnippet(aiConfig.ai_system_prompt, safeSuggestion);
+    if (nextPrompt.trim() === aiConfig.ai_system_prompt.trim()) {
+      setPromptSuggestionDialogOpen(false);
+      toast({
+        title: dashboardIsEnglish ? 'No changes needed' : 'No se requieren cambios',
+        description: dashboardIsEnglish
+          ? 'This suggestion is already in your system prompt.'
+          : 'Esta sugerencia ya esta incluida en tu prompt del sistema.',
+      });
+      return;
+    }
+
+    setApplyingPromptSuggestion(true);
+    try {
+      await updateDoc(doc(db, 'profiles', user.uid), {
+        ai_system_prompt: nextPrompt,
+        updated_at: new Date().toISOString(),
+      });
+      await updateDoc(doc(db, 'widget_configs', widgetConfig.id), {
+        ai_system_prompt: nextPrompt,
+        updated_at: new Date().toISOString(),
+      });
+
+      setAiConfig((prev) => ({ ...prev, ai_system_prompt: nextPrompt }));
+      setPromptSuggestionDialogOpen(false);
+      setPendingPromptSuggestion('');
+      toast({
+        title: dashboardIsEnglish ? 'Prompt updated' : 'Prompt actualizado',
+        description: dashboardIsEnglish
+          ? 'The improvement was added to your context prompt.'
+          : 'La mejora fue agregada al prompt de contexto.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: String(error?.message || (dashboardIsEnglish ? 'Could not apply prompt suggestion.' : 'No se pudo aplicar la sugerencia de prompt.')),
+        variant: 'destructive',
+      });
+    } finally {
+      setApplyingPromptSuggestion(false);
+    }
   };
 
   const applySelectedNichePromptTemplate = () => {
@@ -4032,7 +4097,7 @@ export default function Dashboard() {
                                     size="sm"
                                     variant="outline"
                                     disabled={analysisState?.loading === true}
-                                    onClick={() => void handleAnalyzeConversation(conversation.conversationId, conversation.logs)}
+                                    onClick={() => void handleAnalyzeConversation(conversation.conversationId, conversation.widgetId, conversation.logs)}
                                     className="h-8 border-sky-300/70 bg-white/70 text-sky-700 hover:bg-sky-100 dark:bg-slate-950/40 dark:text-sky-200"
                                   >
                                     {analysisState?.loading ? (
@@ -4048,6 +4113,11 @@ export default function Dashboard() {
                                     )}
                                   </Button>
                                 </div>
+                                <p className="mt-1 text-[11px] text-amber-700/90 dark:text-amber-300/90">
+                                  {dashboardIsEnglish
+                                    ? 'This analysis consumes credits from your configured OpenAI API key.'
+                                    : 'Este analisis consumira creditos de tu API key OpenAI configurada.'}
+                                </p>
 
                                 {analysisState?.error ? (
                                   <p className="mt-2 text-xs text-rose-700 dark:text-rose-300">{analysisState.error}</p>
@@ -4079,6 +4149,17 @@ export default function Dashboard() {
                                       <div>
                                         <p className="font-semibold">{dashboardIsEnglish ? 'Prompt patch' : 'Parche de prompt'}</p>
                                         <p className="whitespace-pre-wrap break-words text-muted-foreground">{analysisState.data.promptPatch}</p>
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          variant="outline"
+                                          className="mt-2 h-8"
+                                          onClick={() => openPromptSuggestionDialog(analysisState.data.promptPatch)}
+                                        >
+                                          {dashboardIsEnglish
+                                            ? 'Prompt improvement suggestion'
+                                            : 'Sugerencia de mejora de prompt'}
+                                        </Button>
                                       </div>
                                     ) : null}
                                   </div>
@@ -5067,6 +5148,65 @@ export default function Dashboard() {
           )}
         </Tabs>
       </div>
+
+      <Dialog
+        open={promptSuggestionDialogOpen}
+        onOpenChange={(open) => {
+          setPromptSuggestionDialogOpen(open);
+          if (!open && !applyingPromptSuggestion) setPendingPromptSuggestion('');
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{dashboardIsEnglish ? 'Apply prompt improvement' : 'Aplicar mejora de prompt'}</DialogTitle>
+            <DialogDescription>
+              {dashboardIsEnglish
+                ? 'This information will be added to your context/system prompt.'
+                : 'Se anadira esta informacion al prompt de contexto.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-200">
+              <p className="whitespace-pre-wrap break-words">{pendingPromptSuggestion || '-'}</p>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {dashboardIsEnglish
+                ? 'If you confirm, it will be appended to your current system prompt and saved.'
+                : 'Si confirmas, se agregara al prompt actual del sistema y se guardara.'}
+            </p>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={applyingPromptSuggestion}
+              onClick={() => {
+                setPromptSuggestionDialogOpen(false);
+                setPendingPromptSuggestion('');
+              }}
+            >
+              {dashboardIsEnglish ? 'Cancel' : 'Cancelar'}
+            </Button>
+            <Button
+              type="button"
+              disabled={applyingPromptSuggestion}
+              onClick={() => void applyPromptSuggestionToContext()}
+            >
+              {applyingPromptSuggestion ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {dashboardIsEnglish ? 'Applying...' : 'Aplicando...'}
+                </>
+              ) : (
+                <>
+                  <Check className="mr-2 h-4 w-4" />
+                  {dashboardIsEnglish ? 'Apply improvement' : 'Aplicar mejora'}
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Payout Request Modal */}
       {SHOW_AFFILIATES_UI && (

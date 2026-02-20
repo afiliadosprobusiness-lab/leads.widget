@@ -153,4 +153,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - En Dashboard > Analiticas, los filtros tecnicos de estado (`ok/bloqueado/limite/error`) quedan ocultos por defecto y se muestran solo al activar `Ver diagnostico tecnico`, priorizando UX comercial simple.
 - Lead Chat/widget embebido/SalesWidget reportan eventos de apertura (`whatsapp_open`/`iacallcloser_open`) a `POST /api/chat-event`; el dashboard usa esos eventos (`ai_chat_events`) para marcar `Lead completado`.
 - En conversaciones `No completadas`, el dashboard ofrece `Analizar conversacion`: boton 1-click que llama `POST /api/analyze-conversation` y devuelve diagnostico (causas raiz, mejoras, patch de prompt y score de calidad).
+- `Analizar conversacion` consume creditos de la API key OpenAI configurada por cliente (`ai_api_key`); la UI muestra aviso explicito de consumo para evitar sorpresas de costo.
+- En el bloque `Parche de prompt`, la consola incluye CTA `Sugerencia de mejora de prompt` con modal de confirmacion. Al aceptar, agrega esa mejora al `ai_system_prompt` y lo guarda en `profiles` + `widget_configs`.
+- `POST /api/analyze-conversation` exige token Firebase del dashboard y toma la key desde `profiles.ai_api_key` (fallback `widget_configs.ai_api_key` del owner), con fallback heuristico si no existe key.
 - `ai_chat_logs` ahora incluye `command_flags` y `security_signal` para enriquecer la deteccion de conversion y riesgo.

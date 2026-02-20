@@ -318,6 +318,7 @@ Asuncion:
 
 - En produccion, las funciones locales en `api/*.js` se resuelven primero; rutas `/api/*` sin archivo local caen al backend externo via fallback.
 - El proxy local de `POST /api/chat` ademas persiste trazas resumidas de cada intercambio en `ai_chat_logs` para consola de debugging en Dashboard (sin cambiar el contrato de respuesta hacia el cliente).
+- `POST /api/analyze-conversation` requiere `Authorization: Bearer <Firebase ID token>` del usuario dashboard; usa `profiles.ai_api_key` (o fallback `widget_configs.ai_api_key` del mismo owner) para ejecutar analisis OpenAI. Si no hay key configurada, responde analisis heuristico (`provider: heuristic_no_client_key`).
 
 ## Formato de errores
 
@@ -432,3 +433,7 @@ Cambios de comportamiento relevantes:
 - Cambio: se agrega `ai_chat_events` para registrar aperturas a WhatsApp/IACloser por `conversation_id`; `ai_chat_logs` incorpora `command_flags` + `security_signal`; se agregan endpoints locales `POST /api/chat-event` y `POST /api/analyze-conversation`.
 - Tipo: non-breaking
 - Impacto: habilita consola de conversion por estado (`no completado/completado/riesgo`) y diagnostico asistido de conversaciones no completadas sin romper rutas existentes.
+- Fecha: 2026-02-20
+- Cambio: `POST /api/analyze-conversation` ahora consume la API key OpenAI configurada por cliente (`ai_api_key`) y exige auth Firebase del dashboard; retorna `creditsConsumed` en el payload.
+- Tipo: non-breaking
+- Impacto: el costo de analisis se imputa al cliente correcto y se evita uso anonimo del endpoint.
