@@ -1626,18 +1626,18 @@ export default function LeadChat() {
   const statusActionRow = (
     <>
       <div
-        className={`inline-flex max-w-full items-center gap-2 rounded-full border px-3 py-1 text-[11px] transition-all duration-500 animate-[pulse_3.2s_ease-in-out_infinite] ${
+        className={`inline-flex shrink-0 max-w-full items-center gap-2 rounded-full border px-3 py-1 text-[11px] transition-all duration-500 animate-[pulse_3.2s_ease-in-out_infinite] ${
           isLightMode ? "border-rose-200 bg-rose-50 text-rose-700" : "border-rose-400/40 bg-rose-500/10 text-rose-100"
         }`}
       >
         <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" aria-hidden="true" />
-        <span className="max-w-[220px] truncate sm:max-w-[300px]">{activePresenceMessage}</span>
+        <span className="max-w-[170px] truncate sm:max-w-[300px]">{activePresenceMessage}</span>
       </div>
       <button
         type="button"
         onClick={openConsentStep}
         disabled={!handoffEligible}
-        className={`hidden sm:inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+        className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] sm:gap-2 sm:px-3 sm:py-1.5 sm:text-xs transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
           handoffEligible || handoffLoading || Boolean(handoffMessage)
             ? (isLightMode
               ? "border-emerald-300/75 bg-emerald-100 text-emerald-800 hover:bg-emerald-100/85"
@@ -1645,8 +1645,8 @@ export default function LeadChat() {
             : (isLightMode ? "cursor-not-allowed border-slate-300 bg-slate-100 text-slate-500" : "cursor-not-allowed border-white/15 bg-white/5 text-slate-400")
         }`}
       >
-        <PhoneCall className="h-3.5 w-3.5" />
-        <span className="max-w-[145px] truncate sm:max-w-none">
+        <PhoneCall className="hidden h-3.5 w-3.5 sm:block" />
+        <span className="max-w-[128px] truncate sm:max-w-none">
           {handoffLoading || handoffMessage
             ? copy.callingBadge
             : handoffEligible
@@ -1696,7 +1696,7 @@ export default function LeadChat() {
                   <p className={`mt-1 text-xs sm:text-sm ${isLightMode ? "text-slate-500" : "text-slate-300/80"}`}>
                     {config.leadChatSubheadline || copy.step2Description}
                   </p>
-                  <div className="mt-2">
+                  <div className="mt-2 hidden sm:block">
                     <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-medium ${
                       isLightMode ? "border-sky-200 bg-sky-50 text-sky-700" : "border-cyan-400/35 bg-cyan-400/10 text-cyan-100"
                     }`}>
@@ -1753,9 +1753,9 @@ export default function LeadChat() {
                 </div>
               </div>
 
-              <div className={`px-4 pb-3 pt-3 sm:px-7 ${isLightMode ? "border-b border-slate-200 bg-white/80" : "border-b border-white/10 bg-white/[0.03]"}`}>
+              <div className={`px-4 py-2 sm:px-7 sm:py-3 ${isLightMode ? "border-b border-slate-200 bg-white/80" : "border-b border-white/10 bg-white/[0.03]"}`}>
                 <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-1 pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:flex-wrap lg:overflow-visible lg:pb-0">
                     {statusActionRow}
                   </div>
                   {showLiveActivityStrip ? (
