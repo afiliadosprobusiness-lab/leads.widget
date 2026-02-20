@@ -137,10 +137,12 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - En mobile del widget embebido, el teaser de recaptura es mas compacto/suave, aparece a la izquierda del launcher flotante y al cerrarlo con `X` no vuelve a mostrarse hasta recargar la pagina.
 - En dashboard, los defaults de Lead Chat quedan alineados al guion de conversion en 3 pasos y el selector de idioma (`es/en`) puede aplicar automaticamente copy EN/ES mientras no se haya personalizado manualmente.
 - En Dashboard > Configuracion del widget > Lead Chat, los textos de encabezado (`eyebrow`, titulo, subtitulo, badge) se editan y reflejan directamente en la cabecera del Lead Chat; ademas se puede personalizar el titulo de la pestana del navegador (`lead_chat_page_title`).
-- En IA > Prompt del Sistema, el dashboard ahora incluye plantillas predefinidas editables en ingles (campos `[REPLACE_*]`) y prioriza flujo USA de llamada con consentimiento usando `ICALLCLOSER_READY`.
-- En IA > Prompt del Sistema, el boton de plantilla aplica automaticamente un guion especializado segun `Industria / Nicho` (`general`, `inmobiliaria`, `clinica`, `taller`, `delivery`; en `personalizado` usa base general), manteniendo comandos de conversion `ICALLCLOSER`/`WHATSAPP` y soporte de bloque `IMAGE`.
+- En Dashboard > IA, la configuracion de prompt se separa en 3 bloques: `Prompt de contexto`, `Mejoras IA` (solo lectura auto), y `Prompt del sistema`.
+- En Dashboard > IA, `Prompt de contexto` y `Prompt del sistema` tienen boton `Crear prompt` con modal guiado para generar texto estructurado por formulario (negocio/nicho/reglas/comercial).
+- En Dashboard > IA, el canal de cierre (`ICallCloser` o `WhatsApp`) se selecciona una vez y el comando se inserta automaticamente al compilar/guardar el prompt.
+- En IA > Prompt del Sistema, el dashboard mantiene boton de plantilla por `Industria / Nicho` (`general`, `inmobiliaria`, `clinica`, `taller`, `delivery`; en `personalizado` usa base general), con enfoque de conversion y soporte de bloque `IMAGE`.
 - En IA > Prompt del Sistema (plantillas por nicho), cuando el lead pregunta por precio/costo/inversion, el guion responde la oferta exacta: `S/ 80 mensual + S/ 200 implementacion unica`.
-- `WHATSAPP_REDIRECT` se mantiene como opcion secundaria; la guia permite alternar comando (ICallCloser/WhatsApp) e insertarlo al prompt con un boton.
+- `WHATSAPP_REDIRECT` se mantiene como opcion secundaria frente a `ICALLCLOSER_READY`; ya no se usa la guia manual de insercion, ahora el comando se agrega automaticamente segun el canal seleccionado.
 - Upload de bienvenida en dashboard usa Cloudinary cuando existen `VITE_CLOUDINARY_CLOUD_NAME` + `VITE_CLOUDINARY_UPLOAD_PRESET`; si no existen, usa fallback a Firebase Storage.
 - En Dashboard > Configuracion del widget > Audio de bienvenida, ademas de subir archivo/URL ahora se puede grabar audio en el momento (microfono del navegador) y se sube por el mismo pipeline Cloudinary/Firebase.
 - Para reducir costo de tokens, Lead Chat/widget embebido/SalesWidget ahora envian al backend una directiva compacta de respuesta y una ventana de historial acotada (ultimos 12 mensajes no-system).
@@ -154,6 +156,6 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Lead Chat/widget embebido/SalesWidget reportan eventos de apertura (`whatsapp_open`/`iacallcloser_open`) a `POST /api/chat-event`; el dashboard usa esos eventos (`ai_chat_events`) para marcar `Lead completado`.
 - En conversaciones `No completadas`, el dashboard ofrece `Analizar conversacion`: boton 1-click que llama `POST /api/analyze-conversation` y devuelve diagnostico (causas raiz, mejoras, patch de prompt y score de calidad).
 - `Analizar conversacion` consume creditos de la API key OpenAI configurada por cliente (`ai_api_key`); la UI muestra aviso explicito de consumo para evitar sorpresas de costo.
-- En el bloque `Parche de prompt`, la consola incluye CTA `Sugerencia de mejora de prompt` con modal de confirmacion. Al aceptar, agrega esa mejora al `ai_system_prompt` y lo guarda en `profiles` + `widget_configs`.
+- En el bloque `Parche de prompt`, la consola incluye CTA `Sugerencia de mejora de prompt` con modal de confirmacion. Al aceptar, agrega esa mejora a `ai_improvements_prompt` y recompila `ai_system_prompt` para guardarlo en `profiles` + `widget_configs`.
 - `POST /api/analyze-conversation` exige token Firebase del dashboard y toma la key desde `profiles.ai_api_key` (fallback `widget_configs.ai_api_key` del owner), con fallback heuristico si no existe key.
 - `ai_chat_logs` ahora incluye `command_flags` y `security_signal` para enriquecer la deteccion de conversion y riesgo.

@@ -34,6 +34,10 @@ Campos observados (pueden coexistir segun flujo):
 - `ai_temperature: number`
 - `ai_max_tokens: number`
 - `business_description: string`
+- `ai_context_prompt: string` (opcional, bloque contexto normalizado)
+- `ai_improvements_prompt: string` (opcional, mejoras sugeridas por analisis)
+- `ai_system_base_prompt: string` (opcional, bloque editable del sistema sin compilacion)
+- `ai_closing_channel: "icallcloser" | "whatsapp"` (opcional)
 - `ai_system_prompt: string`
 - `ai_security_prompt: string`
 - `referred_by: string | null`
@@ -56,7 +60,7 @@ Campos observados:
 - Triggers: `trigger_delay`, `trigger_exit_intent`, `exit_intent_title`, `exit_intent_description`, `exit_intent_cta`, `vibration_intensity`
 - Mensajeria: `teaser_messages` (array o string), `quick_replies` (array o string)
 - Testimonios: `testimonials_json` (string JSON), opcional `testimonials` (array)
-- IA: `ai_enabled`, `ai_provider`, `ai_api_key`, `ai_model`, `ai_system_prompt`, `business_description`, `ai_temperature`, `ai_max_tokens`, `ai_security_prompt`
+- IA: `ai_enabled`, `ai_provider`, `ai_api_key`, `ai_model`, `ai_system_prompt`, `business_description`, `ai_context_prompt`, `ai_improvements_prompt`, `ai_system_base_prompt`, `ai_closing_channel`, `ai_temperature`, `ai_max_tokens`, `ai_security_prompt`
 - Tracking declarativo: `facebook_pixel_id`, `tiktok_pixel_id`, `google_tag_id`
 - Timestamps: `created_at`, `updated_at`
 
@@ -437,3 +441,7 @@ Cambios de comportamiento relevantes:
 - Cambio: `POST /api/analyze-conversation` ahora consume la API key OpenAI configurada por cliente (`ai_api_key`) y exige auth Firebase del dashboard; retorna `creditsConsumed` en el payload.
 - Tipo: non-breaking
 - Impacto: el costo de analisis se imputa al cliente correcto y se evita uso anonimo del endpoint.
+- Fecha: 2026-02-20
+- Cambio: configuracion IA en dashboard persiste bloques separados (`ai_context_prompt`, `ai_improvements_prompt`, `ai_system_base_prompt`) y `ai_closing_channel`, compilando `ai_system_prompt` final al guardar.
+- Tipo: non-breaking
+- Impacto: mejora mantenibilidad del prompt por cliente sin romper campos legacy (`business_description`, `ai_system_prompt`).
