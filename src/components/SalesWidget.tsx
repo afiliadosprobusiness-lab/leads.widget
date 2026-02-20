@@ -260,6 +260,7 @@ export function SalesWidget() {
   const voiceDraftRef = useRef("");
   const pendingVoiceAutoSendRef = useRef(false);
   const handleSendFromVoiceRef = useRef<(value: string) => void>(() => {});
+  const conversationIdRef = useRef(`sales-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
 
   const testimonial = copy.testimonials[activeTestimonialIndex % copy.testimonials.length];
   const testimonialStars = buildWhatsAppStars(testimonial.stars);
@@ -479,6 +480,8 @@ export function SalesWidget() {
             history,
             widgetId: MY_WIDGET_ID,
             userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            source: "sales_widget",
+            conversationId: conversationIdRef.current,
           }),
         });
 

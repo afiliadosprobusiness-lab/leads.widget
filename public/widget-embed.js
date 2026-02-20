@@ -157,6 +157,7 @@
   let emojiPanelOpen = false;
   let pendingVoiceAutoSend = false;
   let latestVoiceTranscript = '';
+  let conversationId = `embed-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
   let hasUserInteracted = false;
   let inlineTeaserStartTimeout = null;
   let inlineTeaserHideTimeout = null;
@@ -956,7 +957,10 @@
         body: JSON.stringify({
           message: userMessage,
           history: conversationHistory,
-          widgetId: config.widgetId || config.clientId
+          widgetId: config.widgetId || config.clientId,
+          source: 'widget_embed',
+          conversationId,
+          userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         })
       });
 

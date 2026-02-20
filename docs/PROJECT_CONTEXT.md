@@ -145,3 +145,5 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Para reducir costo de tokens, Lead Chat/widget embebido/SalesWidget ahora envian al backend una directiva compacta de respuesta y una ventana de historial acotada (ultimos 12 mensajes no-system).
 - En Dashboard > IA, `ai_max_tokens` ahora respeta el valor persistido y se normaliza al rango `100..4000` al guardar (evita fallback visual involuntario a `500` tras recargar).
 - En configuracion Lead Chat, la URL de redireccion post-consentimiento queda fija en `https://ai-call-closer.vercel.app/` y no es editable desde dashboard.
+- En Dashboard > Analiticas, se agrego la `Consola de conversaciones IA` con historial por conversacion, estado (`ok/bloqueado/limite/error`), mensajes usuario/asistente y pista de mejora para depurar fallos del prompt.
+- El proxy `POST /api/chat` ahora registra cada intercambio en `ai_chat_logs` (por `client_id/widget_id/conversation_id`) para auditoria y mejora continua del cierre.

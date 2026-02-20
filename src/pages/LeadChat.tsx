@@ -851,6 +851,7 @@ export default function LeadChat() {
   const voiceDraftRef = useRef("");
   const pendingVoiceAutoSendRef = useRef(false);
   const handleSendFromVoiceRef = useRef<(value: string) => void>(() => {});
+  const conversationIdRef = useRef(`leadchat-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
   const redirectCountdownIntervalRef = useRef<number | null>(null);
   const redirectCountdownTimeoutRef = useRef<number | null>(null);
   const copy = useMemo(() => SALES_COPY[locale], [locale]);
@@ -1436,6 +1437,8 @@ export default function LeadChat() {
           ],
           widgetId: config.widgetId,
           userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          source: "lead_chat",
+          conversationId: conversationIdRef.current,
         }),
       });
       const payload = await response.json();

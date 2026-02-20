@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type ChangeEvent } from 'react';
+import { useState, useEffect, useMemo, useRef, type ChangeEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth, isSuperAdminEmail } from '@/lib/auth';
 import { auth, db, storage } from '@/lib/firebase';
@@ -167,6 +167,32 @@ interface Profile {
 }
 
 type Payment = any;
+
+type AiChatLogStatus = 'ok' | 'blocked' | 'rate_limited' | 'error' | 'unknown';
+
+interface AiChatHistoryItem {
+  role: string;
+  content: string;
+}
+
+interface AiChatLog {
+  id: string;
+  client_id: string;
+  widget_id: string;
+  conversation_id: string;
+  source: string;
+  status: AiChatLogStatus;
+  blocked?: boolean;
+  rate_limited?: boolean;
+  user_message: string;
+  ai_response: string;
+  error_message?: string;
+  history_count?: number;
+  history_excerpt?: AiChatHistoryItem[];
+  created_at: string;
+  latency_ms?: number;
+  upstream_status?: number;
+}
 
 const templates = [
   {
@@ -350,6 +376,8 @@ export default function Dashboard() {
   const [analytics, setAnalytics] = useState({ views: 0, interactions: 0, viewsToday: 0 });
   const [payments, setPayments] = useState<any[]>([]);
   const [blockedIps, setBlockedIps] = useState<any[]>([]);
+  const [aiChatLogs, setAiChatLogs] = useState<AiChatLog[]>([]);
+  const [aiChatStatusFilter, setAiChatStatusFilter] = useState<'all' | AiChatLogStatus>('all');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -447,6 +475,119 @@ export default function Dashboard() {
     const isForeign = currentLang?.startsWith('en') || currentLang?.includes('US');
     setCurrency(isForeign ? 'USD' : 'PEN');
   }, [i18n.language]);
+
+  const dashboardIsEnglish = String(i18n.language || '').toLowerCase().startsWith('en');
+  const dashboardLocale = dashboardIsEnglish ? 'en-US' : 'es-PE';
+
+  const filteredAiChatLogs = useMemo(() => {
+    if (aiChatStatusFilter === 'all') return aiChatLogs;
+    return aiChatLogs.filter((item) => item.status === aiChatStatusFilter);
+  }, [aiChatLogs, aiChatStatusFilter]);
+
+  const aiConversationGroups = useMemo(() => {
+    const groups = new Map<string, {
+      conversationId: string;
+      source: string;
+      widgetId: string;
+      logs: AiChatLog[];
+      lastAt: string;
+      status: AiChatLogStatus;
+      lastError: string;
+    }>();
+
+    const getStatusRank = (status: AiChatLogStatus) => {
+      if (status === 'error') return 4;
+      if (status === 'blocked') return 3;
+      if (status === 'rate_limited') return 2;
+      if (status === 'ok') return 1;
+      return 0;
+    };
+
+    for (const log of filteredAiChatLogs) {
+      const conversationId = (log.conversation_id || '').trim() || `single-${log.id}`;
+      const existing = groups.get(conversationId);
+      if (!existing) {
+        groups.set(conversationId, {
+          conversationId,
+          source: log.source || 'unknown',
+          widgetId: log.widget_id || '-',
+          logs: [log],
+          lastAt: log.created_at || '',
+          status: log.status || 'unknown',
+          lastError: log.error_message || '',
+        });
+        continue;
+      }
+
+      existing.logs.push(log);
+      const currentLastAt = new Date(existing.lastAt || 0).getTime();
+      const nextLastAt = new Date(log.created_at || 0).getTime();
+      if (nextLastAt >= currentLastAt) {
+        existing.lastAt = log.created_at || existing.lastAt;
+        if (log.error_message) existing.lastError = log.error_message;
+      }
+      if (getStatusRank(log.status) >= getStatusRank(existing.status)) {
+        existing.status = log.status;
+      }
+      if (!existing.lastError && log.error_message) {
+        existing.lastError = log.error_message;
+      }
+    }
+
+    return Array.from(groups.values())
+      .map((item) => ({
+        ...item,
+        logs: [...item.logs].sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()),
+      }))
+      .sort((a, b) => new Date(b.lastAt || 0).getTime() - new Date(a.lastAt || 0).getTime());
+  }, [filteredAiChatLogs]);
+
+  const aiConversationFailures = useMemo(
+    () => aiConversationGroups.filter((item) => item.status !== 'ok').length,
+    [aiConversationGroups],
+  );
+
+  const getAiLogStatusLabel = (status: AiChatLogStatus) => {
+    if (status === 'ok') return dashboardIsEnglish ? 'OK' : 'Correcto';
+    if (status === 'blocked') return dashboardIsEnglish ? 'Blocked' : 'Bloqueado';
+    if (status === 'rate_limited') return dashboardIsEnglish ? 'Rate limited' : 'Limite de tasa';
+    if (status === 'error') return dashboardIsEnglish ? 'Error' : 'Error';
+    return dashboardIsEnglish ? 'Unknown' : 'Desconocido';
+  };
+
+  const getAiLogStatusClass = (status: AiChatLogStatus) => {
+    if (status === 'ok') return 'border-emerald-300/70 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300';
+    if (status === 'blocked') return 'border-amber-300/70 bg-amber-500/10 text-amber-700 dark:text-amber-300';
+    if (status === 'rate_limited') return 'border-orange-300/70 bg-orange-500/10 text-orange-700 dark:text-orange-300';
+    if (status === 'error') return 'border-rose-300/70 bg-rose-500/10 text-rose-700 dark:text-rose-300';
+    return 'border-slate-300/70 bg-slate-500/10 text-slate-700 dark:text-slate-300';
+  };
+
+  const getAiImprovementHint = (status: AiChatLogStatus, lastError: string) => {
+    if (status === 'blocked') {
+      return dashboardIsEnglish
+        ? 'Review security prompt and avoid risky instructions in user flow.'
+        : 'Revisa el prompt de seguridad y evita instrucciones riesgosas en el flujo del usuario.';
+    }
+    if (status === 'rate_limited') {
+      return dashboardIsEnglish
+        ? 'The chat is hitting rate limits. Lower traffic bursts or add retry strategy.'
+        : 'El chat esta llegando al limite de tasa. Reduce rafagas de trafico o agrega reintentos.';
+    }
+    if (status === 'error') {
+      if (lastError) {
+        return dashboardIsEnglish
+          ? `Latest error: ${lastError}`
+          : `Ultimo error: ${lastError}`;
+      }
+      return dashboardIsEnglish
+        ? 'Check AI provider key/model and system prompt coherence.'
+        : 'Revisa clave/modelo del proveedor IA y coherencia del prompt del sistema.';
+    }
+    return dashboardIsEnglish
+      ? 'Review short/weak responses and tighten qualification questions in the prompt.'
+      : 'Revisa respuestas cortas o debiles y ajusta preguntas de precalificacion en el prompt.';
+  };
 
 
   // PWA Install Prompt
@@ -1074,6 +1215,50 @@ export default function Dashboard() {
         .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) as Payment[];
 
       setPayments(paymentsData);
+
+      try {
+        const qAiChatLogs = query(collection(db, 'ai_chat_logs'), where('client_id', '==', userId));
+        const aiChatLogsSnap = await getDocs(qAiChatLogs);
+        const aiChatLogsData = aiChatLogsSnap.docs
+          .map((logDoc) => {
+            const data: any = logDoc.data() || {};
+            const statusRaw = String(data.status || '').trim().toLowerCase();
+            const normalizedStatus: AiChatLogStatus =
+              statusRaw === 'ok' || statusRaw === 'blocked' || statusRaw === 'rate_limited' || statusRaw === 'error'
+                ? statusRaw
+                : 'unknown';
+            const historyRaw = Array.isArray(data.history_excerpt) ? data.history_excerpt : [];
+            return {
+              id: logDoc.id,
+              client_id: String(data.client_id || ''),
+              widget_id: String(data.widget_id || ''),
+              conversation_id: String(data.conversation_id || ''),
+              source: String(data.source || 'unknown'),
+              status: normalizedStatus,
+              blocked: data.blocked === true,
+              rate_limited: data.rate_limited === true,
+              user_message: String(data.user_message || ''),
+              ai_response: String(data.ai_response || ''),
+              error_message: String(data.error_message || ''),
+              history_count: Number(data.history_count || 0),
+              history_excerpt: historyRaw
+                .filter((item: any) => item && typeof item === 'object')
+                .map((item: any) => ({
+                  role: String(item.role || ''),
+                  content: String(item.content || ''),
+                })),
+              created_at: String(data.created_at || ''),
+              latency_ms: Number.isFinite(Number(data.latency_ms)) ? Number(data.latency_ms) : undefined,
+              upstream_status: Number.isFinite(Number(data.upstream_status)) ? Number(data.upstream_status) : undefined,
+            } as AiChatLog;
+          })
+          .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+          .slice(0, 500);
+        setAiChatLogs(aiChatLogsData);
+      } catch (chatLogsError) {
+        console.error('Non-critical: Error loading AI chat logs:', chatLogsError);
+        setAiChatLogs([]);
+      }
 
       // Load analytics and blocked IPs if widget exists
       // Load Visits (from new 'visits' collection) where client_id == userId
@@ -3444,6 +3629,121 @@ export default function Dashboard() {
                     </div>
                   )}
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>{dashboardIsEnglish ? 'AI Conversation Console' : 'Consola de Conversaciones IA'}</CardTitle>
+                <CardDescription>
+                  {dashboardIsEnglish
+                    ? 'Review what the assistant answered, identify failures, and improve prompts with evidence.'
+                    : 'Revisa lo que respondio el asistente, detecta fallos y mejora prompts con evidencia real.'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-900/40">
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground">{dashboardIsEnglish ? 'Conversations' : 'Conversaciones'}</p>
+                    <p className="text-2xl font-bold">{aiConversationGroups.length}</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-900/40">
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground">{dashboardIsEnglish ? 'Messages logged' : 'Mensajes registrados'}</p>
+                    <p className="text-2xl font-bold">{filteredAiChatLogs.length}</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-900/40">
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground">{dashboardIsEnglish ? 'Conversations with issues' : 'Conversaciones con fallos'}</p>
+                    <p className="text-2xl font-bold text-rose-600">{aiConversationFailures}</p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {[
+                    { id: 'all', label: dashboardIsEnglish ? 'All' : 'Todo' },
+                    { id: 'ok', label: dashboardIsEnglish ? 'OK' : 'Correcto' },
+                    { id: 'blocked', label: dashboardIsEnglish ? 'Blocked' : 'Bloqueado' },
+                    { id: 'rate_limited', label: dashboardIsEnglish ? 'Rate limited' : 'Limite de tasa' },
+                    { id: 'error', label: dashboardIsEnglish ? 'Error' : 'Error' },
+                  ].map((option) => (
+                    <Button
+                      key={option.id}
+                      type="button"
+                      size="sm"
+                      variant={aiChatStatusFilter === option.id ? 'default' : 'outline'}
+                      onClick={() => setAiChatStatusFilter(option.id as 'all' | AiChatLogStatus)}
+                    >
+                      {option.label}
+                    </Button>
+                  ))}
+                </div>
+
+                {aiConversationGroups.length === 0 ? (
+                  <div className="rounded-xl border-2 border-dashed border-slate-200 p-6 text-center text-sm text-muted-foreground dark:border-slate-800">
+                    {dashboardIsEnglish
+                      ? 'No conversation logs yet. As soon as users chat with the assistant, records will appear here.'
+                      : 'Aun no hay registros de conversaciones. En cuanto los usuarios chateen con la IA, apareceran aqui.'}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {aiConversationGroups.slice(0, 120).map((conversation) => (
+                      <details key={conversation.conversationId} className="rounded-xl border border-slate-200 bg-white/70 p-3 dark:border-slate-800 dark:bg-slate-950/40">
+                        <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold">
+                              {dashboardIsEnglish ? 'Conversation' : 'Conversacion'} {conversation.conversationId.slice(0, 14)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {conversation.logs.length} {dashboardIsEnglish ? 'messages' : 'mensajes'} • {conversation.source || 'unknown'} • {conversation.widgetId || '-'}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${getAiLogStatusClass(conversation.status)}`}>
+                              {getAiLogStatusLabel(conversation.status)}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {conversation.lastAt ? new Date(conversation.lastAt).toLocaleString(dashboardLocale) : '-'}
+                            </span>
+                          </div>
+                        </summary>
+
+                        <div className="mt-3 space-y-3 border-t border-slate-200 pt-3 dark:border-slate-800">
+                          {conversation.status !== 'ok' ? (
+                            <div className="rounded-lg border border-amber-300/70 bg-amber-500/10 p-2 text-xs text-amber-800 dark:text-amber-300">
+                              {getAiImprovementHint(conversation.status, conversation.lastError)}
+                            </div>
+                          ) : null}
+
+                          {conversation.logs.slice(-8).map((logItem) => (
+                            <div key={logItem.id} className="space-y-1 rounded-lg border border-slate-200 p-2.5 dark:border-slate-800">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${getAiLogStatusClass(logItem.status)}`}>
+                                  {getAiLogStatusLabel(logItem.status)}
+                                </span>
+                                <span className="text-[11px] text-muted-foreground">
+                                  {logItem.created_at ? new Date(logItem.created_at).toLocaleString(dashboardLocale) : '-'}
+                                  {Number.isFinite(Number(logItem.latency_ms)) ? ` • ${Math.round(Number(logItem.latency_ms))}ms` : ''}
+                                </span>
+                              </div>
+                              <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs dark:border-slate-800 dark:bg-slate-900/50">
+                                <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">User</p>
+                                <p className="whitespace-pre-wrap break-words">{logItem.user_message || '-'}</p>
+                              </div>
+                              <div className="rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs dark:border-slate-800 dark:bg-slate-950/60">
+                                <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Assistant</p>
+                                <p className="whitespace-pre-wrap break-words">{logItem.ai_response || '-'}</p>
+                              </div>
+                              {logItem.error_message ? (
+                                <p className="text-xs text-rose-600 dark:text-rose-300">
+                                  {dashboardIsEnglish ? 'Error:' : 'Error:'} {logItem.error_message}
+                                </p>
+                              ) : null}
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

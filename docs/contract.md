@@ -73,6 +73,22 @@ Eventos generados por backend:
 - Chat:
   - `widget_id`, `event_type: "message_sent"`, `ip`, `created_at`
 
+### `ai_chat_logs`
+
+Eventos de consola IA (persistidos por proxy de chat):
+
+- `client_id`
+- `widget_id`
+- `conversation_id`
+- `source` (`lead_chat` | `widget_embed` | `sales_widget` | `unknown`)
+- `status` (`ok` | `blocked` | `rate_limited` | `error` | `unknown`)
+- `blocked`, `rate_limited`
+- `user_message`, `ai_response`, `error_message`
+- `history_count`, `history_excerpt` (ultimos turnos truncados)
+- `upstream_status`, `latency_ms`, `user_timezone`
+- `ip`, `user_agent`, `referer`
+- `created_at`
+
 ### `blocked_ips`
 
 - `widget_id`
@@ -141,7 +157,7 @@ Base detectada:
 
 - Body JSON:
   - Requeridos: `message`, `widgetId`
-  - Opcionales: `history` (array `{ role, content }`), `userTimezone`
+  - Opcionales: `history` (array `{ role, content }`), `userTimezone`, `conversationId`, `source`
 - Respuestas observadas:
   - `200`: `{ response: "<texto>" }`
   - `200`: `{ response: "<texto>", blocked: true }` (cierres de seguridad)
@@ -283,6 +299,7 @@ Codigo observado:
 Asuncion:
 
 - En produccion, la precedencia exacta entre rewrite global y archivos `api/*.js` depende del runtime de despliegue. El frontend consume `/api/*` y espera contrato del backend externo.
+- El proxy local de `POST /api/chat` ademas persiste trazas resumidas de cada intercambio en `ai_chat_logs` para consola de debugging en Dashboard (sin cambiar el contrato de respuesta hacia el cliente).
 
 ## Formato de errores
 
