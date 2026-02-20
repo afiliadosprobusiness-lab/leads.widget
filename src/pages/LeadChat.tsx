@@ -603,7 +603,6 @@ function shouldUseSalesQuickReplies(candidate: string[]) {
 }
 
 function shouldUseSalesTeaserMessages(candidate: string[]) {
-  if (candidate.length === 0) return true;
   return LEGACY_TEASER_MESSAGES.some((legacy) => arraysLooselyMatch(candidate, legacy));
 }
 
@@ -626,7 +625,13 @@ function resolveQuickReplies(rawQuickReplies: unknown, locale: ChatLocale) {
 }
 
 function resolveTeaserMessages(rawTeasers: unknown, locale: ChatLocale) {
+  if (rawTeasers === undefined || rawTeasers === null) {
+    return [...SALES_COPY[locale].teaserMessages];
+  }
   const parsed = normalizeStringArray(rawTeasers).slice(0, 12);
+  if (parsed.length === 0) {
+    return [];
+  }
   if (shouldUseSalesTeaserMessages(parsed)) {
     return [...SALES_COPY[locale].teaserMessages];
   }

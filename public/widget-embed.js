@@ -483,7 +483,7 @@
   }
 
   function getLocalizedTeaserMessages(currentTeasers) {
-    if (!Array.isArray(currentTeasers) || currentTeasers.length === 0 || shouldUseLocalizedTeasers(currentTeasers)) {
+    if (!Array.isArray(currentTeasers) || shouldUseLocalizedTeasers(currentTeasers)) {
       return [...LEGACY_TEASERS[activeLanguage]];
     }
     return currentTeasers;
@@ -702,6 +702,9 @@
       if (backendResponse.ok) {
         const payload = await backendResponse.json();
         if (payload && payload.config) {
+          const hasTeaserField =
+            Object.prototype.hasOwnProperty.call(payload.config, 'teaserMessages') ||
+            Object.prototype.hasOwnProperty.call(payload.config, 'teaser_messages');
           const quickReplies = parseStringList(
             payload.config.quickReplies ||
             payload.config.quick_replies
@@ -727,7 +730,7 @@
             welcomeImageUrl: backendWelcomeImage || firestoreWelcomeFallback.welcomeImageUrl,
             welcomeAudioUrl: backendWelcomeAudio || firestoreWelcomeFallback.welcomeAudioUrl,
             quickReplies: quickReplies.length > 0 ? quickReplies : [...config.quickReplies],
-            teaserMessages: teaserMessages.length > 0 ? teaserMessages : [...config.teaserMessages],
+            teaserMessages: hasTeaserField ? teaserMessages : [...config.teaserMessages],
             testimonials: testimonials.length > 0 ? testimonials : [],
             liveActivities: liveActivities.length > 0 ? liveActivities : [...config.liveActivities],
             clientId: payload.config.clientId || config.clientId || identity,
@@ -804,10 +807,14 @@
 
         // Parse teaser messages
         let teaserMessages = defaultConfig.teaserMessages;
-        if (fields.teaser_messages?.arrayValue?.values) {
-          teaserMessages = fields.teaser_messages.arrayValue.values.map(v => v.stringValue);
-        } else if (fields.teaser_messages?.stringValue) {
-          teaserMessages = fields.teaser_messages.stringValue.split('\n').filter(r => r.trim());
+        if (Object.prototype.hasOwnProperty.call(fields, 'teaser_messages')) {
+          if (Array.isArray(fields.teaser_messages?.arrayValue?.values)) {
+            teaserMessages = fields.teaser_messages.arrayValue.values.map(v => v.stringValue);
+          } else if (typeof fields.teaser_messages?.stringValue === 'string') {
+            teaserMessages = fields.teaser_messages.stringValue.split('\n').filter(r => r.trim());
+          } else {
+            teaserMessages = [];
+          }
         }
 
         // Parse legacy live activity values (kept for compatibility in config refresh)
@@ -1400,7 +1407,7 @@
         white-space: pre-wrap;
       }
       .lw-msg-media-only {
-        min-width: 220px;
+        min-width: 176px;
       }
       @keyframes lw-fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
       .lw-msg-assistant {
@@ -1456,8 +1463,9 @@
         display: flex;
         align-items: center;
         gap: 8px;
-        min-width: 220px;
-        max-width: 290px;
+        width: 100%;
+        min-width: 0;
+        max-width: 230px;
         padding: 8px 10px;
         border-radius: 16px;
         border: 1px solid var(--lw-border);

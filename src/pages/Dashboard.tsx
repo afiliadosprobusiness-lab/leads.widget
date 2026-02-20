@@ -2541,6 +2541,7 @@ export default function Dashboard() {
                         placeholder="Escribe un mensaje por línea..."
                       />
                       <p className="text-[10px] text-primary italic">{t('dashboard.widget_config.teaser_hint')}</p>
+                      <p className="text-[10px] text-muted-foreground">Si lo dejas vacio y guardas, el teaser se desactiva.</p>
                     </div>
 
                     {/* Quick Replies Editor */}
