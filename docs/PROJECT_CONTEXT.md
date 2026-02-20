@@ -141,6 +141,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - En IA > Prompt del Sistema (plantillas por nicho), cuando el lead pregunta por precio/costo/inversion, el guion responde la oferta exacta: `S/ 80 mensual + S/ 200 implementacion unica`.
 - `WHATSAPP_REDIRECT` se mantiene como opcion secundaria; la guia permite alternar comando (ICallCloser/WhatsApp) e insertarlo al prompt con un boton.
 - Upload de bienvenida en dashboard usa Cloudinary cuando existen `VITE_CLOUDINARY_CLOUD_NAME` + `VITE_CLOUDINARY_UPLOAD_PRESET`; si no existen, usa fallback a Firebase Storage.
+- En Dashboard > Configuracion del widget > Audio de bienvenida, ademas de subir archivo/URL ahora se puede grabar audio en el momento (microfono del navegador) y se sube por el mismo pipeline Cloudinary/Firebase.
 - Para reducir costo de tokens, Lead Chat/widget embebido/SalesWidget ahora envian al backend una directiva compacta de respuesta y una ventana de historial acotada (ultimos 12 mensajes no-system).
 - En Dashboard > IA, `ai_max_tokens` ahora respeta el valor persistido y se normaliza al rango `100..4000` al guardar (evita fallback visual involuntario a `500` tras recargar).
 - En configuracion Lead Chat, la URL de redireccion post-consentimiento queda fija en `https://ai-call-closer.vercel.app/` y no es editable desde dashboard.

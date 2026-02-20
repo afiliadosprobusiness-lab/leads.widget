@@ -1,4 +1,4 @@
-import { useState, useEffect, type ChangeEvent } from 'react';
+import { useState, useEffect, useRef, type ChangeEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth, isSuperAdminEmail } from '@/lib/auth';
 import { auth, db, storage } from '@/lib/firebase';
@@ -589,8 +589,60 @@ export default function Dashboard() {
   const [showApiKey, setShowApiKey] = useState(false);
   const [uploadingWelcomeImage, setUploadingWelcomeImage] = useState(false);
   const [uploadingWelcomeAudio, setUploadingWelcomeAudio] = useState(false);
+  const [recordingWelcomeAudio, setRecordingWelcomeAudio] = useState(false);
+  const [welcomeAudioRecordingSupported, setWelcomeAudioRecordingSupported] = useState(false);
+  const welcomeAudioRecorderRef = useRef<MediaRecorder | null>(null);
+  const welcomeAudioStreamRef = useRef<MediaStream | null>(null);
+  const welcomeAudioChunksRef = useRef<BlobPart[]>([]);
 
   const canUseCloudinaryUploads = Boolean(CLOUDINARY_CLOUD_NAME && CLOUDINARY_UPLOAD_PRESET);
+
+  const stopWelcomeAudioStream = () => {
+    const stream = welcomeAudioStreamRef.current;
+    if (!stream) return;
+    stream.getTracks().forEach((track) => track.stop());
+    welcomeAudioStreamRef.current = null;
+  };
+
+  const resetWelcomeAudioRecorder = () => {
+    welcomeAudioRecorderRef.current = null;
+    welcomeAudioChunksRef.current = [];
+    stopWelcomeAudioStream();
+  };
+
+  const validateWelcomeMediaSize = (file: File, kind: WelcomeMediaKind) => {
+    const maxBytes = kind === 'audio' ? 15 * 1024 * 1024 : 6 * 1024 * 1024;
+    if (file.size <= maxBytes) return true;
+    toast({
+      title: 'Archivo demasiado grande',
+      description: kind === 'audio'
+        ? 'El audio debe ser menor a 15MB.'
+        : 'La imagen debe ser menor a 6MB.',
+      variant: 'destructive',
+    });
+    return false;
+  };
+
+  const uploadWelcomeMediaFile = async (file: File, kind: WelcomeMediaKind) => {
+    const uploadedUrl = canUseCloudinaryUploads
+      ? await uploadWelcomeMediaToCloudinary(file, kind)
+      : await uploadWelcomeMediaToFirebase(file, kind);
+    const safeUrl = sanitizeMediaUrl(uploadedUrl);
+    if (!safeUrl) {
+      throw new Error('No se obtuvo una URL valida del archivo subido.');
+    }
+    setFormConfig((prev) => (
+      kind === 'image'
+        ? { ...prev, welcome_image_url: safeUrl }
+        : { ...prev, welcome_audio_url: safeUrl }
+    ));
+    toast({
+      title: 'Archivo subido',
+      description: canUseCloudinaryUploads
+        ? 'Se guardo en Cloudinary correctamente.'
+        : 'Se guardo en Firebase Storage correctamente.',
+    });
+  };
 
   const uploadWelcomeMediaToCloudinary = async (file: File, kind: WelcomeMediaKind) => {
     const resourceType = kind === 'audio' ? 'video' : 'image';
@@ -632,17 +684,7 @@ export default function Dashboard() {
     event.target.value = '';
     if (!file) return;
 
-    const maxBytes = kind === 'audio' ? 15 * 1024 * 1024 : 6 * 1024 * 1024;
-    if (file.size > maxBytes) {
-      toast({
-        title: 'Archivo demasiado grande',
-        description: kind === 'audio'
-          ? 'El audio debe ser menor a 15MB.'
-          : 'La imagen debe ser menor a 6MB.',
-        variant: 'destructive',
-      });
-      return;
-    }
+    if (!validateWelcomeMediaSize(file, kind)) return;
 
     if (kind === 'image') {
       setUploadingWelcomeImage(true);
@@ -651,24 +693,7 @@ export default function Dashboard() {
     }
 
     try {
-      const uploadedUrl = canUseCloudinaryUploads
-        ? await uploadWelcomeMediaToCloudinary(file, kind)
-        : await uploadWelcomeMediaToFirebase(file, kind);
-      const safeUrl = sanitizeMediaUrl(uploadedUrl);
-      if (!safeUrl) {
-        throw new Error('No se obtuvo una URL valida del archivo subido.');
-      }
-      setFormConfig((prev) => (
-        kind === 'image'
-          ? { ...prev, welcome_image_url: safeUrl }
-          : { ...prev, welcome_audio_url: safeUrl }
-      ));
-      toast({
-        title: 'Archivo subido',
-        description: canUseCloudinaryUploads
-          ? 'Se guardo en Cloudinary correctamente.'
-          : 'Se guardo en Firebase Storage correctamente.',
-      });
+      await uploadWelcomeMediaFile(file, kind);
     } catch (error: any) {
       toast({
         title: 'Error al subir archivo',
@@ -681,6 +706,149 @@ export default function Dashboard() {
       } else {
         setUploadingWelcomeAudio(false);
       }
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const canRecord = Boolean(
+      navigator?.mediaDevices?.getUserMedia && typeof MediaRecorder !== 'undefined'
+    );
+    setWelcomeAudioRecordingSupported(canRecord);
+    return () => {
+      const recorder = welcomeAudioRecorderRef.current;
+      if (recorder && recorder.state !== 'inactive') {
+        try {
+          recorder.ondataavailable = null;
+          recorder.onerror = null;
+          recorder.onstop = null;
+          recorder.stop();
+        } catch {
+          // noop
+        }
+      }
+      resetWelcomeAudioRecorder();
+    };
+  }, []);
+
+  const getRecordedAudioExtension = (mimeType: string) => {
+    const normalized = String(mimeType || '').toLowerCase();
+    if (normalized.includes('mp4')) return 'm4a';
+    if (normalized.includes('mpeg')) return 'mp3';
+    if (normalized.includes('ogg')) return 'ogg';
+    if (normalized.includes('wav')) return 'wav';
+    return 'webm';
+  };
+
+  const stopWelcomeAudioRecording = () => {
+    const recorder = welcomeAudioRecorderRef.current;
+    if (!recorder || recorder.state === 'inactive') {
+      setRecordingWelcomeAudio(false);
+      resetWelcomeAudioRecorder();
+      return;
+    }
+    recorder.stop();
+  };
+
+  const startWelcomeAudioRecording = async () => {
+    if (uploadingWelcomeAudio || recordingWelcomeAudio) return;
+    if (!welcomeAudioRecordingSupported) {
+      toast({
+        title: 'Grabacion no disponible',
+        description: 'Tu navegador no soporta grabacion de audio en este panel.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      welcomeAudioStreamRef.current = stream;
+      const preferredMimeTypes = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/mp4',
+        'audio/ogg;codecs=opus',
+      ];
+      const selectedMimeType = preferredMimeTypes.find((candidate) => {
+        try {
+          return MediaRecorder.isTypeSupported(candidate);
+        } catch {
+          return false;
+        }
+      });
+
+      const recorder = selectedMimeType
+        ? new MediaRecorder(stream, { mimeType: selectedMimeType })
+        : new MediaRecorder(stream);
+
+      welcomeAudioRecorderRef.current = recorder;
+      welcomeAudioChunksRef.current = [];
+
+      recorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          welcomeAudioChunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onerror = () => {
+        setRecordingWelcomeAudio(false);
+        resetWelcomeAudioRecorder();
+        toast({
+          title: 'Error de grabacion',
+          description: 'No se pudo continuar la grabacion de audio.',
+          variant: 'destructive',
+        });
+      };
+
+      recorder.onstop = async () => {
+        const mimeType = recorder.mimeType || 'audio/webm';
+        const chunks = [...welcomeAudioChunksRef.current];
+        setRecordingWelcomeAudio(false);
+        resetWelcomeAudioRecorder();
+
+        if (chunks.length === 0) {
+          toast({
+            title: 'Sin audio',
+            description: 'No se detecto audio grabado. Intenta nuevamente.',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        const blob = new Blob(chunks, { type: mimeType });
+        const extension = getRecordedAudioExtension(mimeType);
+        const file = new File([blob], `welcome-audio-${Date.now()}.${extension}`, { type: mimeType });
+        if (!validateWelcomeMediaSize(file, 'audio')) return;
+
+        setUploadingWelcomeAudio(true);
+        try {
+          await uploadWelcomeMediaFile(file, 'audio');
+        } catch (error: any) {
+          toast({
+            title: 'Error al subir audio grabado',
+            description: String(error?.message || 'No se pudo subir el audio grabado.'),
+            variant: 'destructive',
+          });
+        } finally {
+          setUploadingWelcomeAudio(false);
+        }
+      };
+
+      recorder.start(250);
+      setRecordingWelcomeAudio(true);
+      toast({
+        title: 'Grabacion iniciada',
+        description: 'Presiona "Detener grabacion" cuando termines.',
+      });
+    } catch (error: any) {
+      setRecordingWelcomeAudio(false);
+      resetWelcomeAudioRecorder();
+      toast({
+        title: 'Permiso de microfono requerido',
+        description: String(error?.message || 'Debes permitir el uso del microfono para grabar audio.'),
+        variant: 'destructive',
+      });
     }
   };
 
@@ -2001,7 +2169,7 @@ export default function Dashboard() {
                     <div className="flex flex-wrap items-center gap-2">
                       <label
                         className={`inline-flex h-9 items-center rounded-md border border-input px-3 text-sm font-medium ${
-                          uploadingWelcomeAudio ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-accent'
+                          uploadingWelcomeAudio || recordingWelcomeAudio ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-accent'
                         }`}
                       >
                         {uploadingWelcomeAudio ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -2010,10 +2178,19 @@ export default function Dashboard() {
                           type="file"
                           accept="audio/*"
                           className="sr-only"
-                          disabled={uploadingWelcomeAudio}
+                          disabled={uploadingWelcomeAudio || recordingWelcomeAudio}
                           onChange={(event) => void handleWelcomeMediaUpload(event, 'audio')}
                         />
                       </label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-9"
+                        disabled={uploadingWelcomeAudio || (!recordingWelcomeAudio && !welcomeAudioRecordingSupported)}
+                        onClick={() => void (recordingWelcomeAudio ? stopWelcomeAudioRecording() : startWelcomeAudioRecording())}
+                      >
+                        {recordingWelcomeAudio ? 'Detener grabacion' : 'Grabar audio'}
+                      </Button>
                       {sanitizeMediaUrl(formConfig.welcome_audio_url) ? (
                         <a
                           href={sanitizeMediaUrl(formConfig.welcome_audio_url)}
@@ -2025,6 +2202,11 @@ export default function Dashboard() {
                         </a>
                       ) : null}
                     </div>
+                    {recordingWelcomeAudio ? (
+                      <p className="text-xs text-rose-500">
+                        Grabando audio... presiona "Detener grabacion" para subirlo.
+                      </p>
+                    ) : null}
                     {sanitizeMediaUrl(formConfig.welcome_audio_url) ? (
                       <audio controls preload="metadata" className="w-full max-w-xs">
                         <source src={sanitizeMediaUrl(formConfig.welcome_audio_url)} />
