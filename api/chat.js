@@ -8,7 +8,8 @@ function trimText(value, max = 500) {
   const raw = String(value || "").trim();
   if (!raw) return "";
   if (raw.length <= max) return raw;
-  return `${raw.slice(0, max - 1)}…`;
+  if (max <= 3) return raw.slice(0, max);
+  return `${raw.slice(0, max - 3)}...`;
 }
 
 function getClientIp(req) {
@@ -36,6 +37,14 @@ function buildHistoryExcerpt(history) {
       role: trimText(item.role || "unknown", 20),
       content: trimText(item.content || "", 280),
     }));
+}
+
+function hasSecuritySignal(text) {
+  const normalized = String(text || "").trim().toLowerCase();
+  if (!normalized) return false;
+  const securityRegex =
+    /\b(hack|hacker|jailbreak|bypass|exploit|inject|injection|sqlmap|xss|csrf|credential|api key|token|password|vulnerab|ignore (all|previous|system)|prompt injection)\b/i;
+  return securityRegex.test(normalized);
 }
 
 function detectCommandFlags(responseText) {
@@ -115,6 +124,7 @@ async function persistChatLog({ req, body, upstreamStatus, payload, rawPayload, 
     history_count: Array.isArray(body?.history) ? body.history.length : 0,
     history_excerpt: buildHistoryExcerpt(body?.history),
     command_flags: detectCommandFlags(aiResponse),
+    security_signal: statusData.blocked || hasSecuritySignal(userMessage),
     upstream_status: Number.isFinite(Number(upstreamStatus)) ? Number(upstreamStatus) : null,
     latency_ms: Number.isFinite(Number(latencyMs)) ? Math.max(0, Math.round(Number(latencyMs))) : null,
     user_timezone: trimText(body?.userTimezone || "", 80) || null,

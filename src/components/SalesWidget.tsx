@@ -18,6 +18,7 @@ type Message = {
 type WidgetLocale = "es" | "en";
 type WidgetTheme = "light" | "dark";
 type BrowserSpeechRecognitionCtor = new () => SpeechRecognition;
+type ChatEventType = "whatsapp_open" | "iacallcloser_open";
 
 const MY_WIDGET_ID = "demo-landing";
 const FALLBACK_IACALLCLOSER_REDIRECT_URL = "https://ai-call-closer.vercel.app/";
@@ -212,6 +213,16 @@ function detectMessageLocale(value: string, fallback: WidgetLocale): WidgetLocal
   return fallback;
 }
 
+function inferChatEventTypeByUrl(url: string): ChatEventType | null {
+  const normalized = String(url || "").trim().toLowerCase();
+  if (!normalized) return null;
+  if (normalized.includes("wa.me/") || normalized.includes("whatsapp.com")) return "whatsapp_open";
+  if (normalized.includes("ai-call-closer") || normalized.includes("iacallcloser") || normalized.includes("icloser")) {
+    return "iacallcloser_open";
+  }
+  return null;
+}
+
 function getCostControlDirective(locale: WidgetLocale) {
   if (locale === "es") {
     return "Se breve y orientado a conversion. Maximo 90 palabras, usa como maximo 1 emoji, evita repetir imagenes/audios. Usa [AUDIO] solo en bienvenida o CTA final (maximo 1 audio dinamico por conversacion). Si usas [IMAGE], prioriza URL Cloudinary en calidad media (q_auto:good, w<=960).";
@@ -261,6 +272,38 @@ export function SalesWidget() {
   const pendingVoiceAutoSendRef = useRef(false);
   const handleSendFromVoiceRef = useRef<(value: string) => void>(() => {});
   const conversationIdRef = useRef(`sales-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
+
+  const trackConversationEvent = useCallback(async (eventType: ChatEventType, meta: Record<string, string> = {}) => {
+    try {
+      await fetch("/api/chat-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          widgetId: MY_WIDGET_ID,
+          source: "sales_widget",
+          conversationId: conversationIdRef.current,
+          eventType,
+          userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          meta,
+        }),
+      });
+    } catch {
+      // non-blocking telemetry
+    }
+  }, []);
+
+  const openTrackedAction = useCallback(
+    (url: string, trigger: "auto" | "button" = "button") => {
+      const cleanUrl = String(url || "").trim();
+      if (!cleanUrl) return;
+      const eventType = inferChatEventTypeByUrl(cleanUrl);
+      if (eventType) {
+        void trackConversationEvent(eventType, { trigger });
+      }
+      window.open(cleanUrl, "_blank", "noopener,noreferrer");
+    },
+    [trackConversationEvent],
+  );
 
   const testimonial = copy.testimonials[activeTestimonialIndex % copy.testimonials.length];
   const testimonialStars = buildWhatsAppStars(testimonial.stars);
@@ -578,7 +621,7 @@ export function SalesWidget() {
         if (selectedAction) {
           if (selectedAction.type === "whatsapp" && window.fbq) window.fbq("track", "Lead");
           window.setTimeout(() => {
-            window.open(selectedAction.url, "_blank", "noopener,noreferrer");
+            openTrackedAction(selectedAction.url, "auto");
           }, 1600);
         }
       } catch (error) {
@@ -602,6 +645,7 @@ export function SalesWidget() {
       locale,
       markUserInteraction,
       messages,
+      openTrackedAction,
     ],
   );
 
@@ -850,7 +894,7 @@ export function SalesWidget() {
                 <div className="w-full space-y-2 text-center">
                   <p className={`inline-block rounded-full px-3 py-1 text-xs ${isLightMode ? "bg-slate-200 text-slate-600" : "bg-white/10 text-slate-200"}`}>{msg.content}</p>
                   {msg.actionUrl ? (
-                    <Button type="button" className="h-10 w-full gap-2 bg-[#25D366] font-semibold text-white hover:bg-[#1ea955]" onClick={() => window.open(msg.actionUrl, "_blank", "noopener,noreferrer")}>
+                    <Button type="button" className="h-10 w-full gap-2 bg-[#25D366] font-semibold text-white hover:bg-[#1ea955]" onClick={() => openTrackedAction(String(msg.actionUrl || ""), "button")}>
                       <MessageCircle className="h-4 w-4" />
                       {msg.actionLabel || copy.openWhatsAppNow}
                     </Button>

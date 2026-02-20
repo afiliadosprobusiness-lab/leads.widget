@@ -290,6 +290,52 @@
     return `https://wa.me/${cleanDestination}?text=${encodeURIComponent(cleanMessage)}`;
   }
 
+  function inferChatEventTypeByUrl(url) {
+    const normalized = String(url || '').trim().toLowerCase();
+    if (!normalized) return '';
+    if (normalized.includes('wa.me/') || normalized.includes('whatsapp.com')) return 'whatsapp_open';
+    if (normalized.includes('ai-call-closer') || normalized.includes('iacallcloser') || normalized.includes('icloser')) {
+      return 'iacallcloser_open';
+    }
+    return '';
+  }
+
+  function trackConversationEvent(eventType, meta) {
+    const safeEventType = String(eventType || '').trim().toLowerCase();
+    if (!safeEventType) return;
+    const widgetId = String(config.widgetId || config.clientId || '').trim();
+    if (!widgetId) return;
+    let endpoint = '/api/chat-event';
+    const scripts = document.getElementsByTagName('script');
+    for (const script of scripts) {
+      if (script.src && script.src.includes('widget-embed.js')) {
+        try {
+          const url = new URL(script.src);
+          endpoint = `${url.origin}/api/chat-event`;
+        } catch (_) {
+          endpoint = '/api/chat-event';
+        }
+        break;
+      }
+    }
+    try {
+      fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          widgetId: widgetId,
+          source: 'widget_embed',
+          conversationId: conversationId,
+          eventType: safeEventType,
+          userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          meta: meta && typeof meta === 'object' ? meta : {}
+        })
+      }).catch(() => {});
+    } catch (_) {
+      // non-blocking telemetry
+    }
+  }
+
   function parseImagePayload(rawPayload) {
     const payload = stripCommandQuotes(rawPayload || '');
     if (!payload) return { url: '', alt: '' };
@@ -2597,6 +2643,10 @@
         btn.addEventListener('click', () => {
           const url = String(btn.getAttribute('data-action-url') || '').trim();
           if (!url) return;
+          const eventType = inferChatEventTypeByUrl(url);
+          if (eventType) {
+            trackConversationEvent(eventType, { trigger: 'button' });
+          }
           window.open(url, '_blank', 'noopener,noreferrer');
         });
       });
@@ -2761,6 +2811,10 @@
 
       if (selectedAction) {
         setTimeout(() => {
+          const eventType = inferChatEventTypeByUrl(selectedAction.url);
+          if (eventType) {
+            trackConversationEvent(eventType, { trigger: 'auto' });
+          }
           window.open(selectedAction.url, '_blank', 'noopener,noreferrer');
         }, 1800);
       }

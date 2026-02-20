@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Loader2, Mic, MicOff, Moon, PhoneCall, Send, ShieldCheck, Smile, Sun, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -318,6 +318,18 @@ declare global {
 
 function sanitizePhone(value: string) {
   return value.replace(/\D/g, "").slice(0, 15);
+}
+
+type ChatEventType = "whatsapp_open" | "iacallcloser_open";
+
+function inferChatEventTypeByUrl(url: string): ChatEventType | null {
+  const normalized = String(url || "").trim().toLowerCase();
+  if (!normalized) return null;
+  if (normalized.includes("wa.me/") || normalized.includes("whatsapp.com")) return "whatsapp_open";
+  if (normalized.includes("ai-call-closer") || normalized.includes("iacallcloser") || normalized.includes("icloser")) {
+    return "iacallcloser_open";
+  }
+  return null;
 }
 
 function withBotEmoji(value: string) {
@@ -860,6 +872,43 @@ export default function LeadChat() {
     setLastUserInteractionAt(Date.now());
     setTeaserVisible(false);
   };
+
+  const trackConversationEvent = useCallback(
+    async (eventType: ChatEventType, meta: Record<string, string> = {}) => {
+      const widgetId = String(config?.widgetId || "").trim();
+      if (!widgetId) return;
+      try {
+        await fetch("/api/chat-event", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            widgetId,
+            source: "lead_chat",
+            conversationId: conversationIdRef.current,
+            eventType,
+            userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            meta,
+          }),
+        });
+      } catch {
+        // non-blocking telemetry
+      }
+    },
+    [config?.widgetId],
+  );
+
+  const openTrackedAction = useCallback(
+    (url: string, trigger: "auto" | "button" | "handoff" = "button") => {
+      const cleanUrl = String(url || "").trim();
+      if (!cleanUrl) return;
+      const eventType = inferChatEventTypeByUrl(cleanUrl);
+      if (eventType) {
+        void trackConversationEvent(eventType, { trigger });
+      }
+      window.open(cleanUrl, "_blank", "noopener,noreferrer");
+    },
+    [trackConversationEvent],
+  );
 
   const clearRedirectCountdown = () => {
     if (redirectCountdownIntervalRef.current !== null) {
@@ -1547,7 +1596,7 @@ export default function LeadChat() {
           },
         ]);
         window.setTimeout(() => {
-          window.open(action.url, "_blank", "noopener,noreferrer");
+          openTrackedAction(action.url, "auto");
         }, 1400);
       }
     } catch (error: any) {
@@ -1627,6 +1676,10 @@ export default function LeadChat() {
       setLeadConsentAccepted(false);
 
       if (redirectUrl) {
+        const redirectEventType = inferChatEventTypeByUrl(redirectUrl);
+        if (redirectEventType) {
+          void trackConversationEvent(redirectEventType, { trigger: "handoff" });
+        }
         startRedirectCountdown(redirectUrl, locale);
       }
     } catch (error: any) {
@@ -1871,7 +1924,7 @@ export default function LeadChat() {
                         <Button
                           type="button"
                           className="mt-2 h-9 w-full bg-[#25D366] text-white hover:bg-[#1ea955]"
-                          onClick={() => window.open(msg.actionUrl, "_blank", "noopener,noreferrer")}
+                          onClick={() => openTrackedAction(String(msg.actionUrl || ""), "button")}
                         >
                           {msg.actionLabel || copy.openIACallCloserNow}
                         </Button>

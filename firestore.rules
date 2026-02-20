@@ -78,6 +78,12 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // AI Chat Events (written by server-side proxy)
+    match /ai_chat_events/{eventId} {
+      allow read: if request.auth != null && (isLeadOwner(resource.data) || isSuperAdmin());
+      allow create, update, delete: if false;
+    }
+
     // Visits (New Analytics Tracking)
     match /visits/{visitId} {
       allow create: if true; // Public for widget tracking

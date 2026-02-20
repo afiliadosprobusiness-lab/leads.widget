@@ -169,6 +169,8 @@ interface Profile {
 type Payment = any;
 
 type AiChatLogStatus = 'ok' | 'blocked' | 'rate_limited' | 'error' | 'unknown';
+type AiChatEventType = 'whatsapp_open' | 'iacallcloser_open' | 'unknown';
+type AiConversationFilter = 'all' | 'not_completed' | 'completed' | 'security';
 
 interface AiChatHistoryItem {
   role: string;
@@ -189,9 +191,41 @@ interface AiChatLog {
   error_message?: string;
   history_count?: number;
   history_excerpt?: AiChatHistoryItem[];
+  command_flags?: {
+    whatsapp_redirect?: boolean;
+    icallcloser_ready?: boolean;
+    has_image?: boolean;
+    has_audio?: boolean;
+  };
+  security_signal?: boolean;
   created_at: string;
   latency_ms?: number;
   upstream_status?: number;
+}
+
+interface AiChatEvent {
+  id: string;
+  client_id: string;
+  widget_id: string;
+  conversation_id: string;
+  source: string;
+  event_type: AiChatEventType;
+  created_at: string;
+}
+
+interface AiConversationAnalysis {
+  summary: string;
+  rootCauses: string[];
+  improvements: string[];
+  promptPatch: string;
+  qualityScore: number;
+  provider: string;
+}
+
+interface AiConversationAnalysisState {
+  loading: boolean;
+  error: string;
+  data: AiConversationAnalysis | null;
 }
 
 const templates = [
@@ -272,6 +306,12 @@ function normalizeAiMaxTokens(value: unknown, fallback = AI_MAX_TOKENS_DEFAULT) 
   if (!Number.isFinite(parsed)) return fallback;
   const rounded = Math.round(parsed);
   return Math.min(AI_MAX_TOKENS_MAX, Math.max(AI_MAX_TOKENS_MIN, rounded));
+}
+
+function hasSecurityAttemptSignal(text: unknown) {
+  const normalized = String(text || '').trim().toLowerCase();
+  if (!normalized) return false;
+  return /\b(hack|hacker|jailbreak|bypass|exploit|inject|injection|sqlmap|xss|csrf|credential|api key|token|password|vulnerab|prompt injection)\b/i.test(normalized);
 }
 
 const LEAD_CHAT_COPY_DEFAULTS = {
@@ -377,7 +417,10 @@ export default function Dashboard() {
   const [payments, setPayments] = useState<any[]>([]);
   const [blockedIps, setBlockedIps] = useState<any[]>([]);
   const [aiChatLogs, setAiChatLogs] = useState<AiChatLog[]>([]);
+  const [aiChatEvents, setAiChatEvents] = useState<AiChatEvent[]>([]);
   const [aiChatStatusFilter, setAiChatStatusFilter] = useState<'all' | AiChatLogStatus>('all');
+  const [aiConversationFilter, setAiConversationFilter] = useState<AiConversationFilter>('all');
+  const [aiConversationAnalysisById, setAiConversationAnalysisById] = useState<Record<string, AiConversationAnalysisState>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -493,7 +536,22 @@ export default function Dashboard() {
       lastAt: string;
       status: AiChatLogStatus;
       lastError: string;
+      completedToWhatsapp: boolean;
+      securityRisk: boolean;
+      notCompleted: boolean;
+      hasRecentActivity: boolean;
+      eventTypes: AiChatEventType[];
     }>();
+    const eventsByConversation = new Map<string, AiChatEvent[]>();
+    for (const eventItem of aiChatEvents) {
+      const eventConversationId = String(eventItem.conversation_id || '').trim();
+      if (!eventConversationId) continue;
+      const list = eventsByConversation.get(eventConversationId) || [];
+      list.push(eventItem);
+      eventsByConversation.set(eventConversationId, list);
+    }
+    const nowMs = Date.now();
+    const inactiveThresholdMs = 5 * 60 * 1000;
 
     const getStatusRank = (status: AiChatLogStatus) => {
       if (status === 'error') return 4;
@@ -515,6 +573,11 @@ export default function Dashboard() {
           lastAt: log.created_at || '',
           status: log.status || 'unknown',
           lastError: log.error_message || '',
+          completedToWhatsapp: false,
+          securityRisk: false,
+          notCompleted: false,
+          hasRecentActivity: false,
+          eventTypes: [],
         });
         continue;
       }
@@ -538,12 +601,58 @@ export default function Dashboard() {
       .map((item) => ({
         ...item,
         logs: [...item.logs].sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()),
+        completedToWhatsapp: false,
+        securityRisk: false,
+        notCompleted: false,
+        hasRecentActivity: false,
+        eventTypes: [] as AiChatEventType[],
       }))
+      .map((item) => {
+        const events = eventsByConversation.get(item.conversationId) || [];
+        const eventTypes = Array.from(new Set(events.map((eventItem) => eventItem.event_type || 'unknown')));
+        const hasWhatsappOpenEvent = events.some((eventItem) => eventItem.event_type === 'whatsapp_open');
+        const hasWhatsappRedirectCommand = item.logs.some((log) => log.command_flags?.whatsapp_redirect === true);
+        const completedToWhatsapp = hasWhatsappOpenEvent || hasWhatsappRedirectCommand;
+        const securityRisk = item.logs.some((log) =>
+          log.status === 'blocked' ||
+          log.security_signal === true ||
+          hasSecurityAttemptSignal(log.user_message),
+        );
+        const lastAtMs = new Date(item.lastAt || 0).getTime();
+        const hasRecentActivity = Number.isFinite(lastAtMs) && lastAtMs > 0 && (nowMs - lastAtMs) < inactiveThresholdMs;
+        const notCompleted = !completedToWhatsapp && !securityRisk && !hasRecentActivity;
+        return {
+          ...item,
+          eventTypes,
+          completedToWhatsapp,
+          securityRisk,
+          hasRecentActivity,
+          notCompleted,
+        };
+      })
       .sort((a, b) => new Date(b.lastAt || 0).getTime() - new Date(a.lastAt || 0).getTime());
-  }, [filteredAiChatLogs]);
+  }, [aiChatEvents, filteredAiChatLogs]);
 
-  const aiConversationFailures = useMemo(
-    () => aiConversationGroups.filter((item) => item.status !== 'ok').length,
+  const filteredAiConversationGroups = useMemo(() => {
+    if (aiConversationFilter === 'all') return aiConversationGroups;
+    if (aiConversationFilter === 'not_completed') return aiConversationGroups.filter((item) => item.notCompleted);
+    if (aiConversationFilter === 'completed') return aiConversationGroups.filter((item) => item.completedToWhatsapp);
+    if (aiConversationFilter === 'security') return aiConversationGroups.filter((item) => item.securityRisk);
+    return aiConversationGroups;
+  }, [aiConversationFilter, aiConversationGroups]);
+
+  const aiNotCompletedCount = useMemo(
+    () => aiConversationGroups.filter((item) => item.notCompleted).length,
+    [aiConversationGroups],
+  );
+
+  const aiCompletedCount = useMemo(
+    () => aiConversationGroups.filter((item) => item.completedToWhatsapp).length,
+    [aiConversationGroups],
+  );
+
+  const aiSecurityCount = useMemo(
+    () => aiConversationGroups.filter((item) => item.securityRisk).length,
     [aiConversationGroups],
   );
 
@@ -587,6 +696,93 @@ export default function Dashboard() {
     return dashboardIsEnglish
       ? 'Review short/weak responses and tighten qualification questions in the prompt.'
       : 'Revisa respuestas cortas o debiles y ajusta preguntas de precalificacion en el prompt.';
+  };
+
+  const getConversationFlowLabel = (conversation: {
+    securityRisk: boolean;
+    completedToWhatsapp: boolean;
+    notCompleted: boolean;
+  }) => {
+    if (conversation.securityRisk) return dashboardIsEnglish ? 'Risk/Hack' : 'Riesgo/Hack';
+    if (conversation.completedToWhatsapp) return dashboardIsEnglish ? 'Lead completed' : 'Lead completado';
+    if (conversation.notCompleted) return dashboardIsEnglish ? 'Not completed' : 'No completado';
+    return dashboardIsEnglish ? 'In progress' : 'En curso';
+  };
+
+  const getConversationFlowClass = (conversation: {
+    securityRisk: boolean;
+    completedToWhatsapp: boolean;
+    notCompleted: boolean;
+  }) => {
+    if (conversation.securityRisk) return 'border-rose-300/70 bg-rose-500/10 text-rose-700 dark:text-rose-300';
+    if (conversation.completedToWhatsapp) return 'border-emerald-300/70 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300';
+    if (conversation.notCompleted) return 'border-sky-300/70 bg-sky-500/10 text-sky-700 dark:text-sky-300';
+    return 'border-slate-300/70 bg-slate-500/10 text-slate-700 dark:text-slate-300';
+  };
+
+  const handleAnalyzeConversation = async (
+    conversationId: string,
+    logs: AiChatLog[],
+  ) => {
+    if (!conversationId || !Array.isArray(logs) || logs.length === 0) return;
+    setAiConversationAnalysisById((prev) => ({
+      ...prev,
+      [conversationId]: {
+        loading: true,
+        error: '',
+        data: prev[conversationId]?.data || null,
+      },
+    }));
+
+    try {
+      const response = await fetch('/api/analyze-conversation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          locale: dashboardIsEnglish ? 'en' : 'es',
+          conversationId,
+          logs: logs.slice(-12).map((item) => ({
+            status: item.status,
+            user_message: item.user_message,
+            ai_response: item.ai_response,
+            error_message: item.error_message || '',
+            created_at: item.created_at,
+          })),
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || payload?.success !== true) {
+        throw new Error(payload?.error || (dashboardIsEnglish ? 'Could not analyze conversation.' : 'No se pudo analizar la conversacion.'));
+      }
+
+      const analysis = payload?.analysis || {};
+      const normalized: AiConversationAnalysis = {
+        summary: String(analysis.summary || ''),
+        rootCauses: Array.isArray(analysis.rootCauses) ? analysis.rootCauses.map((item: unknown) => String(item || '')).filter(Boolean).slice(0, 5) : [],
+        improvements: Array.isArray(analysis.improvements) ? analysis.improvements.map((item: unknown) => String(item || '')).filter(Boolean).slice(0, 5) : [],
+        promptPatch: String(analysis.promptPatch || ''),
+        qualityScore: Number.isFinite(Number(analysis.qualityScore)) ? Number(analysis.qualityScore) : 0,
+        provider: String(payload?.provider || 'heuristic'),
+      };
+
+      setAiConversationAnalysisById((prev) => ({
+        ...prev,
+        [conversationId]: {
+          loading: false,
+          error: '',
+          data: normalized,
+        },
+      }));
+    } catch (error: any) {
+      setAiConversationAnalysisById((prev) => ({
+        ...prev,
+        [conversationId]: {
+          loading: false,
+          error: String(error?.message || (dashboardIsEnglish ? 'Could not analyze conversation.' : 'No se pudo analizar la conversacion.')),
+          data: prev[conversationId]?.data || null,
+        },
+      }));
+    }
   };
 
 
@@ -1247,6 +1443,15 @@ export default function Dashboard() {
                   role: String(item.role || ''),
                   content: String(item.content || ''),
                 })),
+              command_flags: data.command_flags && typeof data.command_flags === 'object'
+                ? {
+                  whatsapp_redirect: data.command_flags.whatsapp_redirect === true,
+                  icallcloser_ready: data.command_flags.icallcloser_ready === true,
+                  has_image: data.command_flags.has_image === true,
+                  has_audio: data.command_flags.has_audio === true,
+                }
+                : undefined,
+              security_signal: data.security_signal === true,
               created_at: String(data.created_at || ''),
               latency_ms: Number.isFinite(Number(data.latency_ms)) ? Number(data.latency_ms) : undefined,
               upstream_status: Number.isFinite(Number(data.upstream_status)) ? Number(data.upstream_status) : undefined,
@@ -1255,9 +1460,34 @@ export default function Dashboard() {
           .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
           .slice(0, 500);
         setAiChatLogs(aiChatLogsData);
+
+        const qAiChatEvents = query(collection(db, 'ai_chat_events'), where('client_id', '==', userId));
+        const aiChatEventsSnap = await getDocs(qAiChatEvents);
+        const aiChatEventsData = aiChatEventsSnap.docs
+          .map((eventDoc) => {
+            const data: any = eventDoc.data() || {};
+            const rawEventType = String(data.event_type || '').trim().toLowerCase();
+            const eventType: AiChatEventType =
+              rawEventType === 'whatsapp_open' || rawEventType === 'iacallcloser_open'
+                ? rawEventType
+                : 'unknown';
+            return {
+              id: eventDoc.id,
+              client_id: String(data.client_id || ''),
+              widget_id: String(data.widget_id || ''),
+              conversation_id: String(data.conversation_id || ''),
+              source: String(data.source || 'unknown'),
+              event_type: eventType,
+              created_at: String(data.created_at || ''),
+            } as AiChatEvent;
+          })
+          .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+          .slice(0, 1000);
+        setAiChatEvents(aiChatEventsData);
       } catch (chatLogsError) {
         console.error('Non-critical: Error loading AI chat logs:', chatLogsError);
         setAiChatLogs([]);
+        setAiChatEvents([]);
       }
 
       // Load analytics and blocked IPs if widget exists
@@ -3632,7 +3862,7 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            <Card>
+                        <Card>
               <CardHeader>
                 <CardTitle>{dashboardIsEnglish ? 'AI Conversation Console' : 'Consola de Conversaciones IA'}</CardTitle>
                 <CardDescription>
@@ -3642,24 +3872,67 @@ export default function Dashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid gap-3 sm:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-4">
                   <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-900/40">
                     <p className="text-xs uppercase tracking-wider text-muted-foreground">{dashboardIsEnglish ? 'Conversations' : 'Conversaciones'}</p>
                     <p className="text-2xl font-bold">{aiConversationGroups.length}</p>
                   </div>
                   <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-900/40">
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground">{dashboardIsEnglish ? 'Messages logged' : 'Mensajes registrados'}</p>
-                    <p className="text-2xl font-bold">{filteredAiChatLogs.length}</p>
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground">{dashboardIsEnglish ? 'Not completed' : 'No completados'}</p>
+                    <p className="text-2xl font-bold text-sky-600">{aiNotCompletedCount}</p>
                   </div>
                   <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-900/40">
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground">{dashboardIsEnglish ? 'Conversations with issues' : 'Conversaciones con fallos'}</p>
-                    <p className="text-2xl font-bold text-rose-600">{aiConversationFailures}</p>
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground">{dashboardIsEnglish ? 'Lead completed' : 'Lead completado'}</p>
+                    <p className="text-2xl font-bold text-emerald-600">{aiCompletedCount}</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-900/40">
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground">{dashboardIsEnglish ? 'Risk/Hack' : 'Riesgo/Hack'}</p>
+                    <p className="text-2xl font-bold text-rose-600">{aiSecurityCount}</p>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 text-xs dark:border-slate-800 dark:bg-slate-900/40">
+                  <p className="font-semibold text-slate-700 dark:text-slate-200">
+                    {dashboardIsEnglish ? 'Quick guide' : 'Guia rapida'}
+                  </p>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                    <div className="rounded-lg border border-sky-300/70 bg-sky-500/10 p-2 text-sky-800 dark:text-sky-200">
+                      <p className="font-semibold">{dashboardIsEnglish ? 'Not completed' : 'No completados'}</p>
+                      <p>{dashboardIsEnglish ? 'Conversation ended without WhatsApp handoff.' : 'Conversacion terminada sin pase a WhatsApp.'}</p>
+                    </div>
+                    <div className="rounded-lg border border-emerald-300/70 bg-emerald-500/10 p-2 text-emerald-800 dark:text-emerald-200">
+                      <p className="font-semibold">{dashboardIsEnglish ? 'Lead completed' : 'Lead completado'}</p>
+                      <p>{dashboardIsEnglish ? 'Lead clicked/opened WhatsApp or IACloser.' : 'Lead abrio o hizo clic en WhatsApp o IACloser.'}</p>
+                    </div>
+                    <div className="rounded-lg border border-rose-300/70 bg-rose-500/10 p-2 text-rose-800 dark:text-rose-200">
+                      <p className="font-semibold">{dashboardIsEnglish ? 'Risk/Hack' : 'Riesgo/Hack'}</p>
+                      <p>{dashboardIsEnglish ? 'Detected abuse, jailbreak, or security-sensitive intent.' : 'Se detecto abuso, jailbreak o intento sensible de seguridad.'}</p>
+                    </div>
                   </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
                   {[
                     { id: 'all', label: dashboardIsEnglish ? 'All' : 'Todo' },
+                    { id: 'not_completed', label: dashboardIsEnglish ? 'Not completed' : 'No completados' },
+                    { id: 'completed', label: dashboardIsEnglish ? 'Lead completed' : 'Lead completado' },
+                    { id: 'security', label: dashboardIsEnglish ? 'Risk/Hack' : 'Riesgo/Hack' },
+                  ].map((option) => (
+                    <Button
+                      key={option.id}
+                      type="button"
+                      size="sm"
+                      variant={aiConversationFilter === option.id ? 'default' : 'outline'}
+                      onClick={() => setAiConversationFilter(option.id as AiConversationFilter)}
+                    >
+                      {option.label}
+                    </Button>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {[
+                    { id: 'all', label: dashboardIsEnglish ? 'All status' : 'Todos los estados' },
                     { id: 'ok', label: dashboardIsEnglish ? 'OK' : 'Correcto' },
                     { id: 'blocked', label: dashboardIsEnglish ? 'Blocked' : 'Bloqueado' },
                     { id: 'rate_limited', label: dashboardIsEnglish ? 'Rate limited' : 'Limite de tasa' },
@@ -3677,71 +3950,148 @@ export default function Dashboard() {
                   ))}
                 </div>
 
-                {aiConversationGroups.length === 0 ? (
+                {filteredAiConversationGroups.length === 0 ? (
                   <div className="rounded-xl border-2 border-dashed border-slate-200 p-6 text-center text-sm text-muted-foreground dark:border-slate-800">
                     {dashboardIsEnglish
-                      ? 'No conversation logs yet. As soon as users chat with the assistant, records will appear here.'
-                      : 'Aun no hay registros de conversaciones. En cuanto los usuarios chateen con la IA, apareceran aqui.'}
+                      ? 'No conversations match the selected filters yet.'
+                      : 'Aun no hay conversaciones para los filtros seleccionados.'}
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {aiConversationGroups.slice(0, 120).map((conversation) => (
-                      <details key={conversation.conversationId} className="rounded-xl border border-slate-200 bg-white/70 p-3 dark:border-slate-800 dark:bg-slate-950/40">
-                        <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold">
-                              {dashboardIsEnglish ? 'Conversation' : 'Conversacion'} {conversation.conversationId.slice(0, 14)}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {conversation.logs.length} {dashboardIsEnglish ? 'messages' : 'mensajes'} • {conversation.source || 'unknown'} • {conversation.widgetId || '-'}
-                            </p>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${getAiLogStatusClass(conversation.status)}`}>
-                              {getAiLogStatusLabel(conversation.status)}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {conversation.lastAt ? new Date(conversation.lastAt).toLocaleString(dashboardLocale) : '-'}
-                            </span>
-                          </div>
-                        </summary>
-
-                        <div className="mt-3 space-y-3 border-t border-slate-200 pt-3 dark:border-slate-800">
-                          {conversation.status !== 'ok' ? (
-                            <div className="rounded-lg border border-amber-300/70 bg-amber-500/10 p-2 text-xs text-amber-800 dark:text-amber-300">
-                              {getAiImprovementHint(conversation.status, conversation.lastError)}
+                    {filteredAiConversationGroups.slice(0, 120).map((conversation) => {
+                      const analysisState = aiConversationAnalysisById[conversation.conversationId];
+                      return (
+                        <details key={conversation.conversationId} className="rounded-xl border border-slate-200 bg-white/70 p-3 dark:border-slate-800 dark:bg-slate-950/40">
+                          <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold">
+                                {dashboardIsEnglish ? 'Conversation' : 'Conversacion'} {conversation.conversationId.slice(0, 14)}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {conversation.logs.length} {dashboardIsEnglish ? 'messages' : 'mensajes'} - {conversation.source || 'unknown'} - {conversation.widgetId || '-'}
+                              </p>
                             </div>
-                          ) : null}
-
-                          {conversation.logs.slice(-8).map((logItem) => (
-                            <div key={logItem.id} className="space-y-1 rounded-lg border border-slate-200 p-2.5 dark:border-slate-800">
-                              <div className="flex flex-wrap items-center justify-between gap-2">
-                                <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${getAiLogStatusClass(logItem.status)}`}>
-                                  {getAiLogStatusLabel(logItem.status)}
-                                </span>
-                                <span className="text-[11px] text-muted-foreground">
-                                  {logItem.created_at ? new Date(logItem.created_at).toLocaleString(dashboardLocale) : '-'}
-                                  {Number.isFinite(Number(logItem.latency_ms)) ? ` • ${Math.round(Number(logItem.latency_ms))}ms` : ''}
-                                </span>
-                              </div>
-                              <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs dark:border-slate-800 dark:bg-slate-900/50">
-                                <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">User</p>
-                                <p className="whitespace-pre-wrap break-words">{logItem.user_message || '-'}</p>
-                              </div>
-                              <div className="rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs dark:border-slate-800 dark:bg-slate-950/60">
-                                <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Assistant</p>
-                                <p className="whitespace-pre-wrap break-words">{logItem.ai_response || '-'}</p>
-                              </div>
-                              {logItem.error_message ? (
-                                <p className="text-xs text-rose-600 dark:text-rose-300">
-                                  {dashboardIsEnglish ? 'Error:' : 'Error:'} {logItem.error_message}
-                                </p>
-                              ) : null}
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${getConversationFlowClass(conversation)}`}>
+                                {getConversationFlowLabel(conversation)}
+                              </span>
+                              <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${getAiLogStatusClass(conversation.status)}`}>
+                                {getAiLogStatusLabel(conversation.status)}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {conversation.lastAt ? new Date(conversation.lastAt).toLocaleString(dashboardLocale) : '-'}
+                              </span>
                             </div>
-                          ))}
-                        </div>
-                      </details>
-                    ))}
+                          </summary>
+
+                          <div className="mt-3 space-y-3 border-t border-slate-200 pt-3 dark:border-slate-800">
+                            {conversation.status !== 'ok' || conversation.securityRisk ? (
+                              <div className="rounded-lg border border-amber-300/70 bg-amber-500/10 p-2 text-xs text-amber-800 dark:text-amber-300">
+                                {conversation.securityRisk
+                                  ? (dashboardIsEnglish
+                                    ? 'Security warning detected. Review this flow to harden security prompt and abuse handling.'
+                                    : 'Se detecto alerta de seguridad. Revisa este flujo para fortalecer prompt de seguridad y manejo de abuso.')
+                                  : getAiImprovementHint(conversation.status, conversation.lastError)}
+                              </div>
+                            ) : null}
+
+                            {conversation.notCompleted ? (
+                              <div className="rounded-lg border border-sky-300/70 bg-sky-500/10 p-2">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <p className="text-xs text-sky-800 dark:text-sky-200">
+                                    {dashboardIsEnglish
+                                      ? 'This lead did not complete WhatsApp handoff.'
+                                      : 'Este lead no completo el pase a WhatsApp.'}
+                                  </p>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={analysisState?.loading === true}
+                                    onClick={() => void handleAnalyzeConversation(conversation.conversationId, conversation.logs)}
+                                    className="h-8 border-sky-300/70 bg-white/70 text-sky-700 hover:bg-sky-100 dark:bg-slate-950/40 dark:text-sky-200"
+                                  >
+                                    {analysisState?.loading ? (
+                                      <>
+                                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                                        {dashboardIsEnglish ? 'Analyzing...' : 'Analizando...'}
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                                        {dashboardIsEnglish ? 'Analyze conversation' : 'Analizar conversacion'}
+                                      </>
+                                    )}
+                                  </Button>
+                                </div>
+
+                                {analysisState?.error ? (
+                                  <p className="mt-2 text-xs text-rose-700 dark:text-rose-300">{analysisState.error}</p>
+                                ) : null}
+
+                                {analysisState?.data ? (
+                                  <div className="mt-2 space-y-2 rounded-md border border-sky-300/50 bg-white/70 p-2 text-xs dark:bg-slate-950/45">
+                                    <p className="font-semibold">
+                                      {dashboardIsEnglish ? 'Diagnosis' : 'Diagnostico'} ({analysisState.data.provider}) - {dashboardIsEnglish ? 'Score' : 'Score'}: {analysisState.data.qualityScore}/100
+                                    </p>
+                                    <p className="text-muted-foreground">{analysisState.data.summary}</p>
+                                    {analysisState.data.rootCauses.length > 0 ? (
+                                      <div>
+                                        <p className="font-semibold">{dashboardIsEnglish ? 'Root causes' : 'Causas raiz'}</p>
+                                        {analysisState.data.rootCauses.map((cause, idx) => (
+                                          <p key={`${conversation.conversationId}-cause-${idx}`}>- {cause}</p>
+                                        ))}
+                                      </div>
+                                    ) : null}
+                                    {analysisState.data.improvements.length > 0 ? (
+                                      <div>
+                                        <p className="font-semibold">{dashboardIsEnglish ? 'Improvements' : 'Mejoras'}</p>
+                                        {analysisState.data.improvements.map((improvement, idx) => (
+                                          <p key={`${conversation.conversationId}-improvement-${idx}`}>- {improvement}</p>
+                                        ))}
+                                      </div>
+                                    ) : null}
+                                    {analysisState.data.promptPatch ? (
+                                      <div>
+                                        <p className="font-semibold">{dashboardIsEnglish ? 'Prompt patch' : 'Parche de prompt'}</p>
+                                        <p className="whitespace-pre-wrap break-words text-muted-foreground">{analysisState.data.promptPatch}</p>
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                ) : null}
+                              </div>
+                            ) : null}
+
+                            {conversation.logs.slice(-8).map((logItem) => (
+                              <div key={logItem.id} className="space-y-1 rounded-lg border border-slate-200 p-2.5 dark:border-slate-800">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${getAiLogStatusClass(logItem.status)}`}>
+                                    {getAiLogStatusLabel(logItem.status)}
+                                  </span>
+                                  <span className="text-[11px] text-muted-foreground">
+                                    {logItem.created_at ? new Date(logItem.created_at).toLocaleString(dashboardLocale) : '-'}
+                                    {Number.isFinite(Number(logItem.latency_ms)) ? ` - ${Math.round(Number(logItem.latency_ms))}ms` : ''}
+                                  </span>
+                                </div>
+                                <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs dark:border-slate-800 dark:bg-slate-900/50">
+                                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">User</p>
+                                  <p className="whitespace-pre-wrap break-words">{logItem.user_message || '-'}</p>
+                                </div>
+                                <div className="rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs dark:border-slate-800 dark:bg-slate-950/60">
+                                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Assistant</p>
+                                  <p className="whitespace-pre-wrap break-words">{logItem.ai_response || '-'}</p>
+                                </div>
+                                {logItem.error_message ? (
+                                  <p className="text-xs text-rose-600 dark:text-rose-300">
+                                    {dashboardIsEnglish ? 'Error:' : 'Error:'} {logItem.error_message}
+                                  </p>
+                                ) : null}
+                              </div>
+                            ))}
+                          </div>
+                        </details>
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
@@ -4762,4 +5112,5 @@ export default function Dashboard() {
     </div >
   );
 }
+
 

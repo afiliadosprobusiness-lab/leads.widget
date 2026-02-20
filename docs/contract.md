@@ -85,7 +85,23 @@ Eventos de consola IA (persistidos por proxy de chat):
 - `blocked`, `rate_limited`
 - `user_message`, `ai_response`, `error_message`
 - `history_count`, `history_excerpt` (ultimos turnos truncados)
+- `command_flags` (`whatsapp_redirect`, `icallcloser_ready`, `has_image`, `has_audio`)
+- `security_signal` (bool para alertas de intento de bypass/hack)
 - `upstream_status`, `latency_ms`, `user_timezone`
+- `ip`, `user_agent`, `referer`
+- `created_at`
+
+### `ai_chat_events`
+
+Eventos de conversion/redirect por conversacion (persistidos por endpoint local):
+
+- `client_id`
+- `widget_id`
+- `conversation_id`
+- `source` (`lead_chat` | `widget_embed` | `sales_widget` | `unknown`)
+- `event_type` (`whatsapp_open` | `iacallcloser_open`)
+- `event_meta` (objeto corto opcional, ej. `trigger=auto|button|handoff`)
+- `user_timezone`
 - `ip`, `user_agent`, `referer`
 - `created_at`
 
@@ -290,6 +306,8 @@ Base detectada:
 Codigo observado:
 
 - `POST|OPTIONS /api/chat` (proxy a backend externo)
+- `POST|OPTIONS /api/chat-event` (persistencia local de eventos por conversacion)
+- `POST|OPTIONS /api/analyze-conversation` (diagnostico IA/heuristico de conversaciones no completadas)
 - `POST|OPTIONS /api/track` (proxy a backend externo)
 - `POST|OPTIONS /api/verify-payment` (proxy a backend externo)
 - `GET /api/w/:widgetId.js` (proxy a backend externo)
@@ -410,3 +428,7 @@ Cambios de comportamiento relevantes:
 - Cambio: `POST /api/icloser/handoff` exige consentimiento afirmativo explicito (`consent.explicitResponse = "SI"/"YES"`) ademas de `consent.accepted=true`
 - Tipo: non-breaking
 - Impacto: refuerza cumplimiento legal del flujo Lead Chat antes del handoff a IACloser
+- Fecha: 2026-02-20
+- Cambio: se agrega `ai_chat_events` para registrar aperturas a WhatsApp/IACloser por `conversation_id`; `ai_chat_logs` incorpora `command_flags` + `security_signal`; se agregan endpoints locales `POST /api/chat-event` y `POST /api/analyze-conversation`.
+- Tipo: non-breaking
+- Impacto: habilita consola de conversion por estado (`no completado/completado/riesgo`) y diagnostico asistido de conversaciones no completadas sin romper rutas existentes.
