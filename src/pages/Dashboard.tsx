@@ -506,6 +506,11 @@ export default function Dashboard() {
     return `https://wa.me/${supportPhoneDigits}?text=${encodeURIComponent(message)}`;
   };
 
+  const buildSupportWhatsappLink = () => {
+    const supportMessage = 'Hola equipo de soporte de Lead Widget, necesito ayuda con mi cuenta.';
+    return `https://wa.me/${supportPhoneDigits}?text=${encodeURIComponent(supportMessage)}`;
+  };
+
   useEffect(() => {
     if (!SHOW_AFFILIATES_UI) return;
     if (!user?.uid) return;
@@ -2527,6 +2532,17 @@ export default function Dashboard() {
 
           <div className="flex items-center gap-1 sm:gap-3 flex-wrap">
             <LanguageSwitcher />
+            <Button asChild variant="outline" size="sm" className="hidden sm:inline-flex border-emerald-500 text-emerald-600 hover:bg-emerald-50">
+              <a href={buildSupportWhatsappLink()} target="_blank" rel="noreferrer">
+                <MessageCircle className="w-4 h-4 mr-2" />
+                Soporte
+              </a>
+            </Button>
+            <Button asChild variant="outline" size="icon" className="sm:hidden border-emerald-500 text-emerald-600 hover:bg-emerald-50" aria-label="Soporte">
+              <a href={buildSupportWhatsappLink()} target="_blank" rel="noreferrer">
+                <MessageCircle className="w-4 h-4" />
+              </a>
+            </Button>
             {/* Theme Toggle - Removed */}
             {isSuperAdmin && (
               <Link to="/superadmin">
