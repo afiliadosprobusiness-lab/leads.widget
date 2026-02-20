@@ -67,7 +67,11 @@ export default function CreateNow() {
                         </div>
                         <div className="flex items-center gap-3 text-slate-300 justify-center">
                             <CheckCircle className="w-5 h-5 text-emerald-400" />
-                            <span>Precio: <b>{currency === 'USD' ? '$15 USD' : 'S/ 30'} al mes</b></span>
+                            <span>Precio: <b>{currency === 'USD' ? '$26.67 USD' : 'S/ 100'} al mes</b></span>
+                        </div>
+                        <div className="flex items-center gap-3 text-slate-300 justify-center">
+                            <CheckCircle className="w-5 h-5 text-emerald-400" />
+                            <span>ImplementaciÃ³n Ãºnica: <b>S/ 200</b></span>
                         </div>
                     </div>
 

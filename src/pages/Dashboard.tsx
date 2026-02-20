@@ -154,6 +154,7 @@ interface Profile {
   status?: string; // Used in UI
   created_at?: string;
   trial_ends_at?: string;
+  next_renewal_at?: string;
   plan_type?: string;
   ai_enabled: boolean;
   ai_api_key?: string;
@@ -317,6 +318,10 @@ const FIXED_IACLOSER_REDIRECT_URL = 'https://ai-call-closer.vercel.app/';
 const AI_MAX_TOKENS_DEFAULT = 500;
 const AI_MAX_TOKENS_MIN = 100;
 const AI_MAX_TOKENS_MAX = 4000;
+const PLAN_PLUS_MONTHLY_PEN = 100;
+const PLAN_PLUS_SETUP_PEN = 200;
+const PLAN_PLUS_FIRST_PAYMENT_PEN = PLAN_PLUS_MONTHLY_PEN + PLAN_PLUS_SETUP_PEN;
+const PEN_TO_USD_RATE = 3.75;
 const CLOUDINARY_CLOUD_NAME = String(import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '').trim();
 const CLOUDINARY_UPLOAD_PRESET = String(import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || '').trim();
 type WelcomeMediaKind = 'image' | 'audio';
@@ -465,10 +470,9 @@ export default function Dashboard() {
   const [chartData, setChartData] = useState<any[]>([]);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [isTestimonialDialogOpen, setIsTestimonialDialogOpen] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<'standard' | 'plus'>('standard');
   const [currency, setCurrency] = useState<'PEN' | 'USD'>('PEN');
   const [affiliateRefers, setAffiliateRefers] = useState(10); // Calculator state
-  const [affiliatePlanType, setAffiliatePlanType] = useState<'pro' | 'plus'>('pro'); // Calculator Plan Selector
+  const [affiliatePlanType, setAffiliatePlanType] = useState<'trial' | 'plus'>('plus'); // Calculator Plan Selector
 
   const [isPayoutModalOpen, setIsPayoutModalOpen] = useState(false);
   const [payoutMethod, setPayoutMethod] = useState('yape');
@@ -492,7 +496,7 @@ export default function Dashboard() {
   const [affiliateNetworkIncludeInactive, setAffiliateNetworkIncludeInactive] = useState(false);
   const supportPhoneDigits = '51924464410';
 
-  const planLabel = selectedPlan === 'plus' ? 'PLUS' : 'PRO';
+  const planLabel = 'PLUS';
 
   const buildWhatsappLink = (reference?: string) => {
     const referenceText = (reference || '').trim();
@@ -545,7 +549,7 @@ export default function Dashboard() {
     };
   }, [user, affiliateNetworkIncludeInactive]);
 
-  const pendingEarnings = realAffiliatesCount * 30; // Min commission S/ 30
+  const pendingEarnings = realAffiliatesCount * PLAN_PLUS_MONTHLY_PEN;
   const minWithdrawal = 100;
 
   useEffect(() => {
@@ -557,6 +561,9 @@ export default function Dashboard() {
 
   const dashboardIsEnglish = String(i18n.language || '').toLowerCase().startsWith('en');
   const dashboardLocale = dashboardIsEnglish ? 'en-US' : 'es-PE';
+  const isTrialPlan = String(profile?.subscription_status || 'trial').toLowerCase() !== 'active';
+  const plusCurrentChargePen = isTrialPlan ? PLAN_PLUS_FIRST_PAYMENT_PEN : PLAN_PLUS_MONTHLY_PEN;
+  const plusCurrentChargeUsd = (plusCurrentChargePen / PEN_TO_USD_RATE).toFixed(2);
 
   const filteredAiChatLogs = useMemo(() => {
     if (aiChatStatusFilter === 'all') return aiChatLogs;
@@ -2194,6 +2201,13 @@ export default function Dashboard() {
     return '...';
   };
 
+  const getNextPaymentDateString = () => {
+    if (profile?.subscription_status === 'active' && profile?.next_renewal_at) {
+      return new Date(profile.next_renewal_at).toLocaleDateString('es-PE');
+    }
+    return getTrialEndDateString();
+  };
+
   const handleSignOut = async () => {
     try {
       await signOut();
@@ -2350,23 +2364,23 @@ export default function Dashboard() {
             </div>
             <CardTitle className="text-2xl font-black text-slate-900 dark:text-white">¡Tu prueba ha terminado!</CardTitle>
             <CardDescription className="text-base mt-2 text-slate-600 dark:text-slate-300">
-              Para seguir capturando leads ilimitadamente, activa tu plan hoy.
+              Para seguir capturando leads ilimitadamente, activa tu plan PLUS hoy.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 pt-6 animate-in fade-in slide-in-from-bottom-4">
             <PayPalPaymentButton
-              amount="9.90"
+              amount={(PLAN_PLUS_FIRST_PAYMENT_PEN / PEN_TO_USD_RATE).toFixed(2)}
               currency="USD"
               onSuccess={async (details) => {
                 try {
                   await addDoc(collection(db, 'payments'), {
                     user_id: user?.uid,
-                    amount: 9.90,
+                    amount: PLAN_PLUS_FIRST_PAYMENT_PEN,
                     currency: 'USD',
                     payment_method: 'PayPal',
-                    description: 'Lead Widget Pro Subscription',
+                    description: 'Plan PLUS (Implementacion + primer mes)',
                     status: 'completed',
-                    plan_type: 'pro',
+                    plan_type: 'plus',
                     partner_id: profile?.partner_id || null,
                     paypal_order_id: details.id,
                     payer_email: details.payer.email_address,
@@ -2376,14 +2390,14 @@ export default function Dashboard() {
                   if (user?.uid) {
                     await updateDoc(doc(db, 'profiles', user.uid), {
                       subscription_status: 'active',
-                      plan_type: 'pro',
+                      plan_type: 'plus',
                       trial_ends_at: null
                     });
                   }
 
                   toast({
                     title: "¡Suscripción Activada!",
-                    description: "Gracias por confiar en Lead Widget.",
+                    description: "Plan PLUS activado correctamente.",
                   });
 
                   // Reload to update UI
@@ -2397,7 +2411,7 @@ export default function Dashboard() {
             <div className="rounded-xl border border-border bg-muted/30 p-4 text-left">
               <p className="text-sm font-bold text-slate-900 dark:text-white">Pago local (Yape / Plin)</p>
               <p className="text-xs text-muted-foreground mt-1">
-                Envía el monto y luego confirma por WhatsApp para activar tu plan.
+                Envía S/ 300 (implementación + primer mes) y confirma por WhatsApp para activar tu plan.
               </p>
               <div className="mt-3 flex items-center justify-between gap-3">
                 <div className="min-w-0">
@@ -2411,18 +2425,19 @@ export default function Dashboard() {
                 </Button>
               </div>
               <p className="text-[11px] text-muted-foreground mt-2">
-                Mensaje sugerido: “Hola lead widget, ya pagué mi plan PRO y estoy adjuntando captura. Por favor activar mi plan.”
+                Mensaje sugerido: "Hola lead widget, ya pague mi plan PLUS (implementacion + primer mes) y adjunto captura."
               </p>
             </div>
             <p className="text-xs text-center text-muted-foreground">Pago seguro con PayPal</p>
           </CardContent>
           <CardContent className="space-y-6 pt-6">
             <div className="bg-muted/20 p-4 rounded-xl border border-border shadow-sm text-center">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold mb-1">Plan Mensual</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold mb-1">Primer pago</p>
               <div className="flex items-center justify-center gap-1">
-                <span className="text-3xl font-black text-primary">S/ 30.00</span>
-                <span className="text-sm text-muted-foreground">/mes</span>
+                <span className="text-3xl font-black text-primary">S/ 300.00</span>
               </div>
+              <p className="text-[11px] text-muted-foreground mt-1">Incluye S/ 200 de implementacion unica + S/ 100 del primer mes.</p>
+              <p className="text-[11px] text-muted-foreground">Renovacion posterior: S/ 100 / mes.</p>
             </div>
 
             {!showPayment ? (
@@ -2461,8 +2476,8 @@ export default function Dashboard() {
                       try {
                         await addDoc(collection(db, 'payments'), {
                           user_id: user?.uid,
-                          amount: 30,
-                          description: 'Renovación (Blocked)',
+                          amount: PLAN_PLUS_FIRST_PAYMENT_PEN,
+                          description: 'Activacion PLUS (Implementacion + primer mes)',
                           operation_ref: refInput.value,
                           status: 'pending',
                           created_at: new Date().toISOString()
@@ -3354,7 +3369,7 @@ export default function Dashboard() {
                               </TooltipTrigger>
                               <TooltipContent className="max-w-xs text-xs leading-relaxed">
                                 La marca de agua se muestra en el pie del chat como "CREA TU WIDGET GRATIS AQUI".
-                                En Plan PRO se mantiene para promocion automatica. En Plan PLUS puedes ocultarla o reemplazarla por tu texto de marca.
+                                En Trial se mantiene para promocion automatica. En Plan PLUS puedes ocultarla o reemplazarla por tu texto de marca.
                               </TooltipContent>
                             </Tooltip>
                             {profile?.plan_type === 'plus' && (
@@ -3366,7 +3381,7 @@ export default function Dashboard() {
                           <p className="text-xs text-emerald-700">
                             {profile?.plan_type === 'plus'
                               ? 'Activa esta opcion para remover la promo del pie del chat.'
-                              : 'Actualiza al Plan PLUS (S/ 60/mes) para remover la marca de agua y tener un widget 100% tuyo.'
+                              : 'Actualiza al Plan PLUS (S/ 100/mes) para remover la marca de agua y tener un widget 100% tuyo.'
                             }
                           </p>
                         </div>
@@ -4484,11 +4499,15 @@ export default function Dashboard() {
                     <div className="space-y-3 py-4 border-t border-slate-200 mt-4">
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">{t('dashboard.billing_section.table_amount')}:</span>
-                        <span className="font-bold text-slate-900 dark:text-white">{t('dashboard.billing_section.price_usd')} <span className="text-xs text-muted-foreground font-medium">{t('dashboard.billing_section.price_pen')}</span></span>
+                        <span className="font-bold text-slate-900 dark:text-white">
+                          {profile?.subscription_status === 'active'
+                            ? 'S/ 100.00 / mes'
+                            : 'S/ 300.00 (S/ 200 implementacion + S/ 100 primer mes)'}
+                        </span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">{t('dashboard.billing_section.next_payment')}</span>
-                        <span className="font-bold text-slate-900 dark:text-white">{getTrialEndDateString()}</span>
+                        <span className="font-bold text-slate-900 dark:text-white">{getNextPaymentDateString()}</span>
                       </div>
                     </div>
                   </div>
@@ -4515,14 +4534,12 @@ export default function Dashboard() {
                     <div className="text-center py-4">
                       <div className="flex items-baseline justify-center gap-2 mb-1">
                         <span className="text-4xl font-black text-emerald-900 dark:text-emerald-100">
-                          {currency === 'USD' ? '$29' : 'S/ 60'}
+                          S/ 100
                         </span>
                         <span className="text-sm text-emerald-700 dark:text-emerald-300">/mes</span>
                       </div>
                       <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                        {currency === 'USD'
-                          ? '(~S/ 110/mes)'
-                          : '(~$16 USD/mes)'}
+                        Implementacion unica: S/ 200 (solo primer pago)
                       </p>
                     </div>
 
@@ -4558,7 +4575,6 @@ export default function Dashboard() {
                     <Button
                       className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
                       onClick={() => {
-                        setSelectedPlan('plus');
                         // Scroll to payment section
                         setTimeout(() => {
                           const paymentSection = document.querySelector('[value="paypal"]');
@@ -4566,7 +4582,7 @@ export default function Dashboard() {
                         }, 100);
                         toast({
                           title: "💎 Upgrade a Plan PLUS",
-                          description: "Selecciona tu método de pago preferido abajo para actualizar",
+                          description: "Primer pago: S/ 300 (implementacion + primer mes).",
                         });
                       }}
                     >
@@ -4586,90 +4602,34 @@ export default function Dashboard() {
                   <CardDescription>{t('dashboard.billing_section.renew_desc')}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  {/* Plan Selector */}
                   <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-900/50 p-6 rounded-2xl border-2 border-slate-200 dark:border-slate-700">
-                    <h3 className="font-bold text-lg mb-4 text-center">Selecciona tu Plan</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      {/* Pro Plan (Antes Estándar) */}
-                      <button
-                        onClick={() => setSelectedPlan('standard')}
-                        className={`p-4 rounded-xl border-2 transition-all ${selectedPlan === 'standard'
-                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30 shadow-lg scale-105'
-                          : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-blue-300'
-                          }`}
-                      >
-                        <div className="text-center">
-                          <div className="text-xs text-slate-600 dark:text-slate-400 mb-1">Plan</div>
-                          <div className="font-bold text-lg mb-2">Pro</div>
-                          <div className="text-2xl font-black text-blue-600">
-                            {currency === 'USD' ? '$15' : 'S/ 30'}
-                          </div>
-                          <div className="text-[10px] text-slate-500 mt-1">/mes</div>
-                          <div className="mt-3 text-xs text-slate-600 dark:text-slate-400">
-                            Con marca de agua
-                          </div>
+                    <h3 className="font-bold text-lg mb-4 text-center">Plan disponible: PLUS</h3>
+                    <div className="rounded-xl border-2 border-emerald-400 bg-white dark:bg-slate-900 p-5">
+                      <div className="text-center">
+                        <div className="text-xs text-emerald-600 mb-1">Plan</div>
+                        <div className="font-bold text-2xl mb-2">PLUS</div>
+                        <div className="text-3xl font-black text-emerald-600">S/ 100</div>
+                        <div className="text-[11px] text-emerald-700 mt-1">/ mes</div>
+                        <div className="mt-3 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                          Implementacion unica: S/ 200 (solo primer pago)
                         </div>
-                      </button>
-
-                      {/* PLUS Plan */}
-                      <button
-                        onClick={() => setSelectedPlan('plus')}
-                        className={`p-4 rounded-xl border-2 transition-all relative ${selectedPlan === 'plus'
-                          ? 'border-emerald-500 bg-gradient-to-br from-emerald-50 to-cyan-50 dark:from-emerald-950/30 dark:to-cyan-950/30 shadow-lg scale-105'
-                          : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-emerald-300'
-                          }`}
-                      >
-                        {selectedPlan === 'plus' && (
-                          <div className="absolute -top-2 -right-2 bg-emerald-500 text-white text-[9px] px-2 py-0.5 rounded-full font-bold">
-                            SELECCIONADO
-                          </div>
-                        )}
-                        <div className="text-center">
-                          <div className="text-xs text-emerald-600 mb-1">Plan</div>
-                          <div className="font-bold text-lg mb-2 flex items-center justify-center gap-1">
-                            <span>PLUS</span>
-                            <svg className="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                            </svg>
-                          </div>
-                          <div className="text-2xl font-black text-emerald-600">
-                            {currency === 'USD' ? '$29' : 'S/ 60'}
-                          </div>
-                          <div className="text-[10px] text-emerald-600 mt-1">/mes</div>
-                          <div className="mt-3 text-xs font-semibold text-emerald-700 dark:text-emerald-400 flex items-center justify-center gap-1">
-                            <span>Sin marca de agua</span>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span className="text-emerald-700 hover:text-emerald-900 cursor-help" aria-label="Detalle de marca de agua">
-                                  <Info className="w-3.5 h-3.5" />
-                                </span>
-                              </TooltipTrigger>
-                              <TooltipContent className="max-w-xs text-xs leading-relaxed">
-                                Esta opcion quita el texto promocional del pie del chat. Tambien puedes reemplazarlo por texto propio desde Configurar Widget.
-                              </TooltipContent>
-                            </Tooltip>
-                          </div>
-                        </div>
-                      </button>
+                      </div>
                     </div>
 
-                    {/* Selected Plan Summary */}
-                    <div className="mt-4 p-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
+                    <div className="mt-4 p-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2">
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-slate-600 dark:text-slate-400">Plan seleccionado:</span>
-                        <span className="font-bold">
-                          {selectedPlan === 'plus' ? 'PLUS' : 'Estándar'}
-                        </span>
+                        <span className="font-bold">PLUS</span>
                       </div>
-                      <div className="flex items-center justify-between text-sm mt-2">
-                        <span className="text-slate-600 dark:text-slate-400">Monto a pagar:</span>
-                        <span className="text-xl font-black text-primary">
-                          {selectedPlan === 'plus'
-                            ? (currency === 'USD' ? '$29' : 'S/ 60')
-                            : (currency === 'USD' ? '$15' : 'S/ 30')
-                          } /mes
-                        </span>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-600 dark:text-slate-400">Pago de hoy:</span>
+                        <span className="text-xl font-black text-primary">S/ {plusCurrentChargePen.toFixed(2)}</span>
                       </div>
+                      <p className="text-xs text-muted-foreground">
+                        {isTrialPlan
+                          ? 'Incluye implementacion unica (S/ 200) + primer mes (S/ 100).'
+                          : 'Renovacion mensual de S/ 100.00.'}
+                      </p>
                     </div>
                   </div>
 
@@ -4695,11 +4655,7 @@ export default function Dashboard() {
                     <TabsContent value="paypal" className="space-y-4">
                       <div className="max-w-md mx-auto py-4">
                         <PayPalPaymentButton
-                          amount={
-                            currency === 'PEN'
-                              ? (selectedPlan === 'plus' ? '17.00' : '9.00') // Local price converted to USD check
-                              : (selectedPlan === 'plus' ? '29.00' : '15.00') // International price adjusted
-                          }
+                          amount={plusCurrentChargeUsd}
                           currency="USD"
                           onSuccess={async (details) => {
                             try {
@@ -4714,7 +4670,7 @@ export default function Dashboard() {
                                 body: JSON.stringify({
                                   orderID: details.id,
                                   user_id: user?.uid,
-                                  plan_type: selectedPlan === 'plus' ? 'plus' : 'pro',
+                                  plan_type: 'plus',
                                 })
                               });
 
@@ -4834,16 +4790,18 @@ export default function Dashboard() {
                                 return;
                               }
 
-                              setUploading(true);
-                              try {
-                                await addDoc(collection(db, 'payments'), {
-                                  user_id: user?.uid,
-                                  amount: selectedPlan === 'plus' ? 60 : 30,
+                                setUploading(true);
+                                try {
+                                  await addDoc(collection(db, 'payments'), {
+                                    user_id: user?.uid,
+                                  amount: plusCurrentChargePen,
                                   payment_method: 'Yape/Plin',
-                                  description: `Plan ${selectedPlan === 'plus' ? 'PLUS' : 'Estándar'} Lead Widget`,
+                                  description: isTrialPlan
+                                    ? 'Plan PLUS (Implementacion + primer mes)'
+                                    : 'Plan PLUS (Mensual)',
                                   operation_ref: reference,
                                   status: 'pending',
-                                  plan_type: selectedPlan === 'plus' ? 'plus' : 'pro',
+                                  plan_type: 'plus',
                                   partner_id: profile?.partner_id || null,
                                   created_at: new Date().toISOString()
                                 });
@@ -5211,16 +5169,16 @@ export default function Dashboard() {
                       <Label>¿Qué plan estimas vender?</Label>
                       <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
                         <button
-                          onClick={() => setAffiliatePlanType('pro')}
-                          className={`py-2 px-3 text-xs font-bold rounded-md transition-all ${affiliatePlanType === 'pro' ? 'bg-white dark:bg-slate-700 shadow text-emerald-600' : 'text-slate-500 hover:text-slate-700'}`}
+                          onClick={() => setAffiliatePlanType('trial')}
+                          className={`py-2 px-3 text-xs font-bold rounded-md transition-all ${affiliatePlanType === 'trial' ? 'bg-white dark:bg-slate-700 shadow text-amber-600' : 'text-slate-500 hover:text-slate-700'}`}
                         >
-                          Plan Pro ({currency === 'USD' ? '$15' : 'S/ 30'})
+                          Plan Trial (S/ 0)
                         </button>
                         <button
                           onClick={() => setAffiliatePlanType('plus')}
                           className={`py-2 px-3 text-xs font-bold rounded-md transition-all ${affiliatePlanType === 'plus' ? 'bg-white dark:bg-slate-700 shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
                         >
-                          Plan Plus ({currency === 'USD' ? '$29' : 'S/ 60'})
+                          Plan Plus ({currency === 'USD' ? '$26.67' : 'S/ 100'})
                         </button>
                       </div>
                     </div>
@@ -5255,13 +5213,13 @@ export default function Dashboard() {
                         {currency === 'USD' ? '$' : 'S/'}
                         {(() => {
                           const price = currency === 'USD'
-                            ? (affiliatePlanType === 'pro' ? 15 : 29)
-                            : (affiliatePlanType === 'pro' ? 30 : 60);
+                            ? (affiliatePlanType === 'trial' ? 0 : Number((PLAN_PLUS_MONTHLY_PEN / PEN_TO_USD_RATE).toFixed(2)))
+                            : (affiliatePlanType === 'trial' ? 0 : PLAN_PLUS_MONTHLY_PEN);
                           return (affiliateRefers * price * 0.20).toFixed(2);
                         })()}
                       </div>
                       <p className="text-xs text-emerald-700/60 dark:text-emerald-400/60">
-                        Basado en el precio del Plan {affiliatePlanType === 'pro' ? 'Pro' : 'Plus'}
+                        Basado en el precio del Plan {affiliatePlanType === 'trial' ? 'Trial' : 'Plus'}
                       </p>
                     </div>
 
@@ -5287,7 +5245,7 @@ export default function Dashboard() {
                               {' '}y tu link de afiliado mostrará precios en dólares automáticamente.
                             </p>
                             <p className="text-[10px] text-blue-600/70 dark:text-blue-400/70">
-                              <strong>Ejemplo:</strong> 10 ventas del Plan Pro = <strong>${(10 * 15 * 0.20).toFixed(2)} USD</strong> vs S/{(10 * 30 * 0.20).toFixed(2)} PEN
+                              <strong>Ejemplo:</strong> 10 ventas del Plan Plus = <strong>${(10 * (PLAN_PLUS_MONTHLY_PEN / PEN_TO_USD_RATE) * 0.20).toFixed(2)} USD</strong> vs S/{(10 * PLAN_PLUS_MONTHLY_PEN * 0.20).toFixed(2)} PEN
                             </p>
                           </div>
                         </div>

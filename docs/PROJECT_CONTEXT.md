@@ -142,7 +142,8 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - En Dashboard > IA, el canal de cierre (`ICallCloser` o `WhatsApp`) se selecciona desde el modal `Crear prompt` del sistema; el comando se inserta automaticamente al compilar/guardar el prompt.
 - En modales `Crear prompt` (contexto/sistema), existe accion `Generar con IA` que consume creditos de la API key OpenAI del cliente y muestra aviso explicito de costo; tambien se mantiene fallback `Generar rapido (sin IA)` local.
 - En IA > Prompt del Sistema, el dashboard mantiene boton de plantilla por `Industria / Nicho` (`general`, `inmobiliaria`, `clinica`, `taller`, `delivery`; en `personalizado` usa base general), con enfoque de conversion y soporte de bloque `IMAGE`.
-- En IA > Prompt del Sistema (plantillas por nicho), cuando el lead pregunta por precio/costo/inversion, el guion responde la oferta exacta: `S/ 80 mensual + S/ 200 implementacion unica`.
+- En IA > Prompt del Sistema (plantillas por nicho), cuando el lead pregunta por precio/costo/inversion, el guion responde la oferta exacta: `S/ 100 mensual + S/ 200 implementacion unica`.
+- En Dashboard > Billing, el esquema comercial activo es: `trial` (3 dias gratis) y `PLUS` (S/ 100 mensual); en activacion inicial se muestra `S/ 200` de implementacion unica + primer mes.
 - `WHATSAPP_REDIRECT` se mantiene como opcion secundaria frente a `ICALLCLOSER_READY`; ya no se usa la guia manual de insercion, ahora el comando se agrega automaticamente segun el canal seleccionado.
 - Upload de bienvenida en dashboard usa Cloudinary cuando existen `VITE_CLOUDINARY_CLOUD_NAME` + `VITE_CLOUDINARY_UPLOAD_PRESET`; si no existen, usa fallback a Firebase Storage.
 - En Dashboard > Configuracion del widget > Audio de bienvenida, ademas de subir archivo/URL ahora se puede grabar audio en el momento (microfono del navegador) y se sube por el mismo pipeline Cloudinary/Firebase.

@@ -533,7 +533,7 @@ export default function SuperAdmin() {
       trialClients: trialCount,
       suspendedClients: suspendedCount,
       pendingPayments: pendingPaymentsCount,
-      mrr: activeCount * 30, // Assuming 30 PEN plan
+      mrr: activeCount * 100,
     }));
   }, [clients, payments]);  const handleDeleteUser = async (clientId: string) => {
     const targetClient = clients.find(c => c.id === clientId);
@@ -585,13 +585,18 @@ export default function SuperAdmin() {
     setUpdatingClient(clientId);
     try {
       const nowIso = new Date().toISOString();
-      await updateDoc(doc(db, 'profiles', clientId), {
+      const payload: Record<string, any> = {
         subscription_status: newStatus,
         next_renewal_at: newStatus === 'active'
           ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
           : null,
         updated_at: nowIso,
-      } as any);
+      };
+      if (newStatus === 'trial') {
+        payload.plan_type = 'trial';
+        payload.trial_ends_at = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
+      }
+      await updateDoc(doc(db, 'profiles', clientId), payload);
       toast({
         title: 'Estado actualizado',
         description: `Cliente marcado como ${newStatus}`,
@@ -603,7 +608,7 @@ export default function SuperAdmin() {
     }
   };
 
-  const updateClientPlan = async (clientId: string, planType: 'pro' | 'plus') => {
+  const updateClientPlan = async (clientId: string, planType: 'plus') => {
     setUpdatingClient(clientId);
     try {
       const currentClient = clients.find((c) => c.id === clientId);
@@ -614,7 +619,7 @@ export default function SuperAdmin() {
           ? { next_renewal_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() }
           : {}),
         updated_at: new Date().toISOString(),
-      } as any);
+      });
       toast({ title: 'Plan actualizado', description: `Cliente actualizado a ${planType.toUpperCase()}` });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -623,7 +628,7 @@ export default function SuperAdmin() {
     }
   };
 
-  const activateClientWithPlan = async (clientId: string, planType: 'pro' | 'plus') => {
+  const activateClientWithPlan = async (clientId: string, planType: 'plus') => {
     setUpdatingClient(clientId);
     try {
       await updateDoc(doc(db, 'profiles', clientId), {
@@ -632,7 +637,7 @@ export default function SuperAdmin() {
         next_renewal_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
         trial_ends_at: null,
         updated_at: new Date().toISOString(),
-      } as any);
+      });
       toast({ title: 'Cliente activado', description: `Activado con plan ${planType.toUpperCase()}` });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -1029,41 +1034,22 @@ export default function SuperAdmin() {
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-72">
                                   <DropdownMenuItem
-                                    onClick={() => activateClientWithPlan(client.id, 'pro')}
-                                    className="cursor-pointer"
-                                  >
-                                    <Check className="w-4 h-4 mr-3 text-green-600 shrink-0" />
-                                    <div className="flex flex-col">
-                                      <span className="font-semibold">Activar plan PRO</span>
-                                      <span className="text-xs text-muted-foreground">Pasa el estado a Activo y asigna PRO.</span>
-                                    </div>
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
                                     onClick={() => activateClientWithPlan(client.id, 'plus')}
                                     className="cursor-pointer"
                                   >
                                     <Check className="w-4 h-4 mr-3 text-blue-600 shrink-0" />
                                     <div className="flex flex-col">
                                       <span className="font-semibold">Activar plan PLUS</span>
-                                      <span className="text-xs text-muted-foreground">Pasa el estado a Activo y asigna PLUS.</span>
+                                      <span className="text-xs text-muted-foreground">Pasa el estado a Activo y asigna PLUS (S/ 100/mes).</span>
                                     </div>
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    onClick={() => updateClientPlan(client.id, 'pro')}
-                                    className="cursor-pointer"
-                                  >
-                                    <div className="flex flex-col">
-                                      <span className="font-semibold">Cambiar plan a PRO</span>
-                                      <span className="text-xs text-muted-foreground">Solo cambia el plan. No cambia Trial/Activo/Suspendido.</span>
-                                    </div>
-                                  </DropdownMenuItem>
                                   <DropdownMenuItem
                                     onClick={() => updateClientPlan(client.id, 'plus')}
                                     className="cursor-pointer"
                                   >
                                     <div className="flex flex-col">
-                                      <span className="font-semibold">Cambiar plan a PLUS</span>
+                                      <span className="font-semibold">Asignar plan PLUS</span>
                                       <span className="text-xs text-muted-foreground">Solo cambia el plan. No cambia Trial/Activo/Suspendido.</span>
                                     </div>
                                   </DropdownMenuItem>
@@ -1074,7 +1060,7 @@ export default function SuperAdmin() {
                                   >
                                     <div className="flex flex-col">
                                       <span className="font-semibold">Marcar como Trial</span>
-                                      <span className="text-xs text-muted-foreground">Cambia el estado a Trial. El plan queda igual.</span>
+                                      <span className="text-xs text-muted-foreground">Cambia el estado a Trial y reinicia la prueba de 3 dias.</span>
                                     </div>
                                   </DropdownMenuItem>
                                   <DropdownMenuItem
@@ -1400,7 +1386,7 @@ export default function SuperAdmin() {
                       <CardContent className="pt-4">
                         <p className="text-sm text-purple-700 font-medium">Comisiones Potenciales</p>
                         <p className="text-2xl font-bold text-purple-900">
-                          S/ {(clients.filter(c => c.referred_by && c.subscription_status === 'active').length * 30 * 0.2).toFixed(2)}
+                          S/ {(clients.filter(c => c.referred_by && c.subscription_status === 'active').length * 100 * 0.2).toFixed(2)}
                         </p>
                         <p className="text-xs text-purple-600">20% por mes</p>
                       </CardContent>
@@ -1425,8 +1411,8 @@ export default function SuperAdmin() {
                           .map((client) => {
                             const referrer = clients.find(c => c.id === client.referred_by);
                             const isActive = client.subscription_status === 'active';
-                            const plan = client.plan_type || 'standard';
-                            const basePrice = plan === 'plus' ? 60 : 30;
+                            const plan = String(client.plan_type || 'trial').toLowerCase() === 'plus' ? 'plus' : 'trial';
+                            const basePrice = plan === 'plus' ? 100 : 0;
                             const commission = isActive ? (basePrice * 0.2).toFixed(2) : '0.00';
 
                             return (
@@ -1454,9 +1440,9 @@ export default function SuperAdmin() {
                                 <td className="px-4 py-3">
                                   <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${plan === 'plus'
                                     ? 'bg-purple-100 text-purple-700'
-                                    : 'bg-blue-100 text-blue-700'
+                                    : 'bg-amber-100 text-amber-700'
                                     }`}>
-                                    {plan === 'plus' ? 'PLUS' : 'Estandar'}
+                                    {plan === 'plus' ? 'PLUS' : 'TRIAL'}
                                   </span>
                                 </td>
                                 <td className="px-4 py-3">
@@ -1497,8 +1483,8 @@ export default function SuperAdmin() {
                           <ul className="space-y-1 text-sm text-emerald-800">
                             <li>Cada cliente activo genera un 20% de comision mensual para su afiliado.</li>
                             <li>Alternativamente, puede otorgarse 1 mes gratis por referido activo.</li>
-                            <li>Plan Estandar (S/ 30) = S/ 6 de comision al mes.</li>
-                            <li>Plan PLUS (S/ 60) = S/ 12 de comision al mes.</li>
+                            <li>Plan Trial = no genera comision hasta activacion.</li>
+                            <li>Plan PLUS (S/ 100) = S/ 20 de comision al mes.</li>
                             <li>El tracking es automatico via parametro `?ref=USER_ID`.</li>
                           </ul>
                         </div>
@@ -1620,7 +1606,7 @@ export default function SuperAdmin() {
                                 <p className="font-medium">{client.business_name || client.email || client.id}</p>
                                 <p className="text-xs text-muted-foreground">{client.email || '-'}</p>
                               </td>
-                              <td className="py-2 px-3 uppercase">{client.plan_type || 'pro'}</td>
+                              <td className="py-2 px-3 uppercase">{client.plan_type || 'trial'}</td>
                               <td className="py-2 px-3">{client.subscription_status || 'trial'}</td>
                               <td className="py-2 px-3">{client.created_at ? new Date(client.created_at).toLocaleDateString('es-PE') : '-'}</td>
                             </tr>

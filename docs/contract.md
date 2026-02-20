@@ -25,7 +25,7 @@ Campos observados (pueden coexistir segun flujo):
 - `business_name: string`
 - `whatsapp_number: string`
 - `subscription_status: "trial" | "active" | "pro" | "verified" | "suspended" | string`
-- `plan_type: "pro" | "plus" | string`
+- `plan_type: "trial" | "plus" | string` (legacy `pro` puede existir)
 - `trial_ends_at: string | null` (ISO date)
 - `ai_enabled: boolean`
 - `ai_provider: string`
@@ -469,3 +469,7 @@ Cambios de comportamiento relevantes:
 - Cambio: nuevo endpoint local `POST /api/generate-prompt` para generar `promptType=context|system` con OpenAI usando la API key del cliente autenticado; UI agrega CTA `Generar con IA` con aviso de consumo.
 - Tipo: non-breaking
 - Impacto: habilita ingenieria de prompt asistida por IA en dashboard sin exponer credenciales y con costo imputado a cada cliente.
+- Fecha: 2026-02-20
+- Cambio: dashboard y superadmin se alinean al esquema comercial `trial` (3 dias) + `plus` (S/100 mensual) con implementacion unica S/200 en activacion inicial.
+- Tipo: non-breaking
+- Impacto: elimina opciones operativas de plan `pro` en UI administrativa y actualiza montos de cobro/visualizacion.
