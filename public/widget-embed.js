@@ -1460,22 +1460,24 @@
       }
       .lw-audio-premium {
         margin-top: 8px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
         width: 100%;
         min-width: 0;
-        max-width: 230px;
+        max-width: 300px;
         padding: 8px 10px;
-        border-radius: 16px;
+        border-radius: 14px;
         border: 1px solid var(--lw-border);
         background: var(--lw-surface-soft);
         box-shadow: 0 10px 30px -20px rgba(15,23,42,0.9);
         backdrop-filter: blur(7px);
       }
+      .lw-audio-controls {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
       .lw-audio-btn {
-        width: 32px;
-        height: 32px;
+        width: 30px;
+        height: 30px;
         border-radius: 999px;
         border: 1px solid var(--lw-border);
         background: rgba(255,255,255,0.06);
@@ -1491,10 +1493,6 @@
         box-shadow: 0 0 0 2px rgba(34,211,238,0.35);
       }
       .lw-audio-glyph { font-size: 11px; line-height: 1; }
-      .lw-audio-main {
-        min-width: 0;
-        flex: 1;
-      }
       .lw-audio-row {
         display: flex;
         align-items: center;
@@ -1507,9 +1505,12 @@
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        font-size: 11px;
+        font-size: 10px;
         font-weight: 600;
         color: var(--lw-muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
       .lw-audio-dot {
         width: 8px;
@@ -1520,13 +1521,14 @@
         animation: lw-audioPulse 1.6s ease-out infinite;
       }
       .lw-audio-time {
-        font-size: 11px;
+        font-size: 10px;
         color: var(--lw-muted);
         white-space: nowrap;
       }
       .lw-audio-track {
         position: relative;
         width: 100%;
+        flex: 1;
         height: 10px;
         border-radius: 999px;
         border: 1px solid var(--lw-border);
@@ -2495,17 +2497,17 @@
           : '';
         const audioMarkup = audioUrl
           ? `<div class="lw-audio-premium" data-audio-card data-audio-id="audio-${messageIndex}">
-              <button type="button" class="lw-audio-btn" data-audio-play aria-label="Play audio"><span class="lw-audio-glyph" data-audio-play-glyph>\u25B6</span></button>
-              <div class="lw-audio-main">
-                <div class="lw-audio-row">
-                  <span class="lw-audio-title"><span class="lw-audio-dot"></span>${escapeHtml(getText('talkNow'))}</span>
-                  <span class="lw-audio-time" data-audio-time>0:00 / --:--</span>
-                </div>
+              <div class="lw-audio-row">
+                <span class="lw-audio-title"><span class="lw-audio-dot"></span>${escapeHtml(getText('talkNow'))}</span>
+                <span class="lw-audio-time" data-audio-time>0:00 / --:--</span>
+              </div>
+              <div class="lw-audio-controls">
+                <button type="button" class="lw-audio-btn" data-audio-play aria-label="Play audio"><span class="lw-audio-glyph" data-audio-play-glyph>\u25B6</span></button>
                 <button type="button" class="lw-audio-track" data-audio-track aria-label="Seek audio">
                   <span class="lw-audio-fill" data-audio-fill></span>
                 </button>
+                <button type="button" class="lw-audio-btn" data-audio-mute aria-label="Mute audio"><span class="lw-audio-glyph" data-audio-mute-glyph>\uD83D\uDD0A</span></button>
               </div>
-              <button type="button" class="lw-audio-btn" data-audio-mute aria-label="Mute audio"><span class="lw-audio-glyph" data-audio-mute-glyph>\uD83D\uDD0A</span></button>
               <audio preload="metadata" class="lw-audio-el" data-audio-el><source src="${escapeHtml(audioUrl)}"></audio>
             </div>`
           : '';
