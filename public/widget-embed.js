@@ -243,6 +243,30 @@
     }
   }
 
+  function optimizeCloudinaryImageUrl(rawUrl) {
+    const safeUrl = sanitizeHttpUrl(rawUrl);
+    if (!safeUrl) return '';
+    try {
+      const parsed = new URL(safeUrl);
+      if (!/(\.|^)res\.cloudinary\.com$/i.test(parsed.hostname)) return safeUrl;
+      if (!/\/image\/upload\//.test(parsed.pathname)) return safeUrl;
+
+      const segments = parsed.pathname.split('/').filter(Boolean);
+      const uploadIndex = segments.findIndex((segment) => segment === 'upload');
+      if (uploadIndex < 0) return safeUrl;
+
+      const nextSegment = segments[uploadIndex + 1] || '';
+      const hasTransformSegment = Boolean(nextSegment) && !/^v\d+$/i.test(nextSegment);
+      if (hasTransformSegment) return safeUrl;
+
+      segments.splice(uploadIndex + 1, 0, 'f_auto,q_auto:good,c_limit,w_960');
+      parsed.pathname = `/${segments.join('/')}`;
+      return parsed.toString();
+    } catch (_) {
+      return safeUrl;
+    }
+  }
+
   function stripCommandQuotes(value) {
     return String(value || '').trim().replace(/^["']|["']$/g, '').trim();
   }
@@ -269,7 +293,7 @@
           ? asJson.alt
           : (typeof asJson.caption === 'string' ? asJson.caption : '');
         return {
-          url: sanitizeHttpUrl(candidateUrl),
+          url: optimizeCloudinaryImageUrl(candidateUrl),
           alt: String(candidateAlt || '').trim()
         };
       }
@@ -279,7 +303,7 @@
 
     const [rawUrl, ...altParts] = payload.split('|');
     return {
-      url: sanitizeHttpUrl(rawUrl || ''),
+      url: optimizeCloudinaryImageUrl(rawUrl || ''),
       alt: altParts.join('|').trim()
     };
   }
@@ -364,7 +388,7 @@
       const markdownUrl = sanitizeHttpUrl(match[2] || '');
       if (markdownUrl) {
         parsed.images.push({
-          url: markdownUrl,
+          url: optimizeCloudinaryImageUrl(markdownUrl),
           alt: String(match[1] || '').trim(),
           index: match.index
         });
@@ -651,7 +675,7 @@
         if (!fields) continue;
 
         return {
-          welcomeImageUrl: sanitizeHttpUrl(fields.welcome_image_url?.stringValue || ''),
+          welcomeImageUrl: optimizeCloudinaryImageUrl(fields.welcome_image_url?.stringValue || ''),
           welcomeAudioUrl: sanitizeHttpUrl(fields.welcome_audio_url?.stringValue || '')
         };
       }
@@ -692,7 +716,7 @@
             payload.config.leadChatLiveToasts
           );
           const testimonials = normalizeTestimonials(payload.config.testimonials);
-          const backendWelcomeImage = sanitizeHttpUrl(payload.config.welcomeImageUrl || payload.config.welcome_image_url || '');
+          const backendWelcomeImage = optimizeCloudinaryImageUrl(payload.config.welcomeImageUrl || payload.config.welcome_image_url || '');
           const backendWelcomeAudio = sanitizeHttpUrl(payload.config.welcomeAudioUrl || payload.config.welcome_audio_url || '');
           const firestoreWelcomeFallback =
             (!backendWelcomeImage || !backendWelcomeAudio)
@@ -833,7 +857,7 @@
           primaryColor: fields.primary_color?.stringValue || defaultConfig.primaryColor,
           businessName: fields.business_name?.stringValue || defaultConfig.businessName,
           welcomeMessage: fields.welcome_message?.stringValue || defaultConfig.welcomeMessage,
-          welcomeImageUrl: sanitizeHttpUrl(fields.welcome_image_url?.stringValue || ''),
+          welcomeImageUrl: optimizeCloudinaryImageUrl(fields.welcome_image_url?.stringValue || ''),
           welcomeAudioUrl: sanitizeHttpUrl(fields.welcome_audio_url?.stringValue || ''),
           whatsappDestination: fields.whatsapp_destination?.stringValue || '',
           template: fields.template?.stringValue || 'general',
@@ -894,8 +918,8 @@
           : 'Respond in clear, natural English.';
       const costDirective =
         activeLanguage === 'es'
-          ? 'Se breve y orientado a conversion. Maximo 90 palabras, usa como maximo 1 emoji y evita repetir imagenes o audios.'
-          : 'Be concise and conversion-focused. Max 90 words, use at most 1 emoji, and avoid repeating images or audio.';
+          ? 'Se breve y orientado a conversion. Maximo 90 palabras, usa como maximo 1 emoji, evita repetir imagenes/audios. Usa [AUDIO] solo en bienvenida o CTA final (maximo 1 audio dinamico por conversacion). Si usas [IMAGE], prioriza URL Cloudinary en calidad media (q_auto:good, w<=960).'
+          : 'Be concise and conversion-focused. Max 90 words, use at most 1 emoji, avoid repeating images/audio. Use [AUDIO] only for opening or final CTA (max 1 dynamic audio per conversation). For [IMAGE], prefer Cloudinary medium quality URLs (q_auto:good, w<=960).';
       const compactHistory = messages
         .filter(m => m.role !== 'system')
         .map(m => ({
@@ -2171,7 +2195,7 @@
       messages = [{
         role: 'assistant',
         content: withBotEmoji(config.welcomeMessage),
-        imageUrl: sanitizeHttpUrl(config.welcomeImageUrl || ''),
+        imageUrl: optimizeCloudinaryImageUrl(config.welcomeImageUrl || ''),
         audioUrl: sanitizeHttpUrl(config.welcomeAudioUrl || '')
       }];
       return true;
@@ -2324,7 +2348,7 @@
         if (m.role === 'system') {
           return `<div class="lw-msg lw-msg-system">${m.content}</div>`;
         }
-        const imageUrl = sanitizeHttpUrl(m.imageUrl || '');
+        const imageUrl = optimizeCloudinaryImageUrl(m.imageUrl || '');
         const audioUrl = sanitizeHttpUrl(m.audioUrl || '');
         const isMediaOnly = !m.content && (imageUrl || audioUrl);
         const shouldExpandForAudio = Boolean(audioUrl);
@@ -2401,6 +2425,18 @@
         response = aiResult.response;
         isBlocked = aiResult.blocked;
         parsedCommands = parseChatCommands(response);
+        const existingAudioUrls = new Set(
+          messages
+            .map((item) => sanitizeHttpUrl(item.audioUrl || ''))
+            .filter(Boolean)
+        );
+        const maxAudioMessages = config.welcomeAudioUrl ? 2 : 1;
+        const availableAudioSlots = Math.max(0, maxAudioMessages - existingAudioUrls.size);
+        const budgetedAudios = Array.isArray(parsedCommands.audios)
+          ? parsedCommands.audios
+            .filter((item) => !existingAudioUrls.has(sanitizeHttpUrl(item.url || '')))
+            .slice(0, availableAudioSlots)
+          : [];
         waRedirectData = parsedCommands.whatsappPayload || userMessage;
         const whatsappUrl = buildWhatsAppRedirectUrl(config.whatsappDestination, waRedirectData);
         const iaCallCloserUrl = sanitizeHttpUrl(
@@ -2438,11 +2474,12 @@
         selectedAction = actionCandidates[0] || null;
         const hasMediaPayload = (
           (parsedCommands.images && parsedCommands.images.length > 0) ||
-          (parsedCommands.audios && parsedCommands.audios.length > 0)
+          budgetedAudios.length > 0
         );
         response = parsedCommands.cleanText || (selectedAction
           ? selectedAction.notice
           : (hasMediaPayload ? '' : getText('fallbackResponse')));
+        parsedCommands.audios = budgetedAudios;
       }
       isLoading = false;
       if (response) {
@@ -2548,7 +2585,7 @@
           messages.push({
             role: 'assistant',
             content: withBotEmoji(config.welcomeMessage),
-            imageUrl: sanitizeHttpUrl(config.welcomeImageUrl || ''),
+            imageUrl: optimizeCloudinaryImageUrl(config.welcomeImageUrl || ''),
             audioUrl: sanitizeHttpUrl(config.welcomeAudioUrl || '')
           });
           renderMessages();

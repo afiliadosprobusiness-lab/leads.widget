@@ -210,9 +210,9 @@ function detectMessageLocale(value: string, fallback: WidgetLocale): WidgetLocal
 
 function getCostControlDirective(locale: WidgetLocale) {
   if (locale === "es") {
-    return "Se breve y orientado a conversion. Maximo 90 palabras, usa como maximo 1 emoji y evita repetir imagenes o audios.";
+    return "Se breve y orientado a conversion. Maximo 90 palabras, usa como maximo 1 emoji, evita repetir imagenes/audios. Usa [AUDIO] solo en bienvenida o CTA final (maximo 1 audio dinamico por conversacion). Si usas [IMAGE], prioriza URL Cloudinary en calidad media (q_auto:good, w<=960).";
   }
-  return "Be concise and conversion-focused. Max 90 words, use at most 1 emoji, and avoid repeating images or audio.";
+  return "Be concise and conversion-focused. Max 90 words, use at most 1 emoji, avoid repeating images/audio. Use [AUDIO] only for opening or final CTA (max 1 dynamic audio per conversation). For [IMAGE], prefer Cloudinary medium quality URLs (q_auto:good, w<=960).";
 }
 
 function buildWhatsAppStars(value: number) {
@@ -458,6 +458,12 @@ export function SalesWidget() {
         const parsed = parseChatResponseCommands(String(payload?.response || ""), {
           defaultIaCallCloserUrl: FALLBACK_IACALLCLOSER_REDIRECT_URL,
         });
+        const existingAudioUrls = new Set(messages.map((item) => item.audioUrl).filter(Boolean));
+        const maxAudioMessages = 1;
+        const availableAudioSlots = Math.max(0, maxAudioMessages - existingAudioUrls.size);
+        const budgetedAudios = parsed.audios
+          .filter((item) => !existingAudioUrls.has(item.url))
+          .slice(0, availableAudioSlots);
         const whatsappUrl = buildWhatsAppRedirectUrl(
           SALES_WIDGET_WHATSAPP_DESTINATION,
           parsed.whatsappPayload || userMessage,
@@ -501,7 +507,7 @@ export function SalesWidget() {
 
         actionCandidates.sort((a, b) => a.index - b.index);
         const selectedAction = actionCandidates[0];
-        const assistantReply = parsed.cleanText || selectedAction?.notice || (parsed.images.length > 0 || parsed.audios.length > 0 ? "" : copy.hint);
+        const assistantReply = parsed.cleanText || selectedAction?.notice || (parsed.images.length > 0 || budgetedAudios.length > 0 ? "" : copy.hint);
 
         setMessages((prev) => [
           ...prev,
@@ -512,7 +518,7 @@ export function SalesWidget() {
             imageUrl: item.url,
             imageAlt: item.alt || `assistant-image-${idx + 1}`,
           })),
-          ...parsed.audios.map((item) => ({
+          ...budgetedAudios.map((item) => ({
             role: "assistant" as const,
             content: "",
             audioUrl: item.url,

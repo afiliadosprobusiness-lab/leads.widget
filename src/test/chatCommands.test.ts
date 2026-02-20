@@ -38,4 +38,13 @@ describe("chatCommands parser", () => {
     expect(parsed.images[0]?.alt).toBe("Main panel");
     expect(parsed.cleanText).toContain("Listo para continuar.");
   });
+
+  it("optimizes cloudinary image commands to medium quality delivery", () => {
+    const parsed = parseChatResponseCommands(
+      "[IMAGE: https://res.cloudinary.com/dk76v5dyu/image/upload/v1771596718/demo/sample.png|Sample]",
+    );
+
+    expect(parsed.images).toHaveLength(1);
+    expect(parsed.images[0]?.url).toContain("/image/upload/f_auto,q_auto:good,c_limit,w_960/v1771596718/");
+  });
 });

@@ -90,6 +90,8 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Dashboard permite adjuntar `imagen` y `audio` en el `mensaje de bienvenida`; esos medios se renderizan en Lead Chat y widget embebido desde `welcome_image_url` y `welcome_audio_url`.
 - Si el endpoint publico `/api/widget-config/:identity` no devuelve `welcome_image_url/welcome_audio_url`, el widget embebido aplica fallback de lectura a Firestore para no perder multimedia de bienvenida.
 - En Lead Chat/widget embebido/SalesWidget, las burbujas con audio fuerzan ancho minimo y muestran tarjeta visual de audio para evitar que el reproductor quede oculto cuando el texto es corto o vacio.
+- En respuestas con imagen de Cloudinary, Lead Chat/widget embebido/SalesWidget aplican optimizacion de entrega a calidad media (`f_auto,q_auto:good,c_limit,w_960`) cuando la URL no trae transformaciones explicitas.
+- En Lead Chat/widget embebido/SalesWidget, el flujo aplica presupuesto de audio dinamico por conversacion (maximo 1 adicional, o 2 en total si existe audio de bienvenida) para controlar costos.
 - El popup de exit intent en Lead Chat/widget embebido fue ajustado para textos largos EN/ES (wrap de titulo/descripcion/CTA y botones sin overflow horizontal).
 - En Lead Chat/widget embebido/SalesWidget, el idioma por defecto del chat es ingles; si el usuario escribe en espanol el flujo cambia automaticamente a espanol y continua en ese idioma.
 - Widget embebido usa ingles por defecto y permite cambiar en 1 clic a espanol desde el header, aplicando textos UI, saludo inicial y testimonios rotativos (incluyendo compatibilidad con textos legacy EN/ES).

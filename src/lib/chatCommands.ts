@@ -44,6 +44,34 @@ function stripQuotes(value: string) {
   return value.replace(/^["']|["']$/g, "").trim();
 }
 
+export function optimizeImageDeliveryUrl(rawUrl: string) {
+  const safeUrl = sanitizeHttpUrl(rawUrl);
+  if (!safeUrl) return "";
+
+  try {
+    const parsed = new URL(safeUrl);
+    if (!/(\.|^)res\.cloudinary\.com$/i.test(parsed.hostname)) return safeUrl;
+    if (!/\/image\/upload\//.test(parsed.pathname)) return safeUrl;
+
+    const segments = parsed.pathname.split("/").filter(Boolean);
+    const uploadIndex = segments.findIndex((segment) => segment === "upload");
+    if (uploadIndex < 0) return safeUrl;
+
+    const nextSegment = segments[uploadIndex + 1] || "";
+    const hasTransformSegment = Boolean(nextSegment) && !/^v\d+$/i.test(nextSegment);
+    if (hasTransformSegment) {
+      // Respect existing explicit transformations to avoid breaking authored URLs.
+      return safeUrl;
+    }
+
+    segments.splice(uploadIndex + 1, 0, "f_auto,q_auto:good,c_limit,w_960");
+    parsed.pathname = `/${segments.join("/")}`;
+    return parsed.toString();
+  } catch {
+    return safeUrl;
+  }
+}
+
 function parseImagePayload(rawPayload: string) {
   const payload = stripQuotes(rawPayload || "");
   if (!payload) return { url: "", alt: "" };
@@ -64,7 +92,7 @@ function parseImagePayload(rawPayload: string) {
             ? (asJson as { caption: string }).caption
             : "";
       return {
-        url: sanitizeHttpUrl(candidateUrl),
+        url: optimizeImageDeliveryUrl(candidateUrl),
         alt: cleanText(candidateAlt),
       };
     }
@@ -74,7 +102,7 @@ function parseImagePayload(rawPayload: string) {
 
   const [rawUrl, ...altParts] = payload.split("|");
   return {
-    url: sanitizeHttpUrl(rawUrl || ""),
+    url: optimizeImageDeliveryUrl(rawUrl || ""),
     alt: cleanText(altParts.join("|")),
   };
 }
@@ -206,7 +234,7 @@ export function parseChatResponseCommands(
     const markdownUrl = sanitizeHttpUrl(match[2] || "");
     if (markdownUrl) {
       output.images.push({
-        url: markdownUrl,
+        url: optimizeImageDeliveryUrl(markdownUrl),
         alt: cleanText(match[1] || ""),
         index: match.index,
       });

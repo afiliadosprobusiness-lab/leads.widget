@@ -4,7 +4,7 @@ import { Loader2, Mic, MicOff, Moon, PhoneCall, Send, ShieldCheck, Smile, Sun, X
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { buildWhatsAppRedirectUrl, parseChatResponseCommands, sanitizeHttpUrl } from "@/lib/chatCommands";
+import { buildWhatsAppRedirectUrl, optimizeImageDeliveryUrl, parseChatResponseCommands, sanitizeHttpUrl } from "@/lib/chatCommands";
 
 type ChatMessage = {
   id?: string;
@@ -586,9 +586,9 @@ function getLanguageDirective(locale: ChatLocale) {
 
 function getCostControlDirective(locale: ChatLocale) {
   if (locale === "es") {
-    return "Se breve y orientado a conversion. Maximo 90 palabras, usa como maximo 1 emoji y evita repetir imagenes o audios.";
+    return "Se breve y orientado a conversion. Maximo 90 palabras, usa como maximo 1 emoji, evita repetir imagenes/audios. Usa [AUDIO] solo en bienvenida o CTA final (maximo 1 audio dinamico por conversacion). Si usas [IMAGE], prioriza URL Cloudinary en calidad media (q_auto:good, w<=960).";
   }
-  return "Be concise and conversion-focused. Max 90 words, use at most 1 emoji, and avoid repeating images or audio.";
+  return "Be concise and conversion-focused. Max 90 words, use at most 1 emoji, avoid repeating images/audio. Use [AUDIO] only for opening or final CTA (max 1 dynamic audio per conversation). For [IMAGE], prefer Cloudinary medium quality URLs (q_auto:good, w<=960).";
 }
 
 function arraysLooselyMatch(a: string[], b: string[]) {
@@ -957,7 +957,7 @@ export default function LeadChat() {
           primaryColor: String(raw.primaryColor || raw.primary_color || "#00C185"),
           whatsappDestination: String(raw.whatsappDestination || raw.whatsapp_destination || ""),
           welcomeMessage: resolveWelcomeMessage(raw.welcomeMessage ?? raw.welcome_message, resolvedLocale),
-          welcomeImageUrl: sanitizeHttpUrl(String(raw.welcomeImageUrl || raw.welcome_image_url || headerFields.welcome_image_url || "")),
+          welcomeImageUrl: optimizeImageDeliveryUrl(String(raw.welcomeImageUrl || raw.welcome_image_url || headerFields.welcome_image_url || "")),
           welcomeAudioUrl: sanitizeHttpUrl(String(raw.welcomeAudioUrl || raw.welcome_audio_url || headerFields.welcome_audio_url || "")),
           chatPlaceholder: String(raw.chatPlaceholder || raw.chat_placeholder || localeCopy.chatPlaceholder),
           quickReplies: resolveQuickReplies(raw.quickReplies ?? raw.quick_replies, resolvedLocale),
@@ -1402,11 +1402,17 @@ export default function LeadChat() {
       const parsed = parseChatResponseCommands(aiText, {
         defaultIaCallCloserUrl: config.iacloserRedirectUrl || FIXED_IACLOSER_REDIRECT_URL,
       });
+      const existingAudioUrls = new Set(messages.map((item) => item.audioUrl).filter(Boolean));
+      const maxAudioMessages = config.welcomeAudioUrl ? 2 : 1;
+      const availableAudioSlots = Math.max(0, maxAudioMessages - existingAudioUrls.size);
+      const budgetedAudios = parsed.audios
+        .filter((item) => !existingAudioUrls.has(item.url))
+        .slice(0, availableAudioSlots);
       const hasIaCallCloserReady = parsed.iaCallCloserReady;
       const normalizedWhatsAppMessage = parsed.whatsappPayload || text;
       const whatsappUrl = buildWhatsAppRedirectUrl(config.whatsappDestination || "", normalizedWhatsAppMessage);
       const hasMediaImages = parsed.images.length > 0;
-      const hasMediaAudios = parsed.audios.length > 0;
+      const hasMediaAudios = budgetedAudios.length > 0;
       const iaCallCloserRedirectUrl = sanitizeHttpUrl(
         parsed.iaCallCloserRedirectUrl || config.iacloserRedirectUrl || FIXED_IACLOSER_REDIRECT_URL,
       );
@@ -1431,10 +1437,10 @@ export default function LeadChat() {
           })),
         ]);
       }
-      if (parsed.audios.length > 0) {
+      if (budgetedAudios.length > 0) {
         setMessages((prev) => [
           ...prev,
-          ...parsed.audios.map((item, idx) => ({
+          ...budgetedAudios.map((item, idx) => ({
             id: `assistant-audio-${Date.now()}-${idx}`,
             role: "assistant" as const,
             content: "",
