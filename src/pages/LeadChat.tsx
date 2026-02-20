@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { Loader2, Mic, MicOff, Moon, PhoneCall, Send, ShieldCheck, Smile, Sun, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PremiumAudioPlayer } from "@/components/PremiumAudioPlayer";
 import { Label } from "@/components/ui/label";
 import { buildWhatsAppRedirectUrl, optimizeImageDeliveryUrl, parseChatResponseCommands, sanitizeHttpUrl } from "@/lib/chatCommands";
 
@@ -1857,25 +1858,12 @@ export default function LeadChat() {
                           />
                         ) : null}
                         {msg.audioUrl ? (
-                          <div className={`mt-2 rounded-xl border px-2.5 py-2 ${
-                            isLightMode
-                              ? "border-slate-200 bg-slate-50"
-                              : "border-white/15 bg-slate-900/60"
-                          }`}>
-                            <div className={`mb-1 flex items-center gap-2 text-[11px] font-medium ${
-                              isLightMode ? "text-slate-600" : "text-slate-200/90"
-                            }`}>
-                              <span className={`h-2 w-2 rounded-full animate-pulse ${isLightMode ? "bg-emerald-500" : "bg-emerald-300"}`} />
-                              <span>{copy.talkNow}</span>
-                            </div>
-                            <audio
-                              controls
-                              src={msg.audioUrl}
-                              className="block w-full min-w-[210px] max-w-[280px]"
-                              preload="metadata"
-                              style={{ colorScheme: isLightMode ? "light" : "dark" }}
-                            />
-                          </div>
+                          <PremiumAudioPlayer
+                            src={msg.audioUrl}
+                            theme={isLightMode ? "light" : "dark"}
+                            className="mt-2"
+                            label={copy.talkNow}
+                          />
                         ) : null}
                       </div>
                         );

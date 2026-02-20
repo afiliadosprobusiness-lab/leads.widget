@@ -1451,18 +1451,54 @@
         outline: none;
         box-shadow: 0 0 0 2px rgba(37, 211, 102, 0.35);
       }
-      .lw-audio-card {
+      .lw-audio-premium {
         margin-top: 8px;
-        border: 1px solid var(--lw-border);
-        border-radius: 12px;
-        padding: 8px 10px;
-        background: var(--lw-surface-soft);
-      }
-      .lw-audio-meta {
         display: flex;
         align-items: center;
-        gap: 6px;
+        gap: 8px;
+        min-width: 220px;
+        max-width: 290px;
+        padding: 8px 10px;
+        border-radius: 16px;
+        border: 1px solid var(--lw-border);
+        background: var(--lw-surface-soft);
+        box-shadow: 0 10px 30px -20px rgba(15,23,42,0.9);
+        backdrop-filter: blur(7px);
+      }
+      .lw-audio-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: 999px;
+        border: 1px solid var(--lw-border);
+        background: rgba(255,255,255,0.06);
+        color: var(--lw-text);
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+        flex-shrink: 0;
+      }
+      .lw-audio-btn:hover { background: rgba(255,255,255,0.12); }
+      .lw-audio-btn:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(34,211,238,0.35);
+      }
+      .lw-audio-glyph { font-size: 11px; line-height: 1; }
+      .lw-audio-main {
+        min-width: 0;
+        flex: 1;
+      }
+      .lw-audio-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
         margin-bottom: 6px;
+      }
+      .lw-audio-title {
+        min-width: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
         font-size: 11px;
         font-weight: 600;
         color: var(--lw-muted);
@@ -1475,18 +1511,32 @@
         box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.55);
         animation: lw-audioPulse 1.6s ease-out infinite;
       }
-      .lw-audio-el {
+      .lw-audio-time {
+        font-size: 11px;
+        color: var(--lw-muted);
+        white-space: nowrap;
+      }
+      .lw-audio-track {
+        position: relative;
         width: 100%;
-        min-width: 210px;
-        max-width: 260px;
-        height: 34px;
-        display: block;
+        height: 10px;
+        border-radius: 999px;
+        border: 1px solid var(--lw-border);
+        background: rgba(148, 163, 184, 0.24);
+        cursor: pointer;
       }
-      #lw-root[data-theme='dark'] .lw-audio-el {
-        color-scheme: dark;
+      .lw-audio-fill {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 0%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #22d3ee, #34d399);
+        transition: width 0.12s linear;
       }
-      #lw-root[data-theme='light'] .lw-audio-el {
-        color-scheme: light;
+      .lw-audio-el {
+        display: none;
       }
       @keyframes lw-audioPulse {
         0% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.55); }
@@ -2338,9 +2388,88 @@
       });
     }
 
+    function formatAudioTime(seconds) {
+      const safe = Number.isFinite(seconds) && seconds >= 0 ? Math.floor(seconds) : 0;
+      const mins = Math.floor(safe / 60);
+      const secs = safe % 60;
+      return `${mins}:${String(secs).padStart(2, '0')}`;
+    }
+
+    function initPremiumAudioCards(container) {
+      if (!container) return;
+      const cards = container.querySelectorAll('[data-audio-card]');
+      cards.forEach((card) => {
+        const audio = card.querySelector('[data-audio-el]');
+        const playBtn = card.querySelector('[data-audio-play]');
+        const playGlyph = card.querySelector('[data-audio-play-glyph]');
+        const muteBtn = card.querySelector('[data-audio-mute]');
+        const muteGlyph = card.querySelector('[data-audio-mute-glyph]');
+        const track = card.querySelector('[data-audio-track]');
+        const fill = card.querySelector('[data-audio-fill]');
+        const timeEl = card.querySelector('[data-audio-time]');
+
+        if (!audio || !playBtn || !playGlyph || !muteBtn || !muteGlyph || !track || !fill || !timeEl) return;
+
+        const updateTime = () => {
+          const current = audio.currentTime || 0;
+          const duration = Number.isFinite(audio.duration) ? audio.duration : 0;
+          const ratio = duration > 0 ? Math.min(1, Math.max(0, current / duration)) : 0;
+          fill.style.width = `${ratio * 100}%`;
+          timeEl.textContent = `${formatAudioTime(current)} / ${duration > 0 ? formatAudioTime(duration) : '--:--'}`;
+        };
+
+        const updatePlayGlyph = () => {
+          playGlyph.textContent = audio.paused ? '\u25B6' : '\u275A\u275A';
+        };
+
+        const updateMuteGlyph = () => {
+          muteGlyph.textContent = audio.muted ? '\uD83D\uDD07' : '\uD83D\uDD0A';
+        };
+
+        playBtn.addEventListener('click', async () => {
+          try {
+            if (audio.paused) {
+              await audio.play();
+            } else {
+              audio.pause();
+            }
+          } catch (_) {
+            // noop
+          } finally {
+            updatePlayGlyph();
+          }
+        });
+
+        muteBtn.addEventListener('click', () => {
+          audio.muted = !audio.muted;
+          updateMuteGlyph();
+        });
+
+        track.addEventListener('click', (event) => {
+          const rect = track.getBoundingClientRect();
+          const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / Math.max(rect.width, 1)));
+          const duration = Number.isFinite(audio.duration) ? audio.duration : 0;
+          if (!duration) return;
+          audio.currentTime = ratio * duration;
+          updateTime();
+        });
+
+        audio.addEventListener('timeupdate', updateTime);
+        audio.addEventListener('loadedmetadata', updateTime);
+        audio.addEventListener('play', updatePlayGlyph);
+        audio.addEventListener('pause', updatePlayGlyph);
+        audio.addEventListener('ended', updatePlayGlyph);
+        audio.addEventListener('volumechange', updateMuteGlyph);
+
+        updateTime();
+        updatePlayGlyph();
+        updateMuteGlyph();
+      });
+    }
+
     // Render messages
     function renderMessages() {
-      let html = messages.map(m => {
+      let html = messages.map((m, messageIndex) => {
         if (m.role === 'system' && m.actionUrl) {
           const actionLabel = m.actionLabel || getText('openIACallCloserNow');
           return `<div class="lw-msg lw-msg-system lw-msg-system-action"><div>${m.content}</div><button type="button" class="lw-system-action-btn" data-action-url="${escapeHtml(m.actionUrl)}">${escapeHtml(actionLabel)}</button></div>`;
@@ -2357,7 +2486,20 @@
           ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(m.imageAlt || 'Assistant image')}" loading="lazy" style="margin-top:8px;width:100%;max-width:260px;border-radius:12px;border:1px solid var(--lw-border);display:block;">`
           : '';
         const audioMarkup = audioUrl
-          ? `<div class="lw-audio-card"><div class="lw-audio-meta"><span class="lw-audio-dot"></span><span>${escapeHtml(getText('talkNow'))}</span></div><audio controls preload="metadata" class="lw-audio-el"><source src="${escapeHtml(audioUrl)}"></audio></div>`
+          ? `<div class="lw-audio-premium" data-audio-card data-audio-id="audio-${messageIndex}">
+              <button type="button" class="lw-audio-btn" data-audio-play aria-label="Play audio"><span class="lw-audio-glyph" data-audio-play-glyph>\u25B6</span></button>
+              <div class="lw-audio-main">
+                <div class="lw-audio-row">
+                  <span class="lw-audio-title"><span class="lw-audio-dot"></span>${escapeHtml(getText('talkNow'))}</span>
+                  <span class="lw-audio-time" data-audio-time>0:00 / --:--</span>
+                </div>
+                <button type="button" class="lw-audio-track" data-audio-track aria-label="Seek audio">
+                  <span class="lw-audio-fill" data-audio-fill></span>
+                </button>
+              </div>
+              <button type="button" class="lw-audio-btn" data-audio-mute aria-label="Mute audio"><span class="lw-audio-glyph" data-audio-mute-glyph>\uD83D\uDD0A</span></button>
+              <audio preload="metadata" class="lw-audio-el" data-audio-el><source src="${escapeHtml(audioUrl)}"></audio>
+            </div>`
           : '';
         return `<div class="lw-msg lw-msg-${m.role}${(isMediaOnly || shouldExpandForAudio) ? ' lw-msg-media-only' : ''}">${textMarkup}${imageMarkup}${audioMarkup}</div>`;
       }).join('');
@@ -2380,6 +2522,7 @@
           window.open(url, '_blank', 'noopener,noreferrer');
         });
       });
+      initPremiumAudioCards(messagesContainer);
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
       renderQuickReplies();
     }

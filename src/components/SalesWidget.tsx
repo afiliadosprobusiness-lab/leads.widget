@@ -2,6 +2,7 @@
 import { Bot, Loader2, MessageCircle, Mic, MicOff, Palette, Send, Smile, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PremiumAudioPlayer } from "@/components/PremiumAudioPlayer";
 import { buildWhatsAppRedirectUrl, parseChatResponseCommands, sanitizeHttpUrl } from "@/lib/chatCommands";
 
 type Message = {
@@ -835,26 +836,12 @@ export function SalesWidget() {
                     />
                   ) : null}
                   {msg.audioUrl ? (
-                    <div className={`mt-2 rounded-xl border px-2.5 py-2 ${
-                      isLightMode
-                        ? "border-slate-200 bg-slate-50"
-                        : "border-white/15 bg-slate-900/60"
-                    }`}>
-                      <div className={`mb-1 flex items-center gap-2 text-[11px] font-medium ${
-                        isLightMode ? "text-slate-600" : "text-slate-200/90"
-                      }`}>
-                        <span className={`h-2 w-2 rounded-full animate-pulse ${isLightMode ? "bg-emerald-500" : "bg-emerald-300"}`} />
-                        <span>{copy.talkNow}</span>
-                      </div>
-                      <audio
-                        controls
-                        preload="metadata"
-                        className="block w-full min-w-[210px] max-w-[250px]"
-                        style={{ colorScheme: isLightMode ? "light" : "dark" }}
-                      >
-                        <source src={msg.audioUrl} />
-                      </audio>
-                    </div>
+                    <PremiumAudioPlayer
+                      src={msg.audioUrl}
+                      theme={isLightMode ? "light" : "dark"}
+                      className="mt-2 max-w-[250px]"
+                      label={copy.talkNow}
+                    />
                   ) : null}
                 </div>
                   );
