@@ -83,6 +83,12 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Lead Chat consume `language` del widget config para defaults EN/ES (mensaje inicial, quick replies, consentimiento, estados y copys de conversion).
 - Widget embebido (`public/widget-embed.js`) replica mejoras de retencion: quick replies en una sola fila con scroll horizontal (mobile-first), selector de emojis, entrada por voz y toggle sutil claro/oscuro.
 - En Lead Chat/widget embebido/SalesWidget, la entrada por voz usa fallback `SpeechRecognition/webkitSpeechRecognition` y autoenvia el mensaje al terminar el dictado.
+- En Lead Chat/widget embebido/SalesWidget, cuando el microfono esta activo se muestra un overlay inmersivo tipo "speak now" con animacion para feedback visual inmediato del estado de escucha.
+- Lead Chat/widget embebido/SalesWidget interpretan comandos IA de redireccion tanto a WhatsApp como a IACloser (`WHATSAPP_REDIRECT`, `ICLOSER/ICALLCLOSER/IACALLCLOSER_REDIRECT` y alias `*_READY`), con CTA visible y apertura automatica del destino.
+- Lead Chat/widget embebido/SalesWidget soportan mensajes multimedia de imagen en respuestas del asistente usando comandos `[IMAGE|IMG|PHOTO: ...]` (incluye variante JSON/pipe) y markdown `![alt](url)` con sanitizacion `http/https`.
+- Lead Chat/widget embebido/SalesWidget soportan mensajes multimedia de audio en respuestas del asistente usando comandos `[AUDIO|VOICE|SOUND: ...]` con sanitizacion `http/https`.
+- Dashboard permite adjuntar `imagen` y `audio` en el `mensaje de bienvenida`; esos medios se renderizan en Lead Chat y widget embebido desde `welcome_image_url` y `welcome_audio_url`.
+- El popup de exit intent en Lead Chat/widget embebido fue ajustado para textos largos EN/ES (wrap de titulo/descripcion/CTA y botones sin overflow horizontal).
 - En Lead Chat/widget embebido/SalesWidget, el idioma por defecto del chat es ingles; si el usuario escribe en espanol el flujo cambia automaticamente a espanol y continua en ese idioma.
 - Widget embebido usa ingles por defecto y permite cambiar en 1 clic a espanol desde el header, aplicando textos UI, saludo inicial y testimonios rotativos (incluyendo compatibilidad con textos legacy EN/ES).
 - Widget embebido actualiza defaults comerciales EN/ES (mensaje de apertura y quick replies) al enfoque de llamada en menos de 2 minutos.
@@ -124,5 +130,8 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - En dashboard, los defaults de Lead Chat quedan alineados al guion de conversion en 3 pasos y el selector de idioma (`es/en`) puede aplicar automaticamente copy EN/ES mientras no se haya personalizado manualmente.
 - En Dashboard > Configuracion del widget > Lead Chat, los textos de encabezado (`eyebrow`, titulo, subtitulo, badge) se editan y reflejan directamente en la cabecera del Lead Chat; ademas se puede personalizar el titulo de la pestana del navegador (`lead_chat_page_title`).
 - En IA > Prompt del Sistema, el dashboard ahora incluye plantillas predefinidas editables en ingles (campos `[REPLACE_*]`) y prioriza flujo USA de llamada con consentimiento usando `ICALLCLOSER_READY`.
+- En IA > Prompt del Sistema, el boton de plantilla aplica automaticamente un guion especializado segun `Industria / Nicho` (`general`, `inmobiliaria`, `clinica`, `taller`, `delivery`; en `personalizado` usa base general), manteniendo comandos de conversion `ICALLCLOSER`/`WHATSAPP` y soporte de bloque `IMAGE`.
 - `WHATSAPP_REDIRECT` se mantiene como opcion secundaria; la guia permite alternar comando (ICallCloser/WhatsApp) e insertarlo al prompt con un boton.
+- Upload de bienvenida en dashboard usa Cloudinary cuando existen `VITE_CLOUDINARY_CLOUD_NAME` + `VITE_CLOUDINARY_UPLOAD_PRESET`; si no existen, usa fallback a Firebase Storage.
+- Para reducir costo de tokens, Lead Chat/widget embebido/SalesWidget ahora envian al backend una directiva compacta de respuesta y una ventana de historial acotada (ultimos 12 mensajes no-system).
 - En configuracion Lead Chat, la URL de redireccion post-consentimiento queda fija en `https://ai-call-closer.vercel.app/` y no es editable desde dashboard.

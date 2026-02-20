@@ -1,11 +1,14 @@
 ﻿(function () {
   'use strict';
+  const FALLBACK_IACALLCLOSER_REDIRECT_URL = 'https://ai-call-closer.vercel.app/';
 
   // Default Configuration
   const defaultConfig = {
     primaryColor: '#00C185',
     businessName: 'LeadWidget',
     welcomeMessage: "Hi! I'm the qualification assistant. In under 2 minutes, our AI can call you and help you book or close customers live. What would you like to do?",
+    welcomeImageUrl: '',
+    welcomeAudioUrl: '',
     whatsappDestination: '',
     template: 'general',
     chatPlaceholder: 'Type your message...',
@@ -92,7 +95,13 @@
       fallbackResponse: 'I had a connection issue. Want to continue on WhatsApp?',
       blockedPlaceholder: 'Chat blocked for security reasons',
       waFallback: 'Great! I will connect you with an advisor on WhatsApp now.',
+      openWhatsAppNow: 'Open WhatsApp now',
+      iacallcloserFallback: 'Great! I will open IACloser now.',
       systemAudioUnsupported: 'Voice input is not supported in this browser.',
+      openingIACallCloser: 'Opening IACloser...',
+      openIACallCloserNow: 'Open IACloser now',
+      talkNow: 'Speak now',
+      listeningNow: 'Listening... speak now.',
       languageLabel: 'ES',
       themeLabel: 'Theme',
       voiceLabel: 'Voice input',
@@ -110,7 +119,13 @@
       fallbackResponse: 'Tuve un problema de conexion. Quieres continuar por WhatsApp?',
       blockedPlaceholder: 'Chat blocked for security reasons',
       waFallback: 'Excelente, te paso con un asesor por WhatsApp.',
+      openWhatsAppNow: 'Abrir WhatsApp ahora',
+      iacallcloserFallback: 'Excelente, abrimos IACloser ahora.',
       systemAudioUnsupported: 'La entrada por voz no es compatible con este navegador.',
+      openingIACallCloser: 'Abriendo IACloser...',
+      openIACallCloserNow: 'Abrir IACloser ahora',
+      talkNow: 'Habla ahora',
+      listeningNow: 'Escuchando... habla ahora.',
       languageLabel: 'EN',
       themeLabel: 'Tema',
       voiceLabel: 'Entrada por voz',
@@ -214,6 +229,173 @@
         .filter(Boolean);
     }
     return [];
+  }
+
+  function sanitizeHttpUrl(value, maxLength = 500) {
+    const normalized = String(value || '').trim();
+    if (!normalized || normalized.length > maxLength) return '';
+    try {
+      const parsed = new URL(normalized);
+      if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return '';
+      return parsed.toString();
+    } catch (_) {
+      return '';
+    }
+  }
+
+  function stripCommandQuotes(value) {
+    return String(value || '').trim().replace(/^["']|["']$/g, '').trim();
+  }
+
+  function buildWhatsAppRedirectUrl(destination, message) {
+    const cleanDestination = String(destination || '').replace(/\D/g, '');
+    if (!cleanDestination) return '';
+    const cleanMessage = String(message || '').trim();
+    if (!cleanMessage) return `https://wa.me/${cleanDestination}`;
+    return `https://wa.me/${cleanDestination}?text=${encodeURIComponent(cleanMessage)}`;
+  }
+
+  function parseImagePayload(rawPayload) {
+    const payload = stripCommandQuotes(rawPayload || '');
+    if (!payload) return { url: '', alt: '' };
+
+    try {
+      const asJson = JSON.parse(payload);
+      if (asJson && typeof asJson === 'object') {
+        const candidateUrl = typeof asJson.url === 'string'
+          ? asJson.url
+          : (typeof asJson.image === 'string' ? asJson.image : '');
+        const candidateAlt = typeof asJson.alt === 'string'
+          ? asJson.alt
+          : (typeof asJson.caption === 'string' ? asJson.caption : '');
+        return {
+          url: sanitizeHttpUrl(candidateUrl),
+          alt: String(candidateAlt || '').trim()
+        };
+      }
+    } catch (_) {
+      // noop
+    }
+
+    const [rawUrl, ...altParts] = payload.split('|');
+    return {
+      url: sanitizeHttpUrl(rawUrl || ''),
+      alt: altParts.join('|').trim()
+    };
+  }
+
+  function parseAudioPayload(rawPayload) {
+    const payload = stripCommandQuotes(rawPayload || '');
+    if (!payload) return { url: '' };
+
+    try {
+      const asJson = JSON.parse(payload);
+      if (asJson && typeof asJson === 'object') {
+        const candidateUrl = typeof asJson.url === 'string'
+          ? asJson.url
+          : (typeof asJson.audio === 'string' ? asJson.audio : '');
+        return {
+          url: sanitizeHttpUrl(candidateUrl)
+        };
+      }
+    } catch (_) {
+      // noop
+    }
+
+    return {
+      url: sanitizeHttpUrl(payload)
+    };
+  }
+
+  function parseChatCommands(responseText) {
+    const raw = String(responseText || '');
+    const whatsappRe = /\[\s*WHATSAPP_REDIRECT\s*:\s*([\s\S]*?)\]/ig;
+    const iaCallCloserRedirectRe = /\[\s*(?:ICLOSER_REDIRECT|ICALLCLOSER_REDIRECT|IACALLCLOSER_REDIRECT)\s*:\s*([\s\S]*?)\]/ig;
+    const iaCallCloserReadyRe = /\[\s*(?:ICLOSER_READY|ICALLCLOSER_READY|IACALLCLOSER_READY)(?:\s*:\s*([\s\S]*?))?\s*\]/ig;
+    const imageCommandRe = /\[\s*(?:IMAGE|IMG|PHOTO)\s*:\s*([\s\S]*?)\]/ig;
+    const audioCommandRe = /\[\s*(?:AUDIO|VOICE|SOUND)\s*:\s*([\s\S]*?)\]/ig;
+    const markdownImageRe = /!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/ig;
+    const parsed = {
+      cleanText: raw.trim(),
+      whatsappPayload: '',
+      whatsappIndex: null,
+      iaCallCloserRedirectUrl: '',
+      iaCallCloserRedirectIndex: null,
+      iaCallCloserReady: false,
+      iaCallCloserReadyIndex: null,
+      images: [],
+      audios: []
+    };
+
+    let match;
+    while ((match = whatsappRe.exec(raw)) !== null) {
+      if (parsed.whatsappIndex === null || match.index < parsed.whatsappIndex) {
+        parsed.whatsappPayload = stripCommandQuotes(match[1] || '');
+        parsed.whatsappIndex = match.index;
+      }
+    }
+
+    while ((match = iaCallCloserRedirectRe.exec(raw)) !== null) {
+      if (parsed.iaCallCloserRedirectIndex === null || match.index < parsed.iaCallCloserRedirectIndex) {
+        parsed.iaCallCloserRedirectUrl = sanitizeHttpUrl(stripCommandQuotes(match[1] || '')) || FALLBACK_IACALLCLOSER_REDIRECT_URL;
+        parsed.iaCallCloserRedirectIndex = match.index;
+      }
+    }
+
+    while ((match = iaCallCloserReadyRe.exec(raw)) !== null) {
+      if (parsed.iaCallCloserReadyIndex === null || match.index < parsed.iaCallCloserReadyIndex) {
+        parsed.iaCallCloserReady = true;
+        parsed.iaCallCloserReadyIndex = match.index;
+      }
+    }
+
+    while ((match = imageCommandRe.exec(raw)) !== null) {
+      const parsedImage = parseImagePayload(match[1] || '');
+      if (parsedImage.url) {
+        parsed.images.push({
+          url: parsedImage.url,
+          alt: parsedImage.alt,
+          index: match.index
+        });
+      }
+    }
+
+    while ((match = markdownImageRe.exec(raw)) !== null) {
+      const markdownUrl = sanitizeHttpUrl(match[2] || '');
+      if (markdownUrl) {
+        parsed.images.push({
+          url: markdownUrl,
+          alt: String(match[1] || '').trim(),
+          index: match.index
+        });
+      }
+    }
+
+    while ((match = audioCommandRe.exec(raw)) !== null) {
+      const parsedAudio = parseAudioPayload(match[1] || '');
+      if (parsedAudio.url) {
+        parsed.audios.push({
+          url: parsedAudio.url,
+          index: match.index
+        });
+      }
+    }
+
+    parsed.images.sort((a, b) => a.index - b.index);
+    parsed.images = parsed.images.slice(0, 4);
+    parsed.audios.sort((a, b) => a.index - b.index);
+    parsed.audios = parsed.audios.slice(0, 4);
+
+    parsed.cleanText = raw
+      .replace(whatsappRe, '')
+      .replace(iaCallCloserRedirectRe, '')
+      .replace(iaCallCloserReadyRe, '')
+      .replace(imageCommandRe, '')
+      .replace(markdownImageRe, '')
+      .replace(audioCommandRe, '')
+      .trim();
+
+    return parsed;
   }
 
   function normalizeTestimonials(value) {
@@ -464,6 +646,8 @@
           const testimonials = normalizeTestimonials(payload.config.testimonials);
           return {
             ...payload.config,
+            welcomeImageUrl: sanitizeHttpUrl(payload.config.welcomeImageUrl || payload.config.welcome_image_url || ''),
+            welcomeAudioUrl: sanitizeHttpUrl(payload.config.welcomeAudioUrl || payload.config.welcome_audio_url || ''),
             quickReplies: quickReplies.length > 0 ? quickReplies : [...config.quickReplies],
             teaserMessages: teaserMessages.length > 0 ? teaserMessages : [...config.teaserMessages],
             testimonials: testimonials.length > 0 ? testimonials : [],
@@ -595,6 +779,8 @@
           primaryColor: fields.primary_color?.stringValue || defaultConfig.primaryColor,
           businessName: fields.business_name?.stringValue || defaultConfig.businessName,
           welcomeMessage: fields.welcome_message?.stringValue || defaultConfig.welcomeMessage,
+          welcomeImageUrl: sanitizeHttpUrl(fields.welcome_image_url?.stringValue || ''),
+          welcomeAudioUrl: sanitizeHttpUrl(fields.welcome_audio_url?.stringValue || ''),
           whatsappDestination: fields.whatsapp_destination?.stringValue || '',
           template: fields.template?.stringValue || 'general',
           chatPlaceholder: fields.chat_placeholder?.stringValue || defaultConfig.chatPlaceholder,
@@ -652,12 +838,21 @@
         activeLanguage === 'es'
           ? 'Responde siempre en espanol claro y natural.'
           : 'Respond in clear, natural English.';
+      const costDirective =
+        activeLanguage === 'es'
+          ? 'Se breve y orientado a conversion. Maximo 90 palabras, usa como maximo 1 emoji y evita repetir imagenes o audios.'
+          : 'Be concise and conversion-focused. Max 90 words, use at most 1 emoji, and avoid repeating images or audio.';
+      const compactHistory = messages
+        .filter(m => m.role !== 'system')
+        .map(m => ({
+          role: m.role === 'assistant' ? 'assistant' : 'user',
+          content: m.content
+        }))
+        .slice(-12);
       const conversationHistory = [
         { role: 'system', content: languageDirective },
-        ...messages.filter(m => m.role !== 'system').map(m => ({
-        role: m.role === 'assistant' ? 'assistant' : 'user',
-        content: m.content
-      })),
+        { role: 'system', content: costDirective },
+        ...compactHistory,
       ];
 
       const response = await fetch(backendUrl, {
@@ -1150,6 +1345,31 @@
         border-radius: 12px;
         padding: 8px 14px;
       }
+      .lw-msg-system.lw-msg-system-action {
+        width: min(88%, 320px);
+        padding: 10px 12px;
+      }
+      .lw-system-action-btn {
+        margin-top: 8px;
+        width: 100%;
+        border: none;
+        border-radius: 10px;
+        background: #25D366;
+        color: white;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 10px 12px;
+        cursor: pointer;
+        transition: background 0.2s ease, transform 0.2s ease;
+      }
+      .lw-system-action-btn:hover {
+        background: #1ea955;
+        transform: translateY(-1px);
+      }
+      .lw-system-action-btn:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(37, 211, 102, 0.35);
+      }
 
       #lw-typing {
         display: flex;
@@ -1300,6 +1520,77 @@
       }
       .lw-emoji-btn:hover { background: color-mix(in srgb, var(--lw-primary) 14%, var(--lw-surface-soft)); }
 
+      #lw-voice-overlay {
+        position: absolute;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 18px;
+        background: color-mix(in srgb, var(--lw-bg) 72%, transparent);
+        backdrop-filter: blur(3px);
+        z-index: 6;
+      }
+      #lw-voice-overlay.open { display: flex; }
+      #lw-voice-shell {
+        width: 100%;
+        border-radius: 18px;
+        border: 1px solid var(--lw-border);
+        background: color-mix(in srgb, var(--lw-surface) 95%, transparent);
+        padding: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+      }
+      #lw-voice-text {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--lw-text);
+      }
+      #lw-voice-subtext {
+        margin-top: 4px;
+        font-size: 12px;
+        color: var(--lw-muted);
+      }
+      #lw-voice-stop {
+        position: relative;
+        width: 96px;
+        height: 96px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.62);
+        background: rgba(255,255,255,0.04);
+        color: #ef4444;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #lw-voice-stop::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: 999px;
+        border: 1px solid rgba(248,113,113,0.58);
+        animation: lw-voicePing 1.6s infinite;
+      }
+      #lw-voice-stop::after {
+        content: '';
+        position: absolute;
+        inset: 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(252,165,165,0.72);
+      }
+      #lw-voice-stop svg {
+        position: relative;
+        z-index: 1;
+      }
+      @keyframes lw-voicePing {
+        0% { transform: scale(0.9); opacity: 0.95; }
+        70% { transform: scale(1.08); opacity: 0.1; }
+        100% { transform: scale(1.13); opacity: 0; }
+      }
+
       #lw-send {
         width: 48px;
         height: 48px;
@@ -1419,11 +1710,27 @@
         margin: 0 auto 22px;
         transform: rotate(-8deg);
       }
-      #lw-exit-title { font-size: 26px; font-weight: 800; color: var(--lw-text); margin-bottom: 10px; line-height: 1.2; letter-spacing: -0.02em; }
-      #lw-exit-desc { font-size: 15px; color: var(--lw-muted); margin-bottom: 26px; line-height: 1.55; }
+      #lw-exit-title {
+        font-size: 26px;
+        font-weight: 800;
+        color: var(--lw-text);
+        margin-bottom: 10px;
+        line-height: 1.2;
+        letter-spacing: -0.02em;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
+      #lw-exit-desc {
+        font-size: 15px;
+        color: var(--lw-muted);
+        margin-bottom: 26px;
+        line-height: 1.55;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
       #lw-exit-cta {
         width: 100%;
-        padding: 14px;
+        padding: 14px 12px;
         background: linear-gradient(140deg, var(--lw-primary) 0%, var(--lw-primary-strong) 100%);
         color: #fff;
         border: none;
@@ -1432,6 +1739,10 @@
         cursor: pointer;
         font-size: 15px;
         transition: transform 0.2s ease, opacity 0.2s ease;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        line-height: 1.3;
       }
       #lw-exit-cta:hover { transform: translateY(-1px); opacity: 0.95; }
       #lw-exit-close {
@@ -1522,6 +1833,22 @@
             </div>
           </div>
           <div id="lw-messages"></div>
+          <div id="lw-voice-overlay" role="status" aria-live="polite">
+            <div id="lw-voice-shell">
+              <div>
+                <div id="lw-voice-text">${getText('talkNow')}</div>
+                <div id="lw-voice-subtext">${getText('listeningNow')}</div>
+              </div>
+              <button type="button" id="lw-voice-stop" aria-label="${getText('voiceLabel')}">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+                  <rect x="9" y="2" width="6" height="12" rx="3"></rect>
+                  <path d="M5 10a7 7 0 0 0 14 0"></path>
+                  <line x1="12" y1="19" x2="12" y2="22"></line>
+                  <line x1="8" y1="22" x2="16" y2="22"></line>
+                </svg>
+              </button>
+            </div>
+          </div>
 
           <div id="lw-input-area">
             <button type="button" id="lw-inline-teaser"></button>
@@ -1617,6 +1944,10 @@
     const emojiBtn = document.getElementById('lw-emoji-btn');
     const micBtn = document.getElementById('lw-mic-btn');
     const emojiPanel = document.getElementById('lw-emoji-panel');
+    const voiceOverlay = document.getElementById('lw-voice-overlay');
+    const voiceTextEl = document.getElementById('lw-voice-text');
+    const voiceSubtextEl = document.getElementById('lw-voice-subtext');
+    const voiceStopBtn = document.getElementById('lw-voice-stop');
     const subtitleEl = document.getElementById('lw-header-subtitle');
     const testimonialLabelEl = document.getElementById('lw-testimonial-label');
     const testimonialBar = document.getElementById('lw-testimonial-bar');
@@ -1738,7 +2069,12 @@
 
       if (!looksLikeWelcome) return false;
 
-      messages = [{ role: 'assistant', content: withBotEmoji(config.welcomeMessage) }];
+      messages = [{
+        role: 'assistant',
+        content: withBotEmoji(config.welcomeMessage),
+        imageUrl: sanitizeHttpUrl(config.welcomeImageUrl || ''),
+        audioUrl: sanitizeHttpUrl(config.welcomeAudioUrl || '')
+      }];
       return true;
     }
 
@@ -1759,6 +2095,9 @@
       if (emojiBtn) emojiBtn.setAttribute('aria-label', getText('emojiLabel'));
       if (micBtn) micBtn.setAttribute('aria-label', getText('voiceLabel'));
       if (themeBtn) themeBtn.setAttribute('aria-label', getText('themeLabel'));
+      if (voiceTextEl) voiceTextEl.textContent = getText('talkNow');
+      if (voiceSubtextEl) voiceSubtextEl.textContent = getText('listeningNow');
+      if (voiceStopBtn) voiceStopBtn.setAttribute('aria-label', getText('voiceLabel'));
       updatePresenceNowMessage();
       if (isOpen) {
         startPresenceTicker();
@@ -1779,6 +2118,11 @@
       } else {
         stopTestimonialRotator();
       }
+    }
+
+    function setVoiceOverlayOpen(open) {
+      if (!voiceOverlay) return;
+      voiceOverlay.classList.toggle('open', Boolean(open));
     }
 
     function initSpeechRecognition() {
@@ -1813,10 +2157,12 @@
       recognition.onstart = () => {
         isListening = true;
         if (micBtn) micBtn.classList.add('active');
+        setVoiceOverlayOpen(true);
       };
       recognition.onend = () => {
         isListening = false;
         if (micBtn) micBtn.classList.remove('active');
+        setVoiceOverlayOpen(false);
         const transcript = (latestVoiceTranscript || '').trim();
         const shouldAutoSend = pendingVoiceAutoSend;
         pendingVoiceAutoSend = false;
@@ -1830,6 +2176,7 @@
         pendingVoiceAutoSend = false;
         latestVoiceTranscript = '';
         if (micBtn) micBtn.classList.remove('active');
+        setVoiceOverlayOpen(false);
       };
       return recognition;
     }
@@ -1871,10 +2218,23 @@
     // Render messages
     function renderMessages() {
       let html = messages.map(m => {
+        if (m.role === 'system' && m.actionUrl) {
+          const actionLabel = m.actionLabel || getText('openIACallCloserNow');
+          return `<div class="lw-msg lw-msg-system lw-msg-system-action"><div>${m.content}</div><button type="button" class="lw-system-action-btn" data-action-url="${escapeHtml(m.actionUrl)}">${escapeHtml(actionLabel)}</button></div>`;
+        }
         if (m.role === 'system') {
           return `<div class="lw-msg lw-msg-system">${m.content}</div>`;
         }
-        return `<div class="lw-msg lw-msg-${m.role}">${m.content}</div>`;
+        const imageUrl = sanitizeHttpUrl(m.imageUrl || '');
+        const audioUrl = sanitizeHttpUrl(m.audioUrl || '');
+        const textMarkup = m.content ? `<div>${m.content}</div>` : '';
+        const imageMarkup = imageUrl
+          ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(m.imageAlt || 'Assistant image')}" loading="lazy" style="margin-top:8px;width:100%;max-width:260px;border-radius:12px;border:1px solid var(--lw-border);display:block;">`
+          : '';
+        const audioMarkup = audioUrl
+          ? `<audio controls preload="metadata" style="margin-top:8px;width:100%;max-width:260px;"><source src="${escapeHtml(audioUrl)}"></audio>`
+          : '';
+        return `<div class="lw-msg lw-msg-${m.role}">${textMarkup}${imageMarkup}${audioMarkup}</div>`;
       }).join('');
 
       if (isLoading) {
@@ -1888,6 +2248,13 @@
       }
 
       messagesContainer.innerHTML = html;
+      messagesContainer.querySelectorAll('.lw-system-action-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const url = String(btn.getAttribute('data-action-url') || '').trim();
+          if (!url) return;
+          window.open(url, '_blank', 'noopener,noreferrer');
+        });
+      });
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
       renderQuickReplies();
     }
@@ -1916,7 +2283,9 @@
       // Get AI response
       let response = '';
       let isBlocked = false;
-      let waRedirectData = null;
+      let waRedirectData = '';
+      let selectedAction = null;
+      let parsedCommands = null;
 
       const aiResult = await sendToAI(userMessage);
 
@@ -1930,23 +2299,85 @@
       } else {
         response = aiResult.response;
         isBlocked = aiResult.blocked;
-      }
+        parsedCommands = parseChatCommands(response);
+        waRedirectData = parsedCommands.whatsappPayload || userMessage;
+        const whatsappUrl = buildWhatsAppRedirectUrl(config.whatsappDestination, waRedirectData);
+        const iaCallCloserUrl = sanitizeHttpUrl(
+          parsedCommands.iaCallCloserRedirectUrl ||
+          ((parsedCommands.iaCallCloserRedirectIndex !== null || parsedCommands.iaCallCloserReadyIndex !== null)
+            ? (config.iacloserRedirectUrl || FALLBACK_IACALLCLOSER_REDIRECT_URL)
+            : '')
+        );
+        const iaCallCloserIndexes = [parsedCommands.iaCallCloserRedirectIndex, parsedCommands.iaCallCloserReadyIndex]
+          .filter((value) => typeof value === 'number');
+        const iaCallCloserIndex = iaCallCloserIndexes.length > 0 ? Math.min(...iaCallCloserIndexes) : null;
+        const actionCandidates = [];
 
-      // Check for WhatsApp redirect command from AI (Robust Regex)
-      const redirectMatch = response.match(/\[\s*WHATSAPP_REDIRECT\s*:\s*([\s\S]*?)\]/i);
+        if (parsedCommands.whatsappIndex !== null && whatsappUrl) {
+          actionCandidates.push({
+            type: 'whatsapp',
+            index: parsedCommands.whatsappIndex,
+            url: whatsappUrl,
+            notice: getText('waFallback'),
+            label: getText('openWhatsAppNow')
+          });
+        }
 
-      if (redirectMatch) {
-        waRedirectData = redirectMatch[1].trim().replace(/^["']|["']$/g, '');
-        // Remove the command from the visible response
-        response = response.replace(redirectMatch[0], '').trim();
-        // If response became empty, provide a default text
-        if (!response) response = getText('waFallback');
+        if (iaCallCloserIndex !== null && iaCallCloserUrl) {
+          actionCandidates.push({
+            type: 'iacallcloser',
+            index: iaCallCloserIndex,
+            url: iaCallCloserUrl,
+            notice: getText('openingIACallCloser'),
+            label: getText('openIACallCloserNow')
+          });
+        }
+
+        actionCandidates.sort((a, b) => a.index - b.index);
+        selectedAction = actionCandidates[0] || null;
+        const hasMediaPayload = (
+          (parsedCommands.images && parsedCommands.images.length > 0) ||
+          (parsedCommands.audios && parsedCommands.audios.length > 0)
+        );
+        response = parsedCommands.cleanText || (selectedAction
+          ? selectedAction.notice
+          : (hasMediaPayload ? '' : getText('fallbackResponse')));
       }
       isLoading = false;
-      messages.push({ role: 'assistant', content: withBotEmoji(response) });
+      if (response) {
+        messages.push({ role: 'assistant', content: withBotEmoji(response) });
+      }
+      if (parsedCommands && Array.isArray(parsedCommands.images) && parsedCommands.images.length > 0) {
+        parsedCommands.images.forEach((item, index) => {
+          messages.push({
+            role: 'assistant',
+            content: '',
+            imageUrl: item.url,
+            imageAlt: item.alt || `assistant-image-${index + 1}`
+          });
+        });
+      }
+      if (parsedCommands && Array.isArray(parsedCommands.audios) && parsedCommands.audios.length > 0) {
+        parsedCommands.audios.forEach((item) => {
+          messages.push({
+            role: 'assistant',
+            content: '',
+            audioUrl: item.url
+          });
+        });
+      }
 
       // Handle Auto-Redirect & Save Lead
-      if (waRedirectData && config.whatsappDestination) {
+      if (selectedAction) {
+        messages.push({
+          role: 'system',
+          content: selectedAction.notice,
+          actionUrl: selectedAction.url,
+          actionLabel: selectedAction.label
+        });
+      }
+
+      if (selectedAction && selectedAction.type === 'whatsapp' && waRedirectData && config.whatsappDestination) {
         console.log('LeadWidget: Auto-redirecting to WhatsApp with data:', waRedirectData);
 
         // Save Qualified Lead to Firestore
@@ -1966,12 +2397,12 @@
         // Save with extracted info
         // Use a marker because user phone still comes later in WhatsApp.
         saveLeadToFirestore(leadName, activeLanguage === 'es' ? 'Clic en WhatsApp' : 'WhatsApp click', waRedirectData);
+      }
 
+      if (selectedAction) {
         setTimeout(() => {
-          const cleanDest = config.whatsappDestination.replace(/\D/g, '');
-          const encodedMsg = encodeURIComponent(waRedirectData);
-          window.open(`https://wa.me/${cleanDest}?text=${encodedMsg}`, '_blank');
-        }, 2000); // 2s delay for better UX
+          window.open(selectedAction.url, '_blank', 'noopener,noreferrer');
+        }, 1800);
       }
 
       renderMessages();
@@ -2009,10 +2440,16 @@
       if (show) {
         stopVibration();
         stopTeaserCycle();
+        setVoiceOverlayOpen(false);
         startPresenceTicker();
         startInlineTeaserCycle();
         if (messages.length === 0) {
-          messages.push({ role: 'assistant', content: withBotEmoji(config.welcomeMessage) });
+          messages.push({
+            role: 'assistant',
+            content: withBotEmoji(config.welcomeMessage),
+            imageUrl: sanitizeHttpUrl(config.welcomeImageUrl || ''),
+            audioUrl: sanitizeHttpUrl(config.welcomeAudioUrl || '')
+          });
           renderMessages();
         }
         startTestimonialRotator();
@@ -2027,6 +2464,7 @@
           latestVoiceTranscript = '';
           try { speechRecognition.stop(); } catch (_) { /* noop */ }
         }
+        setVoiceOverlayOpen(false);
         if (!teaserDismissedThisSession) {
           teaserStartTimeout = setTimeout(() => {
             startTeaserCycle();
@@ -2232,6 +2670,19 @@
           latestVoiceTranscript = '';
           isListening = false;
           micBtn.classList.remove('active');
+          setVoiceOverlayOpen(false);
+        }
+      });
+    }
+
+    if (voiceStopBtn) {
+      voiceStopBtn.addEventListener('click', () => {
+        if (!speechRecognition || !isListening) return;
+        try {
+          speechRecognition.stop();
+        } catch (_) {
+          isListening = false;
+          setVoiceOverlayOpen(false);
         }
       });
     }
@@ -2301,6 +2752,7 @@
       // Check for visual changes that require re-render
       const visualKeys = [
         'primaryColor', 'businessName', 'welcomeMessage',
+        'welcomeImageUrl', 'welcomeAudioUrl',
         'whatsappDestination', 'quickReplies', 'teaserMessages',
         'chatPlaceholder', 'exitIntentTitle', 'exitIntentDescription', 'exitIntentCta',
         'vibrationIntensity', 'testimonials', 'liveActivities', 'launcherIcon', 'hideBranding', 'brandingText', 'brandingLink'

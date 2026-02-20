@@ -4,12 +4,17 @@ import { Loader2, Mic, MicOff, Moon, PhoneCall, Send, ShieldCheck, Smile, Sun, X
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { buildWhatsAppRedirectUrl, parseChatResponseCommands, sanitizeHttpUrl } from "@/lib/chatCommands";
 
 type ChatMessage = {
   id?: string;
   role: "user" | "assistant" | "system";
   content: string;
   audioUrl?: string;
+  actionUrl?: string;
+  actionLabel?: string;
+  imageUrl?: string;
+  imageAlt?: string;
 };
 type BrowserSpeechRecognitionCtor = new () => SpeechRecognition;
 
@@ -26,7 +31,10 @@ type PublicWidgetConfig = {
   language?: "es" | "en";
   businessName?: string;
   primaryColor?: string;
+  whatsappDestination?: string;
   welcomeMessage?: string;
+  welcomeImageUrl?: string;
+  welcomeAudioUrl?: string;
   chatPlaceholder?: string;
   quickReplies?: string[];
   teaserMessages?: string[];
@@ -48,12 +56,6 @@ type PublicWidgetConfig = {
   leadChatOfferDescription?: string;
   leadChatCtaLabel?: string;
   leadChatLiveToasts?: string[];
-};
-
-type CloserSeed = {
-  name?: string;
-  phone?: string;
-  collected_info?: string;
 };
 
 const FIXED_IACLOSER_REDIRECT_URL = "https://ai-call-closer.vercel.app/";
@@ -109,6 +111,11 @@ const SALES_COPY: Record<
     consentRequired: string;
     handoffSuccess: string;
     activationMessage: string;
+    openingWhatsApp: string;
+    openWhatsAppNow: string;
+    openingIACallCloser: string;
+    openIACallCloserNow: string;
+    talkNow: string;
     openLeadChat: string;
     liveActivityLabel: string;
     testimonialLabel: string;
@@ -180,6 +187,11 @@ const SALES_COPY: Record<
     consentRequired: "Debes aceptar el consentimiento para activar la llamada.",
     handoffSuccess: "Todo listo. Te llamaremos en menos de 2 minutos.",
     activationMessage: "Perfecto. Estamos iniciando tu llamada de prueba ahora mismo...",
+    openingWhatsApp: "Abriendo WhatsApp...",
+    openWhatsAppNow: "Abrir WhatsApp ahora",
+    openingIACallCloser: "Abriendo IACloser...",
+    openIACallCloserNow: "Abrir IACloser ahora",
+    talkNow: "Habla ahora",
     openLeadChat: "No pudimos iniciar el chat.",
     liveActivityLabel: "Actividad en vivo",
     testimonialLabel: "Testimonios",
@@ -250,6 +262,11 @@ const SALES_COPY: Record<
     consentRequired: "You must accept consent to trigger the call.",
     handoffSuccess: "All set. We will call you in under 2 minutes.",
     activationMessage: "Perfect. We are starting your demo call right now...",
+    openingWhatsApp: "Opening WhatsApp...",
+    openWhatsAppNow: "Open WhatsApp now",
+    openingIACallCloser: "Opening IACloser...",
+    openIACallCloserNow: "Open IACloser now",
+    talkNow: "Speak now",
     openLeadChat: "We could not start the chat.",
     liveActivityLabel: "Live activity",
     testimonialLabel: "Testimonials",
@@ -440,6 +457,8 @@ type LeadChatHeaderFields = {
   lead_chat_eyebrow?: string;
   lead_chat_badge_text?: string;
   lead_chat_page_title?: string;
+  welcome_image_url?: string;
+  welcome_audio_url?: string;
 };
 
 async function fetchLeadChatHeaderFieldsFromFirestore(identity: string): Promise<LeadChatHeaderFields> {
@@ -483,6 +502,8 @@ async function fetchLeadChatHeaderFieldsFromFirestore(identity: string): Promise
         lead_chat_eyebrow: parseFirestoreStringField(fields.lead_chat_eyebrow),
         lead_chat_badge_text: parseFirestoreStringField(fields.lead_chat_badge_text),
         lead_chat_page_title: parseFirestoreStringField(fields.lead_chat_page_title),
+        welcome_image_url: parseFirestoreStringField(fields.welcome_image_url),
+        welcome_audio_url: parseFirestoreStringField(fields.welcome_audio_url),
       };
     } catch {
       // noop
@@ -561,6 +582,13 @@ function getLanguageDirective(locale: ChatLocale) {
     return "Responde siempre en espanol claro y natural.";
   }
   return "Respond in clear, natural English.";
+}
+
+function getCostControlDirective(locale: ChatLocale) {
+  if (locale === "es") {
+    return "Se breve y orientado a conversion. Maximo 90 palabras, usa como maximo 1 emoji y evita repetir imagenes o audios.";
+  }
+  return "Be concise and conversion-focused. Max 90 words, use at most 1 emoji, and avoid repeating images or audio.";
 }
 
 function arraysLooselyMatch(a: string[], b: string[]) {
@@ -766,38 +794,6 @@ async function fetchLeadChatTestimonialsFromFirestore(identity: string) {
   return [];
 }
 
-function parseIACCloserSeed(responseText: string) {
-  const fullMatch = responseText.match(/\[\s*(?:ICLOSER_READY|ICALLCLOSER_READY|IACALLCLOSER_READY)\s*:\s*([\s\S]*?)\]/i);
-  const bareMatch = responseText.match(/\[\s*(?:ICLOSER_READY|ICALLCLOSER_READY|IACALLCLOSER_READY)\s*\]/i);
-
-  if (!fullMatch && !bareMatch) {
-    return { isReady: false, cleanText: responseText, seed: {} as CloserSeed };
-  }
-
-  let seed: CloserSeed = {};
-  if (fullMatch?.[1]) {
-    try {
-      const parsed = JSON.parse(fullMatch[1]);
-      if (parsed && typeof parsed === "object") {
-        seed = {
-          name: typeof parsed.name === "string" ? parsed.name.trim() : "",
-          phone: typeof parsed.phone === "string" ? parsed.phone.trim() : "",
-          collected_info: typeof parsed.collected_info === "string" ? parsed.collected_info.trim() : "",
-        };
-      }
-    } catch {
-      seed = {};
-    }
-  }
-
-  const cleanText = responseText
-    .replace(fullMatch?.[0] || "", "")
-    .replace(bareMatch?.[0] || "", "")
-    .trim();
-
-  return { isReady: true, cleanText, seed };
-}
-
 function getRedirectCountdownText(locale: ChatLocale, seconds: number) {
   if (seconds <= 0) {
     return locale === "es" ? "Redireccionando..." : "Redirecting...";
@@ -959,7 +955,10 @@ export default function LeadChat() {
           language: resolvedLocale,
           businessName: String(raw.businessName || raw.business_name || localeCopy.defaultBusinessName),
           primaryColor: String(raw.primaryColor || raw.primary_color || "#00C185"),
+          whatsappDestination: String(raw.whatsappDestination || raw.whatsapp_destination || ""),
           welcomeMessage: resolveWelcomeMessage(raw.welcomeMessage ?? raw.welcome_message, resolvedLocale),
+          welcomeImageUrl: sanitizeHttpUrl(String(raw.welcomeImageUrl || raw.welcome_image_url || headerFields.welcome_image_url || "")),
+          welcomeAudioUrl: sanitizeHttpUrl(String(raw.welcomeAudioUrl || raw.welcome_audio_url || headerFields.welcome_audio_url || "")),
           chatPlaceholder: String(raw.chatPlaceholder || raw.chat_placeholder || localeCopy.chatPlaceholder),
           quickReplies: resolveQuickReplies(raw.quickReplies ?? raw.quick_replies, resolvedLocale),
           teaserMessages: resolveTeaserMessages(raw.teaserMessages ?? raw.teaser_messages, resolvedLocale),
@@ -1027,6 +1026,8 @@ export default function LeadChat() {
           {
             role: "assistant",
             content: withBotEmoji(normalized.welcomeMessage || localeCopy.initialMessage),
+            imageUrl: normalized.welcomeImageUrl || undefined,
+            audioUrl: normalized.welcomeAudioUrl || undefined,
           },
         ]);
       } catch (error: any) {
@@ -1343,7 +1344,12 @@ export default function LeadChat() {
 
     const hasUserMessages = messages.some((msg) => msg.role === "user");
     if (!hasUserMessages) {
-      setMessages([{ role: "assistant", content: withBotEmoji(SALES_COPY[nextLocale].initialMessage) }]);
+      setMessages([{
+        role: "assistant",
+        content: withBotEmoji(config?.welcomeMessage || SALES_COPY[nextLocale].initialMessage),
+        imageUrl: config?.welcomeImageUrl || undefined,
+        audioUrl: config?.welcomeAudioUrl || undefined,
+      }]);
     }
   };
 
@@ -1364,6 +1370,10 @@ export default function LeadChat() {
     setEmojiPickerOpen(false);
 
     const nextMessages: ChatMessage[] = [...messages, { role: "user", content: text }];
+    const apiHistory = nextMessages
+      .filter((entry) => entry.role !== "system")
+      .slice(-12)
+      .map((entry) => ({ role: entry.role, content: entry.content }));
     setMessages(nextMessages);
     setInput("");
     setSending(true);
@@ -1376,7 +1386,8 @@ export default function LeadChat() {
           message: text,
           history: [
             { role: "system", content: getLanguageDirective(responseLocale) },
-            ...nextMessages.map((m) => ({ role: m.role, content: m.content })),
+            { role: "system", content: getCostControlDirective(responseLocale) },
+            ...apiHistory,
           ],
           widgetId: config.widgetId,
           userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -1388,20 +1399,102 @@ export default function LeadChat() {
       }
 
       const aiText = String(payload?.response || "").trim();
-      const parsed = parseIACCloserSeed(aiText);
-      const cleanResponse = parsed.cleanText || copy.step3Description;
+      const parsed = parseChatResponseCommands(aiText, {
+        defaultIaCallCloserUrl: config.iacloserRedirectUrl || FIXED_IACLOSER_REDIRECT_URL,
+      });
+      const hasIaCallCloserReady = parsed.iaCallCloserReady;
+      const normalizedWhatsAppMessage = parsed.whatsappPayload || text;
+      const whatsappUrl = buildWhatsAppRedirectUrl(config.whatsappDestination || "", normalizedWhatsAppMessage);
+      const hasMediaImages = parsed.images.length > 0;
+      const hasMediaAudios = parsed.audios.length > 0;
+      const iaCallCloserRedirectUrl = sanitizeHttpUrl(
+        parsed.iaCallCloserRedirectUrl || config.iacloserRedirectUrl || FIXED_IACLOSER_REDIRECT_URL,
+      );
+      const cleanResponse =
+        parsed.cleanText ||
+        (parsed.whatsappIndex !== null && whatsappUrl
+          ? copy.openingWhatsApp
+          : (parsed.iaCallCloserRedirectIndex !== null && iaCallCloserRedirectUrl
+            ? copy.openingIACallCloser
+            : (hasMediaImages || hasMediaAudios ? "" : copy.step3Description)));
 
       await appendAssistantWithTypewriter(cleanResponse);
+      if (parsed.images.length > 0) {
+        setMessages((prev) => [
+          ...prev,
+          ...parsed.images.map((item, idx) => ({
+            id: `assistant-image-${Date.now()}-${idx}`,
+            role: "assistant" as const,
+            content: "",
+            imageUrl: item.url,
+            imageAlt: item.alt || "Assistant image",
+          })),
+        ]);
+      }
+      if (parsed.audios.length > 0) {
+        setMessages((prev) => [
+          ...prev,
+          ...parsed.audios.map((item, idx) => ({
+            id: `assistant-audio-${Date.now()}-${idx}`,
+            role: "assistant" as const,
+            content: "",
+            audioUrl: item.url,
+          })),
+        ]);
+      }
 
-      if (parsed.isReady) {
-        if (parsed.seed?.name) setLeadName(parsed.seed.name.trim());
-        if (parsed.seed?.phone) setLeadPhone(sanitizePhone(parsed.seed.phone));
-        if (parsed.seed?.collected_info) setCollectedInfoSeed(parsed.seed.collected_info);
+      if (hasIaCallCloserReady) {
+        if (parsed.iaCallCloserSeed?.name) setLeadName(parsed.iaCallCloserSeed.name.trim());
+        if (parsed.iaCallCloserSeed?.phone) setLeadPhone(sanitizePhone(parsed.iaCallCloserSeed.phone));
+        if (parsed.iaCallCloserSeed?.collected_info) setCollectedInfoSeed(parsed.iaCallCloserSeed.collected_info);
 
         setHandoffEligible(true);
         setLeadConsentAccepted(false);
         setShowExitIntent(false);
         setConsentVisible(true);
+        return;
+      }
+
+      const actionCandidates: Array<{
+        index: number;
+        url: string;
+        notice: string;
+        label: string;
+      }> = [];
+
+      if (parsed.whatsappIndex !== null && whatsappUrl) {
+        actionCandidates.push({
+          index: parsed.whatsappIndex,
+          url: whatsappUrl,
+          notice: copy.openingWhatsApp,
+          label: copy.openWhatsAppNow,
+        });
+      }
+
+      if (parsed.iaCallCloserRedirectIndex !== null && iaCallCloserRedirectUrl) {
+        actionCandidates.push({
+          index: parsed.iaCallCloserRedirectIndex,
+          url: iaCallCloserRedirectUrl,
+          notice: copy.openingIACallCloser,
+          label: copy.openIACallCloserNow,
+        });
+      }
+
+      if (actionCandidates.length > 0) {
+        actionCandidates.sort((a, b) => a.index - b.index);
+        const action = actionCandidates[0];
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "system",
+            content: action.notice,
+            actionUrl: action.url,
+            actionLabel: action.label,
+          },
+        ]);
+        window.setTimeout(() => {
+          window.open(action.url, "_blank", "noopener,noreferrer");
+        }, 1400);
       }
     } catch (error: any) {
       setMessages((prev) => [
@@ -1465,7 +1558,9 @@ export default function LeadChat() {
         throw new Error(payload?.error || "Could not send handoff to IACloser.");
       }
 
-      const redirectUrl = String(payload?.redirectUrl || config.iacloserRedirectUrl || "").trim();
+      const redirectUrl = sanitizeHttpUrl(
+        String(payload?.redirectUrl || config.iacloserRedirectUrl || FIXED_IACLOSER_REDIRECT_URL),
+      );
       setHandoffMessage(copy.handoffSuccess);
       setMessages((prev) => [
         ...prev,
@@ -1576,7 +1671,7 @@ export default function LeadChat() {
       <div className="relative mx-auto h-[100dvh] w-full max-w-[1080px] px-0 pb-0 pt-0 sm:h-auto sm:px-5 sm:pb-10 sm:pt-4 lg:px-6 lg:pb-12 lg:pt-6">
         <section className="min-w-0 h-full">
           <div className={`flex h-full min-h-[100dvh] flex-col rounded-none p-0 sm:h-[calc(100dvh-6rem)] sm:max-h-[860px] sm:min-h-[560px] sm:rounded-[34px] sm:p-[1px] shadow-[0_30px_120px_-60px_rgba(56,189,248,0.55)] ${isLightMode ? "bg-gradient-to-b from-white via-sky-100/70 to-sky-100/30" : "bg-gradient-to-b from-white/30 via-slate-500/25 to-transparent"}`}>
-            <div className={`flex h-full min-h-0 flex-col rounded-none sm:rounded-[33px] border backdrop-blur-2xl ${isLightMode ? "border-white/70 bg-white/85" : "border-white/10 bg-[#071322]/85"}`}>
+            <div className={`relative flex h-full min-h-0 flex-col rounded-none sm:rounded-[33px] border backdrop-blur-2xl ${isLightMode ? "border-white/70 bg-white/85" : "border-white/10 bg-[#071322]/85"}`}>
               <div className={`relative flex flex-wrap items-center justify-between gap-3 border-b px-4 py-4 sm:px-7 sm:py-5 ${isLightMode ? "border-slate-200" : "border-white/10"}`}>
                 <div className="min-w-0 pr-24 sm:pr-0">
                   <p className={`text-[10px] uppercase tracking-[0.35em] ${isLightMode ? "text-sky-700/85" : "text-sky-200/90"}`}>
@@ -1712,25 +1807,50 @@ export default function LeadChat() {
               <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4 sm:px-7">
                 {messages.map((msg, index) => (
                   <div key={`${msg.role}-${index}`} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                    <div
-                      className={`max-w-[88%] break-words rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed animate-in fade-in slide-in-from-bottom-2 duration-300 ${
-                        msg.role === "user"
-                          ? "rounded-br-md text-slate-950 shadow-[0_8px_24px_-16px_rgba(15,23,42,0.7)]"
-                          : msg.role === "system"
-                            ? (isLightMode
-                              ? "rounded-xl border border-emerald-300 bg-emerald-100/90 text-emerald-800"
-                              : "rounded-xl border border-emerald-400/35 bg-emerald-400/10 text-emerald-100")
-                            : (isLightMode
-                              ? "rounded-bl-md border border-slate-200 bg-white text-slate-700"
-                              : "rounded-bl-md border border-white/10 bg-white/[0.045] text-slate-100 backdrop-blur")
-                      }`}
-                      style={msg.role === "user" ? { backgroundColor: config.primaryColor || "#00C185" } : {}}
-                    >
-                      <p>{msg.content}</p>
-                      {msg.audioUrl ? (
-                        <audio controls src={msg.audioUrl} className="mt-2 h-8 w-full max-w-[240px]" preload="metadata" />
-                      ) : null}
-                    </div>
+                    {msg.role === "system" && msg.actionUrl ? (
+                      <div className={`w-full max-w-[88%] rounded-xl border px-3.5 py-2.5 animate-in fade-in slide-in-from-bottom-2 duration-300 ${
+                        isLightMode
+                          ? "border-emerald-300 bg-emerald-100/90 text-emerald-800"
+                          : "border-emerald-400/35 bg-emerald-400/10 text-emerald-100"
+                      }`}>
+                        <p className="text-sm leading-relaxed">{msg.content}</p>
+                        <Button
+                          type="button"
+                          className="mt-2 h-9 w-full bg-[#25D366] text-white hover:bg-[#1ea955]"
+                          onClick={() => window.open(msg.actionUrl, "_blank", "noopener,noreferrer")}
+                        >
+                          {msg.actionLabel || copy.openIACallCloserNow}
+                        </Button>
+                      </div>
+                    ) : (
+                      <div
+                        className={`max-w-[88%] break-words rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed animate-in fade-in slide-in-from-bottom-2 duration-300 ${
+                          msg.role === "user"
+                            ? "rounded-br-md text-slate-950 shadow-[0_8px_24px_-16px_rgba(15,23,42,0.7)]"
+                            : msg.role === "system"
+                              ? (isLightMode
+                                ? "rounded-xl border border-emerald-300 bg-emerald-100/90 text-emerald-800"
+                                : "rounded-xl border border-emerald-400/35 bg-emerald-400/10 text-emerald-100")
+                              : (isLightMode
+                                ? "rounded-bl-md border border-slate-200 bg-white text-slate-700"
+                                : "rounded-bl-md border border-white/10 bg-white/[0.045] text-slate-100 backdrop-blur")
+                        }`}
+                        style={msg.role === "user" ? { backgroundColor: config.primaryColor || "#00C185" } : {}}
+                      >
+                        {msg.content ? <p>{msg.content}</p> : null}
+                        {msg.imageUrl ? (
+                          <img
+                            src={msg.imageUrl}
+                            alt={msg.imageAlt || "Assistant image"}
+                            loading="lazy"
+                            className="mt-2 w-full max-w-[280px] rounded-xl border border-white/10 object-cover"
+                          />
+                        ) : null}
+                        {msg.audioUrl ? (
+                          <audio controls src={msg.audioUrl} className="mt-2 h-8 w-full max-w-[240px]" preload="metadata" />
+                        ) : null}
+                      </div>
+                    )}
                   </div>
                 ))}
 
@@ -1969,12 +2089,30 @@ export default function LeadChat() {
                     <span>{copy.liveDemosNow}</span>
                   </div>
                 </div>
-                {speechListening ? (
-                  <p className={`text-[11px] ${isLightMode ? "text-rose-600" : "text-rose-300"}`}>
-                    {copy.listeningNow}
-                  </p>
-                ) : null}
               </div>
+
+              {speechListening ? (
+                <div className={`absolute inset-0 z-40 flex items-center justify-center px-5 ${isLightMode ? "bg-slate-900/45" : "bg-slate-950/70"} backdrop-blur-sm`}>
+                  <div className={`w-full max-w-xl rounded-2xl border p-5 sm:p-6 ${isLightMode ? "border-slate-200 bg-white/95 text-slate-800" : "border-white/15 bg-slate-900/92 text-slate-100"}`} role="status" aria-live="polite">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold">{copy.talkNow}</p>
+                        <p className={`text-xs ${isLightMode ? "text-slate-500" : "text-slate-300"}`}>{copy.listeningNow}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={toggleSpeechInput}
+                        className="relative inline-flex h-28 w-28 items-center justify-center rounded-full border border-white/55 bg-white/5 text-rose-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
+                        aria-label={copy.micAriaStop}
+                      >
+                        <span className="absolute inset-0 rounded-full border border-rose-400/50 animate-ping" />
+                        <span className="absolute inset-3 rounded-full border border-rose-300/70" />
+                        <Mic className="relative z-10 h-8 w-8" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
         </section>
@@ -1996,13 +2134,14 @@ export default function LeadChat() {
               <X className="h-4 w-4" />
             </button>
             <p className={`text-[11px] uppercase tracking-[0.25em] ${isLightMode ? "text-sky-600" : "text-cyan-200"}`}>{copy.exitIntentDetected}</p>
-            <h3 className={`mt-2 text-xl font-semibold ${isLightMode ? "text-slate-800" : "text-slate-100"}`}>{config.exitIntentTitle || copy.exitIntentDetected}</h3>
-            <p className={`mt-2 text-sm ${isLightMode ? "text-slate-600" : "text-slate-300"}`}>
+            <h3 className={`mt-2 break-words text-xl font-semibold ${isLightMode ? "text-slate-800" : "text-slate-100"}`}>{config.exitIntentTitle || copy.exitIntentDetected}</h3>
+            <p className={`mt-2 break-words text-sm ${isLightMode ? "text-slate-600" : "text-slate-300"}`}>
               {config.exitIntentDescription || copy.offerDescription}
             </p>
-            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            <div className="mt-4 grid gap-2">
               <Button
                 type="button"
+                className="h-auto whitespace-normal break-words px-3 py-2 text-center leading-snug"
                 onClick={() => {
                   setShowExitIntent(false);
                   inputRef.current?.focus();
@@ -2010,7 +2149,12 @@ export default function LeadChat() {
               >
                 {config.exitIntentCta || copy.continueChat}
               </Button>
-              <Button type="button" variant="outline" onClick={() => setShowExitIntent(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-auto whitespace-normal break-words px-3 py-2 text-center leading-snug"
+                onClick={() => setShowExitIntent(false)}
+              >
                 {copy.continueBrowsing}
               </Button>
             </div>

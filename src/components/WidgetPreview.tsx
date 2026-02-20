@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 interface WidgetPreviewProps {
   primaryColor?: string;
   welcomeMessage?: string;
+  welcomeImageUrl?: string;
+  welcomeAudioUrl?: string;
   nicheQuestion?: string;
   template?: string;
   businessName?: string;
@@ -38,6 +40,8 @@ const PREVIEW_TRANSLATIONS = {
 export function WidgetPreview({
   primaryColor = '#00C185',
   welcomeMessage = '👋 ¡Hola! Soy la IA de LeadWidget. ¿En qué te ayudo?',
+  welcomeImageUrl = '',
+  welcomeAudioUrl = '',
   businessName = 'LeadWidget',
   chatPlaceholder,
   mode = 'landing',
@@ -65,6 +69,15 @@ export function WidgetPreview({
       return () => clearTimeout(timer);
     }
   }, [vibrationIntensity, isOpen]);
+
+  useEffect(() => {
+    setMessages((prev) => {
+      if (prev.length === 0) return [{ role: 'assistant', content: welcomeMessage }];
+      if (prev[0]?.role !== 'assistant') return prev;
+      if (prev[0].content === welcomeMessage) return prev;
+      return [{ ...prev[0], content: welcomeMessage }, ...prev.slice(1)];
+    });
+  }, [welcomeMessage]);
 
   // Idle animation logic
   useEffect(() => {
@@ -143,6 +156,19 @@ export function WidgetPreview({
                 style={msg.role === 'user' ? { background: primaryColor } : {}}
               >
                 {msg.content}
+                {idx === 0 && msg.role === 'assistant' && welcomeImageUrl ? (
+                  <img
+                    src={welcomeImageUrl}
+                    alt="Welcome visual"
+                    loading="lazy"
+                    className="mt-2 max-h-32 w-full max-w-[220px] rounded-md border object-cover"
+                  />
+                ) : null}
+                {idx === 0 && msg.role === 'assistant' && welcomeAudioUrl ? (
+                  <audio controls preload="metadata" className="mt-2 w-full max-w-[220px]">
+                    <source src={welcomeAudioUrl} />
+                  </audio>
+                ) : null}
               </div>
             </div>
           ))}
@@ -214,6 +240,19 @@ export function WidgetPreview({
                 style={msg.role === 'user' ? { background: primaryColor } : {}}
               >
                 {msg.content}
+                {idx === 0 && msg.role === 'assistant' && welcomeImageUrl ? (
+                  <img
+                    src={welcomeImageUrl}
+                    alt="Welcome visual"
+                    loading="lazy"
+                    className="mt-2 max-h-32 w-full max-w-[220px] rounded-md border object-cover"
+                  />
+                ) : null}
+                {idx === 0 && msg.role === 'assistant' && welcomeAudioUrl ? (
+                  <audio controls preload="metadata" className="mt-2 w-full max-w-[220px]">
+                    <source src={welcomeAudioUrl} />
+                  </audio>
+                ) : null}
               </div>
             </div>
           ))}

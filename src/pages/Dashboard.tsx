@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ChangeEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth, isSuperAdminEmail } from '@/lib/auth';
-import { auth, db } from '@/lib/firebase';
+import { auth, db, storage } from '@/lib/firebase';
 import {
   collection,
   doc,
@@ -25,6 +25,7 @@ import {
   updatePassword,
   updateProfile,
 } from 'firebase/auth';
+import { getDownloadURL, ref as storageRef, uploadBytes } from 'firebase/storage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -70,6 +71,7 @@ import { WidgetPreview } from '@/components/WidgetPreview';
 import { AffiliateCard } from '@/components/AffiliateCard';
 import { useToast } from '@/hooks/use-toast';
 import { normalizeTrackingPixels, validateTrackingPixels } from '@/lib/trackingPixels';
+import { getNichePromptTemplate } from '@/lib/nichePromptTemplates';
 
 interface Lead {
   id: string;
@@ -89,6 +91,8 @@ interface WidgetConfig {
   business_name: string;
   phone_number: string;
   welcome_message: string;
+  welcome_image_url?: string;
+  welcome_audio_url?: string;
   position: 'right' | 'left';
   theme_color: string;
   template: string;
@@ -206,20 +210,7 @@ const AI_DEFAULT_BUSINESS_TEMPLATE = [
   "- Main differentiator",
 ].join('\n');
 
-const AI_USA_CALL_SYSTEM_PROMPT_TEMPLATE = [
-  "You are the sales assistant for [REPLACE_BUSINESS_NAME].",
-  "Goal: pre-qualify the lead and trigger an ICallCloser call (USA market).",
-  "Rules:",
-  "1) Reply in the user's language with short messages (max 2-3 sentences).",
-  "2) Ask one question at a time to qualify real purchase intent.",
-  "3) Capture name, phone number, and main need.",
-  "4) Before handoff, request explicit consent and confirm the user replies YES.",
-  "5) Only when consent is confirmed with YES, reply EXACTLY with:",
-  '[ICALLCLOSER_READY: {"name":"[REPLACE_NAME]","phone":"[REPLACE_PHONE]","collected_info":"[REPLACE_CASE_SUMMARY]"}]',
-  "6) If the user prefers WhatsApp, use the WhatsApp command only in that case.",
-].join('\n');
-
-const AI_DEFAULT_SYSTEM_PROMPT_TEMPLATE = AI_USA_CALL_SYSTEM_PROMPT_TEMPLATE;
+const AI_DEFAULT_SYSTEM_PROMPT_TEMPLATE = getNichePromptTemplate('general');
 
 const AI_ICALLCLOSER_COMMAND_SNIPPET = [
   "If the lead confirms purchase intent and consent with YES, reply EXACTLY:",
@@ -231,6 +222,21 @@ const AI_WHATSAPP_COMMAND_SNIPPET = [
   "[WHATSAPP_REDIRECT: Customer [REPLACE_NAME] wants [REPLACE_SERVICE] on [REPLACE_DATE]]",
 ].join('\n');
 const FIXED_IACLOSER_REDIRECT_URL = 'https://ai-call-closer.vercel.app/';
+const CLOUDINARY_CLOUD_NAME = String(import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '').trim();
+const CLOUDINARY_UPLOAD_PRESET = String(import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || '').trim();
+type WelcomeMediaKind = 'image' | 'audio';
+
+function sanitizeMediaUrl(value: unknown) {
+  const raw = String(value || '').trim();
+  if (!raw || raw.length > 500) return '';
+  try {
+    const parsed = new URL(raw);
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return '';
+    return parsed.toString();
+  } catch {
+    return '';
+  }
+}
 
 const LEAD_CHAT_COPY_DEFAULTS = {
   es: {
@@ -515,6 +521,11 @@ export default function Dashboard() {
     }));
   };
 
+  const applySelectedNichePromptTemplate = () => {
+    const nicheTemplate = getNichePromptTemplate(formConfig.template);
+    applySystemPromptTemplate(nicheTemplate);
+  };
+
   // Widget config form state
   const initialLeadChatDefaults = getLeadChatCopyDefaults('es');
   const [formConfig, setFormConfig] = useState({
@@ -523,6 +534,8 @@ export default function Dashboard() {
     primary_color: '#00C185',
     business_name: 'Lead Widget',
     welcome_message: initialLeadChatDefaults.welcomeMessage,
+    welcome_image_url: '',
+    welcome_audio_url: '',
     whatsapp_destination: '',
     niche_question: '¿En qué distrito te encuentras?',
     trigger_delay: 15,
@@ -564,6 +577,102 @@ export default function Dashboard() {
   });
 
   const [showApiKey, setShowApiKey] = useState(false);
+  const [uploadingWelcomeImage, setUploadingWelcomeImage] = useState(false);
+  const [uploadingWelcomeAudio, setUploadingWelcomeAudio] = useState(false);
+
+  const canUseCloudinaryUploads = Boolean(CLOUDINARY_CLOUD_NAME && CLOUDINARY_UPLOAD_PRESET);
+
+  const uploadWelcomeMediaToCloudinary = async (file: File, kind: WelcomeMediaKind) => {
+    const resourceType = kind === 'audio' ? 'video' : 'image';
+    const endpoint = `https://api.cloudinary.com/v1_1/${encodeURIComponent(CLOUDINARY_CLOUD_NAME)}/${resourceType}/upload`;
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+    formData.append('folder', 'lead-widget/welcome-media');
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      body: formData,
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(String(payload?.error?.message || 'No se pudo subir el archivo a Cloudinary.'));
+    }
+    const secureUrl = sanitizeMediaUrl(payload?.secure_url || payload?.url);
+    if (!secureUrl) {
+      throw new Error('Cloudinary devolvio una URL invalida.');
+    }
+    return secureUrl;
+  };
+
+  const uploadWelcomeMediaToFirebase = async (file: File, kind: WelcomeMediaKind) => {
+    if (!user) throw new Error('Debes iniciar sesion para subir archivos.');
+    const extFromName = (file.name.split('.').pop() || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const extension = extFromName || (kind === 'audio' ? 'mp3' : 'png');
+    const uniqueId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const fileRef = storageRef(storage, `widget_welcome_media/${user.uid}/${kind}/${uniqueId}.${extension}`);
+    await uploadBytes(fileRef, file, {
+      contentType: file.type || undefined,
+    });
+    return getDownloadURL(fileRef);
+  };
+
+  const handleWelcomeMediaUpload = async (event: ChangeEvent<HTMLInputElement>, kind: WelcomeMediaKind) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    const maxBytes = kind === 'audio' ? 15 * 1024 * 1024 : 6 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      toast({
+        title: 'Archivo demasiado grande',
+        description: kind === 'audio'
+          ? 'El audio debe ser menor a 15MB.'
+          : 'La imagen debe ser menor a 6MB.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (kind === 'image') {
+      setUploadingWelcomeImage(true);
+    } else {
+      setUploadingWelcomeAudio(true);
+    }
+
+    try {
+      const uploadedUrl = canUseCloudinaryUploads
+        ? await uploadWelcomeMediaToCloudinary(file, kind)
+        : await uploadWelcomeMediaToFirebase(file, kind);
+      const safeUrl = sanitizeMediaUrl(uploadedUrl);
+      if (!safeUrl) {
+        throw new Error('No se obtuvo una URL valida del archivo subido.');
+      }
+      setFormConfig((prev) => (
+        kind === 'image'
+          ? { ...prev, welcome_image_url: safeUrl }
+          : { ...prev, welcome_audio_url: safeUrl }
+      ));
+      toast({
+        title: 'Archivo subido',
+        description: canUseCloudinaryUploads
+          ? 'Se guardo en Cloudinary correctamente.'
+          : 'Se guardo en Firebase Storage correctamente.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error al subir archivo',
+        description: String(error?.message || 'No se pudo subir el archivo'),
+        variant: 'destructive',
+      });
+    } finally {
+      if (kind === 'image') {
+        setUploadingWelcomeImage(false);
+      } else {
+        setUploadingWelcomeAudio(false);
+      }
+    }
+  };
 
 
 
@@ -652,6 +761,8 @@ export default function Dashboard() {
           language: 'es',
           primary_color: '#00C165',
           welcome_message: newUserLeadChatDefaults.welcomeMessage,
+          welcome_image_url: '',
+          welcome_audio_url: '',
           whatsapp_destination: '',
           niche_question: '¿En qué distrito te encuentras?',
           trigger_delay: 3,
@@ -709,6 +820,8 @@ export default function Dashboard() {
           primary_color: configData.primary_color || '#00C185',
           business_name: configData.business_name || profileData?.business_name || 'Lead Widget',
           welcome_message: configData.welcome_message || configLeadChatDefaults.welcomeMessage,
+          welcome_image_url: sanitizeMediaUrl(configData.welcome_image_url),
+          welcome_audio_url: sanitizeMediaUrl(configData.welcome_audio_url),
           whatsapp_destination: configData.whatsapp_destination || '',
           niche_question: configData.niche_question || '¿En qué distrito te encuentras?',
           trigger_delay: configData.trigger_delay ?? 3,
@@ -932,6 +1045,8 @@ export default function Dashboard() {
         primary_color: formConfig.primary_color,
         business_name: formConfig.business_name, // Also save here for embedded widget
         welcome_message: formConfig.welcome_message,
+        welcome_image_url: sanitizeMediaUrl(formConfig.welcome_image_url),
+        welcome_audio_url: sanitizeMediaUrl(formConfig.welcome_audio_url),
         whatsapp_destination: formConfig.whatsapp_destination,
         niche_question: formConfig.niche_question,
         trigger_delay: formConfig.trigger_delay,
@@ -1818,6 +1933,100 @@ export default function Dashboard() {
                     />
                   </div>
 
+                  <div className="space-y-3 rounded-lg border border-dashed p-3">
+                    <div className="space-y-1">
+                      <Label>Imagen de bienvenida (URL o subida)</Label>
+                      <Input
+                        value={formConfig.welcome_image_url}
+                        onChange={(e) => setFormConfig({ ...formConfig, welcome_image_url: e.target.value })}
+                        placeholder="https://..."
+                      />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label
+                        className={`inline-flex h-9 items-center rounded-md border border-input px-3 text-sm font-medium ${
+                          uploadingWelcomeImage ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-accent'
+                        }`}
+                      >
+                        {uploadingWelcomeImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        {uploadingWelcomeImage ? 'Subiendo...' : 'Subir imagen'}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="sr-only"
+                          disabled={uploadingWelcomeImage}
+                          onChange={(event) => void handleWelcomeMediaUpload(event, 'image')}
+                        />
+                      </label>
+                      {sanitizeMediaUrl(formConfig.welcome_image_url) ? (
+                        <a
+                          href={sanitizeMediaUrl(formConfig.welcome_image_url)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs underline"
+                        >
+                          Ver imagen
+                        </a>
+                      ) : null}
+                    </div>
+                    {sanitizeMediaUrl(formConfig.welcome_image_url) ? (
+                      <img
+                        src={sanitizeMediaUrl(formConfig.welcome_image_url)}
+                        alt="Vista previa bienvenida"
+                        loading="lazy"
+                        className="max-h-36 w-full max-w-xs rounded-lg border object-cover"
+                      />
+                    ) : null}
+                  </div>
+
+                  <div className="space-y-3 rounded-lg border border-dashed p-3">
+                    <div className="space-y-1">
+                      <Label>Audio de bienvenida (URL o subida)</Label>
+                      <Input
+                        value={formConfig.welcome_audio_url}
+                        onChange={(e) => setFormConfig({ ...formConfig, welcome_audio_url: e.target.value })}
+                        placeholder="https://..."
+                      />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label
+                        className={`inline-flex h-9 items-center rounded-md border border-input px-3 text-sm font-medium ${
+                          uploadingWelcomeAudio ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-accent'
+                        }`}
+                      >
+                        {uploadingWelcomeAudio ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        {uploadingWelcomeAudio ? 'Subiendo...' : 'Subir audio'}
+                        <input
+                          type="file"
+                          accept="audio/*"
+                          className="sr-only"
+                          disabled={uploadingWelcomeAudio}
+                          onChange={(event) => void handleWelcomeMediaUpload(event, 'audio')}
+                        />
+                      </label>
+                      {sanitizeMediaUrl(formConfig.welcome_audio_url) ? (
+                        <a
+                          href={sanitizeMediaUrl(formConfig.welcome_audio_url)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs underline"
+                        >
+                          Escuchar audio
+                        </a>
+                      ) : null}
+                    </div>
+                    {sanitizeMediaUrl(formConfig.welcome_audio_url) ? (
+                      <audio controls preload="metadata" className="w-full max-w-xs">
+                        <source src={sanitizeMediaUrl(formConfig.welcome_audio_url)} />
+                      </audio>
+                    ) : null}
+                    <p className="text-xs text-muted-foreground">
+                      {canUseCloudinaryUploads
+                        ? 'Subidas activas con Cloudinary.'
+                        : 'Sin variables de Cloudinary: se usara Firebase Storage como respaldo.'}
+                    </p>
+                  </div>
+
                   <div className="space-y-2">
                     <Label>{t('dashboard.widget_config.chat_placeholder')}</Label>
                     <Input
@@ -2299,6 +2508,8 @@ export default function Dashboard() {
                         <WidgetPreview
                           primaryColor={formConfig.primary_color}
                           welcomeMessage={formConfig.welcome_message}
+                          welcomeImageUrl={sanitizeMediaUrl(formConfig.welcome_image_url)}
+                          welcomeAudioUrl={sanitizeMediaUrl(formConfig.welcome_audio_url)}
                           template={formConfig.template}
                           businessName={formConfig.business_name}
                           customPlaceholder={formConfig.custom_placeholder}
@@ -2645,7 +2856,7 @@ export default function Dashboard() {
                       <Button
                         type="button"
                         size="sm"
-                        onClick={() => applySystemPromptTemplate(AI_USA_CALL_SYSTEM_PROMPT_TEMPLATE)}
+                        onClick={applySelectedNichePromptTemplate}
                       >
                         {t('dashboard.ai_config.apply_call_template_btn')}
                       </Button>
@@ -2666,6 +2877,9 @@ export default function Dashboard() {
                         {t('dashboard.ai_config.insert_whatsapp_btn')}
                       </Button>
                     </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      {t('dashboard.widget_config.industry')}: {t(templates.find((item) => item.value === formConfig.template)?.label || 'dashboard.templates.general_label')}
+                    </p>
                     <p className="text-[11px] text-muted-foreground">
                       {t('dashboard.ai_config.template_placeholder_hint')}
                     </p>

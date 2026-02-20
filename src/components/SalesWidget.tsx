@@ -2,11 +2,16 @@
 import { Bot, Loader2, MessageCircle, Mic, MicOff, Palette, Send, Smile, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { buildWhatsAppRedirectUrl, parseChatResponseCommands, sanitizeHttpUrl } from "@/lib/chatCommands";
 
 type Message = {
   role: "user" | "assistant" | "system";
   content: string;
   actionUrl?: string;
+  actionLabel?: string;
+  imageUrl?: string;
+  imageAlt?: string;
+  audioUrl?: string;
 };
 
 type WidgetLocale = "es" | "en";
@@ -14,6 +19,8 @@ type WidgetTheme = "light" | "dark";
 type BrowserSpeechRecognitionCtor = new () => SpeechRecognition;
 
 const MY_WIDGET_ID = "demo-landing";
+const FALLBACK_IACALLCLOSER_REDIRECT_URL = "https://ai-call-closer.vercel.app/";
+const SALES_WIDGET_WHATSAPP_DESTINATION = "51924464410";
 const COLOR_PRESETS = ["#00C185", "#0EA5E9", "#2563EB", "#8B5CF6", "#DB2777", "#EA580C", "#16A34A", "#0F766E"];
 const QUICK_EMOJIS = [
   "\u{1F600}",
@@ -46,6 +53,8 @@ const WIDGET_COPY: Record<
     hint: string;
     openingWhatsApp: string;
     openWhatsAppNow: string;
+    openingIACallCloser: string;
+    openIACallCloserNow: string;
     blockedMessage: string;
     connectionError: string;
     chatTooltip: string;
@@ -56,6 +65,7 @@ const WIDGET_COPY: Record<
     emojiAria: string;
     voiceStartAria: string;
     voiceStopAria: string;
+    talkNow: string;
     themeDarkAria: string;
     themeLightAria: string;
     colorAria: string;
@@ -80,6 +90,8 @@ const WIDGET_COPY: Record<
     hint: "Estamos listos para ayudarte",
     openingWhatsApp: "Abriendo WhatsApp...",
     openWhatsAppNow: "Abrir WhatsApp Ahora",
+    openingIACallCloser: "Abriendo IACloser...",
+    openIACallCloserNow: "Abrir IACloser ahora",
     blockedMessage: "Acceso bloqueado por politicas de seguridad.",
     connectionError: "Tuvimos un problema de conexion. Intenta nuevamente.",
     chatTooltip: "Abrir chat",
@@ -90,6 +102,7 @@ const WIDGET_COPY: Record<
     emojiAria: "Abrir selector de emojis",
     voiceStartAria: "Grabar voz",
     voiceStopAria: "Detener grabacion de voz",
+    talkNow: "Habla ahora",
     themeDarkAria: "Cambiar a modo oscuro",
     themeLightAria: "Cambiar a modo claro",
     colorAria: "Cambiar color principal",
@@ -113,6 +126,8 @@ const WIDGET_COPY: Record<
     hint: "We are ready to help",
     openingWhatsApp: "Opening WhatsApp...",
     openWhatsAppNow: "Open WhatsApp Now",
+    openingIACallCloser: "Opening IACloser...",
+    openIACallCloserNow: "Open IACloser now",
     blockedMessage: "Access blocked by security policies.",
     connectionError: "We had a connection issue. Please try again.",
     chatTooltip: "Open chat",
@@ -123,6 +138,7 @@ const WIDGET_COPY: Record<
     emojiAria: "Open emoji picker",
     voiceStartAria: "Start voice input",
     voiceStopAria: "Stop voice input",
+    talkNow: "Speak now",
     themeDarkAria: "Switch to dark mode",
     themeLightAria: "Switch to light mode",
     colorAria: "Change main color",
@@ -190,6 +206,13 @@ function detectMessageLocale(value: string, fallback: WidgetLocale): WidgetLocal
   if (englishSignals.test(normalized)) return "en";
 
   return fallback;
+}
+
+function getCostControlDirective(locale: WidgetLocale) {
+  if (locale === "es") {
+    return "Se breve y orientado a conversion. Maximo 90 palabras, usa como maximo 1 emoji y evita repetir imagenes o audios.";
+  }
+  return "Be concise and conversion-focused. Max 90 words, use at most 1 emoji, and avoid repeating images or audio.";
 }
 
 function buildWhatsAppStars(value: number) {
@@ -398,10 +421,14 @@ export function SalesWidget() {
         responseLocale === "es"
           ? "Responde siempre en espanol claro y natural."
           : "Respond in clear, natural English.";
+      const compactHistory = [
+        ...messages.filter((item) => item.role !== "system").map((item) => ({ role: item.role, content: item.content })),
+        { role: "user" as const, content: userMessage },
+      ].slice(-12);
       const history = [
         { role: "system", content: languageDirective },
-        ...messages.filter((item) => item.role !== "system").map((item) => ({ role: item.role, content: item.content })),
-        { role: "user", content: userMessage },
+        { role: "system", content: getCostControlDirective(responseLocale) },
+        ...compactHistory,
       ];
 
       try {
@@ -428,27 +455,82 @@ export function SalesWidget() {
           throw new Error(payload.error);
         }
 
-        let aiResponse = String(payload?.response || "").trim();
-        const redirectMatch = aiResponse.match(/\[\s*WHATSAPP_REDIRECT\s*:\s*([\s\S]*?)\]/i);
-        let actionUrl = "";
+        const parsed = parseChatResponseCommands(String(payload?.response || ""), {
+          defaultIaCallCloserUrl: FALLBACK_IACALLCLOSER_REDIRECT_URL,
+        });
+        const whatsappUrl = buildWhatsAppRedirectUrl(
+          SALES_WIDGET_WHATSAPP_DESTINATION,
+          parsed.whatsappPayload || userMessage,
+        );
+        const iaCallCloserUrl = sanitizeHttpUrl(
+          parsed.iaCallCloserRedirectUrl ||
+            (parsed.iaCallCloserReady ? FALLBACK_IACALLCLOSER_REDIRECT_URL : ""),
+        );
+        const iaCallCloserIndexCandidates = [parsed.iaCallCloserRedirectIndex, parsed.iaCallCloserReadyIndex]
+          .filter((value): value is number => typeof value === "number");
+        const iaCallCloserIndex = iaCallCloserIndexCandidates.length > 0
+          ? Math.min(...iaCallCloserIndexCandidates)
+          : null;
+        const actionCandidates: Array<{
+          type: "whatsapp" | "iacallcloser";
+          index: number;
+          url: string;
+          notice: string;
+          label: string;
+        }> = [];
 
-        if (redirectMatch) {
-          const redirectBody = redirectMatch[1]?.trim().replace(/^["']|["']$/g, "");
-          aiResponse = aiResponse.replace(redirectMatch[0], "").trim();
-          const whatsappTarget = "51924464410";
-          actionUrl = `https://wa.me/${whatsappTarget}?text=${encodeURIComponent(redirectBody || userMessage)}`;
+        if (parsed.whatsappIndex !== null && whatsappUrl) {
+          actionCandidates.push({
+            type: "whatsapp",
+            index: parsed.whatsappIndex,
+            url: whatsappUrl,
+            notice: copy.openingWhatsApp,
+            label: copy.openWhatsAppNow,
+          });
         }
+
+        if (iaCallCloserIndex !== null && iaCallCloserUrl) {
+          actionCandidates.push({
+            type: "iacallcloser",
+            index: iaCallCloserIndex,
+            url: iaCallCloserUrl,
+            notice: copy.openingIACallCloser,
+            label: copy.openIACallCloserNow,
+          });
+        }
+
+        actionCandidates.sort((a, b) => a.index - b.index);
+        const selectedAction = actionCandidates[0];
+        const assistantReply = parsed.cleanText || selectedAction?.notice || (parsed.images.length > 0 || parsed.audios.length > 0 ? "" : copy.hint);
 
         setMessages((prev) => [
           ...prev,
-          { role: "assistant", content: aiResponse || copy.hint },
-          ...(actionUrl ? [{ role: "system" as const, content: copy.openingWhatsApp, actionUrl }] : []),
+          ...(assistantReply ? [{ role: "assistant" as const, content: assistantReply }] : []),
+          ...parsed.images.map((item, idx) => ({
+            role: "assistant" as const,
+            content: "",
+            imageUrl: item.url,
+            imageAlt: item.alt || `assistant-image-${idx + 1}`,
+          })),
+          ...parsed.audios.map((item) => ({
+            role: "assistant" as const,
+            content: "",
+            audioUrl: item.url,
+          })),
+          ...(selectedAction
+            ? [{
+                role: "system" as const,
+                content: selectedAction.notice,
+                actionUrl: selectedAction.url,
+                actionLabel: selectedAction.label,
+              }]
+            : []),
         ]);
 
-        if (actionUrl) {
-          if (window.fbq) window.fbq("track", "Lead");
+        if (selectedAction) {
+          if (selectedAction.type === "whatsapp" && window.fbq) window.fbq("track", "Lead");
           window.setTimeout(() => {
-            window.open(actionUrl, "_blank");
+            window.open(selectedAction.url, "_blank", "noopener,noreferrer");
           }, 1600);
         }
       } catch (error) {
@@ -458,7 +540,20 @@ export function SalesWidget() {
         setIsLoading(false);
       }
     },
-    [copy.blockedMessage, copy.connectionError, copy.hint, copy.openingWhatsApp, inputText, isBlocked, isLoading, locale, messages],
+    [
+      copy.blockedMessage,
+      copy.connectionError,
+      copy.hint,
+      copy.openIACallCloserNow,
+      copy.openWhatsAppNow,
+      copy.openingIACallCloser,
+      copy.openingWhatsApp,
+      inputText,
+      isBlocked,
+      isLoading,
+      locale,
+      messages,
+    ],
   );
 
   useEffect(() => {
@@ -511,6 +606,7 @@ export function SalesWidget() {
       } catch {
         // noop
       }
+      setSpeechListening(false);
     }
   };
 
@@ -702,9 +798,9 @@ export function SalesWidget() {
                 <div className="w-full space-y-2 text-center">
                   <p className={`inline-block rounded-full px-3 py-1 text-xs ${isLightMode ? "bg-slate-200 text-slate-600" : "bg-white/10 text-slate-200"}`}>{msg.content}</p>
                   {msg.actionUrl ? (
-                    <Button type="button" className="h-10 w-full gap-2 bg-[#25D366] font-semibold text-white hover:bg-[#1ea955]" onClick={() => window.open(msg.actionUrl, "_blank")}>
+                    <Button type="button" className="h-10 w-full gap-2 bg-[#25D366] font-semibold text-white hover:bg-[#1ea955]" onClick={() => window.open(msg.actionUrl, "_blank", "noopener,noreferrer")}>
                       <MessageCircle className="h-4 w-4" />
-                      {copy.openWhatsAppNow}
+                      {msg.actionLabel || copy.openWhatsAppNow}
                     </Button>
                   ) : null}
                 </div>
@@ -719,7 +815,20 @@ export function SalesWidget() {
                   }`}
                   style={msg.role === "user" ? { backgroundColor: primaryColor, color: userBubbleTextColor } : undefined}
                 >
-                  {msg.content}
+                  {msg.content ? <p>{msg.content}</p> : null}
+                  {msg.imageUrl ? (
+                    <img
+                      src={msg.imageUrl}
+                      alt={msg.imageAlt || "Assistant image"}
+                      loading="lazy"
+                      className="mt-2 w-full max-w-[250px] rounded-lg border border-white/10 object-cover"
+                    />
+                  ) : null}
+                  {msg.audioUrl ? (
+                    <audio controls preload="metadata" className="mt-2 w-full max-w-[250px]">
+                      <source src={msg.audioUrl} />
+                    </audio>
+                  ) : null}
                 </div>
               )}
             </div>
@@ -847,8 +956,30 @@ export function SalesWidget() {
             <p className={`text-[10px] font-medium uppercase tracking-[0.15em] ${isLightMode ? "text-slate-500" : "text-slate-400"}`}>{copy.poweredBy}</p>
             <span className="h-1 w-1 rounded-full" style={{ backgroundColor: primaryColor }} />
           </div>
-          {speechListening ? <p className={`text-center text-[11px] ${isLightMode ? "text-rose-600" : "text-rose-300"}`}>{copy.listeningNow}</p> : null}
         </div>
+
+        {speechListening ? (
+          <div className={`absolute inset-0 z-40 flex items-center justify-center px-5 ${isLightMode ? "bg-slate-900/45" : "bg-slate-950/70"} backdrop-blur-sm`}>
+            <div className={`w-full rounded-2xl border p-5 ${isLightMode ? "border-slate-200 bg-white/95 text-slate-800" : "border-white/15 bg-slate-900/92 text-slate-100"}`} role="status" aria-live="polite">
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold">{copy.talkNow}</p>
+                  <p className={`text-xs ${isLightMode ? "text-slate-500" : "text-slate-300"}`}>{copy.listeningNow}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={toggleSpeechInput}
+                  className="relative inline-flex h-24 w-24 items-center justify-center rounded-full border border-white/60 bg-white/5 text-rose-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
+                  aria-label={copy.voiceStopAria}
+                >
+                  <span className="absolute inset-0 rounded-full border border-rose-400/50 animate-ping" />
+                  <span className="absolute inset-3 rounded-full border border-rose-300/70" />
+                  <Mic className="relative z-10 h-7 w-7" />
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <button
