@@ -50,6 +50,7 @@ type PublicWidgetConfig = {
   welcomeMessage?: string;
   welcomeImageUrl?: string;
   welcomeAudioUrl?: string;
+  welcomeVideoUrl?: string;
   chatPlaceholder?: string;
   quickReplies?: string[];
   teaserMessages?: string[];
@@ -608,6 +609,7 @@ type LeadChatHeaderFields = {
   lead_chat_page_title?: string;
   welcome_image_url?: string;
   welcome_audio_url?: string;
+  welcome_video_url?: string;
 };
 
 async function fetchLeadChatHeaderFieldsFromFirestore(identity: string): Promise<LeadChatHeaderFields> {
@@ -653,6 +655,7 @@ async function fetchLeadChatHeaderFieldsFromFirestore(identity: string): Promise
         lead_chat_page_title: parseFirestoreStringField(fields.lead_chat_page_title),
         welcome_image_url: parseFirestoreStringField(fields.welcome_image_url),
         welcome_audio_url: parseFirestoreStringField(fields.welcome_audio_url),
+        welcome_video_url: parseFirestoreStringField(fields.welcome_video_url),
       };
     } catch {
       // noop
@@ -1212,6 +1215,7 @@ export default function LeadChat() {
           welcomeMessage: resolveWelcomeMessage(raw.welcomeMessage ?? raw.welcome_message, resolvedLocale),
           welcomeImageUrl: optimizeImageDeliveryUrl(String(raw.welcomeImageUrl || raw.welcome_image_url || headerFields.welcome_image_url || "")),
           welcomeAudioUrl: sanitizeHttpUrl(String(raw.welcomeAudioUrl || raw.welcome_audio_url || headerFields.welcome_audio_url || "")),
+          welcomeVideoUrl: sanitizeHttpUrl(String(raw.welcomeVideoUrl || raw.welcome_video_url || headerFields.welcome_video_url || "")),
           chatPlaceholder: String(raw.chatPlaceholder || raw.chat_placeholder || localeCopy.chatPlaceholder),
           quickReplies: resolveQuickReplies(raw.quickReplies ?? raw.quick_replies, resolvedLocale),
           teaserMessages: resolveTeaserMessages(raw.teaserMessages ?? raw.teaser_messages, resolvedLocale),
@@ -1286,6 +1290,7 @@ export default function LeadChat() {
             content: withBotEmoji(normalized.welcomeMessage || localeCopy.initialMessage),
             imageUrl: normalized.welcomeImageUrl || undefined,
             audioUrl: normalized.welcomeAudioUrl || undefined,
+            videoUrl: normalized.welcomeVideoUrl || undefined,
           },
         ]);
       } catch (error: any) {
@@ -1631,6 +1636,7 @@ export default function LeadChat() {
         content: withBotEmoji(config?.welcomeMessage || SALES_COPY[nextLocale].initialMessage),
         imageUrl: config?.welcomeImageUrl || undefined,
         audioUrl: config?.welcomeAudioUrl || undefined,
+        videoUrl: config?.welcomeVideoUrl || undefined,
       }]);
     }
   };

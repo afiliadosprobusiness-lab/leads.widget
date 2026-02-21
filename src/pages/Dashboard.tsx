@@ -93,6 +93,7 @@ interface WidgetConfig {
   welcome_message: string;
   welcome_image_url?: string;
   welcome_audio_url?: string;
+  welcome_video_url?: string;
   position: 'right' | 'left';
   theme_color: string;
   template: string;
@@ -338,7 +339,7 @@ const PLAN_PLUS_FIRST_PAYMENT_PEN = PLAN_PLUS_MONTHLY_PEN + PLAN_PLUS_SETUP_PEN;
 const PEN_TO_USD_RATE = 3.75;
 const CLOUDINARY_CLOUD_NAME = String(import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '').trim();
 const CLOUDINARY_UPLOAD_PRESET = String(import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || '').trim();
-type WelcomeMediaKind = 'image' | 'audio';
+type WelcomeMediaKind = 'image' | 'audio' | 'video';
 type PropertyMediaKind = 'image' | 'video';
 type WidgetUploadMediaKind = 'image' | 'audio' | 'video';
 
@@ -1352,6 +1353,7 @@ export default function Dashboard() {
     welcome_message: initialLeadChatDefaults.welcomeMessage,
     welcome_image_url: '',
     welcome_audio_url: '',
+    welcome_video_url: '',
     whatsapp_destination: '',
     niche_question: '¿En qué distrito te encuentras?',
     trigger_delay: 15,
@@ -1396,6 +1398,7 @@ export default function Dashboard() {
   const [showApiKey, setShowApiKey] = useState(false);
   const [uploadingWelcomeImage, setUploadingWelcomeImage] = useState(false);
   const [uploadingWelcomeAudio, setUploadingWelcomeAudio] = useState(false);
+  const [uploadingWelcomeVideo, setUploadingWelcomeVideo] = useState(false);
   const [propertyUploadState, setPropertyUploadState] = useState<Record<string, { image?: boolean; video?: boolean }>>({});
   const [recordingWelcomeAudio, setRecordingWelcomeAudio] = useState(false);
   const [welcomeAudioRecordingSupported, setWelcomeAudioRecordingSupported] = useState(false);
@@ -1450,7 +1453,9 @@ export default function Dashboard() {
     setFormConfig((prev) => (
       kind === 'image'
         ? { ...prev, welcome_image_url: safeUrl }
-        : { ...prev, welcome_audio_url: safeUrl }
+        : kind === 'audio'
+          ? { ...prev, welcome_audio_url: safeUrl }
+          : { ...prev, welcome_video_url: safeUrl }
     ));
     toast({
       title: 'Archivo subido',
@@ -1512,8 +1517,10 @@ export default function Dashboard() {
 
     if (kind === 'image') {
       setUploadingWelcomeImage(true);
-    } else {
+    } else if (kind === 'audio') {
       setUploadingWelcomeAudio(true);
+    } else {
+      setUploadingWelcomeVideo(true);
     }
 
     try {
@@ -1527,8 +1534,10 @@ export default function Dashboard() {
     } finally {
       if (kind === 'image') {
         setUploadingWelcomeImage(false);
-      } else {
+      } else if (kind === 'audio') {
         setUploadingWelcomeAudio(false);
+      } else {
+        setUploadingWelcomeVideo(false);
       }
     }
   };
@@ -1726,7 +1735,7 @@ export default function Dashboard() {
         const blob = new Blob(chunks, { type: mimeType });
         const extension = getRecordedAudioExtension(mimeType);
         const file = new File([blob], `welcome-audio-${Date.now()}.${extension}`, { type: mimeType });
-        if (!validateWelcomeMediaSize(file, 'audio')) return;
+        if (!validateWidgetMediaSize(file, 'audio')) return;
 
         setUploadingWelcomeAudio(true);
         try {
@@ -1863,6 +1872,7 @@ export default function Dashboard() {
           welcome_message: newUserLeadChatDefaults.welcomeMessage,
           welcome_image_url: '',
           welcome_audio_url: '',
+          welcome_video_url: '',
           whatsapp_destination: '',
           niche_question: '¿En qué distrito te encuentras?',
           trigger_delay: 3,
@@ -1923,6 +1933,7 @@ export default function Dashboard() {
           welcome_message: configData.welcome_message || configLeadChatDefaults.welcomeMessage,
           welcome_image_url: sanitizeMediaUrl(configData.welcome_image_url),
           welcome_audio_url: sanitizeMediaUrl(configData.welcome_audio_url),
+          welcome_video_url: sanitizeMediaUrl(configData.welcome_video_url),
           whatsapp_destination: configData.whatsapp_destination || '',
           niche_question: configData.niche_question || '¿En qué distrito te encuentras?',
           trigger_delay: configData.trigger_delay ?? 3,
@@ -2228,6 +2239,7 @@ export default function Dashboard() {
         welcome_message: formConfig.welcome_message,
         welcome_image_url: sanitizeMediaUrl(formConfig.welcome_image_url),
         welcome_audio_url: sanitizeMediaUrl(formConfig.welcome_audio_url),
+        welcome_video_url: sanitizeMediaUrl(formConfig.welcome_video_url),
         whatsapp_destination: formConfig.whatsapp_destination,
         niche_question: formConfig.niche_question,
         trigger_delay: formConfig.trigger_delay,
@@ -3172,6 +3184,15 @@ export default function Dashboard() {
                           onChange={(event) => void handleWelcomeMediaUpload(event, 'image')}
                         />
                       </label>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="h-9 px-3 text-rose-600 hover:bg-rose-100 hover:text-rose-700 dark:hover:bg-rose-900/30"
+                        onClick={() => setFormConfig((prev) => ({ ...prev, welcome_image_url: '' }))}
+                        disabled={uploadingWelcomeImage || !sanitizeMediaUrl(formConfig.welcome_image_url)}
+                      >
+                        Quitar
+                      </Button>
                       {sanitizeMediaUrl(formConfig.welcome_image_url) ? (
                         <a
                           href={sanitizeMediaUrl(formConfig.welcome_image_url)}
@@ -3227,6 +3248,15 @@ export default function Dashboard() {
                       >
                         {recordingWelcomeAudio ? 'Detener grabacion' : 'Grabar audio'}
                       </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="h-9 px-3 text-rose-600 hover:bg-rose-100 hover:text-rose-700 dark:hover:bg-rose-900/30"
+                        onClick={() => setFormConfig((prev) => ({ ...prev, welcome_audio_url: '' }))}
+                        disabled={uploadingWelcomeAudio || recordingWelcomeAudio || !sanitizeMediaUrl(formConfig.welcome_audio_url)}
+                      >
+                        Quitar
+                      </Button>
                       {sanitizeMediaUrl(formConfig.welcome_audio_url) ? (
                         <a
                           href={sanitizeMediaUrl(formConfig.welcome_audio_url)}
@@ -3253,6 +3283,58 @@ export default function Dashboard() {
                         ? 'Subidas activas con Cloudinary.'
                         : 'Sin variables de Cloudinary: se usara Firebase Storage como respaldo.'}
                     </p>
+                  </div>
+
+                  <div className="space-y-3 rounded-lg border border-dashed p-3">
+                    <div className="space-y-1">
+                      <Label>Video corto de bienvenida (URL o subida)</Label>
+                      <Input
+                        value={formConfig.welcome_video_url}
+                        onChange={(e) => setFormConfig({ ...formConfig, welcome_video_url: e.target.value })}
+                        placeholder="https://..."
+                      />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label
+                        className={`inline-flex h-9 items-center rounded-md border border-input px-3 text-sm font-medium ${
+                          uploadingWelcomeVideo ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-accent'
+                        }`}
+                      >
+                        {uploadingWelcomeVideo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        {uploadingWelcomeVideo ? 'Subiendo...' : 'Subir video'}
+                        <input
+                          type="file"
+                          accept="video/*"
+                          className="sr-only"
+                          disabled={uploadingWelcomeVideo}
+                          onChange={(event) => void handleWelcomeMediaUpload(event, 'video')}
+                        />
+                      </label>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="h-9 px-3 text-rose-600 hover:bg-rose-100 hover:text-rose-700 dark:hover:bg-rose-900/30"
+                        onClick={() => setFormConfig((prev) => ({ ...prev, welcome_video_url: '' }))}
+                        disabled={uploadingWelcomeVideo || !sanitizeMediaUrl(formConfig.welcome_video_url)}
+                      >
+                        Quitar
+                      </Button>
+                      {sanitizeMediaUrl(formConfig.welcome_video_url) ? (
+                        <a
+                          href={sanitizeMediaUrl(formConfig.welcome_video_url)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs underline"
+                        >
+                          Ver video
+                        </a>
+                      ) : null}
+                    </div>
+                    {sanitizeMediaUrl(formConfig.welcome_video_url) ? (
+                      <video controls preload="metadata" playsInline className="w-full max-w-xs rounded-lg border bg-slate-950/70">
+                        <source src={sanitizeMediaUrl(formConfig.welcome_video_url)} />
+                      </video>
+                    ) : null}
                   </div>
 
                   {formConfig.template === 'inmobiliaria' ? (
@@ -3907,6 +3989,7 @@ export default function Dashboard() {
                           welcomeMessage={formConfig.welcome_message}
                           welcomeImageUrl={sanitizeMediaUrl(formConfig.welcome_image_url)}
                           welcomeAudioUrl={sanitizeMediaUrl(formConfig.welcome_audio_url)}
+                          welcomeVideoUrl={sanitizeMediaUrl(formConfig.welcome_video_url)}
                           template={formConfig.template}
                           businessName={formConfig.business_name}
                           customPlaceholder={formConfig.custom_placeholder}

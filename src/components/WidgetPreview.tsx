@@ -8,6 +8,7 @@ interface WidgetPreviewProps {
   welcomeMessage?: string;
   welcomeImageUrl?: string;
   welcomeAudioUrl?: string;
+  welcomeVideoUrl?: string;
   nicheQuestion?: string;
   template?: string;
   businessName?: string;
@@ -42,6 +43,7 @@ export function WidgetPreview({
   welcomeMessage = '👋 ¡Hola! Soy la IA de LeadWidget. ¿En qué te ayudo?',
   welcomeImageUrl = '',
   welcomeAudioUrl = '',
+  welcomeVideoUrl = '',
   businessName = 'LeadWidget',
   chatPlaceholder,
   mode = 'landing',
@@ -169,6 +171,11 @@ export function WidgetPreview({
                     <source src={welcomeAudioUrl} />
                   </audio>
                 ) : null}
+                {idx === 0 && msg.role === 'assistant' && welcomeVideoUrl ? (
+                  <video controls preload="metadata" playsInline className="mt-2 w-full max-w-[220px] rounded-md border bg-slate-950/80">
+                    <source src={welcomeVideoUrl} />
+                  </video>
+                ) : null}
               </div>
             </div>
           ))}
@@ -252,6 +259,11 @@ export function WidgetPreview({
                   <audio controls preload="metadata" className="mt-2 w-full max-w-[220px]">
                     <source src={welcomeAudioUrl} />
                   </audio>
+                ) : null}
+                {idx === 0 && msg.role === 'assistant' && welcomeVideoUrl ? (
+                  <video controls preload="metadata" playsInline className="mt-2 w-full max-w-[220px] rounded-md border bg-slate-950/80">
+                    <source src={welcomeVideoUrl} />
+                  </video>
                 ) : null}
               </div>
             </div>

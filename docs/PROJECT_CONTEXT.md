@@ -90,8 +90,9 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Lead Chat/widget embebido/SalesWidget soportan mensajes multimedia de imagen en respuestas del asistente usando comandos `[IMAGE|IMG|PHOTO: ...]` (incluye variante JSON/pipe) y markdown `![alt](url)` con sanitizacion `http/https`.
 - Lead Chat/widget embebido/SalesWidget soportan mensajes multimedia de audio en respuestas del asistente usando comandos `[AUDIO|VOICE|SOUND: ...]` con sanitizacion `http/https`.
 - Lead Chat/widget embebido/SalesWidget soportan mensajes multimedia de video en respuestas del asistente usando comandos `[VIDEO|VID|CLIP: ...]` con sanitizacion `http/https`.
-- Dashboard permite adjuntar `imagen` y `audio` en el `mensaje de bienvenida`; esos medios se renderizan en Lead Chat y widget embebido desde `welcome_image_url` y `welcome_audio_url`.
-- Si el endpoint publico `/api/widget-config/:identity` no devuelve `welcome_image_url/welcome_audio_url`, el widget embebido aplica fallback de lectura a Firestore para no perder multimedia de bienvenida.
+- Dashboard permite adjuntar `imagen`, `audio` y `video corto` en el `mensaje de bienvenida`; esos medios se renderizan en Lead Chat y widget embebido desde `welcome_image_url`, `welcome_audio_url` y `welcome_video_url`.
+- En Dashboard > Configuracion del widget, cada bloque de bienvenida (`imagen/audio/video`) incluye accion `Quitar` para limpiar rapidamente la URL/media sin editar manualmente el campo.
+- Si el endpoint publico `/api/widget-config/:identity` no devuelve `welcome_image_url/welcome_audio_url/welcome_video_url`, el widget embebido aplica fallback de lectura a Firestore para no perder multimedia de bienvenida.
 - En Lead Chat/widget embebido/SalesWidget, las burbujas con audio fuerzan ancho minimo y muestran tarjeta visual de audio para evitar que el reproductor quede oculto cuando el texto es corto o vacio.
 - En Lead Chat/widget embebido/SalesWidget, el reproductor de audio usa UI premium custom (controles play/mute y barra de progreso estilo glass) para mantener consistencia visual entre las 3 experiencias.
 - En respuestas con imagen de Cloudinary, Lead Chat/widget embebido/SalesWidget aplican optimizacion de entrega a calidad media (`f_auto,q_auto:good,c_limit,w_960`) cuando la URL no trae transformaciones explicitas.
@@ -149,7 +150,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - En IA > Prompt del Sistema (plantillas por nicho), cuando el lead pregunta por precio/costo/inversion, el guion responde la oferta exacta: `S/ 100 mensual + S/ 200 implementacion unica`.
 - En Dashboard > Billing, el esquema comercial activo es: `trial` (3 dias gratis) y `PLUS` (S/ 100 mensual); en activacion inicial se muestra `S/ 200` de implementacion unica + primer mes.
 - `WHATSAPP_REDIRECT` se mantiene como opcion secundaria frente a `ICALLCLOSER_READY`; ya no se usa la guia manual de insercion, ahora el comando se agrega automaticamente segun el canal seleccionado.
-- Upload de bienvenida en dashboard usa Cloudinary cuando existen `VITE_CLOUDINARY_CLOUD_NAME` + `VITE_CLOUDINARY_UPLOAD_PRESET`; si no existen, usa fallback a Firebase Storage.
+- Upload de bienvenida en dashboard (imagen/audio/video) usa Cloudinary cuando existen `VITE_CLOUDINARY_CLOUD_NAME` + `VITE_CLOUDINARY_UPLOAD_PRESET`; si no existen, usa fallback a Firebase Storage.
 - En Dashboard > Configuracion del widget > Audio de bienvenida, ademas de subir archivo/URL ahora se puede grabar audio en el momento (microfono del navegador) y se sube por el mismo pipeline Cloudinary/Firebase.
 - En Dashboard > Configuracion del widget, cuando `Industria/Nicho = inmobiliaria` se habilita `Catalogo de propiedades` para cargar y gestionar fotos/videos por propiedad (`real_estate_properties`), reutilizando el pipeline Cloudinary/Firebase.
 - En plantilla `inmobiliaria`, Lead Chat/widget embebido inyectan una directiva de catalogo al historial de chat para que la IA seleccione multimedia real del cliente (sin inventar URLs) cuando el usuario pide ver propiedades o el contexto lo amerita.

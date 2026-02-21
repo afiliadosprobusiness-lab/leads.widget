@@ -54,7 +54,7 @@ Campos observados (pueden coexistir segun flujo):
 Campos observados:
 
 - Identidad: `user_id`, `widget_id`
-- Branding/UI: `business_name`, `primary_color`, `welcome_message`, `welcome_image_url`, `welcome_audio_url`, `chat_placeholder`, `launcher_icon`, `hide_branding`, `branding_text`, `branding_link`, `language`, `template`
+- Branding/UI: `business_name`, `primary_color`, `welcome_message`, `welcome_image_url`, `welcome_audio_url`, `welcome_video_url`, `chat_placeholder`, `launcher_icon`, `hide_branding`, `branding_text`, `branding_link`, `language`, `template`
 - Lead Chat/Closer: `experience_mode`, `lead_chat_slug`, `consent_text`, `consent_text_version`, `icloser_redirect_url`, `lead_chat_headline`, `lead_chat_subheadline`, `lead_chat_offer_title`, `lead_chat_offer_description`, `lead_chat_cta_label`, `lead_chat_live_toasts`
 - WhatsApp y flujo: `whatsapp_destination`, `niche_question`
 - Triggers: `trigger_delay`, `trigger_exit_intent`, `exit_intent_title`, `exit_intent_description`, `exit_intent_cta`, `vibration_intensity`
@@ -480,3 +480,7 @@ Cambios de comportamiento relevantes:
 - Cambio: `widget_configs` agrega `real_estate_properties` (catalogo multimedia por propiedad); parser chat soporta comando `[VIDEO: ...]`; `ai_chat_logs.command_flags` agrega `has_video`.
 - Tipo: non-breaking
 - Impacto: habilita flujo inmobiliario con fotos/videos contextuales en chat sin romper contratos existentes ni plantillas no-inmobiliarias.
+- Fecha: 2026-02-21
+- Cambio: `widget_configs` agrega `welcome_video_url`; dashboard permite subir/quitar video de bienvenida y clientes Lead Chat/widget embebido lo renderizan como multimedia inicial.
+- Tipo: non-breaking
+- Impacto: extiende multimedia de bienvenida (imagen/audio/video) sin romper payloads existentes.

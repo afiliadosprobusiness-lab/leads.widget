@@ -9,6 +9,7 @@
     welcomeMessage: "Hi! I'm the qualification assistant. In under 2 minutes, our AI can call you and help you book or close customers live. What would you like to do?",
     welcomeImageUrl: '',
     welcomeAudioUrl: '',
+    welcomeVideoUrl: '',
     whatsappDestination: '',
     template: 'general',
     chatPlaceholder: 'Type your message...',
@@ -847,7 +848,7 @@
   }
 
   async function fetchWelcomeMediaFromFirestore(identity) {
-    if (!identity) return { welcomeImageUrl: '', welcomeAudioUrl: '' };
+    if (!identity) return { welcomeImageUrl: '', welcomeAudioUrl: '', welcomeVideoUrl: '' };
 
     try {
       const projectId = config.projectId || defaultConfig.projectId;
@@ -884,14 +885,15 @@
 
         return {
           welcomeImageUrl: optimizeCloudinaryImageUrl(fields.welcome_image_url?.stringValue || ''),
-          welcomeAudioUrl: sanitizeHttpUrl(fields.welcome_audio_url?.stringValue || '')
+          welcomeAudioUrl: sanitizeHttpUrl(fields.welcome_audio_url?.stringValue || ''),
+          welcomeVideoUrl: sanitizeHttpUrl(fields.welcome_video_url?.stringValue || '')
         };
       }
     } catch (err) {
       console.warn('LeadWidget: Could not read welcome media fallback from Firestore', err);
     }
 
-    return { welcomeImageUrl: '', welcomeAudioUrl: '' };
+    return { welcomeImageUrl: '', welcomeAudioUrl: '', welcomeVideoUrl: '' };
   }
 
   async function fetchRealEstatePropertiesFromFirestore(identity) {
@@ -981,15 +983,17 @@
               : [];
           const backendWelcomeImage = optimizeCloudinaryImageUrl(payload.config.welcomeImageUrl || payload.config.welcome_image_url || '');
           const backendWelcomeAudio = sanitizeHttpUrl(payload.config.welcomeAudioUrl || payload.config.welcome_audio_url || '');
+          const backendWelcomeVideo = sanitizeHttpUrl(payload.config.welcomeVideoUrl || payload.config.welcome_video_url || '');
           const firestoreWelcomeFallback =
-            (!backendWelcomeImage || !backendWelcomeAudio)
+            (!backendWelcomeImage || !backendWelcomeAudio || !backendWelcomeVideo)
               ? await fetchWelcomeMediaFromFirestore(identity)
-              : { welcomeImageUrl: '', welcomeAudioUrl: '' };
+              : { welcomeImageUrl: '', welcomeAudioUrl: '', welcomeVideoUrl: '' };
           return {
             ...payload.config,
             template: payload.config.template || (firestoreRealEstatePropertiesFallback.length > 0 ? 'inmobiliaria' : (payload.config.template || 'general')),
             welcomeImageUrl: backendWelcomeImage || firestoreWelcomeFallback.welcomeImageUrl,
             welcomeAudioUrl: backendWelcomeAudio || firestoreWelcomeFallback.welcomeAudioUrl,
+            welcomeVideoUrl: backendWelcomeVideo || firestoreWelcomeFallback.welcomeVideoUrl,
             quickReplies: quickReplies.length > 0 ? quickReplies : [...config.quickReplies],
             teaserMessages: hasTeaserField ? teaserMessages : [...config.teaserMessages],
             realEstateProperties: backendRealEstateProperties.length > 0 ? backendRealEstateProperties : firestoreRealEstatePropertiesFallback,
@@ -1128,6 +1132,7 @@
           welcomeMessage: fields.welcome_message?.stringValue || defaultConfig.welcomeMessage,
           welcomeImageUrl: optimizeCloudinaryImageUrl(fields.welcome_image_url?.stringValue || ''),
           welcomeAudioUrl: sanitizeHttpUrl(fields.welcome_audio_url?.stringValue || ''),
+          welcomeVideoUrl: sanitizeHttpUrl(fields.welcome_video_url?.stringValue || ''),
           whatsappDestination: fields.whatsapp_destination?.stringValue || '',
           template: fields.template?.stringValue || 'general',
           chatPlaceholder: fields.chat_placeholder?.stringValue || defaultConfig.chatPlaceholder,
@@ -2591,7 +2596,8 @@
         role: 'assistant',
         content: withBotEmoji(config.welcomeMessage),
         imageUrl: optimizeCloudinaryImageUrl(config.welcomeImageUrl || ''),
-        audioUrl: sanitizeHttpUrl(config.welcomeAudioUrl || '')
+        audioUrl: sanitizeHttpUrl(config.welcomeAudioUrl || ''),
+        videoUrl: sanitizeHttpUrl(config.welcomeVideoUrl || '')
       }];
       return true;
     }
@@ -3089,7 +3095,8 @@
             role: 'assistant',
             content: withBotEmoji(config.welcomeMessage),
             imageUrl: optimizeCloudinaryImageUrl(config.welcomeImageUrl || ''),
-            audioUrl: sanitizeHttpUrl(config.welcomeAudioUrl || '')
+            audioUrl: sanitizeHttpUrl(config.welcomeAudioUrl || ''),
+            videoUrl: sanitizeHttpUrl(config.welcomeVideoUrl || '')
           });
           renderMessages();
         }
@@ -3403,7 +3410,7 @@
       // Check for visual changes that require re-render
       const visualKeys = [
         'primaryColor', 'businessName', 'welcomeMessage',
-        'welcomeImageUrl', 'welcomeAudioUrl',
+        'welcomeImageUrl', 'welcomeAudioUrl', 'welcomeVideoUrl',
         'whatsappDestination', 'quickReplies', 'teaserMessages',
         'chatPlaceholder', 'exitIntentTitle', 'exitIntentDescription', 'exitIntentCta',
         'vibrationIntensity', 'testimonials', 'liveActivities', 'launcherIcon', 'hideBranding', 'brandingText', 'brandingLink'
