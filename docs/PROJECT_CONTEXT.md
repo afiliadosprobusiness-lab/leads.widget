@@ -164,6 +164,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - En Dashboard > Analiticas, la consola IA incluye una `Guia rapida` visible en la UI para que el equipo comercial interprete cada estado (`No completados`, `Lead completado`, `Riesgo/Hack`) sin depender de capacitacion externa.
 - En Dashboard > Analiticas, la consola IA agrega la categoria `Interesado no cerrado` (subset de no completados) para identificar conversaciones con senales de interes comercial o consumo de multimedia, sin cierre final.
 - En Dashboard > Analiticas, los filtros tecnicos de estado (`ok/bloqueado/limite/error`) quedan ocultos por defecto y se muestran solo al activar `Ver diagnostico tecnico`, priorizando UX comercial simple.
+- En Dashboard > Analiticas, la consola IA permite exportar conversaciones en CSV tanto en modo individual (por conversacion) como masivo segun filtros activos.
 - Lead Chat/widget embebido/SalesWidget reportan eventos de apertura (`whatsapp_open`/`iacallcloser_open`) a `POST /api/chat-event`; el dashboard usa esos eventos (`ai_chat_events`) para marcar `Lead completado`.
 - En conversaciones `No completadas`, el dashboard ofrece `Analizar conversacion`: boton 1-click que llama `POST /api/analyze-conversation` y devuelve diagnostico (causas raiz, mejoras, patch de prompt y score de calidad).
 - `Analizar conversacion` consume creditos de la API key OpenAI configurada por cliente (`ai_api_key`); la UI muestra aviso explicito de consumo para evitar sorpresas de costo.

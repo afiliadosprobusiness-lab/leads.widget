@@ -244,6 +244,19 @@ interface AiConversationAnalysisState {
   data: AiConversationAnalysis | null;
 }
 
+interface AiConversationGroupItem {
+  conversationId: string;
+  source: string;
+  widgetId: string;
+  logs: AiChatLog[];
+  lastAt: string;
+  status: AiChatLogStatus;
+  securityRisk: boolean;
+  completedToWhatsapp: boolean;
+  interestedNotClosed: boolean;
+  notCompleted: boolean;
+}
+
 const templates = [
   {
     value: 'general',
@@ -876,6 +889,139 @@ export default function Dashboard() {
       minute: '2-digit',
     });
     return `${sourceLabel} - ${timestamp}`;
+  };
+
+  const csvEscapeCell = (value: unknown) => {
+    const normalized = String(value ?? '')
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      .replace(/"/g, '""');
+    return `"${normalized}"`;
+  };
+
+  const csvJoinRow = (values: unknown[]) => values.map((value) => csvEscapeCell(value)).join(',');
+
+  const sanitizeCsvFilePart = (value: string) => {
+    const normalized = String(value || '').trim().replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/-+/g, '-');
+    return normalized.replace(/^-|-$/g, '').slice(0, 64) || 'conversation';
+  };
+
+  const triggerCsvDownload = (fileName: string, csvContent: string) => {
+    if (typeof window === 'undefined') return;
+    const blob = new Blob(['\uFEFF', csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  };
+
+  const buildConversationCsvRows = (conversation: AiConversationGroupItem) => {
+    const flowLabel = getConversationFlowLabel(conversation);
+    const conversationLabel = getConversationDisplayTitle(conversation.source, conversation.lastAt);
+    const technicalStatus = getAiLogStatusLabel(conversation.status);
+    const baseColumns = [
+      conversation.conversationId,
+      conversationLabel,
+      conversation.source || 'unknown',
+      conversation.widgetId || '',
+      flowLabel,
+      technicalStatus,
+      conversation.lastAt || '',
+    ];
+
+    if (!conversation.logs.length) {
+      return [
+        csvJoinRow([
+          ...baseColumns,
+          '',
+          '',
+          '',
+          '',
+          '',
+          '',
+        ]),
+      ];
+    }
+
+    return conversation.logs.map((logItem, index) =>
+      csvJoinRow([
+        ...baseColumns,
+        index + 1,
+        logItem.created_at || '',
+        Number.isFinite(Number(logItem.latency_ms)) ? Math.round(Number(logItem.latency_ms)) : '',
+        logItem.error_message || '',
+        logItem.user_message || '',
+        logItem.ai_response || '',
+      ]));
+  };
+
+  const downloadConversationCsv = (conversation: AiConversationGroupItem) => {
+    const headers = [
+      'conversation_id',
+      'conversation_label',
+      'source',
+      'widget_id',
+      'flow_status',
+      'technical_status',
+      'conversation_last_at',
+      'message_index',
+      'message_created_at',
+      'latency_ms',
+      'error_message',
+      'user_message',
+      'assistant_message',
+    ];
+    const rows = buildConversationCsvRows(conversation);
+    const csv = [csvJoinRow(headers), ...rows].join('\n');
+    const filePart = sanitizeCsvFilePart(conversation.conversationId);
+    const fileName = `ai-conversation-${filePart}.csv`;
+    triggerCsvDownload(fileName, csv);
+    toast({
+      title: dashboardIsEnglish ? 'Conversation exported' : 'Conversacion exportada',
+      description: dashboardIsEnglish ? `CSV downloaded: ${fileName}` : `CSV descargado: ${fileName}`,
+    });
+  };
+
+  const downloadBulkConversationsCsv = (conversations: AiConversationGroupItem[]) => {
+    if (!Array.isArray(conversations) || conversations.length === 0) {
+      toast({
+        title: dashboardIsEnglish ? 'No data to export' : 'No hay datos para exportar',
+        description: dashboardIsEnglish ? 'Apply different filters and try again.' : 'Prueba con otros filtros y vuelve a intentar.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const headers = [
+      'conversation_id',
+      'conversation_label',
+      'source',
+      'widget_id',
+      'flow_status',
+      'technical_status',
+      'conversation_last_at',
+      'message_index',
+      'message_created_at',
+      'latency_ms',
+      'error_message',
+      'user_message',
+      'assistant_message',
+    ];
+    const rows = conversations.flatMap((conversation) => buildConversationCsvRows(conversation));
+    const csv = [csvJoinRow(headers), ...rows].join('\n');
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const fileName = `ai-conversations-${timestamp}.csv`;
+    triggerCsvDownload(fileName, csv);
+    toast({
+      title: dashboardIsEnglish ? 'Conversations exported' : 'Conversaciones exportadas',
+      description: dashboardIsEnglish
+        ? `CSV downloaded with ${conversations.length} conversations.`
+        : `CSV descargado con ${conversations.length} conversaciones.`,
+    });
   };
 
   const handleAnalyzeConversation = async (
@@ -4782,6 +4928,30 @@ export default function Dashboard() {
                   </div>
                 ) : null}
 
+                <div className="rounded-xl border border-slate-200/80 bg-white/80 p-3 dark:border-slate-800 dark:bg-slate-950/50">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {dashboardIsEnglish ? 'CSV export' : 'Exportar CSV'}
+                  </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => downloadBulkConversationsCsv(filteredAiConversationGroups)}
+                      disabled={filteredAiConversationGroups.length === 0}
+                      className="h-8 rounded-full px-3 text-[11px]"
+                    >
+                      <Download className="mr-1.5 h-3.5 w-3.5" />
+                      {dashboardIsEnglish ? 'Download filtered conversations' : 'Descargar conversaciones filtradas'}
+                    </Button>
+                  </div>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {dashboardIsEnglish
+                      ? 'Exports one CSV row per message pair (user + assistant).'
+                      : 'Exporta una fila CSV por cada par de mensajes (usuario + asistente).'}
+                  </p>
+                </div>
+
                 {filteredAiConversationGroups.length === 0 ? (
                   <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/70 px-4 py-8 text-center text-sm text-muted-foreground dark:border-slate-800 dark:bg-slate-900/30">
                     {dashboardIsEnglish
@@ -4913,6 +5083,19 @@ export default function Dashboard() {
                                 ) : null}
                               </div>
                             ) : null}
+
+                            <div className="flex justify-end">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => downloadConversationCsv(conversation)}
+                                className="h-8"
+                              >
+                                <Download className="mr-1.5 h-3.5 w-3.5" />
+                                {dashboardIsEnglish ? 'Download this conversation (CSV)' : 'Descargar esta conversacion (CSV)'}
+                              </Button>
+                            </div>
 
                             {conversation.logs.slice(-8).map((logItem) => (
                               <div key={logItem.id} className="rounded-xl border border-slate-200/90 bg-white/70 p-2.5 dark:border-slate-800 dark:bg-slate-950/45">
