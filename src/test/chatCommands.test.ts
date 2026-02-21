@@ -8,6 +8,7 @@ describe("chatCommands parser", () => {
       `Te muestro como se ve.
       [IMAGE: https://cdn.example.com/panel.png|Dashboard preview]
       [AUDIO: https://cdn.example.com/welcome.mp3]
+      [VIDEO: https://cdn.example.com/tour.mp4]
       [WHATSAPP_REDIRECT: "Hola, quiero activar"]
       [ICALLCLOSER_REDIRECT: https://ai-call-closer.vercel.app/demo]`,
     );
@@ -22,6 +23,8 @@ describe("chatCommands parser", () => {
     expect(parsed.images[0]?.alt).toBe("Dashboard preview");
     expect(parsed.audios).toHaveLength(1);
     expect(parsed.audios[0]?.url).toBe("https://cdn.example.com/welcome.mp3");
+    expect(parsed.videos).toHaveLength(1);
+    expect(parsed.videos[0]?.url).toBe("https://cdn.example.com/tour.mp4");
   });
 
   it("supports markdown images and IACALLCLOSER_READY payload", () => {

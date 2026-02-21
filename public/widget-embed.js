@@ -14,6 +14,7 @@
     chatPlaceholder: 'Type your message...',
     quickReplies: ['Book more appointments', 'Close deals by phone', 'See how it works'],
     teaserMessages: ['How can we help you today? 👋', 'Do you have any questions? ✨', 'We are online now 🚀'],
+    realEstateProperties: [],
     vibrationIntensity: 'soft',
     triggerDelay: 5,
     exitIntentEnabled: true,
@@ -242,6 +243,118 @@
     return [];
   }
 
+  function normalizeRealEstateProperties(value) {
+    let source = value;
+    if (source && typeof source === 'object' && !Array.isArray(source)) {
+      if (Array.isArray(source.arrayValue && source.arrayValue.values)) {
+        source = source.arrayValue.values.map((item) => {
+          const fields = item && item.mapValue && item.mapValue.fields ? item.mapValue.fields : null;
+          if (!fields) return {};
+          const mapped = {};
+          Object.keys(fields).forEach((key) => {
+            const entry = fields[key];
+            if (typeof entry?.stringValue === 'string') mapped[key] = entry.stringValue;
+            else if (typeof entry?.integerValue === 'string') mapped[key] = entry.integerValue;
+            else if (typeof entry?.doubleValue === 'number') mapped[key] = entry.doubleValue;
+          });
+          return mapped;
+        });
+      } else if (typeof source.stringValue === 'string') {
+        source = source.stringValue;
+      }
+    }
+
+    if (typeof source === 'string') {
+      const trimmed = source.trim();
+      if (!trimmed) return [];
+      if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+        try {
+          source = JSON.parse(trimmed);
+        } catch (_) {
+          return [];
+        }
+      } else {
+        return [];
+      }
+    }
+
+    if (!Array.isArray(source)) return [];
+
+    return source
+      .map((item, index) => {
+        if (!item || typeof item !== 'object') return null;
+        const row = item;
+        const id = String(row.id || `property-${index + 1}`).trim();
+        const title = String(row.title || row.name || row.property_title || '').trim();
+        const district = String(row.district || row.zone || '').trim();
+        const price = String(row.price || row.amount || '').trim();
+        const bedrooms = String(row.bedrooms || row.rooms || row.dorms || '').trim();
+        const areaM2 = String(row.areaM2 || row.area_m2 || row.m2 || '').trim();
+        const imageUrl = optimizeCloudinaryImageUrl(row.imageUrl || row.image_url || row.photo || '');
+        const videoUrl = sanitizeHttpUrl(row.videoUrl || row.video_url || row.video || '');
+        if (!title && !imageUrl && !videoUrl) return null;
+        return {
+          id: id || `property-${index + 1}`,
+          title: title || `Property ${index + 1}`,
+          district,
+          price,
+          bedrooms,
+          areaM2,
+          imageUrl,
+          videoUrl
+        };
+      })
+      .filter(Boolean)
+      .slice(0, 20);
+  }
+
+  function getRealEstateDirectiveFromConfig() {
+    if (normalizeText(config.template) !== 'inmobiliaria') return '';
+    const properties = Array.isArray(config.realEstateProperties) ? config.realEstateProperties : [];
+    if (properties.length === 0) return '';
+
+    const catalog = properties
+      .slice(0, 8)
+      .map((property, index) => {
+        const rows = [
+          `id=${property.id || `prop-${index + 1}`}`,
+          `title=${property.title || '-'}`,
+          property.district ? `district=${property.district}` : '',
+          property.price ? `price=${property.price}` : '',
+          property.bedrooms ? `bedrooms=${property.bedrooms}` : '',
+          property.areaM2 ? `m2=${property.areaM2}` : '',
+          property.imageUrl ? `image=${property.imageUrl}` : '',
+          property.videoUrl ? `video=${property.videoUrl}` : ''
+        ].filter(Boolean);
+        return rows.join(' | ');
+      })
+      .join('\n');
+
+    if (!catalog) return '';
+
+    if (activeLanguage === 'es') {
+      return [
+        'Modo inmobiliaria activo.',
+        'Usa SOLO URLs del catalogo y no inventes enlaces.',
+        'Si el usuario pide ver propiedad/departamento/casa o el contexto lo amerita, responde con maximo 1 imagen y 1 video usando:',
+        '- [IMAGE: <url>|<alt corto>]',
+        '- [VIDEO: <url>]',
+        'Catalogo de propiedades:',
+        catalog
+      ].join('\n');
+    }
+
+    return [
+      'Real estate mode is active.',
+      'Use ONLY catalog URLs. Never invent links.',
+      'If user asks to see listings/house/apartment, or context suggests visual proof, return up to 1 image and 1 video with:',
+      '- [IMAGE: <url>|<short alt>]',
+      '- [VIDEO: <url>]',
+      'Property catalog:',
+      catalog
+    ].join('\n');
+  }
+
   function sanitizeHttpUrl(value, maxLength = 500) {
     const normalized = String(value || '').trim();
     if (!normalized || normalized.length > maxLength) return '';
@@ -388,6 +501,29 @@
     };
   }
 
+  function parseVideoPayload(rawPayload) {
+    const payload = stripCommandQuotes(rawPayload || '');
+    if (!payload) return { url: '' };
+
+    try {
+      const asJson = JSON.parse(payload);
+      if (asJson && typeof asJson === 'object') {
+        const candidateUrl = typeof asJson.url === 'string'
+          ? asJson.url
+          : (typeof asJson.video === 'string' ? asJson.video : '');
+        return {
+          url: sanitizeHttpUrl(candidateUrl)
+        };
+      }
+    } catch (_) {
+      // noop
+    }
+
+    return {
+      url: sanitizeHttpUrl(payload)
+    };
+  }
+
   function parseChatCommands(responseText) {
     const raw = String(responseText || '');
     const whatsappRe = /\[\s*WHATSAPP_REDIRECT\s*:\s*([\s\S]*?)\]/ig;
@@ -395,6 +531,7 @@
     const iaCallCloserReadyRe = /\[\s*(?:ICLOSER_READY|ICALLCLOSER_READY|IACALLCLOSER_READY)(?:\s*:\s*([\s\S]*?))?\s*\]/ig;
     const imageCommandRe = /\[\s*(?:IMAGE|IMG|PHOTO)\s*:\s*([\s\S]*?)\]/ig;
     const audioCommandRe = /\[\s*(?:AUDIO|VOICE|SOUND)\s*:\s*([\s\S]*?)\]/ig;
+    const videoCommandRe = /\[\s*(?:VIDEO|VID|CLIP)\s*:\s*([\s\S]*?)\]/ig;
     const markdownImageRe = /!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/ig;
     const parsed = {
       cleanText: raw.trim(),
@@ -405,7 +542,8 @@
       iaCallCloserReady: false,
       iaCallCloserReadyIndex: null,
       images: [],
-      audios: []
+      audios: [],
+      videos: []
     };
 
     let match;
@@ -462,10 +600,22 @@
       }
     }
 
+    while ((match = videoCommandRe.exec(raw)) !== null) {
+      const parsedVideo = parseVideoPayload(match[1] || '');
+      if (parsedVideo.url) {
+        parsed.videos.push({
+          url: parsedVideo.url,
+          index: match.index
+        });
+      }
+    }
+
     parsed.images.sort((a, b) => a.index - b.index);
     parsed.images = parsed.images.slice(0, 4);
     parsed.audios.sort((a, b) => a.index - b.index);
     parsed.audios = parsed.audios.slice(0, 4);
+    parsed.videos.sort((a, b) => a.index - b.index);
+    parsed.videos = parsed.videos.slice(0, 3);
 
     parsed.cleanText = raw
       .replace(whatsappRe, '')
@@ -474,6 +624,7 @@
       .replace(imageCommandRe, '')
       .replace(markdownImageRe, '')
       .replace(audioCommandRe, '')
+      .replace(videoCommandRe, '')
       .trim();
 
     return parsed;
@@ -743,6 +894,51 @@
     return { welcomeImageUrl: '', welcomeAudioUrl: '' };
   }
 
+  async function fetchRealEstatePropertiesFromFirestore(identity) {
+    if (!identity) return [];
+
+    try {
+      const projectId = config.projectId || defaultConfig.projectId;
+      const apiKey = config.apiKey || defaultConfig.apiKey;
+      const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:runQuery?key=${apiKey}`;
+      const candidates = [
+        { fieldPath: 'widget_id', value: identity },
+        { fieldPath: 'user_id', value: identity },
+        { fieldPath: 'lead_chat_slug', value: identity }
+      ];
+
+      for (const candidate of candidates) {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            structuredQuery: {
+              from: [{ collectionId: 'widget_configs' }],
+              where: {
+                fieldFilter: {
+                  field: { fieldPath: candidate.fieldPath },
+                  op: 'EQUAL',
+                  value: { stringValue: candidate.value }
+                }
+              },
+              limit: 1
+            }
+          })
+        });
+        if (!response.ok) continue;
+        const data = await response.json();
+        const fields = data?.[0]?.document?.fields;
+        if (!fields) continue;
+        const properties = normalizeRealEstateProperties(fields.real_estate_properties);
+        if (properties.length > 0) return properties;
+      }
+    } catch (err) {
+      console.warn('LeadWidget: Could not read real estate catalog fallback from Firestore', err);
+    }
+
+    return [];
+  }
+
   // Get widget config from Firestore
   async function getWidgetConfig(identity) {
     if (!identity) return null;
@@ -776,6 +972,13 @@
             payload.config.leadChatLiveToasts
           );
           const testimonials = normalizeTestimonials(payload.config.testimonials);
+          const backendRealEstateProperties = normalizeRealEstateProperties(
+            payload.config.realEstateProperties || payload.config.real_estate_properties
+          );
+          const firestoreRealEstatePropertiesFallback =
+            backendRealEstateProperties.length === 0
+              ? await fetchRealEstatePropertiesFromFirestore(identity)
+              : [];
           const backendWelcomeImage = optimizeCloudinaryImageUrl(payload.config.welcomeImageUrl || payload.config.welcome_image_url || '');
           const backendWelcomeAudio = sanitizeHttpUrl(payload.config.welcomeAudioUrl || payload.config.welcome_audio_url || '');
           const firestoreWelcomeFallback =
@@ -784,10 +987,12 @@
               : { welcomeImageUrl: '', welcomeAudioUrl: '' };
           return {
             ...payload.config,
+            template: payload.config.template || (firestoreRealEstatePropertiesFallback.length > 0 ? 'inmobiliaria' : (payload.config.template || 'general')),
             welcomeImageUrl: backendWelcomeImage || firestoreWelcomeFallback.welcomeImageUrl,
             welcomeAudioUrl: backendWelcomeAudio || firestoreWelcomeFallback.welcomeAudioUrl,
             quickReplies: quickReplies.length > 0 ? quickReplies : [...config.quickReplies],
             teaserMessages: hasTeaserField ? teaserMessages : [...config.teaserMessages],
+            realEstateProperties: backendRealEstateProperties.length > 0 ? backendRealEstateProperties : firestoreRealEstatePropertiesFallback,
             testimonials: testimonials.length > 0 ? testimonials : [],
             liveActivities: liveActivities.length > 0 ? liveActivities : [...config.liveActivities],
             clientId: payload.config.clientId || config.clientId || identity,
@@ -928,6 +1133,7 @@
           chatPlaceholder: fields.chat_placeholder?.stringValue || defaultConfig.chatPlaceholder,
           quickReplies: quickReplies,
           teaserMessages: teaserMessages,
+          realEstateProperties: normalizeRealEstateProperties(fields.real_estate_properties),
           testimonials: testimonials,
           liveActivities: liveActivities,
           launcherIcon: fields.launcher_icon?.stringValue || '',
@@ -982,8 +1188,9 @@
           : 'Respond in clear, natural English.';
       const costDirective =
         activeLanguage === 'es'
-          ? 'Se breve y orientado a conversion. Maximo 90 palabras, usa como maximo 1 emoji, evita repetir imagenes/audios. Usa [AUDIO] solo en bienvenida o CTA final (maximo 1 audio dinamico por conversacion). Si usas [IMAGE], prioriza URL Cloudinary en calidad media (q_auto:good, w<=960).'
-          : 'Be concise and conversion-focused. Max 90 words, use at most 1 emoji, avoid repeating images/audio. Use [AUDIO] only for opening or final CTA (max 1 dynamic audio per conversation). For [IMAGE], prefer Cloudinary medium quality URLs (q_auto:good, w<=960).';
+          ? 'Se breve y orientado a conversion. Maximo 90 palabras, usa como maximo 1 emoji, evita repetir imagenes/audios/videos. Usa [AUDIO] solo en bienvenida o CTA final (maximo 1 audio dinamico por conversacion). Si usas [IMAGE], prioriza URL Cloudinary en calidad media (q_auto:good, w<=960).'
+          : 'Be concise and conversion-focused. Max 90 words, use at most 1 emoji, avoid repeating images/audio/video. Use [AUDIO] only for opening or final CTA (max 1 dynamic audio per conversation). For [IMAGE], prefer Cloudinary medium quality URLs (q_auto:good, w<=960).';
+      const realEstateDirective = getRealEstateDirectiveFromConfig();
       const compactHistory = messages
         .filter(m => m.role !== 'system')
         .map(m => ({
@@ -994,6 +1201,7 @@
       const conversationHistory = [
         { role: 'system', content: languageDirective },
         { role: 'system', content: costDirective },
+        ...(realEstateDirective ? [{ role: 'system', content: realEstateDirective }] : []),
         ...compactHistory,
       ];
 
@@ -2616,8 +2824,9 @@
         }
         const imageUrl = optimizeCloudinaryImageUrl(m.imageUrl || '');
         const audioUrl = sanitizeHttpUrl(m.audioUrl || '');
-        const isMediaOnly = !m.content && (imageUrl || audioUrl);
-        const shouldExpandForAudio = Boolean(audioUrl);
+        const videoUrl = sanitizeHttpUrl(m.videoUrl || '');
+        const isMediaOnly = !m.content && (imageUrl || audioUrl || videoUrl);
+        const shouldExpandForAudio = Boolean(audioUrl || videoUrl);
         const textMarkup = m.content ? `<div>${m.content}</div>` : '';
         const imageMarkup = imageUrl
           ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(m.imageAlt || 'Assistant image')}" loading="lazy" style="margin-top:8px;width:100%;max-width:260px;border-radius:12px;border:1px solid var(--lw-border);display:block;">`
@@ -2625,7 +2834,10 @@
         const audioMarkup = audioUrl
           ? `<div class="lw-audio-premium" data-audio-card data-audio-id="audio-${messageIndex}"><div class="lw-audio-row"><span class="lw-audio-title"><span class="lw-audio-dot"></span>${escapeHtml(getText('talkNow'))}</span><span class="lw-audio-time" data-audio-time>0:00 / --:--</span></div><div class="lw-audio-controls"><button type="button" class="lw-audio-btn" data-audio-play aria-label="Play audio"><span class="lw-audio-glyph" data-audio-play-glyph>\u25B6</span></button><button type="button" class="lw-audio-track" data-audio-track aria-label="Seek audio"><span class="lw-audio-fill" data-audio-fill></span></button><button type="button" class="lw-audio-btn" data-audio-mute aria-label="Mute audio"><span class="lw-audio-glyph" data-audio-mute-glyph>\uD83D\uDD0A</span></button></div><audio preload="metadata" class="lw-audio-el" data-audio-el><source src="${escapeHtml(audioUrl)}"></audio></div>`
           : '';
-        return `<div class="lw-msg lw-msg-${m.role}${(isMediaOnly || shouldExpandForAudio) ? ' lw-msg-media-only' : ''}">${textMarkup}${imageMarkup}${audioMarkup}</div>`;
+        const videoMarkup = videoUrl
+          ? `<video controls preload="metadata" playsinline style="margin-top:8px;width:100%;max-width:260px;border-radius:12px;border:1px solid var(--lw-border);display:block;background:rgba(2,6,23,0.82);"><source src="${escapeHtml(videoUrl)}"></video>`
+          : '';
+        return `<div class="lw-msg lw-msg-${m.role}${(isMediaOnly || shouldExpandForAudio) ? ' lw-msg-media-only' : ''}">${textMarkup}${imageMarkup}${audioMarkup}${videoMarkup}</div>`;
       }).join('');
 
       if (isLoading) {
@@ -2709,6 +2921,9 @@
             .filter((item) => !existingAudioUrls.has(sanitizeHttpUrl(item.url || '')))
             .slice(0, availableAudioSlots)
           : [];
+        const budgetedVideos = Array.isArray(parsedCommands.videos)
+          ? parsedCommands.videos.slice(0, 1)
+          : [];
         waRedirectData = parsedCommands.whatsappPayload || userMessage;
         const whatsappUrl = buildWhatsAppRedirectUrl(config.whatsappDestination, waRedirectData);
         const iaCallCloserUrl = sanitizeHttpUrl(
@@ -2746,12 +2961,14 @@
         selectedAction = actionCandidates[0] || null;
         const hasMediaPayload = (
           (parsedCommands.images && parsedCommands.images.length > 0) ||
-          budgetedAudios.length > 0
+          budgetedAudios.length > 0 ||
+          budgetedVideos.length > 0
         );
         response = parsedCommands.cleanText || (selectedAction
           ? selectedAction.notice
           : (hasMediaPayload ? '' : getText('fallbackResponse')));
         parsedCommands.audios = budgetedAudios;
+        parsedCommands.videos = budgetedVideos;
       }
       isLoading = false;
       if (response) {
@@ -2773,6 +2990,15 @@
             role: 'assistant',
             content: '',
             audioUrl: item.url
+          });
+        });
+      }
+      if (parsedCommands && Array.isArray(parsedCommands.videos) && parsedCommands.videos.length > 0) {
+        parsedCommands.videos.forEach((item) => {
+          messages.push({
+            role: 'assistant',
+            content: '',
+            videoUrl: item.url
           });
         });
       }

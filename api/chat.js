@@ -54,6 +54,7 @@ function detectCommandFlags(responseText) {
     icallcloser_ready: /\[(ICALLCLOSER|IACALLCLOSER|ICLOSER)_READY:/i.test(text),
     has_image: /\[(IMAGE|IMG|PHOTO):/i.test(text) || /!\[[^\]]*]\((https?:\/\/[^)]+)\)/i.test(text),
     has_audio: /\[(AUDIO|VOICE|SOUND):/i.test(text),
+    has_video: /\[(VIDEO|VID|CLIP):/i.test(text),
   };
 }
 

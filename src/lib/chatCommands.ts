@@ -15,6 +15,11 @@ export type ChatAudioPayload = {
   index: number;
 };
 
+export type ChatVideoPayload = {
+  url: string;
+  index: number;
+};
+
 export type ParsedChatCommands = {
   cleanText: string;
   whatsappPayload: string;
@@ -26,6 +31,7 @@ export type ParsedChatCommands = {
   iaCallCloserSeed: IACloserSeed;
   images: ChatImagePayload[];
   audios: ChatAudioPayload[];
+  videos: ChatVideoPayload[];
 };
 
 const WHATSAPP_COMMAND_RE = /\[\s*WHATSAPP_REDIRECT\s*:\s*([\s\S]*?)\]/gi;
@@ -33,6 +39,7 @@ const IACALLCLOSER_REDIRECT_RE = /\[\s*(?:ICLOSER_REDIRECT|ICALLCLOSER_REDIRECT|
 const IACALLCLOSER_READY_RE = /\[\s*(?:ICLOSER_READY|ICALLCLOSER_READY|IACALLCLOSER_READY)(?:\s*:\s*([\s\S]*?))?\s*\]/gi;
 const IMAGE_COMMAND_RE = /\[\s*(?:IMAGE|IMG|PHOTO)\s*:\s*([\s\S]*?)\]/gi;
 const AUDIO_COMMAND_RE = /\[\s*(?:AUDIO|VOICE|SOUND)\s*:\s*([\s\S]*?)\]/gi;
+const VIDEO_COMMAND_RE = /\[\s*(?:VIDEO|VID|CLIP)\s*:\s*([\s\S]*?)\]/gi;
 const MARKDOWN_IMAGE_RE = /!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/gi;
 
 function cleanText(value: unknown) {
@@ -133,6 +140,32 @@ function parseAudioPayload(rawPayload: string) {
   };
 }
 
+function parseVideoPayload(rawPayload: string) {
+  const payload = stripQuotes(rawPayload || "");
+  if (!payload) return { url: "" };
+
+  try {
+    const asJson = JSON.parse(payload);
+    if (asJson && typeof asJson === "object") {
+      const candidateUrl =
+        typeof (asJson as { url?: string }).url === "string"
+          ? (asJson as { url: string }).url
+          : typeof (asJson as { video?: string }).video === "string"
+            ? (asJson as { video: string }).video
+            : "";
+      return {
+        url: sanitizeHttpUrl(candidateUrl),
+      };
+    }
+  } catch {
+    // noop
+  }
+
+  return {
+    url: sanitizeHttpUrl(payload),
+  };
+}
+
 export function sanitizeHttpUrl(value: string, maxLength = 500) {
   const normalized = cleanText(value);
   if (!normalized || normalized.length > maxLength) return "";
@@ -172,6 +205,7 @@ export function parseChatResponseCommands(
     iaCallCloserSeed: {},
     images: [],
     audios: [],
+    videos: [],
   };
 
   let match: RegExpExecArray | null;
@@ -252,10 +286,23 @@ export function parseChatResponseCommands(
     }
   }
 
+  VIDEO_COMMAND_RE.lastIndex = 0;
+  while ((match = VIDEO_COMMAND_RE.exec(raw)) !== null) {
+    const parsedVideo = parseVideoPayload(match[1] || "");
+    if (parsedVideo.url) {
+      output.videos.push({
+        url: parsedVideo.url,
+        index: match.index,
+      });
+    }
+  }
+
   output.images.sort((a, b) => a.index - b.index);
   output.images = output.images.slice(0, 4);
   output.audios.sort((a, b) => a.index - b.index);
   output.audios = output.audios.slice(0, 4);
+  output.videos.sort((a, b) => a.index - b.index);
+  output.videos = output.videos.slice(0, 3);
 
   output.cleanText = raw
     .replace(WHATSAPP_COMMAND_RE, "")
@@ -264,6 +311,7 @@ export function parseChatResponseCommands(
     .replace(IMAGE_COMMAND_RE, "")
     .replace(MARKDOWN_IMAGE_RE, "")
     .replace(AUDIO_COMMAND_RE, "")
+    .replace(VIDEO_COMMAND_RE, "")
     .trim();
 
   return output;

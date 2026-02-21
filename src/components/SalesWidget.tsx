@@ -13,6 +13,7 @@ type Message = {
   imageUrl?: string;
   imageAlt?: string;
   audioUrl?: string;
+  videoUrl?: string;
 };
 
 type WidgetLocale = "es" | "en";
@@ -225,9 +226,9 @@ function inferChatEventTypeByUrl(url: string): ChatEventType | null {
 
 function getCostControlDirective(locale: WidgetLocale) {
   if (locale === "es") {
-    return "Se breve y orientado a conversion. Maximo 90 palabras, usa como maximo 1 emoji, evita repetir imagenes/audios. Usa [AUDIO] solo en bienvenida o CTA final (maximo 1 audio dinamico por conversacion). Si usas [IMAGE], prioriza URL Cloudinary en calidad media (q_auto:good, w<=960).";
+    return "Se breve y orientado a conversion. Maximo 90 palabras, usa como maximo 1 emoji, evita repetir imagenes/audios/videos. Usa [AUDIO] solo en bienvenida o CTA final (maximo 1 audio dinamico por conversacion). Si usas [IMAGE], prioriza URL Cloudinary en calidad media (q_auto:good, w<=960).";
   }
-  return "Be concise and conversion-focused. Max 90 words, use at most 1 emoji, avoid repeating images/audio. Use [AUDIO] only for opening or final CTA (max 1 dynamic audio per conversation). For [IMAGE], prefer Cloudinary medium quality URLs (q_auto:good, w<=960).";
+  return "Be concise and conversion-focused. Max 90 words, use at most 1 emoji, avoid repeating images/audio/video. Use [AUDIO] only for opening or final CTA (max 1 dynamic audio per conversation). For [IMAGE], prefer Cloudinary medium quality URLs (q_auto:good, w<=960).";
 }
 
 function buildWhatsAppStars(value: number) {
@@ -549,6 +550,7 @@ export function SalesWidget() {
         const budgetedAudios = parsed.audios
           .filter((item) => !existingAudioUrls.has(item.url))
           .slice(0, availableAudioSlots);
+        const budgetedVideos = parsed.videos.slice(0, 1);
         const whatsappUrl = buildWhatsAppRedirectUrl(
           SALES_WIDGET_WHATSAPP_DESTINATION,
           parsed.whatsappPayload || userMessage,
@@ -592,7 +594,7 @@ export function SalesWidget() {
 
         actionCandidates.sort((a, b) => a.index - b.index);
         const selectedAction = actionCandidates[0];
-        const assistantReply = parsed.cleanText || selectedAction?.notice || (parsed.images.length > 0 || budgetedAudios.length > 0 ? "" : copy.hint);
+        const assistantReply = parsed.cleanText || selectedAction?.notice || (parsed.images.length > 0 || budgetedAudios.length > 0 || budgetedVideos.length > 0 ? "" : copy.hint);
 
         setMessages((prev) => [
           ...prev,
@@ -607,6 +609,11 @@ export function SalesWidget() {
             role: "assistant" as const,
             content: "",
             audioUrl: item.url,
+          })),
+          ...budgetedVideos.map((item) => ({
+            role: "assistant" as const,
+            content: "",
+            videoUrl: item.url,
           })),
           ...(selectedAction
             ? [{
@@ -902,8 +909,8 @@ export function SalesWidget() {
                 </div>
               ) : (
                 (() => {
-                  const hasMediaOnly = !msg.content && (Boolean(msg.imageUrl) || Boolean(msg.audioUrl));
-                  const shouldExpandForAudio = Boolean(msg.audioUrl);
+                  const hasMediaOnly = !msg.content && (Boolean(msg.imageUrl) || Boolean(msg.audioUrl) || Boolean(msg.videoUrl));
+                  const shouldExpandForAudio = Boolean(msg.audioUrl || msg.videoUrl);
                   return (
                 <div
                   className={`max-w-[86%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
@@ -931,6 +938,16 @@ export function SalesWidget() {
                       className="mt-2 max-w-[250px]"
                       label={copy.talkNow}
                     />
+                  ) : null}
+                  {msg.videoUrl ? (
+                    <video
+                      controls
+                      preload="metadata"
+                      playsInline
+                      className="mt-2 w-full max-w-[250px] rounded-lg border border-white/10 bg-black/80"
+                    >
+                      <source src={msg.videoUrl} />
+                    </video>
                   ) : null}
                 </div>
                   );

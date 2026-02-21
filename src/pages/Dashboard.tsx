@@ -123,6 +123,7 @@ interface WidgetConfig {
   lead_chat_offer_description?: string;
   lead_chat_cta_label?: string;
   lead_chat_live_toasts?: string[] | string;
+  real_estate_properties?: RealEstateProperty[];
 }
 
 const STATIC_ICONS = [
@@ -141,6 +142,18 @@ interface Testimonial {
   text: string;
   stars: number;
   avatar_url?: string;
+}
+
+interface RealEstateProperty {
+  id: string;
+  title: string;
+  district: string;
+  price: string;
+  bedrooms: string;
+  bathrooms: string;
+  area_m2: string;
+  image_url: string;
+  video_url: string;
 }
 
 
@@ -171,7 +184,7 @@ type Payment = any;
 
 type AiChatLogStatus = 'ok' | 'blocked' | 'rate_limited' | 'error' | 'unknown';
 type AiChatEventType = 'whatsapp_open' | 'iacallcloser_open' | 'unknown';
-type AiConversationFilter = 'all' | 'not_completed' | 'completed' | 'security';
+type AiConversationFilter = 'all' | 'not_completed' | 'warm_not_closed' | 'completed' | 'security';
 
 interface AiChatHistoryItem {
   role: string;
@@ -197,6 +210,7 @@ interface AiChatLog {
     icallcloser_ready?: boolean;
     has_image?: boolean;
     has_audio?: boolean;
+    has_video?: boolean;
   };
   security_signal?: boolean;
   created_at: string;
@@ -325,6 +339,8 @@ const PEN_TO_USD_RATE = 3.75;
 const CLOUDINARY_CLOUD_NAME = String(import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '').trim();
 const CLOUDINARY_UPLOAD_PRESET = String(import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || '').trim();
 type WelcomeMediaKind = 'image' | 'audio';
+type PropertyMediaKind = 'image' | 'video';
+type WidgetUploadMediaKind = 'image' | 'audio' | 'video';
 
 function sanitizeMediaUrl(value: unknown) {
   const raw = String(value || '').trim();
@@ -336,6 +352,52 @@ function sanitizeMediaUrl(value: unknown) {
   } catch {
     return '';
   }
+}
+
+function normalizeRealEstateProperties(value: unknown): RealEstateProperty[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item, index) => {
+      if (!item || typeof item !== 'object') return null;
+      const row = item as Record<string, unknown>;
+      const id = String(row.id || `property-${index + 1}`).trim();
+      const title = String(row.title || row.name || '').trim();
+      const district = String(row.district || row.zone || '').trim();
+      const price = String(row.price || '').trim();
+      const bedrooms = String(row.bedrooms || row.rooms || '').trim();
+      const bathrooms = String(row.bathrooms || row.baths || '').trim();
+      const area_m2 = String(row.area_m2 || row.areaM2 || row.m2 || '').trim();
+      const image_url = sanitizeMediaUrl(row.image_url || row.imageUrl || row.photo || '');
+      const video_url = sanitizeMediaUrl(row.video_url || row.videoUrl || row.video || '');
+      if (!title && !image_url && !video_url) return null;
+      return {
+        id: id || `property-${index + 1}`,
+        title: title || `Propiedad ${index + 1}`,
+        district,
+        price,
+        bedrooms,
+        bathrooms,
+        area_m2,
+        image_url,
+        video_url,
+      } as RealEstateProperty;
+    })
+    .filter((item): item is RealEstateProperty => Boolean(item))
+    .slice(0, 20);
+}
+
+function createEmptyRealEstateProperty(): RealEstateProperty {
+  return {
+    id: `property-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+    title: '',
+    district: '',
+    price: '',
+    bedrooms: '',
+    bathrooms: '',
+    area_m2: '',
+    image_url: '',
+    video_url: '',
+  };
 }
 
 function normalizeAiMaxTokens(value: unknown, fallback = AI_MAX_TOKENS_DEFAULT) {
@@ -587,6 +649,7 @@ export default function Dashboard() {
       completedToWhatsapp: boolean;
       securityRisk: boolean;
       notCompleted: boolean;
+      interestedNotClosed: boolean;
       hasRecentActivity: boolean;
       eventTypes: AiChatEventType[];
     }>();
@@ -624,6 +687,7 @@ export default function Dashboard() {
           completedToWhatsapp: false,
           securityRisk: false,
           notCompleted: false,
+          interestedNotClosed: false,
           hasRecentActivity: false,
           eventTypes: [],
         });
@@ -652,6 +716,7 @@ export default function Dashboard() {
         completedToWhatsapp: false,
         securityRisk: false,
         notCompleted: false,
+        interestedNotClosed: false,
         hasRecentActivity: false,
         eventTypes: [] as AiChatEventType[],
       }))
@@ -666,9 +731,19 @@ export default function Dashboard() {
           log.security_signal === true ||
           hasSecurityAttemptSignal(log.user_message),
         );
+        const hasMediaEngagement = item.logs.some((log) =>
+          log.command_flags?.has_image === true ||
+          log.command_flags?.has_audio === true ||
+          log.command_flags?.has_video === true,
+        );
+        const hasCommercialIntent = item.logs.some((log) =>
+          /\b(precio|presupuesto|financiamiento|hipoteca|distrito|zona|departamento|casa|m2|dormitorio|bano|price|budget|mortgage|district|apartment|house|tour|visit)\b/i
+            .test(String(log.user_message || '')),
+        );
         const lastAtMs = new Date(item.lastAt || 0).getTime();
         const hasRecentActivity = Number.isFinite(lastAtMs) && lastAtMs > 0 && (nowMs - lastAtMs) < inactiveThresholdMs;
         const notCompleted = !completedToWhatsapp && !securityRisk && !hasRecentActivity;
+        const interestedNotClosed = notCompleted && (hasMediaEngagement || hasCommercialIntent);
         return {
           ...item,
           eventTypes,
@@ -676,6 +751,7 @@ export default function Dashboard() {
           securityRisk,
           hasRecentActivity,
           notCompleted,
+          interestedNotClosed,
         };
       })
       .sort((a, b) => new Date(b.lastAt || 0).getTime() - new Date(a.lastAt || 0).getTime());
@@ -684,6 +760,7 @@ export default function Dashboard() {
   const filteredAiConversationGroups = useMemo(() => {
     if (aiConversationFilter === 'all') return aiConversationGroups;
     if (aiConversationFilter === 'not_completed') return aiConversationGroups.filter((item) => item.notCompleted);
+    if (aiConversationFilter === 'warm_not_closed') return aiConversationGroups.filter((item) => item.interestedNotClosed);
     if (aiConversationFilter === 'completed') return aiConversationGroups.filter((item) => item.completedToWhatsapp);
     if (aiConversationFilter === 'security') return aiConversationGroups.filter((item) => item.securityRisk);
     return aiConversationGroups;
@@ -696,6 +773,11 @@ export default function Dashboard() {
 
   const aiCompletedCount = useMemo(
     () => aiConversationGroups.filter((item) => item.completedToWhatsapp).length,
+    [aiConversationGroups],
+  );
+
+  const aiWarmNotClosedCount = useMemo(
+    () => aiConversationGroups.filter((item) => item.interestedNotClosed).length,
     [aiConversationGroups],
   );
 
@@ -749,10 +831,12 @@ export default function Dashboard() {
   const getConversationFlowLabel = (conversation: {
     securityRisk: boolean;
     completedToWhatsapp: boolean;
+    interestedNotClosed: boolean;
     notCompleted: boolean;
   }) => {
     if (conversation.securityRisk) return dashboardIsEnglish ? 'Risk/Hack' : 'Riesgo/Hack';
     if (conversation.completedToWhatsapp) return dashboardIsEnglish ? 'Lead completed' : 'Lead completado';
+    if (conversation.interestedNotClosed) return dashboardIsEnglish ? 'Interested not closed' : 'Interesado no cerrado';
     if (conversation.notCompleted) return dashboardIsEnglish ? 'Not completed' : 'No completado';
     return dashboardIsEnglish ? 'In progress' : 'En curso';
   };
@@ -760,10 +844,12 @@ export default function Dashboard() {
   const getConversationFlowClass = (conversation: {
     securityRisk: boolean;
     completedToWhatsapp: boolean;
+    interestedNotClosed: boolean;
     notCompleted: boolean;
   }) => {
     if (conversation.securityRisk) return 'border-rose-300/70 bg-rose-500/10 text-rose-700 dark:text-rose-300';
     if (conversation.completedToWhatsapp) return 'border-emerald-300/70 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300';
+    if (conversation.interestedNotClosed) return 'border-amber-300/70 bg-amber-500/10 text-amber-700 dark:text-amber-300';
     if (conversation.notCompleted) return 'border-sky-300/70 bg-sky-500/10 text-sky-700 dark:text-sky-300';
     return 'border-slate-300/70 bg-slate-500/10 text-slate-700 dark:text-slate-300';
   };
@@ -1304,11 +1390,13 @@ export default function Dashboard() {
     lead_chat_offer_description: initialLeadChatDefaults.leadChatOfferDescription,
     lead_chat_cta_label: initialLeadChatDefaults.leadChatCtaLabel,
     lead_chat_live_toasts: initialLeadChatDefaults.leadChatLiveToasts.join('\n'),
+    real_estate_properties: [] as RealEstateProperty[],
   });
 
   const [showApiKey, setShowApiKey] = useState(false);
   const [uploadingWelcomeImage, setUploadingWelcomeImage] = useState(false);
   const [uploadingWelcomeAudio, setUploadingWelcomeAudio] = useState(false);
+  const [propertyUploadState, setPropertyUploadState] = useState<Record<string, { image?: boolean; video?: boolean }>>({});
   const [recordingWelcomeAudio, setRecordingWelcomeAudio] = useState(false);
   const [welcomeAudioRecordingSupported, setWelcomeAudioRecordingSupported] = useState(false);
   const welcomeAudioRecorderRef = useRef<MediaRecorder | null>(null);
@@ -1330,14 +1418,22 @@ export default function Dashboard() {
     stopWelcomeAudioStream();
   };
 
-  const validateWelcomeMediaSize = (file: File, kind: WelcomeMediaKind) => {
-    const maxBytes = kind === 'audio' ? 15 * 1024 * 1024 : 6 * 1024 * 1024;
+  const validateWidgetMediaSize = (file: File, kind: WidgetUploadMediaKind) => {
+    const maxBytes =
+      kind === 'audio'
+        ? 15 * 1024 * 1024
+        : kind === 'video'
+          ? 35 * 1024 * 1024
+          : 6 * 1024 * 1024;
     if (file.size <= maxBytes) return true;
     toast({
       title: 'Archivo demasiado grande',
-      description: kind === 'audio'
-        ? 'El audio debe ser menor a 15MB.'
-        : 'La imagen debe ser menor a 6MB.',
+      description:
+        kind === 'audio'
+          ? 'El audio debe ser menor a 15MB.'
+          : kind === 'video'
+            ? 'El video debe ser menor a 35MB.'
+            : 'La imagen debe ser menor a 6MB.',
       variant: 'destructive',
     });
     return false;
@@ -1364,13 +1460,17 @@ export default function Dashboard() {
     });
   };
 
-  const uploadWelcomeMediaToCloudinary = async (file: File, kind: WelcomeMediaKind) => {
-    const resourceType = kind === 'audio' ? 'video' : 'image';
+  const uploadWelcomeMediaToCloudinary = async (
+    file: File,
+    kind: WidgetUploadMediaKind,
+    folder: string = 'lead-widget/welcome-media',
+  ) => {
+    const resourceType = kind === 'image' ? 'image' : 'video';
     const endpoint = `https://api.cloudinary.com/v1_1/${encodeURIComponent(CLOUDINARY_CLOUD_NAME)}/${resourceType}/upload`;
     const formData = new FormData();
     formData.append('file', file);
     formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-    formData.append('folder', 'lead-widget/welcome-media');
+    formData.append('folder', folder);
 
     const response = await fetch(endpoint, {
       method: 'POST',
@@ -1387,12 +1487,16 @@ export default function Dashboard() {
     return secureUrl;
   };
 
-  const uploadWelcomeMediaToFirebase = async (file: File, kind: WelcomeMediaKind) => {
+  const uploadWelcomeMediaToFirebase = async (
+    file: File,
+    kind: WidgetUploadMediaKind,
+    basePath: string = 'widget_welcome_media',
+  ) => {
     if (!user) throw new Error('Debes iniciar sesion para subir archivos.');
     const extFromName = (file.name.split('.').pop() || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-    const extension = extFromName || (kind === 'audio' ? 'mp3' : 'png');
+    const extension = extFromName || (kind === 'audio' ? 'mp3' : (kind === 'video' ? 'mp4' : 'png'));
     const uniqueId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const fileRef = storageRef(storage, `widget_welcome_media/${user.uid}/${kind}/${uniqueId}.${extension}`);
+    const fileRef = storageRef(storage, `${basePath}/${user.uid}/${kind}/${uniqueId}.${extension}`);
     await uploadBytes(fileRef, file, {
       contentType: file.type || undefined,
     });
@@ -1404,7 +1508,7 @@ export default function Dashboard() {
     event.target.value = '';
     if (!file) return;
 
-    if (!validateWelcomeMediaSize(file, kind)) return;
+    if (!validateWidgetMediaSize(file, kind)) return;
 
     if (kind === 'image') {
       setUploadingWelcomeImage(true);
@@ -1426,6 +1530,89 @@ export default function Dashboard() {
       } else {
         setUploadingWelcomeAudio(false);
       }
+    }
+  };
+
+  const setPropertyMediaUploading = (propertyId: string, kind: PropertyMediaKind, uploadingState: boolean) => {
+    setPropertyUploadState((prev) => ({
+      ...prev,
+      [propertyId]: {
+        ...prev[propertyId],
+        [kind]: uploadingState,
+      },
+    }));
+  };
+
+  const addRealEstateProperty = () => {
+    setFormConfig((prev) => ({
+      ...prev,
+      real_estate_properties: [
+        ...(Array.isArray(prev.real_estate_properties) ? prev.real_estate_properties : []),
+        createEmptyRealEstateProperty(),
+      ].slice(0, 20),
+    }));
+  };
+
+  const removeRealEstateProperty = (propertyId: string) => {
+    setFormConfig((prev) => ({
+      ...prev,
+      real_estate_properties: (Array.isArray(prev.real_estate_properties) ? prev.real_estate_properties : []).filter((item) => item.id !== propertyId),
+    }));
+    setPropertyUploadState((prev) => {
+      const next = { ...prev };
+      delete next[propertyId];
+      return next;
+    });
+  };
+
+  const updateRealEstatePropertyField = (propertyId: string, field: keyof RealEstateProperty, value: string) => {
+    setFormConfig((prev) => ({
+      ...prev,
+      real_estate_properties: (Array.isArray(prev.real_estate_properties) ? prev.real_estate_properties : []).map((item) =>
+        item.id === propertyId
+          ? {
+            ...item,
+            [field]: value,
+          }
+          : item,
+      ),
+    }));
+  };
+
+  const handlePropertyMediaUpload = async (
+    event: ChangeEvent<HTMLInputElement>,
+    propertyId: string,
+    kind: PropertyMediaKind,
+  ) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (!validateWidgetMediaSize(file, kind)) return;
+
+    setPropertyMediaUploading(propertyId, kind, true);
+    try {
+      const uploadedUrl = canUseCloudinaryUploads
+        ? await uploadWelcomeMediaToCloudinary(file, kind, 'lead-widget/property-media')
+        : await uploadWelcomeMediaToFirebase(file, kind, 'widget_property_media');
+      const safeUrl = sanitizeMediaUrl(uploadedUrl);
+      if (!safeUrl) {
+        throw new Error('No se obtuvo una URL valida del archivo subido.');
+      }
+      updateRealEstatePropertyField(propertyId, kind === 'image' ? 'image_url' : 'video_url', safeUrl);
+      toast({
+        title: 'Archivo subido',
+        description: canUseCloudinaryUploads
+          ? 'Se guardo en Cloudinary correctamente.'
+          : 'Se guardo en Firebase Storage correctamente.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error al subir archivo',
+        description: String(error?.message || 'No se pudo subir el archivo'),
+        variant: 'destructive',
+      });
+    } finally {
+      setPropertyMediaUploading(propertyId, kind, false);
     }
   };
 
@@ -1715,6 +1902,7 @@ export default function Dashboard() {
           lead_chat_live_toasts: [
             ...newUserLeadChatDefaults.leadChatLiveToasts
           ],
+          real_estate_properties: [],
           created_at: new Date().toISOString()
         };
         await setDoc(newWidgetRef, defaultConfig);
@@ -1780,6 +1968,7 @@ export default function Dashboard() {
           lead_chat_live_toasts: Array.isArray(configData.lead_chat_live_toasts)
             ? configData.lead_chat_live_toasts.join('\n')
             : (configData.lead_chat_live_toasts || configLeadChatDefaults.leadChatLiveToasts.join('\n')),
+          real_estate_properties: normalizeRealEstateProperties(configData.real_estate_properties),
         });
 
         if (configData.testimonials_json) {
@@ -1847,6 +2036,7 @@ export default function Dashboard() {
                   icallcloser_ready: data.command_flags.icallcloser_ready === true,
                   has_image: data.command_flags.has_image === true,
                   has_audio: data.command_flags.has_audio === true,
+                  has_video: data.command_flags.has_video === true,
                 }
                 : undefined,
               security_signal: data.security_signal === true,
@@ -2084,6 +2274,20 @@ export default function Dashboard() {
         lead_chat_live_toasts: typeof formConfig.lead_chat_live_toasts === 'string'
           ? formConfig.lead_chat_live_toasts.split('\n').map((value: string) => value.trim()).filter(Boolean).slice(0, 12)
           : [],
+        real_estate_properties: (Array.isArray(formConfig.real_estate_properties) ? formConfig.real_estate_properties : [])
+          .map((item: RealEstateProperty, index: number) => ({
+            id: String(item.id || `property-${index + 1}`).trim(),
+            title: String(item.title || '').trim(),
+            district: String(item.district || '').trim(),
+            price: String(item.price || '').trim(),
+            bedrooms: String(item.bedrooms || '').trim(),
+            bathrooms: String(item.bathrooms || '').trim(),
+            area_m2: String(item.area_m2 || '').trim(),
+            image_url: sanitizeMediaUrl(item.image_url),
+            video_url: sanitizeMediaUrl(item.video_url),
+          }))
+          .filter((item: RealEstateProperty) => item.title || item.image_url || item.video_url)
+          .slice(0, 20),
         custom_tracking_code: deleteField(),
         custom_code: deleteField(),
         updated_at: new Date().toISOString(),
@@ -3050,6 +3254,175 @@ export default function Dashboard() {
                         : 'Sin variables de Cloudinary: se usara Firebase Storage como respaldo.'}
                     </p>
                   </div>
+
+                  {formConfig.template === 'inmobiliaria' ? (
+                    <div className="space-y-3 rounded-lg border border-emerald-300/60 bg-emerald-50/60 p-3 dark:border-emerald-900/60 dark:bg-emerald-950/15">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <Label className="text-emerald-900 dark:text-emerald-300">Catalogo de propiedades (solo inmobiliaria)</Label>
+                          <p className="text-xs text-emerald-700 dark:text-emerald-300/85">
+                            Sube fotos/videos por propiedad para que la IA los muestre automaticamente cuando el lead los pida.
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="border-emerald-500/60 text-emerald-700 hover:bg-emerald-100 dark:text-emerald-300 dark:hover:bg-emerald-900/30"
+                          onClick={addRealEstateProperty}
+                          disabled={(Array.isArray(formConfig.real_estate_properties) ? formConfig.real_estate_properties.length : 0) >= 20}
+                        >
+                          Agregar propiedad
+                        </Button>
+                      </div>
+
+                      {(Array.isArray(formConfig.real_estate_properties) ? formConfig.real_estate_properties : []).length === 0 ? (
+                        <p className="rounded-md border border-dashed border-emerald-300/70 p-3 text-xs text-emerald-700 dark:border-emerald-900 dark:text-emerald-300/90">
+                          Aun no agregaste propiedades. Empieza con 1 o 2 propiedades destacadas para pruebas.
+                        </p>
+                      ) : null}
+
+                      <div className="space-y-3">
+                        {(Array.isArray(formConfig.real_estate_properties) ? formConfig.real_estate_properties : []).map((property: RealEstateProperty, index: number) => {
+                          const uploadingImage = propertyUploadState[property.id]?.image === true;
+                          const uploadingVideo = propertyUploadState[property.id]?.video === true;
+                          const safeImageUrl = sanitizeMediaUrl(property.image_url);
+                          const safeVideoUrl = sanitizeMediaUrl(property.video_url);
+                          return (
+                            <div key={property.id} className="space-y-3 rounded-lg border border-emerald-200 bg-white/90 p-3 dark:border-emerald-900 dark:bg-slate-950/50">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">Propiedad {index + 1}</p>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 px-2 text-rose-600 hover:bg-rose-100 hover:text-rose-700 dark:hover:bg-rose-900/30"
+                                  onClick={() => removeRealEstateProperty(property.id)}
+                                >
+                                  Eliminar
+                                </Button>
+                              </div>
+                              <div className="grid gap-2 sm:grid-cols-2">
+                                <div className="space-y-1">
+                                  <Label htmlFor={`property-title-${property.id}`} className="text-xs">Titulo</Label>
+                                  <Input
+                                    id={`property-title-${property.id}`}
+                                    value={property.title}
+                                    onChange={(event) => updateRealEstatePropertyField(property.id, 'title', event.target.value)}
+                                    placeholder="Ej: Dpto estreno en Miraflores"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label htmlFor={`property-district-${property.id}`} className="text-xs">Distrito / Zona</Label>
+                                  <Input
+                                    id={`property-district-${property.id}`}
+                                    value={property.district}
+                                    onChange={(event) => updateRealEstatePropertyField(property.id, 'district', event.target.value)}
+                                    placeholder="Ej: Miraflores"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label htmlFor={`property-price-${property.id}`} className="text-xs">Precio</Label>
+                                  <Input
+                                    id={`property-price-${property.id}`}
+                                    value={property.price}
+                                    onChange={(event) => updateRealEstatePropertyField(property.id, 'price', event.target.value)}
+                                    placeholder="Ej: USD 180,000"
+                                  />
+                                </div>
+                                <div className="grid grid-cols-3 gap-2">
+                                  <div className="space-y-1">
+                                    <Label htmlFor={`property-bedrooms-${property.id}`} className="text-xs">Dorms</Label>
+                                    <Input
+                                      id={`property-bedrooms-${property.id}`}
+                                      value={property.bedrooms}
+                                      onChange={(event) => updateRealEstatePropertyField(property.id, 'bedrooms', event.target.value)}
+                                      placeholder="3"
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label htmlFor={`property-bathrooms-${property.id}`} className="text-xs">Banos</Label>
+                                    <Input
+                                      id={`property-bathrooms-${property.id}`}
+                                      value={property.bathrooms}
+                                      onChange={(event) => updateRealEstatePropertyField(property.id, 'bathrooms', event.target.value)}
+                                      placeholder="2"
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label htmlFor={`property-area-${property.id}`} className="text-xs">M2</Label>
+                                    <Input
+                                      id={`property-area-${property.id}`}
+                                      value={property.area_m2}
+                                      onChange={(event) => updateRealEstatePropertyField(property.id, 'area_m2', event.target.value)}
+                                      placeholder="92"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="grid gap-3 sm:grid-cols-2">
+                                <div className="space-y-2 rounded-md border border-emerald-200 p-2 dark:border-emerald-900">
+                                  <Label htmlFor={`property-image-${property.id}`} className="text-xs">Foto (URL o subida)</Label>
+                                  <Input
+                                    id={`property-image-${property.id}`}
+                                    value={property.image_url}
+                                    onChange={(event) => updateRealEstatePropertyField(property.id, 'image_url', event.target.value)}
+                                    placeholder="https://..."
+                                  />
+                                  <label className={`inline-flex h-8 items-center rounded-md border border-input px-3 text-xs font-medium ${uploadingImage ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-accent'}`}>
+                                    {uploadingImage ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
+                                    {uploadingImage ? 'Subiendo...' : 'Subir foto'}
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      className="sr-only"
+                                      disabled={uploadingImage}
+                                      onChange={(event) => void handlePropertyMediaUpload(event, property.id, 'image')}
+                                    />
+                                  </label>
+                                  {safeImageUrl ? (
+                                    <img
+                                      src={safeImageUrl}
+                                      alt={`Vista previa ${property.title || `propiedad ${index + 1}`}`}
+                                      loading="lazy"
+                                      className="max-h-28 w-full rounded-md border object-cover"
+                                    />
+                                  ) : null}
+                                </div>
+
+                                <div className="space-y-2 rounded-md border border-emerald-200 p-2 dark:border-emerald-900">
+                                  <Label htmlFor={`property-video-${property.id}`} className="text-xs">Video (URL o subida)</Label>
+                                  <Input
+                                    id={`property-video-${property.id}`}
+                                    value={property.video_url}
+                                    onChange={(event) => updateRealEstatePropertyField(property.id, 'video_url', event.target.value)}
+                                    placeholder="https://..."
+                                  />
+                                  <label className={`inline-flex h-8 items-center rounded-md border border-input px-3 text-xs font-medium ${uploadingVideo ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-accent'}`}>
+                                    {uploadingVideo ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
+                                    {uploadingVideo ? 'Subiendo...' : 'Subir video'}
+                                    <input
+                                      type="file"
+                                      accept="video/*"
+                                      className="sr-only"
+                                      disabled={uploadingVideo}
+                                      onChange={(event) => void handlePropertyMediaUpload(event, property.id, 'video')}
+                                    />
+                                  </label>
+                                  {safeVideoUrl ? (
+                                    <video controls preload="metadata" className="max-h-28 w-full rounded-md border bg-black">
+                                      <source src={safeVideoUrl} />
+                                    </video>
+                                  ) : null}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
 
                   <div className="space-y-2">
                     <Label>{t('dashboard.widget_config.chat_placeholder')}</Label>
@@ -4169,7 +4542,7 @@ export default function Dashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid gap-3 sm:grid-cols-4">
+                <div className="grid gap-3 sm:grid-cols-5">
                   <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-900/40">
                     <p className="text-xs uppercase tracking-wider text-muted-foreground">{dashboardIsEnglish ? 'Conversations' : 'Conversaciones'}</p>
                     <p className="text-2xl font-bold">{aiConversationGroups.length}</p>
@@ -4177,6 +4550,10 @@ export default function Dashboard() {
                   <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-900/40">
                     <p className="text-xs uppercase tracking-wider text-muted-foreground">{dashboardIsEnglish ? 'Not completed' : 'No completados'}</p>
                     <p className="text-2xl font-bold text-sky-600">{aiNotCompletedCount}</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-900/40">
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground">{dashboardIsEnglish ? 'Interested not closed' : 'Interesado no cerrado'}</p>
+                    <p className="text-2xl font-bold text-amber-600">{aiWarmNotClosedCount}</p>
                   </div>
                   <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-900/40">
                     <p className="text-xs uppercase tracking-wider text-muted-foreground">{dashboardIsEnglish ? 'Lead completed' : 'Lead completado'}</p>
@@ -4192,10 +4569,14 @@ export default function Dashboard() {
                   <p className="font-semibold text-slate-700 dark:text-slate-200">
                     {dashboardIsEnglish ? 'Quick guide' : 'Guia rapida'}
                   </p>
-                  <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                  <div className="mt-2 grid gap-2 sm:grid-cols-4">
                     <div className="rounded-lg border border-sky-300/70 bg-sky-500/10 p-2 text-sky-800 dark:text-sky-200">
                       <p className="font-semibold">{dashboardIsEnglish ? 'Not completed' : 'No completados'}</p>
                       <p>{dashboardIsEnglish ? 'Conversation ended without WhatsApp handoff.' : 'Conversacion terminada sin pase a WhatsApp.'}</p>
+                    </div>
+                    <div className="rounded-lg border border-amber-300/70 bg-amber-500/10 p-2 text-amber-800 dark:text-amber-200">
+                      <p className="font-semibold">{dashboardIsEnglish ? 'Interested not closed' : 'Interesado no cerrado'}</p>
+                      <p>{dashboardIsEnglish ? 'Lead showed buying intent but did not close yet.' : 'El lead mostro interes de compra pero aun no cerro.'}</p>
                     </div>
                     <div className="rounded-lg border border-emerald-300/70 bg-emerald-500/10 p-2 text-emerald-800 dark:text-emerald-200">
                       <p className="font-semibold">{dashboardIsEnglish ? 'Lead completed' : 'Lead completado'}</p>
@@ -4212,6 +4593,7 @@ export default function Dashboard() {
                   {[
                     { id: 'all', label: dashboardIsEnglish ? 'All' : 'Todo' },
                     { id: 'not_completed', label: dashboardIsEnglish ? 'Not completed' : 'No completados' },
+                    { id: 'warm_not_closed', label: dashboardIsEnglish ? 'Interested not closed' : 'Interesado no cerrado' },
                     { id: 'completed', label: dashboardIsEnglish ? 'Lead completed' : 'Lead completado' },
                     { id: 'security', label: dashboardIsEnglish ? 'Risk/Hack' : 'Riesgo/Hack' },
                   ].map((option) => (

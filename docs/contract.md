@@ -59,6 +59,7 @@ Campos observados:
 - WhatsApp y flujo: `whatsapp_destination`, `niche_question`
 - Triggers: `trigger_delay`, `trigger_exit_intent`, `exit_intent_title`, `exit_intent_description`, `exit_intent_cta`, `vibration_intensity`
 - Mensajeria: `teaser_messages` (array o string), `quick_replies` (array o string)
+- Inmobiliaria: `real_estate_properties` (array de objetos con metadata y media por propiedad; opcional)
 - Testimonios: `testimonials_json` (string JSON), opcional `testimonials` (array)
 - IA: `ai_enabled`, `ai_provider`, `ai_api_key`, `ai_model`, `ai_system_prompt`, `business_description`, `ai_context_prompt`, `ai_improvements_prompt`, `ai_system_base_prompt`, `ai_closing_channel`, `ai_temperature`, `ai_max_tokens`, `ai_security_prompt`
 - Tracking declarativo: `facebook_pixel_id`, `tiktok_pixel_id`, `google_tag_id`
@@ -89,7 +90,7 @@ Eventos de consola IA (persistidos por proxy de chat):
 - `blocked`, `rate_limited`
 - `user_message`, `ai_response`, `error_message`
 - `history_count`, `history_excerpt` (ultimos turnos truncados)
-- `command_flags` (`whatsapp_redirect`, `icallcloser_ready`, `has_image`, `has_audio`)
+- `command_flags` (`whatsapp_redirect`, `icallcloser_ready`, `has_image`, `has_audio`, `has_video`)
 - `security_signal` (bool para alertas de intento de bypass/hack)
 - `upstream_status`, `latency_ms`, `user_timezone`
 - `ip`, `user_agent`, `referer`
@@ -282,6 +283,7 @@ Base detectada:
   - `welcomeMessage`, `template`, `chatPlaceholder`
   - `triggerDelay`, `exitIntentEnabled`, `exitIntentTitle`, `exitIntentDescription`, `exitIntentCta`
   - `teaserMessages`, `quickReplies`, `testimonials`
+  - `realEstateProperties` (puede llegar desde fallback Firestore cuando backend publico no lo expone)
   - `launcherIcon`, `hideBranding`, `brandingText`, `brandingLink`
   - `experienceMode`, `leadChatSlug`, `leadChatUrl`
   - `consentText`, `consentTextVersion`, `iacloserRedirectUrl`, `iacloserEnabled`
@@ -369,6 +371,7 @@ Comportamientos actuales que clientes ya consumen:
 - `POST /api/verify-payment` es idempotente por `orderID` (`paypal_order_id`).
 - CORS acepta `GET,POST,OPTIONS` y header `Authorization`.
 - En Plan PLUS, `branding_link` permite redireccion configurable del texto de marca; si falta o es invalido se usa `/crear-ahora?ref=<clientId>`.
+- En plantilla `inmobiliaria`, Lead Chat y widget embebido pueden recibir directiva de catalogo para seleccionar multimedia de propiedades via comandos `[IMAGE: ...]` y `[VIDEO: ...]` usando URLs existentes del cliente.
 
 
 ## Extensiones Partner Program (2026-02-16)
@@ -473,3 +476,7 @@ Cambios de comportamiento relevantes:
 - Cambio: dashboard y superadmin se alinean al esquema comercial `trial` (3 dias) + `plus` (S/100 mensual) con implementacion unica S/200 en activacion inicial.
 - Tipo: non-breaking
 - Impacto: elimina opciones operativas de plan `pro` en UI administrativa y actualiza montos de cobro/visualizacion.
+- Fecha: 2026-02-21
+- Cambio: `widget_configs` agrega `real_estate_properties` (catalogo multimedia por propiedad); parser chat soporta comando `[VIDEO: ...]`; `ai_chat_logs.command_flags` agrega `has_video`.
+- Tipo: non-breaking
+- Impacto: habilita flujo inmobiliario con fotos/videos contextuales en chat sin romper contratos existentes ni plantillas no-inmobiliarias.
