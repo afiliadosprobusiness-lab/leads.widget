@@ -858,6 +858,26 @@ export default function Dashboard() {
     return 'border-slate-300/70 bg-slate-500/10 text-slate-700 dark:text-slate-300';
   };
 
+  const getConversationSourceLabel = (source: string) => {
+    const normalizedSource = String(source || '').toLowerCase();
+    if (normalizedSource === 'widget_embed') return dashboardIsEnglish ? 'Embedded widget' : 'Widget embebido';
+    if (normalizedSource === 'lead_chat') return dashboardIsEnglish ? 'Lead Chat page' : 'Pagina Lead Chat';
+    if (normalizedSource === 'sales_widget') return dashboardIsEnglish ? 'Sales widget' : 'Widget de ventas';
+    return dashboardIsEnglish ? 'Unknown source' : 'Origen desconocido';
+  };
+
+  const getConversationDisplayTitle = (source: string, lastAt: string) => {
+    const sourceLabel = getConversationSourceLabel(source);
+    if (!lastAt) return sourceLabel;
+    const timestamp = new Date(lastAt).toLocaleString(dashboardLocale, {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    return `${sourceLabel} - ${timestamp}`;
+  };
+
   const handleAnalyzeConversation = async (
     conversationId: string,
     widgetId: string,
@@ -4780,7 +4800,7 @@ export default function Dashboard() {
                           <summary className="flex cursor-pointer list-none flex-wrap items-start justify-between gap-3 p-3 sm:p-4">
                             <div className="min-w-0">
                               <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
-                                {dashboardIsEnglish ? 'Conversation' : 'Conversacion'} {conversation.conversationId.slice(0, 14)}
+                                {getConversationDisplayTitle(conversation.source, conversation.lastAt)}
                               </p>
                               <p className="mt-1 break-words text-xs text-muted-foreground">
                                 {conversation.logs.length} {dashboardIsEnglish ? 'messages' : 'mensajes'} - {conversation.source || 'unknown'} - {conversation.widgetId || '-'}
