@@ -91,6 +91,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Lead Chat/widget embebido/SalesWidget soportan mensajes multimedia de audio en respuestas del asistente usando comandos `[AUDIO|VOICE|SOUND: ...]` con sanitizacion `http/https`.
 - Lead Chat/widget embebido/SalesWidget soportan mensajes multimedia de video en respuestas del asistente usando comandos `[VIDEO|VID|CLIP: ...]` con sanitizacion `http/https`.
 - Dashboard permite adjuntar `imagen`, `audio` y `video corto` en el `mensaje de bienvenida`; esos medios se renderizan en Lead Chat y widget embebido desde `welcome_image_url`, `welcome_audio_url` y `welcome_video_url`.
+- En Dashboard, el `video corto de bienvenida` valida limite de peso dedicado (`max 25MB`, recomendado 8-15MB) para evitar carga pesada y sobreconsumo en Cloudinary.
 - En Dashboard > Configuracion del widget, cada bloque de bienvenida (`imagen/audio/video`) incluye accion `Quitar` para limpiar rapidamente la URL/media sin editar manualmente el campo.
 - Si el endpoint publico `/api/widget-config/:identity` no devuelve `welcome_image_url/welcome_audio_url/welcome_video_url`, el widget embebido aplica fallback de lectura a Firestore para no perder multimedia de bienvenida.
 - En Lead Chat/widget embebido/SalesWidget, las burbujas con audio fuerzan ancho minimo y muestran tarjeta visual de audio para evitar que el reproductor quede oculto cuando el texto es corto o vacio.

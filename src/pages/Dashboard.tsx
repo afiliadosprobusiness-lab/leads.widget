@@ -342,6 +342,9 @@ const CLOUDINARY_UPLOAD_PRESET = String(import.meta.env.VITE_CLOUDINARY_UPLOAD_P
 type WelcomeMediaKind = 'image' | 'audio' | 'video';
 type PropertyMediaKind = 'image' | 'video';
 type WidgetUploadMediaKind = 'image' | 'audio' | 'video';
+type WidgetUploadScope = 'welcome' | 'property';
+const WELCOME_VIDEO_MAX_MB = 25;
+const PROPERTY_VIDEO_MAX_MB = 35;
 
 function sanitizeMediaUrl(value: unknown) {
   const raw = String(value || '').trim();
@@ -1421,12 +1424,16 @@ export default function Dashboard() {
     stopWelcomeAudioStream();
   };
 
-  const validateWidgetMediaSize = (file: File, kind: WidgetUploadMediaKind) => {
+  const validateWidgetMediaSize = (
+    file: File,
+    kind: WidgetUploadMediaKind,
+    scope: WidgetUploadScope = 'welcome',
+  ) => {
     const maxBytes =
       kind === 'audio'
         ? 15 * 1024 * 1024
         : kind === 'video'
-          ? 35 * 1024 * 1024
+          ? (scope === 'welcome' ? WELCOME_VIDEO_MAX_MB : PROPERTY_VIDEO_MAX_MB) * 1024 * 1024
           : 6 * 1024 * 1024;
     if (file.size <= maxBytes) return true;
     toast({
@@ -1435,7 +1442,9 @@ export default function Dashboard() {
         kind === 'audio'
           ? 'El audio debe ser menor a 15MB.'
           : kind === 'video'
-            ? 'El video debe ser menor a 35MB.'
+            ? scope === 'welcome'
+              ? `El video de bienvenida debe ser menor a ${WELCOME_VIDEO_MAX_MB}MB.`
+              : `El video de propiedad debe ser menor a ${PROPERTY_VIDEO_MAX_MB}MB.`
             : 'La imagen debe ser menor a 6MB.',
       variant: 'destructive',
     });
@@ -1513,7 +1522,7 @@ export default function Dashboard() {
     event.target.value = '';
     if (!file) return;
 
-    if (!validateWidgetMediaSize(file, kind)) return;
+    if (!validateWidgetMediaSize(file, kind, 'welcome')) return;
 
     if (kind === 'image') {
       setUploadingWelcomeImage(true);
@@ -1596,7 +1605,7 @@ export default function Dashboard() {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
-    if (!validateWidgetMediaSize(file, kind)) return;
+    if (!validateWidgetMediaSize(file, kind, 'property')) return;
 
     setPropertyMediaUploading(propertyId, kind, true);
     try {
@@ -3335,6 +3344,9 @@ export default function Dashboard() {
                         <source src={sanitizeMediaUrl(formConfig.welcome_video_url)} />
                       </video>
                     ) : null}
+                    <p className="text-xs text-muted-foreground">
+                      Recomendado: 8-15MB (maximo {WELCOME_VIDEO_MAX_MB}MB) para carga rapida en chat.
+                    </p>
                   </div>
 
                   {formConfig.template === 'inmobiliaria' ? (
