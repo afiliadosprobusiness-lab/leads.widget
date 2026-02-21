@@ -4627,44 +4627,54 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-                        <Card>
-              <CardHeader>
-                <CardTitle>{dashboardIsEnglish ? 'AI Conversation Console' : 'Consola de Conversaciones IA'}</CardTitle>
-                <CardDescription>
-                  {dashboardIsEnglish
-                    ? 'Review what the assistant answered, identify failures, and improve prompts with evidence.'
-                    : 'Revisa lo que respondio el asistente, detecta fallos y mejora prompts con evidencia real.'}
-                </CardDescription>
+            <Card className="overflow-hidden border-slate-200/80 bg-gradient-to-b from-white to-slate-50/40 dark:border-slate-800 dark:from-slate-950 dark:to-slate-950/70">
+              <CardHeader className="space-y-4 border-b border-slate-200/70 bg-white/80 pb-5 backdrop-blur dark:border-slate-800 dark:bg-slate-950/70">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500/20 to-indigo-500/20 text-sky-700 dark:text-sky-300">
+                    <Bot className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <CardTitle className="text-base sm:text-lg">{dashboardIsEnglish ? 'AI Conversation Console' : 'Consola de Conversaciones IA'}</CardTitle>
+                    <CardDescription className="mt-1 max-w-3xl text-xs sm:text-sm">
+                      {dashboardIsEnglish
+                        ? 'Review what the assistant answered, identify failures, and improve prompts with evidence.'
+                        : 'Revisa lo que respondio el asistente, detecta fallos y mejora prompts con evidencia real.'}
+                    </CardDescription>
+                  </div>
+                </div>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-3 sm:grid-cols-5">
-                  <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-900/40">
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground">{dashboardIsEnglish ? 'Conversations' : 'Conversaciones'}</p>
-                    <p className="text-2xl font-bold">{aiConversationGroups.length}</p>
+              <CardContent className="space-y-4 p-4 sm:p-5">
+                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+                  <div className="rounded-xl border border-slate-200/70 bg-white/80 p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{dashboardIsEnglish ? 'Conversations' : 'Conversaciones'}</p>
+                    <p className="mt-1 text-2xl font-bold">{aiConversationGroups.length}</p>
                   </div>
-                  <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-900/40">
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground">{dashboardIsEnglish ? 'Not completed' : 'No completados'}</p>
-                    <p className="text-2xl font-bold text-sky-600">{aiNotCompletedCount}</p>
+                  <div className="rounded-xl border border-sky-300/70 bg-sky-500/10 p-3 shadow-sm dark:border-sky-900/70 dark:bg-sky-900/20">
+                    <p className="text-[11px] uppercase tracking-wider text-sky-700/90 dark:text-sky-200/90">{dashboardIsEnglish ? 'Not completed' : 'No completados'}</p>
+                    <p className="mt-1 text-2xl font-bold text-sky-700 dark:text-sky-200">{aiNotCompletedCount}</p>
                   </div>
-                  <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-900/40">
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground">{dashboardIsEnglish ? 'Interested not closed' : 'Interesado no cerrado'}</p>
-                    <p className="text-2xl font-bold text-amber-600">{aiWarmNotClosedCount}</p>
+                  <div className="rounded-xl border border-amber-300/70 bg-amber-500/10 p-3 shadow-sm dark:border-amber-900/70 dark:bg-amber-900/20">
+                    <p className="text-[11px] uppercase tracking-wider text-amber-700/90 dark:text-amber-200/90">{dashboardIsEnglish ? 'Interested not closed' : 'Interesado no cerrado'}</p>
+                    <p className="mt-1 text-2xl font-bold text-amber-700 dark:text-amber-200">{aiWarmNotClosedCount}</p>
                   </div>
-                  <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-900/40">
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground">{dashboardIsEnglish ? 'Lead completed' : 'Lead completado'}</p>
-                    <p className="text-2xl font-bold text-emerald-600">{aiCompletedCount}</p>
+                  <div className="rounded-xl border border-emerald-300/70 bg-emerald-500/10 p-3 shadow-sm dark:border-emerald-900/70 dark:bg-emerald-900/20">
+                    <p className="text-[11px] uppercase tracking-wider text-emerald-700/90 dark:text-emerald-200/90">{dashboardIsEnglish ? 'Lead completed' : 'Lead completado'}</p>
+                    <p className="mt-1 text-2xl font-bold text-emerald-700 dark:text-emerald-200">{aiCompletedCount}</p>
                   </div>
-                  <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-900/40">
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground">{dashboardIsEnglish ? 'Risk/Hack' : 'Riesgo/Hack'}</p>
-                    <p className="text-2xl font-bold text-rose-600">{aiSecurityCount}</p>
+                  <div className="rounded-xl border border-rose-300/70 bg-rose-500/10 p-3 shadow-sm dark:border-rose-900/70 dark:bg-rose-900/20">
+                    <p className="text-[11px] uppercase tracking-wider text-rose-700/90 dark:text-rose-200/90">{dashboardIsEnglish ? 'Risk/Hack' : 'Riesgo/Hack'}</p>
+                    <p className="mt-1 text-2xl font-bold text-rose-700 dark:text-rose-200">{aiSecurityCount}</p>
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 text-xs dark:border-slate-800 dark:bg-slate-900/40">
-                  <p className="font-semibold text-slate-700 dark:text-slate-200">
-                    {dashboardIsEnglish ? 'Quick guide' : 'Guia rapida'}
-                  </p>
-                  <div className="mt-2 grid gap-2 sm:grid-cols-4">
+                <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 p-3 text-xs dark:border-slate-800 dark:bg-slate-900/40">
+                  <div className="flex items-center gap-2">
+                    <Info className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                    <p className="font-semibold text-slate-700 dark:text-slate-200">
+                      {dashboardIsEnglish ? 'Quick guide' : 'Guia rapida'}
+                    </p>
+                  </div>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                     <div className="rounded-lg border border-sky-300/70 bg-sky-500/10 p-2 text-sky-800 dark:text-sky-200">
                       <p className="font-semibold">{dashboardIsEnglish ? 'Not completed' : 'No completados'}</p>
                       <p>{dashboardIsEnglish ? 'Conversation ended without WhatsApp handoff.' : 'Conversacion terminada sin pase a WhatsApp.'}</p>
@@ -4684,7 +4694,11 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="rounded-xl border border-slate-200/80 bg-white/80 p-3 dark:border-slate-800 dark:bg-slate-950/50">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {dashboardIsEnglish ? 'Conversation filter' : 'Filtro de conversacion'}
+                  </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
                   {[
                     { id: 'all', label: dashboardIsEnglish ? 'All' : 'Todo' },
                     { id: 'not_completed', label: dashboardIsEnglish ? 'Not completed' : 'No completados' },
@@ -4698,27 +4712,35 @@ export default function Dashboard() {
                       size="sm"
                       variant={aiConversationFilter === option.id ? 'default' : 'outline'}
                       onClick={() => setAiConversationFilter(option.id as AiConversationFilter)}
+                      className="h-8 rounded-full px-3 text-[11px]"
                     >
                       {option.label}
                     </Button>
                   ))}
+                  </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="rounded-xl border border-slate-200/80 bg-white/80 p-3 dark:border-slate-800 dark:bg-slate-950/50">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {dashboardIsEnglish ? 'Diagnostics' : 'Diagnostico'}
+                  </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
                   <Button
                     type="button"
                     size="sm"
                     variant={showTechnicalDiagnostics ? 'default' : 'outline'}
                     onClick={toggleTechnicalDiagnostics}
+                    className="h-8 rounded-full px-3 text-[11px]"
                   >
                     {showTechnicalDiagnostics
                       ? (dashboardIsEnglish ? 'Hide technical diagnostics' : 'Ocultar diagnostico tecnico')
                       : (dashboardIsEnglish ? 'View technical diagnostics' : 'Ver diagnostico tecnico')}
                   </Button>
+                  </div>
                 </div>
 
                 {showTechnicalDiagnostics ? (
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200/80 bg-white/80 p-3 dark:border-slate-800 dark:bg-slate-950/50">
                     {[
                       { id: 'all', label: dashboardIsEnglish ? 'All status' : 'Todos los estados' },
                       { id: 'ok', label: dashboardIsEnglish ? 'OK' : 'Correcto' },
@@ -4732,6 +4754,7 @@ export default function Dashboard() {
                         size="sm"
                         variant={aiChatStatusFilter === option.id ? 'default' : 'outline'}
                         onClick={() => setAiChatStatusFilter(option.id as 'all' | AiChatLogStatus)}
+                        className="h-8 rounded-full px-3 text-[11px]"
                       >
                         {option.label}
                       </Button>
@@ -4740,7 +4763,7 @@ export default function Dashboard() {
                 ) : null}
 
                 {filteredAiConversationGroups.length === 0 ? (
-                  <div className="rounded-xl border-2 border-dashed border-slate-200 p-6 text-center text-sm text-muted-foreground dark:border-slate-800">
+                  <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/70 px-4 py-8 text-center text-sm text-muted-foreground dark:border-slate-800 dark:bg-slate-900/30">
                     {dashboardIsEnglish
                       ? 'No conversations match the selected filters yet.'
                       : 'Aun no hay conversaciones para los filtros seleccionados.'}
@@ -4750,30 +4773,34 @@ export default function Dashboard() {
                     {filteredAiConversationGroups.slice(0, 120).map((conversation) => {
                       const analysisState = aiConversationAnalysisById[conversation.conversationId];
                       return (
-                        <details key={conversation.conversationId} className="rounded-xl border border-slate-200 bg-white/70 p-3 dark:border-slate-800 dark:bg-slate-950/40">
-                          <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-2">
+                        <details
+                          key={conversation.conversationId}
+                          className="group overflow-hidden rounded-2xl border border-slate-200/90 bg-white/80 shadow-sm transition-colors open:border-slate-300 dark:border-slate-800 dark:bg-slate-950/50 dark:open:border-slate-700"
+                        >
+                          <summary className="flex cursor-pointer list-none flex-wrap items-start justify-between gap-3 p-3 sm:p-4">
                             <div className="min-w-0">
-                              <p className="truncate text-sm font-semibold">
+                              <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
                                 {dashboardIsEnglish ? 'Conversation' : 'Conversacion'} {conversation.conversationId.slice(0, 14)}
                               </p>
-                              <p className="text-xs text-muted-foreground">
+                              <p className="mt-1 break-words text-xs text-muted-foreground">
                                 {conversation.logs.length} {dashboardIsEnglish ? 'messages' : 'mensajes'} - {conversation.source || 'unknown'} - {conversation.widgetId || '-'}
                               </p>
                             </div>
-                            <div className="flex flex-wrap items-center gap-2">
+                            <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
                               <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${getConversationFlowClass(conversation)}`}>
                                 {getConversationFlowLabel(conversation)}
                               </span>
                               <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${getAiLogStatusClass(conversation.status)}`}>
                                 {getAiLogStatusLabel(conversation.status)}
                               </span>
-                              <span className="text-xs text-muted-foreground">
+                              <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                                <Clock className="h-3.5 w-3.5" />
                                 {conversation.lastAt ? new Date(conversation.lastAt).toLocaleString(dashboardLocale) : '-'}
                               </span>
                             </div>
                           </summary>
 
-                          <div className="mt-3 space-y-3 border-t border-slate-200 pt-3 dark:border-slate-800">
+                          <div className="space-y-3 border-t border-slate-200/80 p-3 pt-3 dark:border-slate-800 sm:p-4">
                             {conversation.status !== 'ok' || conversation.securityRisk ? (
                               <div className="rounded-lg border border-amber-300/70 bg-amber-500/10 p-2 text-xs text-amber-800 dark:text-amber-300">
                                 {conversation.securityRisk
@@ -4785,7 +4812,7 @@ export default function Dashboard() {
                             ) : null}
 
                             {conversation.notCompleted ? (
-                              <div className="rounded-lg border border-sky-300/70 bg-sky-500/10 p-2">
+                              <div className="rounded-xl border border-sky-300/70 bg-sky-500/10 p-3">
                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                   <p className="text-xs text-sky-800 dark:text-sky-200">
                                     {dashboardIsEnglish
@@ -4798,7 +4825,7 @@ export default function Dashboard() {
                                     variant="outline"
                                     disabled={analysisState?.loading === true}
                                     onClick={() => void handleAnalyzeConversation(conversation.conversationId, conversation.widgetId, conversation.logs)}
-                                    className="h-8 border-sky-300/70 bg-white/70 text-sky-700 hover:bg-sky-100 dark:bg-slate-950/40 dark:text-sky-200"
+                                    className="h-8 border-sky-300/70 bg-white/80 text-sky-700 hover:bg-sky-100 dark:bg-slate-950/50 dark:text-sky-200"
                                   >
                                     {analysisState?.loading ? (
                                       <>
@@ -4824,7 +4851,7 @@ export default function Dashboard() {
                                 ) : null}
 
                                 {analysisState?.data ? (
-                                  <div className="mt-2 space-y-2 rounded-md border border-sky-300/50 bg-white/70 p-2 text-xs dark:bg-slate-950/45">
+                                  <div className="mt-2 space-y-2 rounded-lg border border-sky-300/50 bg-white/80 p-2.5 text-xs dark:bg-slate-950/55">
                                     <p className="font-semibold">
                                       {dashboardIsEnglish ? 'Diagnosis' : 'Diagnostico'} ({analysisState.data.provider}) - {dashboardIsEnglish ? 'Score' : 'Score'}: {analysisState.data.qualityScore}/100
                                     </p>
@@ -4868,7 +4895,7 @@ export default function Dashboard() {
                             ) : null}
 
                             {conversation.logs.slice(-8).map((logItem) => (
-                              <div key={logItem.id} className="space-y-1 rounded-lg border border-slate-200 p-2.5 dark:border-slate-800">
+                              <div key={logItem.id} className="rounded-xl border border-slate-200/90 bg-white/70 p-2.5 dark:border-slate-800 dark:bg-slate-950/45">
                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                   <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${getAiLogStatusClass(logItem.status)}`}>
                                     {getAiLogStatusLabel(logItem.status)}
@@ -4878,16 +4905,18 @@ export default function Dashboard() {
                                     {Number.isFinite(Number(logItem.latency_ms)) ? ` - ${Math.round(Number(logItem.latency_ms))}ms` : ''}
                                   </span>
                                 </div>
-                                <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs dark:border-slate-800 dark:bg-slate-900/50">
-                                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">User</p>
-                                  <p className="whitespace-pre-wrap break-words">{logItem.user_message || '-'}</p>
-                                </div>
-                                <div className="rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs dark:border-slate-800 dark:bg-slate-950/60">
-                                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Assistant</p>
-                                  <p className="whitespace-pre-wrap break-words">{logItem.ai_response || '-'}</p>
+                                <div className="mt-2 grid gap-2 lg:grid-cols-2">
+                                  <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs dark:border-slate-800 dark:bg-slate-900/50">
+                                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">User</p>
+                                    <p className="whitespace-pre-wrap break-words">{logItem.user_message || '-'}</p>
+                                  </div>
+                                  <div className="rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs dark:border-slate-800 dark:bg-slate-950/60">
+                                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Assistant</p>
+                                    <p className="whitespace-pre-wrap break-words">{logItem.ai_response || '-'}</p>
+                                  </div>
                                 </div>
                                 {logItem.error_message ? (
-                                  <p className="text-xs text-rose-600 dark:text-rose-300">
+                                  <p className="mt-2 text-xs text-rose-600 dark:text-rose-300">
                                     {dashboardIsEnglish ? 'Error:' : 'Error:'} {logItem.error_message}
                                   </p>
                                 ) : null}
