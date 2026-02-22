@@ -82,6 +82,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - En Lead Chat, cuando el asistente emite `ICALLCLOSER_READY`, el frontend abre siempre la tarjeta de consentimiento (nombre/telefono prellenados si el asistente los capturo). El handoff solo se ejecuta al enviar el formulario con checkbox de consentimiento obligatorio; luego muestra cuenta regresiva (`3..2..1`) y redirige.
 - En la tarjeta de consentimiento de Lead Chat, `nombre` y `telefono` son obligatorios; el boton `Enviar` permanece deshabilitado hasta que ambos sean validos y el checkbox este aceptado.
 - Quick replies de Lead Chat y `SalesWidget` usan una sola fila con scroll horizontal suave (sin wrap) para mantener CTA compactos en todas las resoluciones.
+- En Lead Chat, widget embebido y `SalesWidget`, al pulsar un quick reply se inserta el texto en el composer (no se envia automaticamente) para permitir editar antes de enviar.
 - Lead Chat consume `language` del widget config para defaults EN/ES (mensaje inicial, quick replies, consentimiento, estados y copys de conversion).
 - Widget embebido (`public/widget-embed.js`) replica mejoras de retencion: quick replies en una sola fila con scroll horizontal (mobile-first) con soporte swipe/drag y rueda del mouse en desktop, selector de emojis, entrada por voz y toggle sutil claro/oscuro.
 - En Lead Chat/widget embebido/SalesWidget, la entrada por voz usa fallback `SpeechRecognition/webkitSpeechRecognition` y autoenvia el mensaje al terminar el dictado.

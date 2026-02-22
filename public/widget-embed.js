@@ -2777,6 +2777,7 @@
       let pointerActive = false;
       let pointerId = null;
       let startX = 0;
+      let startY = 0;
       let startScrollLeft = 0;
       let moved = false;
       let suppressClickUntil = 0;
@@ -2800,6 +2801,7 @@
         pointerActive = true;
         pointerId = event.pointerId;
         startX = event.clientX;
+        startY = event.clientY;
         startScrollLeft = quickRepliesContainer.scrollLeft;
         moved = false;
         quickRepliesContainer.classList.add('lw-dragging');
@@ -2812,8 +2814,10 @@
       quickRepliesContainer.addEventListener('pointermove', (event) => {
         if (!pointerActive || event.pointerId !== pointerId) return;
         const deltaX = event.clientX - startX;
-        if (!moved && Math.abs(deltaX) > 3) moved = true;
-        quickRepliesContainer.scrollLeft = startScrollLeft - deltaX;
+        const deltaY = event.clientY - startY;
+        const horizontalIntent = Math.abs(deltaX) > Math.abs(deltaY);
+        if (!moved && horizontalIntent && Math.abs(deltaX) > 8) moved = true;
+        if (moved) quickRepliesContainer.scrollLeft = startScrollLeft - deltaX;
         if (moved) event.preventDefault();
       });
 
@@ -2840,6 +2844,20 @@
       }, true);
     }
 
+    function insertQuickReplyIntoComposer(value) {
+      if (!input || input.disabled || isLoading) return;
+      const quickReply = String(value || '').trim();
+      if (!quickReply) return;
+      markUserInteraction();
+      hideInlineTeaser();
+      const currentValue = String(input.value || '');
+      const base = currentValue.trim();
+      input.value = base
+        ? `${currentValue}${/\s$/.test(currentValue) ? '' : ' '}${quickReply}`
+        : quickReply;
+      input.focus();
+    }
+
     // Render quick replies
     function renderQuickReplies() {
       initQuickRepliesScroll();
@@ -2859,7 +2877,7 @@
       ).join('');
 
       quickRepliesContainer.querySelectorAll('.lw-quick-btn').forEach(btn => {
-        btn.addEventListener('click', () => handleSendMessage(btn.textContent));
+        btn.addEventListener('click', () => insertQuickReplyIntoComposer(btn.textContent));
       });
     }
 

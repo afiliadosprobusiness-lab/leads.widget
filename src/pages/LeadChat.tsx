@@ -1648,6 +1648,24 @@ export default function LeadChat() {
     inputRef.current?.focus();
   };
 
+  const insertQuickReply = (value: string) => {
+    if (sending || assistantTyping) return;
+    const quickReply = value.trim();
+    if (!quickReply) return;
+    markUserInteraction();
+    setChatError("");
+    setHandoffMessage("");
+    setTeaserVisible(false);
+    setEmojiPickerOpen(false);
+    setInput((prev) => {
+      const base = prev.trim();
+      if (!base) return quickReply;
+      const separator = /\s$/.test(prev) ? "" : " ";
+      return `${prev}${separator}${quickReply}`;
+    });
+    inputRef.current?.focus();
+  };
+
   const openConsentStep = () => {
     if (!handoffEligible) {
       setChatError(copy.prequalifyFirstError);
@@ -2354,12 +2372,13 @@ export default function LeadChat() {
                       <button
                         key={`${item}-${idx}`}
                         type="button"
-                        onClick={() => void handleSend(item)}
+                        onClick={() => insertQuickReply(item)}
+                        disabled={sending || assistantTyping}
                         className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 [scroll-snap-align:start] ${
                           isLightMode
                             ? "border-slate-300 bg-white text-slate-700 hover:border-sky-300 hover:text-sky-700 focus-visible:ring-sky-400"
                             : "border-slate-700 bg-slate-900 text-slate-200 hover:border-cyan-400/60 hover:text-cyan-200 focus-visible:ring-cyan-300"
-                        }`}
+                        } disabled:cursor-not-allowed disabled:opacity-60`}
                       >
                         {item}
                       </button>

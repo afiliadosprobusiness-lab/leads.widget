@@ -266,6 +266,7 @@ export function SalesWidget() {
   const nextLanguageLabel = locale === "es" ? "EN" : "ES";
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const idleTeaserIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
@@ -695,6 +696,22 @@ export function SalesWidget() {
     }
   };
 
+  const insertQuickReply = (value: string) => {
+    if (isLoading || isBlocked) return;
+    const quickReply = value.trim();
+    if (!quickReply) return;
+    markUserInteraction();
+    closePaletteAndEmoji();
+    setIsIdle(false);
+    setInputText((prev) => {
+      const base = prev.trim();
+      if (!base) return quickReply;
+      const separator = /\s$/.test(prev) ? "" : " ";
+      return `${prev}${separator}${quickReply}`;
+    });
+    inputRef.current?.focus();
+  };
+
   const handleClose = () => {
     setIsOpen(false);
     setHasBeenClosedOnce(true);
@@ -988,7 +1005,7 @@ export function SalesWidget() {
                 <button
                   key={text}
                   type="button"
-                  onClick={() => void handleSendMessage(text)}
+                  onClick={() => insertQuickReply(text)}
                   disabled={isBlocked || isLoading}
                   className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs transition ${
                     isLightMode
@@ -1066,6 +1083,7 @@ export function SalesWidget() {
               </button>
 
               <Input
+                ref={inputRef}
                 value={inputText}
                 onChange={(event) => {
                   const nextValue = event.target.value;
