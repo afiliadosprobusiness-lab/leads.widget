@@ -11,7 +11,7 @@ import {
   toIsoDate,
   trimText,
 } from "./_common.js";
-import { db } from "../_firebase.js";
+import { db } from "../../api/_firebase.js";
 
 function normalizeEntityType(value) {
   const candidate = trimText(value || "", 40).toLowerCase();

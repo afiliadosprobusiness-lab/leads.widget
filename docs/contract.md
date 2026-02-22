@@ -375,7 +375,7 @@ Codigo observado:
 - `POST|OPTIONS /api/verify-payment` (proxy a backend externo)
 - `GET /api/w/:widgetId.js` (proxy a backend externo)
 - `GET /api/debug` (verifica acceso Firebase Admin; retorna `status/env`, y en error incluye `stack`)
-- `vercel.json` usa `routes` con `handle: filesystem` primero, y luego fallback `/api/(.*)` -> backend externo Cloud Run
+- `vercel.json` usa `routes` con `handle: filesystem` primero; agrega rewrite interno `/api/crm/:resource` -> `/api/crm?resource=:resource`; y luego fallback `/api/(.*)` -> backend externo Cloud Run
 
 Asuncion:
 

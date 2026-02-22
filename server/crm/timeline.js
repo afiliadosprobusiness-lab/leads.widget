@@ -8,7 +8,7 @@ import {
   setCors,
   trimText,
 } from "./_common.js";
-import { db } from "../_firebase.js";
+import { db } from "../../api/_firebase.js";
 
 function normalizeTimelineEvent(docSnap) {
   const data = docSnap.data() || {};

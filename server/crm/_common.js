@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { getAuth } from "firebase-admin/auth";
-import { db } from "../_firebase.js";
+import { db } from "../../api/_firebase.js";
 export { db };
 
 export const CRM_STAGES = ["new", "contacted", "qualified", "won", "lost"];

@@ -9,7 +9,7 @@ import {
   toNullableNumber,
   trimText,
 } from "./_common.js";
-import { db } from "../_firebase.js";
+import { db } from "../../api/_firebase.js";
 
 function normalizeDealStage(value, fallback = "new") {
   const stage = trimText(value || "", 40).toLowerCase();

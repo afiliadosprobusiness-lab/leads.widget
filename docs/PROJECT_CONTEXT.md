@@ -144,7 +144,8 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 ## Configuracion relevante
 - Front usa rutas `/api/*` (rewrite a backend Cloud Run).
 - `vercel.json` prioriza `filesystem` para que funciones locales `api/*.js` (ej. `api/chat.js`) se ejecuten antes del fallback `/api/*` al backend externo.
-- CRM v2 agrega funciones locales bajo `api/crm/*` (`contacts-merge`, `deals`, `tasks`, `timeline`) para evolucionar CRM sin tocar el backend externo.
+- `vercel.json` agrega rewrite interno `/api/crm/:resource` -> `/api/crm?resource=:resource` para concentrar CRM v2 en una sola Serverless Function y mantenerse dentro del limite Hobby de Vercel.
+- CRM v2 se atiende desde funcion local `api/crm.js` (dispatcher por `resource`) para `contacts-merge`, `deals`, `tasks` y `timeline`, manteniendo intacto el backend externo.
 - Firestore rules ampliadas para colecciones partner, manteniendo mutacion directa restringida a superadmin en cliente web.
 - Firestore rules incluyen coleccion `crm_contacts` (lectura/escritura solo owner `client_id` o superadmin) para el nuevo tab CRM.
 - Superadmin incorpora fallback de compatibilidad a Firestore para modulo de agencias cuando el backend aun no expone `/api/admin/partners*` en el entorno desplegado.
