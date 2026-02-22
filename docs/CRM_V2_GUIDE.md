@@ -1,38 +1,54 @@
-# Guia rapida CRM v2 (leads.widget)
+# Guia CRM facil (sin lenguaje tecnico)
 
-## 1) Flujo minimo diario
-1. Entra a `Dashboard > CRM > Contactos`.
-2. Crea o importa contactos (manual, CSV o `Sincronizar leads`).
-3. En cada contacto, pulsa `Abrir detalle`.
-4. En `Deals`, crea una oportunidad (`Crear deal`).
-5. En `Tasks`, crea una tarea de seguimiento.
-6. En `Timeline`, revisa cambios y notas.
-7. En `Pipeline deals`, mueve oportunidades entre etapas.
-8. En `Mis tareas`, filtra por `Hoy`, `Vencidas`, `Proximas`, `Completadas`.
+## Que problema resuelve
+El CRM te ayuda a no perder ventas por olvido. Cada contacto tiene:
+- su oportunidad de venta (`Deal`)
+- sus pendientes (`Tareas`)
+- su historial (`Timeline`)
 
-## 2) Vistas del CRM
-- `Contactos`: alta/importacion, cambio de etapa del contacto, acceso a detalle.
-- `Pipeline deals`: kanban de oportunidades por etapa (`new`, `contacted`, `qualified`, `won`, `lost`).
-- `Mis tareas`: seguimiento operativo por vencimiento y estado.
+## Flujo recomendado (el mas simple)
+1. Captura leads en `Contactos` (manual, CSV o `Sincronizar leads`).
+2. Entra al contacto con `Abrir detalle`.
+3. Crea un `Deal` para esa oportunidad.
+4. Crea una `Tarea` con fecha para el siguiente paso.
+5. Registra una nota corta en `Timeline`.
+6. Mueve la etapa solo cuando haya avance real.
 
-## 3) Que pasa al pulsar "Abrir detalle"
-- Se abre el panel `Detalle de contacto` en la misma pantalla.
-- El dashboard hace scroll/focus automatico a ese panel para que sea visible.
-- Dentro del detalle tienes 3 tabs: `Deals`, `Timeline`, `Tasks`.
+## Para que sirve cada seccion
+- `Contactos`: agregar/importar y ordenar base.
+- `Pipeline deals`: ver todas las oportunidades por etapa.
+- `Mis tareas`: ejecutar lo importante del dia.
+- `Detalle de contacto`: ver todo junto (Deals + Timeline + Tasks).
 
-## 4) Como crear tareas correctamente
-- Ve al tab `Tasks` del detalle de contacto (o usa `Task` desde un deal).
-- Campo obligatorio: `Titulo de tarea`.
-- Opcional: `Fecha/hora` y `Prioridad`.
-- Al crearla, veras confirmacion y el evento queda en `Timeline`.
+## Rutina diaria de 10 minutos
+1. Abre `Mis tareas` y atiende primero `Vencidas`.
+2. Revisa `Hoy` y ejecuta llamadas/mensajes.
+3. Actualiza etapa de los deals trabajados.
+4. Deja nota en timeline al terminar cada gestion.
+5. Crea siguiente tarea antes de cerrar el dia.
 
-## 5) Reglas clave del sistema
-- Dedupe/merge: primero por `phone`, fallback por `email`.
-- Un contacto puede tener varios deals.
-- Tareas vencidas pasan a `overdue` automaticamente.
-- Cambios de etapa, tareas y notas quedan registrados en `Timeline`.
+## Reglas de oro para vender mas
+- Nunca dejes un lead sin tarea.
+- Titulo de tarea claro: accion + objetivo.
+- Una oportunidad real = un deal.
+- Si no hubo contacto, no muevas a etapa avanzada.
+- Usa `Perdido` solo cuando ya no hay opcion real.
 
-## 6) Si algo "no hace nada"
-- `Abrir detalle`: revisa que aparezca el panel `Detalle de contacto` (auto scroll activo).
-- `Crear tarea`: valida que el titulo no este vacio.
-- Si hay error de permisos/autenticacion, recarga sesion y vuelve a intentar.
+## Ejemplos de tareas utiles
+- `Llamar para validar presupuesto`
+- `Enviar propuesta por WhatsApp`
+- `Confirmar fecha de cierre`
+- `Hacer seguimiento post demo`
+
+## Errores comunes (y como evitarlos)
+- Error: crear contacto y no hacer seguimiento.
+  Solucion: crea tarea en el mismo momento.
+- Error: mover etapas por intuicion.
+  Solucion: mueve etapa solo por hechos (respondio, califico, compro).
+- Error: no registrar notas.
+  Solucion: deja 1 linea en timeline tras cada contacto.
+
+## Si algo parece no responder
+- `Abrir detalle`: ahora hace scroll/focus automatico al panel de detalle.
+- `Crear tarea`: requiere titulo; si falta, veras aviso.
+- Si hay problema de sesion, recarga e inicia sesion nuevamente.

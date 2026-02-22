@@ -38,6 +38,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - CRM cliente:
   - Permite crear contactos manualmente (`crm_contacts`) desde dashboard.
   - El tab CRM opera en modo simple con 3 vistas: `Contactos`, `Pipeline deals`, `Mis tareas`.
+  - En CRM se agrega CTA `Como usar CRM` (modal in-app) con guia no tecnica y rutina diaria para adopcion operativa, con layout responsive para mobile y desktop.
   - Incluye `Contact detail` con tabs `Deals`, `Timeline`, `Tasks` para seguimiento sin cambiar de modulo.
   - Accion `Abrir detalle` hace foco/scroll automatico al panel de detalle para feedback inmediato en listas largas.
   - `Crear tarea` exige titulo y muestra feedback visible (error si falta titulo, confirmacion al crear) para evitar clics silenciosos.

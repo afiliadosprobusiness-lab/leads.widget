@@ -849,6 +849,7 @@ export default function Dashboard() {
   const [crmImportPreview, setCrmImportPreview] = useState<CrmImportPreviewState | null>(null);
   const [crmUpdatingId, setCrmUpdatingId] = useState('');
   const [crmView, setCrmView] = useState<CrmWorkspaceView>('contacts');
+  const [crmGuideOpen, setCrmGuideOpen] = useState(false);
   const [crmDeals, setCrmDeals] = useState<CrmDeal[]>([]);
   const [crmDealsLoading, setCrmDealsLoading] = useState(false);
   const [crmTasks, setCrmTasks] = useState<CrmTask[]>([]);
@@ -6413,12 +6414,12 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="grid gap-2 sm:flex sm:flex-wrap">
               <Button
                 type="button"
                 variant={crmView === 'contacts' ? 'default' : 'outline'}
                 onClick={() => setCrmView('contacts')}
-                className="rounded-full"
+                className="w-full rounded-full sm:w-auto"
               >
                 <Users className="mr-2 h-4 w-4" />
                 {dashboardIsEnglish ? 'Contacts' : 'Contactos'}
@@ -6427,7 +6428,7 @@ export default function Dashboard() {
                 type="button"
                 variant={crmView === 'deals' ? 'default' : 'outline'}
                 onClick={() => setCrmView('deals')}
-                className="rounded-full"
+                className="w-full rounded-full sm:w-auto"
               >
                 <KanbanSquare className="mr-2 h-4 w-4" />
                 {dashboardIsEnglish ? 'Pipeline deals' : 'Pipeline deals'}
@@ -6436,12 +6437,81 @@ export default function Dashboard() {
                 type="button"
                 variant={crmView === 'tasks' ? 'default' : 'outline'}
                 onClick={() => setCrmView('tasks')}
-                className="rounded-full"
+                className="w-full rounded-full sm:w-auto"
               >
                 <ListTodo className="mr-2 h-4 w-4" />
                 {dashboardIsEnglish ? 'My tasks' : 'Mis tareas'}
               </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setCrmGuideOpen(true)}
+                className="w-full rounded-full sm:w-auto"
+                aria-label={dashboardIsEnglish ? 'How to use CRM' : 'Como usar CRM'}
+              >
+                <BookOpen className="mr-2 h-4 w-4" />
+                {dashboardIsEnglish ? 'How to use CRM' : 'Como usar CRM'}
+              </Button>
             </div>
+
+            <Dialog open={crmGuideOpen} onOpenChange={setCrmGuideOpen}>
+              <DialogContent className="max-h-[88vh] w-[calc(100%-1rem)] overflow-y-auto px-4 sm:max-w-2xl sm:px-6">
+                <DialogHeader>
+                  <DialogTitle>{dashboardIsEnglish ? 'CRM guide for non-technical users' : 'Guia CRM para usuarios no tecnicos'}</DialogTitle>
+                  <DialogDescription>
+                    {dashboardIsEnglish
+                      ? 'Simple routine to organize leads, follow up on time, and close more deals.'
+                      : 'Rutina simple para ordenar leads, dar seguimiento a tiempo y cerrar mas ventas.'}
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-4 text-[13px] sm:text-sm">
+                  <section className="rounded-lg border bg-muted/20 p-3">
+                    <p className="font-semibold">{dashboardIsEnglish ? '1) The simple flow (daily)' : '1) Flujo simple (diario)'}</p>
+                    <ol className="mt-2 list-decimal space-y-1 pl-4 text-muted-foreground">
+                      <li>{dashboardIsEnglish ? 'Capture contacts in Contacts (manual, CSV, or Sync leads).' : 'Captura contactos en Contactos (manual, CSV o Sincronizar leads).'}</li>
+                      <li>{dashboardIsEnglish ? 'Open detail and create one deal per real opportunity.' : 'Abre detalle y crea un deal por cada oportunidad real.'}</li>
+                      <li>{dashboardIsEnglish ? 'Create one next-step task with date and priority.' : 'Crea una tarea de siguiente paso con fecha y prioridad.'}</li>
+                      <li>{dashboardIsEnglish ? 'Review Timeline before every call or message.' : 'Revisa Timeline antes de cada llamada o mensaje.'}</li>
+                      <li>{dashboardIsEnglish ? 'Move stage only when there is real progress.' : 'Mueve etapa solo cuando haya avance real.'}</li>
+                    </ol>
+                  </section>
+
+                  <section className="rounded-lg border bg-muted/20 p-3">
+                    <p className="font-semibold">{dashboardIsEnglish ? '2) What each view is for' : '2) Para que sirve cada vista'}</p>
+                    <ul className="mt-2 space-y-1 text-muted-foreground">
+                      <li><span className="font-medium text-foreground">{dashboardIsEnglish ? 'Contacts:' : 'Contactos:'}</span> {dashboardIsEnglish ? 'Create/import records and open full detail.' : 'Crear/importar registros y abrir detalle completo.'}</li>
+                      <li><span className="font-medium text-foreground">{dashboardIsEnglish ? 'Pipeline deals:' : 'Pipeline deals:'}</span> {dashboardIsEnglish ? 'Visual board of opportunities by stage.' : 'Tablero visual de oportunidades por etapa.'}</li>
+                      <li><span className="font-medium text-foreground">{dashboardIsEnglish ? 'My tasks:' : 'Mis tareas:'}</span> {dashboardIsEnglish ? 'Your daily execution list (today, overdue, upcoming, completed).' : 'Tu lista de ejecucion diaria (hoy, vencidas, proximas, completadas).'}</li>
+                      <li><span className="font-medium text-foreground">{dashboardIsEnglish ? 'Contact detail:' : 'Detalle de contacto:'}</span> {dashboardIsEnglish ? 'Deals, timeline, and tasks in one place.' : 'Deals, timeline y tareas en un solo lugar.'}</li>
+                    </ul>
+                  </section>
+
+                  <section className="rounded-lg border bg-muted/20 p-3">
+                    <p className="font-semibold">{dashboardIsEnglish ? '3) Habits that increase sales' : '3) Habitos que suben cierres'}</p>
+                    <ul className="mt-2 list-disc space-y-1 pl-4 text-muted-foreground">
+                      <li>{dashboardIsEnglish ? 'Never end the day with leads and no task assigned.' : 'Nunca cierres el dia con leads sin tarea asignada.'}</li>
+                      <li>{dashboardIsEnglish ? 'Use clear task titles: Call + objective (example: "Call to confirm budget").' : 'Usa titulos claros: accion + objetivo (ej: "Llamar para confirmar presupuesto").'}</li>
+                      <li>{dashboardIsEnglish ? 'Use Timeline notes after each interaction to keep context.' : 'Registra nota en Timeline despues de cada interaccion para no perder contexto.'}</li>
+                      <li>{dashboardIsEnglish ? 'Review overdue tasks first every morning.' : 'Empieza cada manana revisando tareas vencidas.'}</li>
+                      <li>{dashboardIsEnglish ? 'Move to won/lost only when outcome is confirmed.' : 'Pasa a ganado/perdido solo cuando el resultado este confirmado.'}</li>
+                    </ul>
+                  </section>
+
+                  <section className="rounded-lg border border-emerald-400/40 bg-emerald-500/10 p-3">
+                    <p className="font-semibold text-emerald-900 dark:text-emerald-300">
+                      {dashboardIsEnglish ? 'Quick start (10 minutes)' : 'Arranque rapido (10 minutos)'}
+                    </p>
+                    <ol className="mt-2 list-decimal space-y-1 pl-4 text-emerald-900/90 dark:text-emerald-300/90">
+                      <li>{dashboardIsEnglish ? 'Sync leads' : 'Sincroniza leads'}</li>
+                      <li>{dashboardIsEnglish ? 'Open 3 priority contacts' : 'Abre 3 contactos prioritarios'}</li>
+                      <li>{dashboardIsEnglish ? 'Create deal + task for each' : 'Crea deal + tarea para cada uno'}</li>
+                      <li>{dashboardIsEnglish ? 'Leave a timeline note in each contact' : 'Deja una nota de timeline en cada contacto'}</li>
+                    </ol>
+                  </section>
+                </div>
+              </DialogContent>
+            </Dialog>
 
             {crmView === 'contacts' ? (<>
             <Card>
