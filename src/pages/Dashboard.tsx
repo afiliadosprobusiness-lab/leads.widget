@@ -861,6 +861,7 @@ export default function Dashboard() {
   const [crmContactTimeline, setCrmContactTimeline] = useState<CrmTimelineEvent[]>([]);
   const [crmTimelineFilter, setCrmTimelineFilter] = useState<CrmTimelineFilter>('all');
   const [crmCreatingDealContactId, setCrmCreatingDealContactId] = useState('');
+  const [crmOpeningDetailContactId, setCrmOpeningDetailContactId] = useState('');
   const [crmTaskDraftByEntity, setCrmTaskDraftByEntity] = useState<Record<string, { title: string; due_at: string; priority: 'low' | 'med' | 'high' }>>({});
   const [crmNoteDraft, setCrmNoteDraft] = useState('');
   const [crmContactDetailLoading, setCrmContactDetailLoading] = useState(false);
@@ -872,6 +873,7 @@ export default function Dashboard() {
     notes: '',
   });
   const crmImportInputRef = useRef<HTMLInputElement | null>(null);
+  const crmContactDetailRef = useRef<HTMLDivElement | null>(null);
   const [analytics, setAnalytics] = useState({ views: 0, interactions: 0, viewsToday: 0 });
   const [payments, setPayments] = useState<any[]>([]);
   const [blockedIps, setBlockedIps] = useState<any[]>([]);
@@ -3412,6 +3414,15 @@ export default function Dashboard() {
     return 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-300';
   };
 
+  const buildCrmApiUrl = (resource: 'contacts-merge' | 'deals' | 'tasks' | 'timeline', query?: Record<string, string | number | null | undefined>) => {
+    const params = new URLSearchParams({ resource });
+    Object.entries(query || {}).forEach(([key, value]) => {
+      if (value === null || value === undefined || String(value).length === 0) return;
+      params.set(key, String(value));
+    });
+    return `/api/crm?${params.toString()}`;
+  };
+
   const getCrmAuthHeaders = async () => {
     if (!user) throw new Error('Unauthorized');
     const token = await user.getIdToken();
@@ -3467,7 +3478,7 @@ export default function Dashboard() {
     seed = '',
   ): Promise<{ action: string; contact: CrmContact | null }> => {
     const idempotencyKey = buildCrmMergeIdempotencyKey(incomingContact, reason, seed);
-    const payload = await callCrmApi('/api/crm/contacts-merge', {
+    const payload = await callCrmApi(buildCrmApiUrl('contacts-merge'), {
       method: 'POST',
       body: JSON.stringify({
         reason,
@@ -3504,8 +3515,10 @@ export default function Dashboard() {
     if (!user?.uid) return;
     setCrmDealsLoading(true);
     try {
-      const querySuffix = contactId ? `?contactId=${encodeURIComponent(contactId)}` : '?pipeline=1';
-      const payload = await callCrmApi(`/api/crm/deals${querySuffix}`, { method: 'GET' });
+      const payload = await callCrmApi(
+        buildCrmApiUrl('deals', contactId ? { contactId } : { pipeline: 1 }),
+        { method: 'GET' },
+      );
       const deals = Array.isArray(payload?.deals) ? payload.deals as CrmDeal[] : [];
       if (contactId) {
         setCrmContactDeals(deals);
@@ -3527,11 +3540,14 @@ export default function Dashboard() {
     if (!user?.uid) return;
     setCrmTasksLoading(true);
     try {
-      const queryParams = new URLSearchParams();
-      queryParams.set('window', windowFilter);
-      if (target?.contactId) queryParams.set('contactId', target.contactId);
-      if (target?.dealId) queryParams.set('dealId', target.dealId);
-      const payload = await callCrmApi(`/api/crm/tasks?${queryParams.toString()}`, { method: 'GET' });
+      const payload = await callCrmApi(
+        buildCrmApiUrl('tasks', {
+          window: windowFilter,
+          contactId: target?.contactId,
+          dealId: target?.dealId,
+        }),
+        { method: 'GET' },
+      );
       const tasks = Array.isArray(payload?.tasks) ? payload.tasks as CrmTask[] : [];
       if (target?.forContactDetail) {
         setCrmContactTasks(tasks);
@@ -3552,7 +3568,7 @@ export default function Dashboard() {
   const fetchCrmTimeline = async (contactId: string, filter: CrmTimelineFilter) => {
     if (!contactId) return;
     const payload = await callCrmApi(
-      `/api/crm/timeline?contactId=${encodeURIComponent(contactId)}&filter=${encodeURIComponent(filter)}&limit=200`,
+      buildCrmApiUrl('timeline', { contactId, filter, limit: 200 }),
       { method: 'GET' },
     );
     const events = Array.isArray(payload?.events) ? payload.events as CrmTimelineEvent[] : [];
@@ -3561,8 +3577,17 @@ export default function Dashboard() {
 
   const openCrmContactDetail = async (contactId: string) => {
     if (!contactId) return;
+    setCrmOpeningDetailContactId(contactId);
     setCrmSelectedContactId(contactId);
     setCrmDetailTab('deals');
+    if (typeof window !== 'undefined') {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          crmContactDetailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          crmContactDetailRef.current?.focus();
+        });
+      });
+    }
     setCrmContactDetailLoading(true);
     try {
       await Promise.all([
@@ -3578,6 +3603,7 @@ export default function Dashboard() {
       });
     } finally {
       setCrmContactDetailLoading(false);
+      setCrmOpeningDetailContactId('');
     }
   };
 
@@ -3585,7 +3611,7 @@ export default function Dashboard() {
     if (!contact?.id) return;
     setCrmCreatingDealContactId(contact.id);
     try {
-      const payload = await callCrmApi('/api/crm/deals', {
+      const payload = await callCrmApi(buildCrmApiUrl('deals'), {
         method: 'POST',
         body: JSON.stringify({
           contact_id: contact.id,
@@ -3620,7 +3646,7 @@ export default function Dashboard() {
   const handleMoveDealStage = async (deal: CrmDeal, nextStage: CrmStage) => {
     if (!deal?.id || deal.stage === nextStage) return;
     try {
-      const payload = await callCrmApi('/api/crm/deals', {
+      const payload = await callCrmApi(buildCrmApiUrl('deals'), {
         method: 'PATCH',
         body: JSON.stringify({
           id: deal.id,
@@ -3657,9 +3683,18 @@ export default function Dashboard() {
 
   const handleCreateTask = async (entityType: CrmEntityType, entityId: string, draft: { title: string; due_at: string; priority: 'low' | 'med' | 'high' }) => {
     const title = String(draft.title || '').trim();
-    if (!title) return;
+    if (!title) {
+      toast({
+        title: dashboardIsEnglish ? 'Task title required' : 'Titulo de tarea requerido',
+        description: dashboardIsEnglish
+          ? 'Add a title before creating the task.'
+          : 'Escribe un titulo antes de crear la tarea.',
+        variant: 'destructive',
+      });
+      return;
+    }
     try {
-      const payload = await callCrmApi('/api/crm/tasks', {
+      const payload = await callCrmApi(buildCrmApiUrl('tasks'), {
         method: 'POST',
         body: JSON.stringify({
           entity_type: entityType,
@@ -3681,6 +3716,12 @@ export default function Dashboard() {
         ...prev,
         [`${entityType}:${entityId}`]: { title: '', due_at: '', priority: 'med' },
       }));
+      toast({
+        title: dashboardIsEnglish ? 'Task created' : 'Tarea creada',
+        description: dashboardIsEnglish
+          ? 'Follow-up saved successfully.'
+          : 'Seguimiento guardado correctamente.',
+      });
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -3692,7 +3733,7 @@ export default function Dashboard() {
 
   const handleUpdateTaskStatus = async (task: CrmTask, status: 'open' | 'done' | 'overdue') => {
     try {
-      const payload = await callCrmApi('/api/crm/tasks', {
+      const payload = await callCrmApi(buildCrmApiUrl('tasks'), {
         method: 'PATCH',
         body: JSON.stringify({
           id: task.id,
@@ -3719,7 +3760,7 @@ export default function Dashboard() {
     const note = crmNoteDraft.trim();
     if (!crmSelectedContactId || !note) return;
     try {
-      await callCrmApi('/api/crm/timeline', {
+      await callCrmApi(buildCrmApiUrl('timeline'), {
         method: 'POST',
         body: JSON.stringify({
           entity_type: 'contact',
@@ -4146,7 +4187,7 @@ export default function Dashboard() {
       );
 
       if (previous && previous.stage !== stage) {
-        await callCrmApi('/api/crm/timeline', {
+        await callCrmApi(buildCrmApiUrl('timeline'), {
           method: 'POST',
           body: JSON.stringify({
             entity_type: 'contact',
@@ -6723,9 +6764,12 @@ export default function Dashboard() {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => void openCrmContactDetail(contact.id)}
+                                disabled={crmOpeningDetailContactId === contact.id}
                                 className="w-full"
                               >
-                                <NotebookPen className="mr-2 h-3.5 w-3.5" />
+                                {crmOpeningDetailContactId === contact.id
+                                  ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                                  : <NotebookPen className="mr-2 h-3.5 w-3.5" />}
                                 {dashboardIsEnglish ? 'Open detail' : 'Abrir detalle'}
                               </Button>
                               <Button
@@ -6751,7 +6795,7 @@ export default function Dashboard() {
               </CardContent>
             </Card>
             {crmSelectedContact ? (
-              <Card>
+              <Card ref={crmContactDetailRef} tabIndex={-1}>
                 <CardHeader>
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
@@ -6914,7 +6958,11 @@ export default function Dashboard() {
                                   <SelectItem value="high">{dashboardIsEnglish ? 'High' : 'Alta'}</SelectItem>
                                 </SelectContent>
                               </Select>
-                              <Button type="button" onClick={() => void handleCreateTask('contact', crmSelectedContact.id, draft)}>
+                              <Button
+                                type="button"
+                                onClick={() => void handleCreateTask('contact', crmSelectedContact.id, draft)}
+                                disabled={!draft.title.trim()}
+                              >
                                 <ListTodo className="mr-2 h-4 w-4" />
                                 {dashboardIsEnglish ? 'Create' : 'Crear'}
                               </Button>

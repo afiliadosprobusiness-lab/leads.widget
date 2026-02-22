@@ -39,6 +39,8 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
   - Permite crear contactos manualmente (`crm_contacts`) desde dashboard.
   - El tab CRM opera en modo simple con 3 vistas: `Contactos`, `Pipeline deals`, `Mis tareas`.
   - Incluye `Contact detail` con tabs `Deals`, `Timeline`, `Tasks` para seguimiento sin cambiar de modulo.
+  - Accion `Abrir detalle` hace foco/scroll automatico al panel de detalle para feedback inmediato en listas largas.
+  - `Crear tarea` exige titulo y muestra feedback visible (error si falta titulo, confirmacion al crear) para evitar clics silenciosos.
   - `Listado de contactos` incorpora exportacion CSV de toda la base CRM (contactos totales).
   - Incluye boton `Descargar plantilla CSV` para estandarizar headers y minimizar incompatibilidades en importacion.
   - Importacion CSV ahora usa vista previa obligatoria (filas listas/omitidas + motivo) y requiere confirmacion explicita antes de guardar en Firestore.
@@ -146,6 +148,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - `vercel.json` prioriza `filesystem` para que funciones locales `api/*.js` (ej. `api/chat.js`) se ejecuten antes del fallback `/api/*` al backend externo.
 - `vercel.json` agrega rewrite interno `/api/crm/:resource` -> `/api/crm?resource=:resource` para concentrar CRM v2 en una sola Serverless Function y mantenerse dentro del limite Hobby de Vercel.
 - CRM v2 se atiende desde funcion local `api/crm.js` (dispatcher por `resource`) para `contacts-merge`, `deals`, `tasks` y `timeline`, manteniendo intacto el backend externo.
+- Guia operativa CRM disponible en `docs/CRM_V2_GUIDE.md`.
 - Firestore rules ampliadas para colecciones partner, manteniendo mutacion directa restringida a superadmin en cliente web.
 - Firestore rules incluyen coleccion `crm_contacts` (lectura/escritura solo owner `client_id` o superadmin) para el nuevo tab CRM.
 - Superadmin incorpora fallback de compatibilidad a Firestore para modulo de agencias cuando el backend aun no expone `/api/admin/partners*` en el entorno desplegado.
