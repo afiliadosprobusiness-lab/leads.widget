@@ -57,7 +57,15 @@ service cloud.firestore {
       allow create: if true; // Public for widget script
       allow update, delete: if request.auth != null && (isLeadOwner(resource.data) || isSuperAdmin());
     }
-    
+
+    // CRM Contacts
+    match /crm_contacts/{contactId} {
+      allow read: if request.auth != null && (isLeadOwner(resource.data) || isSuperAdmin());
+      allow create: if request.auth != null
+        && (request.resource.data.client_id == request.auth.uid || isSuperAdmin());
+      allow update, delete: if request.auth != null && (isLeadOwner(resource.data) || isSuperAdmin());
+    }
+
     // Blocked IPs
     match /blocked_ips/{ipId} {
       allow read: if true; // Widget needs to check this

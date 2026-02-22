@@ -13,6 +13,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 
 ## Arquitectura (decisiones clave)
 - Dashboard cliente (`/app`) se mantiene compatible; modulo de afiliados fue deprecado en UI (data historica se conserva en Firestore).
+- Dashboard cliente incorpora nuevo tab `CRM` para gestion comercial operativa: lista de contactos, pipeline por etapas y filtros.
 - Nuevo portal partner separado:
   - Landing: `/partners`
   - Login partner: `/login?portal=partner`
@@ -33,6 +34,13 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Billing cliente:
   - Verificacion PayPal ahora envia Authorization Bearer token al backend.
   - Pagos manuales Yape/Plin guardan `plan_type` y `partner_id` cuando aplica.
+- CRM cliente:
+  - Permite crear contactos manualmente (`crm_contacts`) desde dashboard.
+  - Incluye boton `Descargar plantilla CSV` para estandarizar headers y minimizar incompatibilidades en importacion.
+  - Importacion CSV ahora usa vista previa obligatoria (filas listas/omitidas + motivo) y requiere confirmacion explicita antes de guardar en Firestore.
+  - Permite importar base de clientes por archivo CSV desde el tab CRM con mapeo flexible de columnas (`name/nombre`, `phone/telefono`, `email`, `interest/interes`, `stage/etapa`, `notes/notas`, `source/origen`).
+  - Permite sincronizar leads existentes (`leads`) hacia CRM con deduplicacion por `source_lead_id` y huella `nombre+telefono+email`.
+  - Pipeline CRM maneja etapas `new`, `contacted`, `qualified`, `won`, `lost` con actualizacion en tiempo real en Firestore.
 
 ## Objetivo activo Lead Chat + IACloser (2026-02-19)
 - Nuevo objetivo comercial del canal chat:
@@ -129,6 +137,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Front usa rutas `/api/*` (rewrite a backend Cloud Run).
 - `vercel.json` prioriza `filesystem` para que funciones locales `api/*.js` (ej. `api/chat.js`) se ejecuten antes del fallback `/api/*` al backend externo.
 - Firestore rules ampliadas para colecciones partner, manteniendo mutacion directa restringida a superadmin en cliente web.
+- Firestore rules incluyen coleccion `crm_contacts` (lectura/escritura solo owner `client_id` o superadmin) para el nuevo tab CRM.
 - Superadmin incorpora fallback de compatibilidad a Firestore para modulo de agencias cuando el backend aun no expone `/api/admin/partners*` en el entorno desplegado.
 - Eliminacion de usuario desde superadmin usa borrado completo (Firebase Auth + datos principales), no solo soft delete.
 - En Superadmin/Agencias, la accion de payout es contextual: muestra `Aprobar payout` o `Marcar pagado` segun existan payouts pendientes.

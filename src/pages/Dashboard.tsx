@@ -15,7 +15,8 @@ import {
   deleteDoc,
   orderBy,
   addDoc,
-  onSnapshot
+  onSnapshot,
+  writeBatch
 } from 'firebase/firestore';
 import {
   EmailAuthProvider,
@@ -84,6 +85,45 @@ interface Lead {
   status: string;
 }
 
+type CrmStage = 'new' | 'contacted' | 'qualified' | 'won' | 'lost';
+type CrmStageFilter = 'all' | CrmStage;
+
+interface CrmContact {
+  id: string;
+  client_id: string;
+  name: string;
+  phone: string;
+  email: string;
+  interest: string;
+  stage: CrmStage;
+  source: string;
+  source_lead_id: string;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+  last_activity_at: string;
+}
+
+interface CrmImportPreviewRow {
+  rowNumber: number;
+  name: string;
+  phone: string;
+  email: string;
+  interest: string;
+  stage: CrmStage;
+  source: string;
+  status: 'ready' | 'skip';
+  reason: string;
+}
+
+interface CrmImportPreviewState {
+  fileName: string;
+  rows: CrmImportPreviewRow[];
+  pendingContacts: Array<Omit<CrmContact, 'id'>>;
+  readyCount: number;
+  skippedCount: number;
+}
+
 interface WidgetConfig {
   id: string;
   user_id: string;
@@ -136,6 +176,163 @@ const STATIC_ICONS = [
   { id: 'restaurant', label: 'dashboard.static_icons.restaurant', icon: Utensils, value: 'utensils' },
   { id: 'robot', label: 'dashboard.static_icons.robot', icon: Bot, value: 'bot' }
 ];
+
+const CRM_STAGES: CrmStage[] = ['new', 'contacted', 'qualified', 'won', 'lost'];
+
+const parseDateToMs = (value: unknown): number => {
+  if (!value) return 0;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  if (value instanceof Date) {
+    const ms = value.getTime();
+    return Number.isFinite(ms) ? ms : 0;
+  }
+  if (typeof value === 'string') {
+    const ms = new Date(value).getTime();
+    return Number.isFinite(ms) ? ms : 0;
+  }
+  if (typeof value === 'object' && value !== null && 'seconds' in value) {
+    const seconds = Number((value as { seconds?: unknown }).seconds);
+    return Number.isFinite(seconds) ? seconds * 1000 : 0;
+  }
+  return 0;
+};
+
+const toIsoDateOrNow = (value: unknown): string => {
+  const ms = parseDateToMs(value);
+  return ms > 0 ? new Date(ms).toISOString() : new Date().toISOString();
+};
+
+const sortCrmContacts = (items: CrmContact[]) => {
+  return [...items].sort((a, b) => {
+    const left = parseDateToMs(a.updated_at || a.created_at);
+    const right = parseDateToMs(b.updated_at || b.created_at);
+    return right - left;
+  });
+};
+
+const normalizePhoneForCrm = (value: string) => {
+  const cleaned = String(value || '').trim().replace(/[^\d+]/g, '');
+  return cleaned.replace(/^00/, '+');
+};
+
+const normalizeTextForFingerprint = (value: string) => {
+  return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+};
+
+const buildCrmFingerprint = (input: { name: string; phone: string; email?: string }) => {
+  const name = normalizeTextForFingerprint(input.name);
+  const phone = normalizePhoneForCrm(input.phone);
+  const email = normalizeTextForFingerprint(input.email || '');
+  return `${name}|${phone}|${email}`;
+};
+
+const mapLeadToCrmContact = (lead: Lead | any, clientId: string): Omit<CrmContact, 'id'> => {
+  const leadCreatedAt = toIsoDateOrNow(lead?.created_at);
+  const phone = String(lead?.phone || '').trim();
+  return {
+    client_id: clientId,
+    name: String(lead?.name || 'Sin nombre').trim() || 'Sin nombre',
+    phone: normalizePhoneForCrm(phone) || phone,
+    email: '',
+    interest: String(lead?.interest || '').trim(),
+    stage: 'new',
+    source: String(lead?.source || 'lead_widget').trim() || 'lead_widget',
+    source_lead_id: String(lead?.id || '').trim(),
+    notes: '',
+    created_at: leadCreatedAt,
+    updated_at: leadCreatedAt,
+    last_activity_at: leadCreatedAt,
+  };
+};
+
+const normalizeCsvHeaderKey = (value: string) => {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9_]/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '');
+};
+
+const detectCsvDelimiter = (headerLine: string) => {
+  const delimiters = [',', ';', '\t', '|'];
+  let best = ',';
+  let bestScore = -1;
+  delimiters.forEach((delimiter) => {
+    const score = headerLine.split(delimiter).length;
+    if (score > bestScore) {
+      best = delimiter;
+      bestScore = score;
+    }
+  });
+  return best;
+};
+
+const parseCsvLine = (line: string, delimiter: string) => {
+  const values: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    if (char === '"') {
+      const next = line[i + 1];
+      if (inQuotes && next === '"') {
+        current += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+    if (char === delimiter && !inQuotes) {
+      values.push(current.trim());
+      current = '';
+      continue;
+    }
+    current += char;
+  }
+  values.push(current.trim());
+  return values.map((entry) => entry.replace(/\r/g, '').trim());
+};
+
+const parseCsvText = (raw: string) => {
+  const clean = String(raw || '').replace(/^\uFEFF/, '').trim();
+  if (!clean) return [] as Record<string, string>[];
+  const lines = clean.split(/\n+/).map((line) => line.trim()).filter(Boolean);
+  if (lines.length < 2) return [] as Record<string, string>[];
+  const delimiter = detectCsvDelimiter(lines[0]);
+  const headers = parseCsvLine(lines[0], delimiter).map(normalizeCsvHeaderKey);
+  return lines.slice(1).map((line) => {
+    const values = parseCsvLine(line, delimiter);
+    return headers.reduce((acc, header, index) => {
+      if (!header) return acc;
+      acc[header] = values[index] || '';
+      return acc;
+    }, {} as Record<string, string>);
+  });
+};
+
+const getCsvValue = (row: Record<string, string>, keys: string[]) => {
+  for (const key of keys) {
+    const normalized = normalizeCsvHeaderKey(key);
+    const value = String(row[normalized] || '').trim();
+    if (value) return value;
+  }
+  return '';
+};
+
+const normalizeCrmStageFromText = (value: string): CrmStage => {
+  const normalized = normalizeTextForFingerprint(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  if (['contactado', 'contacted', 'seguimiento'].includes(normalized)) return 'contacted';
+  if (['calificado', 'qualified'].includes(normalized)) return 'qualified';
+  if (['ganado', 'won', 'cerrado', 'closed'].includes(normalized)) return 'won';
+  if (['perdido', 'lost'].includes(normalized)) return 'lost';
+  return 'new';
+};
 
 interface Testimonial {
   id: string;
@@ -594,6 +791,23 @@ export default function Dashboard() {
   const [widgetConfig, setWidgetConfig] = useState<WidgetConfig | null>(null);
   const [activeTab, setActiveTab] = useState("config");
   const [leads, setLeads] = useState<any[]>([]);
+  const [crmContacts, setCrmContacts] = useState<CrmContact[]>([]);
+  const [crmSearch, setCrmSearch] = useState('');
+  const [crmStageFilter, setCrmStageFilter] = useState<CrmStageFilter>('all');
+  const [crmCreating, setCrmCreating] = useState(false);
+  const [crmSyncing, setCrmSyncing] = useState(false);
+  const [crmImporting, setCrmImporting] = useState(false);
+  const [crmImportApplying, setCrmImportApplying] = useState(false);
+  const [crmImportPreview, setCrmImportPreview] = useState<CrmImportPreviewState | null>(null);
+  const [crmUpdatingId, setCrmUpdatingId] = useState('');
+  const [crmDraft, setCrmDraft] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    interest: '',
+    notes: '',
+  });
+  const crmImportInputRef = useRef<HTMLInputElement | null>(null);
   const [analytics, setAnalytics] = useState({ views: 0, interactions: 0, viewsToday: 0 });
   const [payments, setPayments] = useState<any[]>([]);
   const [blockedIps, setBlockedIps] = useState<any[]>([]);
@@ -710,9 +924,61 @@ export default function Dashboard() {
 
   const dashboardIsEnglish = String(i18n.language || '').toLowerCase().startsWith('en');
   const dashboardLocale = dashboardIsEnglish ? 'en-US' : 'es-PE';
+  const crmStageLabels: Record<CrmStage, string> = dashboardIsEnglish
+    ? {
+      new: 'New',
+      contacted: 'Contacted',
+      qualified: 'Qualified',
+      won: 'Won',
+      lost: 'Lost',
+    }
+    : {
+      new: 'Nuevo',
+      contacted: 'Contactado',
+      qualified: 'Calificado',
+      won: 'Ganado',
+      lost: 'Perdido',
+    };
   const isTrialPlan = String(profile?.subscription_status || 'trial').toLowerCase() !== 'active';
   const plusCurrentChargePen = isTrialPlan ? PLAN_PLUS_FIRST_PAYMENT_PEN : PLAN_PLUS_MONTHLY_PEN;
   const plusCurrentChargeUsd = (plusCurrentChargePen / PEN_TO_USD_RATE).toFixed(2);
+  const crmMetrics = useMemo(() => {
+    return crmContacts.reduce(
+      (acc, contact) => {
+        acc.total += 1;
+        acc[contact.stage] += 1;
+        return acc;
+      },
+      {
+        total: 0,
+        new: 0,
+        contacted: 0,
+        qualified: 0,
+        won: 0,
+        lost: 0,
+      } as Record<CrmStage | 'total', number>,
+    );
+  }, [crmContacts]);
+  const filteredCrmContacts = useMemo(() => {
+    const queryText = normalizeTextForFingerprint(crmSearch);
+    return sortCrmContacts(
+      crmContacts.filter((contact) => {
+        if (crmStageFilter !== 'all' && contact.stage !== crmStageFilter) return false;
+        if (!queryText) return true;
+        const haystack = [
+          contact.name,
+          contact.phone,
+          contact.email,
+          contact.interest,
+          contact.notes,
+          contact.source,
+        ]
+          .map((entry) => normalizeTextForFingerprint(entry))
+          .join(' ');
+        return haystack.includes(queryText);
+      }),
+    );
+  }, [crmContacts, crmSearch, crmStageFilter]);
   const filteredAiChatLogs = useMemo(() => {
     if (aiChatStatusFilter === 'all') return aiChatLogs;
     return aiChatLogs.filter((item) => item.status === aiChatStatusFilter);
@@ -2500,6 +2766,50 @@ export default function Dashboard() {
 
       setLeads(leadsData);
 
+      try {
+        const qCrmContacts = query(collection(db, 'crm_contacts'), where('client_id', '==', userId));
+        const crmSnap = await getDocs(qCrmContacts);
+        let crmData = crmSnap.docs.map((contactDoc) => {
+          const data: any = contactDoc.data() || {};
+          const rawStage = String(data.stage || '').trim().toLowerCase();
+          const stage: CrmStage = CRM_STAGES.includes(rawStage as CrmStage) ? (rawStage as CrmStage) : 'new';
+          return {
+            id: contactDoc.id,
+            client_id: String(data.client_id || userId),
+            name: String(data.name || '').trim() || 'Sin nombre',
+            phone: String(data.phone || '').trim(),
+            email: String(data.email || '').trim(),
+            interest: String(data.interest || '').trim(),
+            stage,
+            source: String(data.source || 'manual').trim() || 'manual',
+            source_lead_id: String(data.source_lead_id || '').trim(),
+            notes: String(data.notes || '').trim(),
+            created_at: toIsoDateOrNow(data.created_at),
+            updated_at: toIsoDateOrNow(data.updated_at || data.created_at),
+            last_activity_at: toIsoDateOrNow(data.last_activity_at || data.updated_at || data.created_at),
+          } as CrmContact;
+        });
+
+        // First-time bootstrap: copy existing leads into CRM for immediate usability.
+        if (crmData.length === 0 && leadsData.length > 0) {
+          const firstBatch = leadsData.slice(0, 200).map((lead) => mapLeadToCrmContact(lead, userId));
+          const batch = writeBatch(db);
+          const inserted: CrmContact[] = [];
+          firstBatch.forEach((contact) => {
+            const contactRef = doc(collection(db, 'crm_contacts'));
+            batch.set(contactRef, contact);
+            inserted.push({ id: contactRef.id, ...contact });
+          });
+          await batch.commit();
+          crmData = inserted;
+        }
+
+        setCrmContacts(sortCrmContacts(crmData));
+      } catch (crmError) {
+        console.error('Non-critical: Error loading CRM contacts:', crmError);
+        setCrmContacts([]);
+      }
+
       // Load payments (remove orderBy)
       const qPayments = query(collection(db, 'payments'), where('user_id', '==', userId));
       const paymentSnap = await getDocs(qPayments);
@@ -2946,6 +3256,448 @@ export default function Dashboard() {
       title: t('dashboard.leads_export.toast_title'),
       description: t('dashboard.leads_export.toast_desc'),
     });
+  };
+
+  const formatDateLabel = (value: unknown) => {
+    const ms = parseDateToMs(value);
+    if (!ms) return '-';
+    return new Date(ms).toLocaleString(dashboardLocale);
+  };
+
+  const getCrmStageClass = (stage: CrmStage) => {
+    if (stage === 'won') return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-900/30 dark:text-emerald-300';
+    if (stage === 'lost') return 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/30 dark:text-rose-300';
+    if (stage === 'qualified') return 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/60 dark:bg-blue-900/30 dark:text-blue-300';
+    if (stage === 'contacted') return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-900/30 dark:text-amber-300';
+    return 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-300';
+  };
+
+  const handleCreateCrmContact = async () => {
+    if (!user?.uid) return;
+    const name = crmDraft.name.trim();
+    const phone = normalizePhoneForCrm(crmDraft.phone);
+    const email = crmDraft.email.trim().toLowerCase();
+    const interest = crmDraft.interest.trim();
+    const notes = crmDraft.notes.trim();
+
+    if (!name) {
+      toast({
+        title: dashboardIsEnglish ? 'Name required' : 'Nombre requerido',
+        description: dashboardIsEnglish ? 'Add a contact name first.' : 'Ingresa el nombre del contacto.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!phone && !email) {
+      toast({
+        title: dashboardIsEnglish ? 'Contact data required' : 'Dato de contacto requerido',
+        description: dashboardIsEnglish ? 'Use phone or email.' : 'Ingresa telefono o email.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const nowIso = new Date().toISOString();
+    const payload: Omit<CrmContact, 'id'> = {
+      client_id: user.uid,
+      name,
+      phone: phone || crmDraft.phone.trim(),
+      email,
+      interest,
+      stage: 'new',
+      source: 'manual',
+      source_lead_id: '',
+      notes,
+      created_at: nowIso,
+      updated_at: nowIso,
+      last_activity_at: nowIso,
+    };
+
+    setCrmCreating(true);
+    try {
+      const createdRef = await addDoc(collection(db, 'crm_contacts'), payload);
+      setCrmContacts((prev) => sortCrmContacts([{ id: createdRef.id, ...payload }, ...prev]));
+      setCrmDraft({
+        name: '',
+        phone: '',
+        email: '',
+        interest: '',
+        notes: '',
+      });
+      toast({
+        title: dashboardIsEnglish ? 'Contact created' : 'Contacto creado',
+        description: dashboardIsEnglish ? 'Now visible in your CRM pipeline.' : 'Ya aparece en tu pipeline CRM.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: String(error?.message || 'No se pudo crear el contacto.'),
+        variant: 'destructive',
+      });
+    } finally {
+      setCrmCreating(false);
+    }
+  };
+
+  const handleSyncLeadsToCrm = async () => {
+    if (!user?.uid) return;
+
+    if (leads.length === 0) {
+      toast({
+        title: dashboardIsEnglish ? 'No leads to sync' : 'No hay leads para sincronizar',
+        description: dashboardIsEnglish ? 'Capture some leads first.' : 'Primero captura algunos leads.',
+      });
+      return;
+    }
+
+    const existingLeadIds = new Set(
+      crmContacts
+        .map((contact) => String(contact.source_lead_id || '').trim())
+        .filter(Boolean),
+    );
+    const existingFingerprints = new Set(
+      crmContacts.map((contact) => buildCrmFingerprint({
+        name: contact.name,
+        phone: contact.phone,
+        email: contact.email,
+      })),
+    );
+
+    const pendingLeadContacts = leads
+      .map((lead) => mapLeadToCrmContact(lead, user.uid))
+      .filter((contact) => {
+        if (contact.source_lead_id && existingLeadIds.has(contact.source_lead_id)) return false;
+        const fingerprint = buildCrmFingerprint({
+          name: contact.name,
+          phone: contact.phone,
+          email: contact.email,
+        });
+        return !existingFingerprints.has(fingerprint);
+      });
+
+    if (pendingLeadContacts.length === 0) {
+      toast({
+        title: dashboardIsEnglish ? 'CRM already synced' : 'CRM ya sincronizado',
+        description: dashboardIsEnglish ? 'No new leads found.' : 'No hay leads nuevos por pasar al CRM.',
+      });
+      return;
+    }
+
+    const MAX_BATCH = 200;
+    const toInsert = pendingLeadContacts.slice(0, MAX_BATCH);
+    setCrmSyncing(true);
+    try {
+      const batch = writeBatch(db);
+      const createdContacts: CrmContact[] = [];
+      toInsert.forEach((contact) => {
+        const contactRef = doc(collection(db, 'crm_contacts'));
+        batch.set(contactRef, contact);
+        createdContacts.push({ id: contactRef.id, ...contact });
+      });
+      await batch.commit();
+      setCrmContacts((prev) => sortCrmContacts([...createdContacts, ...prev]));
+      toast({
+        title: dashboardIsEnglish ? 'CRM synced' : 'CRM sincronizado',
+        description: dashboardIsEnglish
+          ? `${createdContacts.length} lead(s) moved to CRM.`
+          : `${createdContacts.length} lead(s) pasaron al CRM.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: String(error?.message || 'No se pudieron sincronizar los leads al CRM.'),
+        variant: 'destructive',
+      });
+    } finally {
+      setCrmSyncing(false);
+    }
+  };
+
+  const handleDownloadCrmTemplateCsv = () => {
+    const headers = ['name', 'phone', 'email', 'interest', 'stage', 'notes', 'source'];
+    const sampleRows = [
+      ['Juan Perez', '+51999999999', 'juan@empresa.com', 'Demo de servicio', 'new', 'Contacto de feria comercial', 'csv_import'],
+      ['Maria Lopez', '+51988888888', 'maria@empresa.com', 'Plan PLUS', 'qualified', 'Pidio llamada de cierre', 'campaign_meta_ads'],
+    ];
+    const csv = [headers.join(','), ...sampleRows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))].join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = 'crm_template_lead_widget.csv';
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+    toast({
+      title: dashboardIsEnglish ? 'Template downloaded' : 'Plantilla descargada',
+      description: dashboardIsEnglish
+        ? 'Fill the rows and import the CSV in CRM.'
+        : 'Completa las filas y sube el CSV en CRM.',
+    });
+  };
+
+  const openCrmImportPicker = () => {
+    setCrmImportPreview(null);
+    crmImportInputRef.current?.click();
+  };
+
+  const handleImportCrmFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null;
+    event.target.value = '';
+    if (!file || !user?.uid) return;
+
+    const fileName = String(file.name || '');
+    if (/\.(xlsx|xls)$/i.test(fileName)) {
+      toast({
+        title: dashboardIsEnglish ? 'XLSX not enabled yet' : 'XLSX aun no habilitado',
+        description: dashboardIsEnglish
+          ? 'Export your file as CSV and import again.'
+          : 'Exporta tu archivo a CSV e importalo nuevamente.',
+      });
+      return;
+    }
+
+    if (!/\.(csv|txt)$/i.test(fileName)) {
+      toast({
+        title: dashboardIsEnglish ? 'Unsupported file' : 'Archivo no soportado',
+        description: dashboardIsEnglish ? 'Use a CSV file.' : 'Usa un archivo CSV.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setCrmImporting(true);
+    try {
+      const raw = await file.text();
+      const rows = parseCsvText(raw);
+      if (rows.length === 0) {
+        toast({
+          title: dashboardIsEnglish ? 'Empty file' : 'Archivo vacio',
+          description: dashboardIsEnglish
+            ? 'No valid rows were found in CSV.'
+            : 'No se encontraron filas validas en el CSV.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const existingLeadIds = new Set(
+        crmContacts
+          .map((contact) => String(contact.source_lead_id || '').trim())
+          .filter(Boolean),
+      );
+      const existingFingerprints = new Set(
+        crmContacts.map((contact) => buildCrmFingerprint({
+          name: contact.name,
+          phone: contact.phone,
+          email: contact.email,
+        })),
+      );
+
+      const nowIso = new Date().toISOString();
+      const pendingContacts: Array<Omit<CrmContact, 'id'>> = [];
+      const previewRows: CrmImportPreviewRow[] = [];
+
+      rows.forEach((row, index) => {
+        const rowNumber = index + 2;
+        const nameRaw = getCsvValue(row, ['name', 'nombre', 'full_name', 'contact', 'cliente']);
+        const phoneRaw = getCsvValue(row, ['phone', 'telefono', 'celular', 'mobile', 'whatsapp']);
+        const emailRaw = getCsvValue(row, ['email', 'correo', 'mail']);
+        const interest = getCsvValue(row, ['interest', 'interes', 'service', 'servicio', 'producto', 'message', 'mensaje']);
+        const notes = getCsvValue(row, ['notes', 'notas', 'observaciones', 'comment', 'comentario']);
+        const stageRaw = getCsvValue(row, ['stage', 'etapa', 'status', 'estado']);
+        const source = getCsvValue(row, ['source', 'origen']) || 'csv_import';
+        const sourceLeadId = getCsvValue(row, ['source_lead_id', 'lead_id']);
+
+        const phone = normalizePhoneForCrm(phoneRaw) || phoneRaw;
+        const email = emailRaw.trim().toLowerCase();
+        const name = nameRaw || phone || email || '';
+        const stage = normalizeCrmStageFromText(stageRaw);
+
+        const previewBase: Omit<CrmImportPreviewRow, 'status' | 'reason'> = {
+          rowNumber,
+          name: String(name).trim(),
+          phone: String(phone).trim(),
+          email: String(email).trim(),
+          interest: String(interest || '').trim(),
+          stage,
+          source: String(source || 'csv_import').trim(),
+        };
+
+        if (!name || (!phone && !email)) {
+          previewRows.push({
+            ...previewBase,
+            status: 'skip',
+            reason: dashboardIsEnglish ? 'Missing name and contact field' : 'Falta nombre y dato de contacto',
+          });
+          return;
+        }
+
+        if (sourceLeadId && existingLeadIds.has(sourceLeadId)) {
+          previewRows.push({
+            ...previewBase,
+            status: 'skip',
+            reason: dashboardIsEnglish ? 'Duplicate source_lead_id' : 'source_lead_id duplicado',
+          });
+          return;
+        }
+
+        const fingerprint = buildCrmFingerprint({ name, phone, email });
+        if (existingFingerprints.has(fingerprint)) {
+          previewRows.push({
+            ...previewBase,
+            status: 'skip',
+            reason: dashboardIsEnglish ? 'Duplicate contact' : 'Contacto duplicado',
+          });
+          return;
+        }
+
+        existingFingerprints.add(fingerprint);
+        if (sourceLeadId) existingLeadIds.add(sourceLeadId);
+
+        pendingContacts.push({
+          client_id: user.uid,
+          name: String(name).trim(),
+          phone: String(phone).trim(),
+          email: String(email).trim(),
+          interest: String(interest || '').trim(),
+          stage,
+          source: String(source || 'csv_import').trim(),
+          source_lead_id: String(sourceLeadId || '').trim(),
+          notes: String(notes || '').trim(),
+          created_at: nowIso,
+          updated_at: nowIso,
+          last_activity_at: nowIso,
+        });
+
+        previewRows.push({
+          ...previewBase,
+          status: 'ready',
+          reason: dashboardIsEnglish ? 'Ready to import' : 'Listo para importar',
+        });
+      });
+
+      const readyCount = pendingContacts.length;
+      const skippedCount = previewRows.length - readyCount;
+      setCrmImportPreview({
+        fileName,
+        rows: previewRows,
+        pendingContacts,
+        readyCount,
+        skippedCount,
+      });
+
+      if (readyCount === 0) {
+        toast({
+          title: dashboardIsEnglish ? 'No rows ready' : 'Sin filas listas',
+          description: dashboardIsEnglish
+            ? 'All rows were skipped. Check the preview table.'
+            : 'Todas las filas fueron omitidas. Revisa la tabla previa.',
+        });
+        return;
+      }
+
+      toast({
+        title: dashboardIsEnglish ? 'Preview ready' : 'Vista previa lista',
+        description: dashboardIsEnglish
+          ? 'Review rows and confirm import.'
+          : 'Revisa las filas y confirma la importacion.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: String(error?.message || 'No se pudo procesar el archivo CSV.'),
+        variant: 'destructive',
+      });
+    } finally {
+      setCrmImporting(false);
+    }
+  };
+
+  const handleCancelCrmImportPreview = () => {
+    setCrmImportPreview(null);
+  };
+
+  const handleConfirmCrmImport = async () => {
+    if (!crmImportPreview) return;
+    const pendingContacts = crmImportPreview.pendingContacts;
+    if (pendingContacts.length === 0) {
+      toast({
+        title: dashboardIsEnglish ? 'Nothing to import' : 'Nada para importar',
+        description: dashboardIsEnglish
+          ? 'All preview rows are marked as skipped.'
+          : 'Todas las filas de la vista previa estan omitidas.',
+      });
+      return;
+    }
+
+    setCrmImportApplying(true);
+    try {
+      const MAX_BATCH = 450;
+      const createdContacts: CrmContact[] = [];
+      for (let index = 0; index < pendingContacts.length; index += MAX_BATCH) {
+        const chunk = pendingContacts.slice(index, index + MAX_BATCH);
+        const batch = writeBatch(db);
+        chunk.forEach((contact) => {
+          const contactRef = doc(collection(db, 'crm_contacts'));
+          batch.set(contactRef, contact);
+          createdContacts.push({ id: contactRef.id, ...contact });
+        });
+        await batch.commit();
+      }
+      setCrmContacts((prev) => sortCrmContacts([...createdContacts, ...prev]));
+      setCrmImportPreview(null);
+      toast({
+        title: dashboardIsEnglish ? 'Import complete' : 'Importacion completada',
+        description: dashboardIsEnglish
+          ? `${createdContacts.length} contact(s) imported.`
+          : `${createdContacts.length} contacto(s) importados.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: String(error?.message || 'No se pudo guardar la importacion en CRM.'),
+        variant: 'destructive',
+      });
+    } finally {
+      setCrmImportApplying(false);
+    }
+  };
+
+  const handleUpdateCrmStage = async (contactId: string, stage: CrmStage) => {
+    const nowIso = new Date().toISOString();
+    setCrmUpdatingId(contactId);
+    try {
+      await updateDoc(doc(db, 'crm_contacts', contactId), {
+        stage,
+        updated_at: nowIso,
+        last_activity_at: nowIso,
+      });
+      setCrmContacts((prev) =>
+        sortCrmContacts(
+          prev.map((contact) =>
+            contact.id === contactId
+              ? {
+                ...contact,
+                stage,
+                updated_at: nowIso,
+                last_activity_at: nowIso,
+              }
+              : contact,
+          ),
+        ),
+      );
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: String(error?.message || 'No se pudo actualizar la etapa del contacto.'),
+        variant: 'destructive',
+      });
+    } finally {
+      setCrmUpdatingId('');
+    }
   };
 
   const unblockIp = async (id: string) => {
@@ -3418,7 +4170,7 @@ export default function Dashboard() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
           {/* Mobile Navigation (Segmented Control) */}
-          <div className="sm:hidden grid grid-cols-5 gap-1 mb-6 bg-background/50 backdrop-blur-sm p-1 rounded-2xl sticky top-[73px] z-40 border border-border/50 shadow-sm">
+          <div className="sm:hidden grid grid-cols-6 gap-1 mb-6 bg-background/50 backdrop-blur-sm p-1 rounded-2xl sticky top-[73px] z-40 border border-border/50 shadow-sm">
             {/* 1. Widget */}
             <button
               onClick={() => setActiveTab('config')}
@@ -3446,7 +4198,16 @@ export default function Dashboard() {
               <span className="text-[10px] leading-none">{t('dashboard.tabs.leads')}</span>
             </button>
 
-            {/* 4. Data */}
+            {/* 4. CRM */}
+            <button
+              onClick={() => setActiveTab('crm')}
+              className={`flex flex-col items-center justify-center gap-1 min-h-[56px] rounded-xl transition-all duration-300 active:scale-95 ${activeTab === 'crm' ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-muted-foreground hover:bg-muted/50'}`}
+            >
+              <Target className={`w-5 h-5 ${activeTab === 'crm' ? 'stroke-[2.5px]' : ''}`} />
+              <span className="text-[10px] leading-none">{t('dashboard.tabs.crm', { defaultValue: 'CRM' })}</span>
+            </button>
+
+            {/* 5. Data */}
             <button
               onClick={() => setActiveTab('analytics')}
               className={`flex flex-col items-center justify-center gap-1 min-h-[56px] rounded-xl transition-all duration-300 active:scale-95 ${activeTab === 'analytics' ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-muted-foreground hover:bg-muted/50'}`}
@@ -3455,7 +4216,7 @@ export default function Dashboard() {
               <span className="text-[10px] leading-none">{t('dashboard.tabs.data')}</span>
             </button>
 
-            {/* 5. More (Dropdown) */}
+            {/* 6. More (Dropdown) */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -3497,6 +4258,10 @@ export default function Dashboard() {
             <TabsTrigger value="leads" className="gap-2 flex-shrink-0 px-4">
               <Users className="w-4 h-4" />
               <span>{t('dashboard.leads')}</span>
+            </TabsTrigger>
+            <TabsTrigger value="crm" className="gap-2 flex-shrink-0 px-4">
+              <Target className="w-4 h-4" />
+              <span>{t('dashboard.tabs.crm', { defaultValue: 'CRM' })}</span>
             </TabsTrigger>
             <TabsTrigger value="analytics" className="gap-2 flex-shrink-0 px-4">
               <BarChart3 className="w-4 h-4" />
@@ -5104,6 +5869,360 @@ export default function Dashboard() {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* CRM Tab */}
+          <TabsContent value="crm" className="space-y-6">
+            <Card className="overflow-hidden border-primary/20">
+              <CardHeader className="border-b border-border/70 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent">
+                <CardTitle className="flex items-center gap-2">
+                  <Target className="h-5 w-5 text-primary" />
+                  {dashboardIsEnglish ? 'CRM Pipeline' : 'Pipeline CRM'}
+                </CardTitle>
+                <CardDescription>
+                  {dashboardIsEnglish
+                    ? 'Keep every lead organized, move stages, and follow up without losing opportunities.'
+                    : 'Organiza tus contactos, mueve etapas y da seguimiento sin perder oportunidades.'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="rounded-xl border border-slate-200/80 bg-white/80 p-3 dark:border-slate-800 dark:bg-slate-900/60">
+                  <p className="text-xs font-medium text-muted-foreground">{dashboardIsEnglish ? 'Total contacts' : 'Contactos totales'}</p>
+                  <p className="mt-1 text-2xl font-black">{crmMetrics.total}</p>
+                </div>
+                <div className="rounded-xl border border-blue-200/80 bg-blue-50/80 p-3 dark:border-blue-900/60 dark:bg-blue-900/20">
+                  <p className="text-xs font-medium text-blue-700 dark:text-blue-200">{dashboardIsEnglish ? 'In progress' : 'En gestion'}</p>
+                  <p className="mt-1 text-2xl font-black text-blue-700 dark:text-blue-200">
+                    {crmMetrics.new + crmMetrics.contacted + crmMetrics.qualified}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/80 p-3 dark:border-emerald-900/60 dark:bg-emerald-900/20">
+                  <p className="text-xs font-medium text-emerald-700 dark:text-emerald-200">{dashboardIsEnglish ? 'Won' : 'Ganados'}</p>
+                  <p className="mt-1 text-2xl font-black text-emerald-700 dark:text-emerald-200">{crmMetrics.won}</p>
+                </div>
+                <div className="rounded-xl border border-rose-200/80 bg-rose-50/80 p-3 dark:border-rose-900/60 dark:bg-rose-900/20">
+                  <p className="text-xs font-medium text-rose-700 dark:text-rose-200">{dashboardIsEnglish ? 'Lost' : 'Perdidos'}</p>
+                  <p className="mt-1 text-2xl font-black text-rose-700 dark:text-rose-200">{crmMetrics.lost}</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>{dashboardIsEnglish ? 'Create contact' : 'Crear contacto'}</CardTitle>
+                <CardDescription>
+                  {dashboardIsEnglish
+                    ? 'Add manually or sync your current leads in one click.'
+                    : 'Agrega manualmente o sincroniza tus leads actuales en un click.'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="crm-name">{dashboardIsEnglish ? 'Name' : 'Nombre'}</Label>
+                    <Input
+                      id="crm-name"
+                      value={crmDraft.name}
+                      onChange={(event) => setCrmDraft((prev) => ({ ...prev, name: event.target.value }))}
+                      placeholder={dashboardIsEnglish ? 'Jane Doe' : 'Juan Perez'}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="crm-phone">{dashboardIsEnglish ? 'Phone' : 'Telefono'}</Label>
+                    <Input
+                      id="crm-phone"
+                      value={crmDraft.phone}
+                      onChange={(event) => setCrmDraft((prev) => ({ ...prev, phone: event.target.value }))}
+                      placeholder="+51 999 999 999"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="crm-email">Email</Label>
+                    <Input
+                      id="crm-email"
+                      type="email"
+                      value={crmDraft.email}
+                      onChange={(event) => setCrmDraft((prev) => ({ ...prev, email: event.target.value }))}
+                      placeholder="cliente@empresa.com"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="crm-interest">{dashboardIsEnglish ? 'Interest' : 'Interes'}</Label>
+                    <Input
+                      id="crm-interest"
+                      value={crmDraft.interest}
+                      onChange={(event) => setCrmDraft((prev) => ({ ...prev, interest: event.target.value }))}
+                      placeholder={dashboardIsEnglish ? 'Service requested' : 'Servicio solicitado'}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="crm-notes">{dashboardIsEnglish ? 'Notes' : 'Notas'}</Label>
+                  <textarea
+                    id="crm-notes"
+                    value={crmDraft.notes}
+                    onChange={(event) => setCrmDraft((prev) => ({ ...prev, notes: event.target.value }))}
+                    rows={3}
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    placeholder={dashboardIsEnglish ? 'Context, objections, follow-up notes...' : 'Contexto, objeciones, notas de seguimiento...'}
+                  />
+                </div>
+                <input
+                  ref={crmImportInputRef}
+                  type="file"
+                  accept=".csv,.txt,.xlsx,.xls"
+                  className="hidden"
+                  onChange={handleImportCrmFile}
+                />
+                <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleDownloadCrmTemplateCsv}
+                    className="w-full sm:w-auto"
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    {dashboardIsEnglish ? 'Download template' : 'Descargar plantilla'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={openCrmImportPicker}
+                    disabled={crmImporting}
+                    className="w-full sm:w-auto"
+                  >
+                    {crmImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                    {dashboardIsEnglish ? 'Import CSV' : 'Importar CSV'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleSyncLeadsToCrm}
+                    disabled={crmSyncing}
+                    className="w-full sm:w-auto"
+                  >
+                    {crmSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Users className="mr-2 h-4 w-4" />}
+                    {dashboardIsEnglish ? 'Sync leads' : 'Sincronizar leads'}
+                  </Button>
+                  <Button type="button" onClick={handleCreateCrmContact} disabled={crmCreating} className="w-full sm:w-auto">
+                    {crmCreating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                    {dashboardIsEnglish ? 'Add contact' : 'Agregar contacto'}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {dashboardIsEnglish
+                    ? 'CSV headers supported: name, phone, email, interest, stage, notes, source.'
+                    : 'Cabeceras CSV soportadas: name/nombre, phone/telefono, email, interest/interes, stage/etapa, notes/notas, source/origen.'}
+                </p>
+
+                {crmImportPreview ? (
+                  <div className="space-y-3 rounded-xl border border-primary/30 bg-primary/5 p-3">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-sm font-semibold">
+                          {dashboardIsEnglish ? 'Import preview' : 'Vista previa de importacion'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {dashboardIsEnglish ? 'File:' : 'Archivo:'} {crmImportPreview.fileName}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2 text-xs">
+                        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-900/30 dark:text-emerald-300">
+                          {dashboardIsEnglish ? 'Ready' : 'Listas'}: {crmImportPreview.readyCount}
+                        </span>
+                        <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 font-medium text-slate-700 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-300">
+                          {dashboardIsEnglish ? 'Skipped' : 'Omitidas'}: {crmImportPreview.skippedCount}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="max-h-72 overflow-auto rounded-lg border border-border bg-background">
+                      <table className="w-full min-w-[640px] text-left text-xs">
+                        <thead className="sticky top-0 bg-muted/90 backdrop-blur">
+                          <tr className="border-b">
+                            <th className="px-3 py-2 font-semibold">#</th>
+                            <th className="px-3 py-2 font-semibold">{dashboardIsEnglish ? 'Name' : 'Nombre'}</th>
+                            <th className="px-3 py-2 font-semibold">{dashboardIsEnglish ? 'Phone' : 'Telefono'}</th>
+                            <th className="px-3 py-2 font-semibold">Email</th>
+                            <th className="px-3 py-2 font-semibold">{dashboardIsEnglish ? 'Stage' : 'Etapa'}</th>
+                            <th className="px-3 py-2 font-semibold">{dashboardIsEnglish ? 'Status' : 'Estado'}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {crmImportPreview.rows.slice(0, 120).map((row) => (
+                            <tr key={`${row.rowNumber}-${row.name}-${row.phone}`} className="border-b align-top">
+                              <td className="px-3 py-2 text-muted-foreground">{row.rowNumber}</td>
+                              <td className="px-3 py-2 break-words">{row.name || '-'}</td>
+                              <td className="px-3 py-2 break-words">{row.phone || '-'}</td>
+                              <td className="px-3 py-2 break-words">{row.email || '-'}</td>
+                              <td className="px-3 py-2">{crmStageLabels[row.stage]}</td>
+                              <td className="px-3 py-2">
+                                <span className={`inline-flex rounded-full border px-2 py-0.5 font-medium ${row.status === 'ready'
+                                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-900/30 dark:text-emerald-300'
+                                  : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-900/30 dark:text-amber-300'
+                                  }`}>
+                                  {row.reason}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {crmImportPreview.rows.length > 120 ? (
+                      <p className="text-[11px] text-muted-foreground">
+                        {dashboardIsEnglish
+                          ? `Showing first 120 rows of ${crmImportPreview.rows.length}.`
+                          : `Mostrando las primeras 120 filas de ${crmImportPreview.rows.length}.`}
+                      </p>
+                    ) : null}
+
+                    <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                      <Button type="button" variant="outline" onClick={handleCancelCrmImportPreview} disabled={crmImportApplying}>
+                        {dashboardIsEnglish ? 'Cancel preview' : 'Cancelar vista previa'}
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={handleConfirmCrmImport}
+                        disabled={crmImportApplying || crmImportPreview.readyCount === 0}
+                      >
+                        {crmImportApplying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
+                        {dashboardIsEnglish
+                          ? `Confirm import (${crmImportPreview.readyCount})`
+                          : `Confirmar importacion (${crmImportPreview.readyCount})`}
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="space-y-4">
+                <div>
+                  <CardTitle>{dashboardIsEnglish ? 'Contact list' : 'Listado de contactos'}</CardTitle>
+                  <CardDescription>
+                    {dashboardIsEnglish
+                      ? 'Search contacts and update their stage as your team progresses.'
+                      : 'Busca contactos y actualiza su etapa conforme avanza tu equipo.'}
+                  </CardDescription>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="crm-search">{dashboardIsEnglish ? 'Search' : 'Buscar'}</Label>
+                    <Input
+                      id="crm-search"
+                      value={crmSearch}
+                      onChange={(event) => setCrmSearch(event.target.value)}
+                      placeholder={dashboardIsEnglish ? 'Name, phone, email, interest...' : 'Nombre, telefono, email, interes...'}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="crm-stage-filter">{dashboardIsEnglish ? 'Stage filter' : 'Filtro por etapa'}</Label>
+                    <Select
+                      value={crmStageFilter}
+                      onValueChange={(value) => setCrmStageFilter(value as CrmStageFilter)}
+                    >
+                      <SelectTrigger id="crm-stage-filter">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{dashboardIsEnglish ? 'All stages' : 'Todas las etapas'}</SelectItem>
+                        {CRM_STAGES.map((stage) => (
+                          <SelectItem key={stage} value={stage}>
+                            {crmStageLabels[stage]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {filteredCrmContacts.length === 0 ? (
+                  <div className="rounded-2xl border-2 border-dashed border-border p-10 text-center text-muted-foreground">
+                    <Target className="mx-auto mb-3 h-10 w-10 opacity-30" />
+                    <p className="font-medium">
+                      {dashboardIsEnglish ? 'No contacts found' : 'No se encontraron contactos'}
+                    </p>
+                    <p className="mt-1 text-sm">
+                      {dashboardIsEnglish
+                        ? 'Create one manually or sync your leads to start using CRM.'
+                        : 'Crea uno manualmente o sincroniza tus leads para empezar a usar el CRM.'}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {filteredCrmContacts.map((contact) => (
+                      <article
+                        key={contact.id}
+                        className="rounded-xl border border-border/70 bg-white/70 p-3 transition-colors hover:bg-muted/30 dark:bg-slate-900/40"
+                      >
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                          <div className="min-w-0 space-y-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="truncate text-sm font-semibold sm:text-base">{contact.name || '-'}</p>
+                              <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${getCrmStageClass(contact.stage)}`}>
+                                {crmStageLabels[contact.stage]}
+                              </span>
+                            </div>
+                            <div className="grid gap-1 text-xs text-muted-foreground sm:text-sm">
+                              <p className="break-words">
+                                <span className="font-medium text-foreground">{dashboardIsEnglish ? 'Phone:' : 'Telefono:'}</span>{' '}
+                                {contact.phone || '-'}
+                              </p>
+                              <p className="break-words">
+                                <span className="font-medium text-foreground">Email:</span>{' '}
+                                {contact.email || '-'}
+                              </p>
+                              <p className="break-words">
+                                <span className="font-medium text-foreground">{dashboardIsEnglish ? 'Interest:' : 'Interes:'}</span>{' '}
+                                {contact.interest || '-'}
+                              </p>
+                              <p className="break-words">
+                                <span className="font-medium text-foreground">{dashboardIsEnglish ? 'Source:' : 'Origen:'}</span>{' '}
+                                {contact.source || '-'}
+                              </p>
+                              {contact.notes ? (
+                                <p className="break-words">
+                                  <span className="font-medium text-foreground">{dashboardIsEnglish ? 'Notes:' : 'Notas:'}</span>{' '}
+                                  {contact.notes}
+                                </p>
+                              ) : null}
+                              <p className="text-[11px]">
+                                {dashboardIsEnglish ? 'Updated:' : 'Actualizado:'} {formatDateLabel(contact.updated_at)}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="w-full max-w-full lg:w-56">
+                            <Label htmlFor={`crm-stage-${contact.id}`} className="text-xs text-muted-foreground">
+                              {dashboardIsEnglish ? 'Move stage' : 'Mover etapa'}
+                            </Label>
+                            <Select
+                              value={contact.stage}
+                              onValueChange={(nextStage) => handleUpdateCrmStage(contact.id, nextStage as CrmStage)}
+                              disabled={crmUpdatingId === contact.id}
+                            >
+                              <SelectTrigger id={`crm-stage-${contact.id}`} className="mt-1 w-full">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {CRM_STAGES.map((stage) => (
+                                  <SelectItem key={stage} value={stage}>
+                                    {crmStageLabels[stage]}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </article>
+                    ))}
                   </div>
                 )}
               </CardContent>
