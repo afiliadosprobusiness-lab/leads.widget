@@ -44,6 +44,7 @@ import {
   ExternalLink, Settings, History, Lock, AlertCircle, LogOut, Loader2, Sparkles,
   Layout, Palette, Code, BarChart as BarChartIcon, BarChart3, User, Users, CreditCard,
   Eye, Target, Clock, Bot, Key, Shield, X, Smartphone, EyeOff, MoreHorizontal, Globe, ChevronRight, ChevronDown,
+  KanbanSquare, ListTodo, NotebookPen, CircleCheckBig,
   ShoppingBag, HeartPulse, Wrench, Home, Utensils, Banknote, Calculator, HandCoins, BookOpen, Rocket
 } from 'lucide-react';
 import {
@@ -87,6 +88,10 @@ interface Lead {
 
 type CrmStage = 'new' | 'contacted' | 'qualified' | 'won' | 'lost';
 type CrmStageFilter = 'all' | CrmStage;
+type CrmWorkspaceView = 'contacts' | 'deals' | 'tasks';
+type CrmTimelineFilter = 'all' | 'notes' | 'stage' | 'tasks';
+type CrmTasksWindow = 'today' | 'overdue' | 'upcoming' | 'completed' | 'all';
+type CrmEntityType = 'contact' | 'deal';
 
 interface CrmContact {
   id: string;
@@ -122,6 +127,49 @@ interface CrmImportPreviewState {
   pendingContacts: Array<Omit<CrmContact, 'id'>>;
   readyCount: number;
   skippedCount: number;
+}
+
+interface CrmDeal {
+  id: string;
+  client_id: string;
+  contact_id: string;
+  title: string;
+  stage: CrmStage;
+  value: number | null;
+  currency: string;
+  probability: number | null;
+  expected_close_date: string | null;
+  source: string;
+  owner_user_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface CrmTask {
+  id: string;
+  client_id: string;
+  entity_type: CrmEntityType;
+  entity_id: string;
+  title: string;
+  due_at: string | null;
+  status: 'open' | 'done' | 'overdue';
+  priority: 'low' | 'med' | 'high';
+  created_by: string | null;
+  assigned_to: string | null;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+}
+
+interface CrmTimelineEvent {
+  id: string;
+  client_id: string;
+  entity_type: CrmEntityType;
+  entity_id: string;
+  type: string;
+  payload_json: Record<string, any>;
+  created_at: string;
+  created_by: string | null;
 }
 
 interface WidgetConfig {
@@ -800,6 +848,22 @@ export default function Dashboard() {
   const [crmImportApplying, setCrmImportApplying] = useState(false);
   const [crmImportPreview, setCrmImportPreview] = useState<CrmImportPreviewState | null>(null);
   const [crmUpdatingId, setCrmUpdatingId] = useState('');
+  const [crmView, setCrmView] = useState<CrmWorkspaceView>('contacts');
+  const [crmDeals, setCrmDeals] = useState<CrmDeal[]>([]);
+  const [crmDealsLoading, setCrmDealsLoading] = useState(false);
+  const [crmTasks, setCrmTasks] = useState<CrmTask[]>([]);
+  const [crmTasksLoading, setCrmTasksLoading] = useState(false);
+  const [crmTasksWindow, setCrmTasksWindow] = useState<CrmTasksWindow>('today');
+  const [crmSelectedContactId, setCrmSelectedContactId] = useState('');
+  const [crmDetailTab, setCrmDetailTab] = useState<'deals' | 'timeline' | 'tasks'>('deals');
+  const [crmContactDeals, setCrmContactDeals] = useState<CrmDeal[]>([]);
+  const [crmContactTasks, setCrmContactTasks] = useState<CrmTask[]>([]);
+  const [crmContactTimeline, setCrmContactTimeline] = useState<CrmTimelineEvent[]>([]);
+  const [crmTimelineFilter, setCrmTimelineFilter] = useState<CrmTimelineFilter>('all');
+  const [crmCreatingDealContactId, setCrmCreatingDealContactId] = useState('');
+  const [crmTaskDraftByEntity, setCrmTaskDraftByEntity] = useState<Record<string, { title: string; due_at: string; priority: 'low' | 'med' | 'high' }>>({});
+  const [crmNoteDraft, setCrmNoteDraft] = useState('');
+  const [crmContactDetailLoading, setCrmContactDetailLoading] = useState(false);
   const [crmDraft, setCrmDraft] = useState({
     name: '',
     phone: '',
@@ -979,6 +1043,43 @@ export default function Dashboard() {
       }),
     );
   }, [crmContacts, crmSearch, crmStageFilter]);
+  const crmSelectedContact = useMemo(
+    () => crmContacts.find((contact) => contact.id === crmSelectedContactId) || null,
+    [crmContacts, crmSelectedContactId],
+  );
+  const crmDealsByStage = useMemo(() => {
+    const grouped: Record<CrmStage, CrmDeal[]> = {
+      new: [],
+      contacted: [],
+      qualified: [],
+      won: [],
+      lost: [],
+    };
+    crmDeals.forEach((deal) => {
+      grouped[deal.stage].push(deal);
+    });
+    return grouped;
+  }, [crmDeals]);
+  const crmDealsByContactCount = useMemo(() => {
+    const index = new Map<string, number>();
+    crmDeals.forEach((deal) => {
+      const current = index.get(deal.contact_id) || 0;
+      index.set(deal.contact_id, current + 1);
+    });
+    return index;
+  }, [crmDeals]);
+  const crmTaskStats = useMemo(() => {
+    return crmTasks.reduce(
+      (acc, task) => {
+        acc.total += 1;
+        if (task.status === 'open') acc.open += 1;
+        if (task.status === 'overdue') acc.overdue += 1;
+        if (task.status === 'done') acc.done += 1;
+        return acc;
+      },
+      { total: 0, open: 0, overdue: 0, done: 0 },
+    );
+  }, [crmTasks]);
   const filteredAiChatLogs = useMemo(() => {
     if (aiChatStatusFilter === 'all') return aiChatLogs;
     return aiChatLogs.filter((item) => item.status === aiChatStatusFilter);
@@ -3311,6 +3412,354 @@ export default function Dashboard() {
     return 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-300';
   };
 
+  const getCrmAuthHeaders = async () => {
+    if (!user) throw new Error('Unauthorized');
+    const token = await user.getIdToken();
+    return {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    };
+  };
+
+  const callCrmApi = async (url: string, init: RequestInit = {}) => {
+    const headers = await getCrmAuthHeaders();
+    const response = await fetch(url, {
+      ...init,
+      headers: {
+        ...headers,
+        ...(init.headers || {}),
+      },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(String(payload?.error || payload?.details || `HTTP ${response.status}`));
+    }
+    return payload;
+  };
+
+  const mergeContactsInState = (contacts: CrmContact[]) => {
+    if (contacts.length === 0) return;
+    setCrmContacts((prev) => {
+      const byId = new Map(prev.map((contact) => [contact.id, contact]));
+      contacts.forEach((contact) => {
+        if (!contact?.id) return;
+        byId.set(contact.id, {
+          ...byId.get(contact.id),
+          ...contact,
+        });
+      });
+      return sortCrmContacts(Array.from(byId.values()));
+    });
+  };
+
+  const buildCrmMergeIdempotencyKey = (contact: Partial<CrmContact>, reason: string, seed = '') => {
+    const phone = normalizePhoneForCrm(contact.phone || '');
+    const email = String(contact.email || '').trim().toLowerCase();
+    const name = normalizeTextForFingerprint(contact.name || '');
+    const sourceLeadId = String(contact.source_lead_id || '').trim();
+    const suffix = seed ? `|${seed}` : '';
+    return `${reason}|${sourceLeadId || `${name}|${phone}|${email}`}${suffix}`;
+  };
+
+  const upsertCrmContactViaMerge = async (
+    incomingContact: Omit<CrmContact, 'id'>,
+    reason: string,
+    seed = '',
+  ): Promise<{ action: string; contact: CrmContact | null }> => {
+    const idempotencyKey = buildCrmMergeIdempotencyKey(incomingContact, reason, seed);
+    const payload = await callCrmApi('/api/crm/contacts-merge', {
+      method: 'POST',
+      body: JSON.stringify({
+        reason,
+        idempotencyKey,
+        incomingContact,
+      }),
+    });
+
+    const contact = payload?.contact && payload.contact.id
+      ? {
+        id: String(payload.contact.id),
+        client_id: String(payload.contact.client_id || user?.uid || ''),
+        name: String(payload.contact.name || '').trim() || 'Sin nombre',
+        phone: String(payload.contact.phone || '').trim(),
+        email: String(payload.contact.email || '').trim(),
+        interest: String(payload.contact.interest || '').trim(),
+        stage: normalizeCrmStageFromText(String(payload.contact.stage || 'new')),
+        source: String(payload.contact.source || 'manual').trim() || 'manual',
+        source_lead_id: String(payload.contact.source_lead_id || '').trim(),
+        notes: String(payload.contact.notes || '').trim(),
+        created_at: toIsoDateOrNow(payload.contact.created_at),
+        updated_at: toIsoDateOrNow(payload.contact.updated_at || payload.contact.created_at),
+        last_activity_at: toIsoDateOrNow(payload.contact.last_activity_at || payload.contact.updated_at || payload.contact.created_at),
+      } as CrmContact
+      : null;
+
+    return {
+      action: String(payload?.action || 'noop'),
+      contact,
+    };
+  };
+
+  const fetchCrmDeals = async (contactId = '') => {
+    if (!user?.uid) return;
+    setCrmDealsLoading(true);
+    try {
+      const querySuffix = contactId ? `?contactId=${encodeURIComponent(contactId)}` : '?pipeline=1';
+      const payload = await callCrmApi(`/api/crm/deals${querySuffix}`, { method: 'GET' });
+      const deals = Array.isArray(payload?.deals) ? payload.deals as CrmDeal[] : [];
+      if (contactId) {
+        setCrmContactDeals(deals);
+      } else {
+        setCrmDeals(deals);
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: String(error?.message || 'No se pudo cargar deals'),
+        variant: 'destructive',
+      });
+    } finally {
+      setCrmDealsLoading(false);
+    }
+  };
+
+  const fetchCrmTasks = async (windowFilter: CrmTasksWindow, target?: { contactId?: string; dealId?: string; forContactDetail?: boolean }) => {
+    if (!user?.uid) return;
+    setCrmTasksLoading(true);
+    try {
+      const queryParams = new URLSearchParams();
+      queryParams.set('window', windowFilter);
+      if (target?.contactId) queryParams.set('contactId', target.contactId);
+      if (target?.dealId) queryParams.set('dealId', target.dealId);
+      const payload = await callCrmApi(`/api/crm/tasks?${queryParams.toString()}`, { method: 'GET' });
+      const tasks = Array.isArray(payload?.tasks) ? payload.tasks as CrmTask[] : [];
+      if (target?.forContactDetail) {
+        setCrmContactTasks(tasks);
+      } else {
+        setCrmTasks(tasks);
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: String(error?.message || 'No se pudo cargar tareas'),
+        variant: 'destructive',
+      });
+    } finally {
+      setCrmTasksLoading(false);
+    }
+  };
+
+  const fetchCrmTimeline = async (contactId: string, filter: CrmTimelineFilter) => {
+    if (!contactId) return;
+    const payload = await callCrmApi(
+      `/api/crm/timeline?contactId=${encodeURIComponent(contactId)}&filter=${encodeURIComponent(filter)}&limit=200`,
+      { method: 'GET' },
+    );
+    const events = Array.isArray(payload?.events) ? payload.events as CrmTimelineEvent[] : [];
+    setCrmContactTimeline(events);
+  };
+
+  const openCrmContactDetail = async (contactId: string) => {
+    if (!contactId) return;
+    setCrmSelectedContactId(contactId);
+    setCrmDetailTab('deals');
+    setCrmContactDetailLoading(true);
+    try {
+      await Promise.all([
+        fetchCrmDeals(contactId),
+        fetchCrmTasks('all', { contactId, forContactDetail: true }),
+        fetchCrmTimeline(contactId, crmTimelineFilter),
+      ]);
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: String(error?.message || 'No se pudo cargar el detalle del contacto'),
+        variant: 'destructive',
+      });
+    } finally {
+      setCrmContactDetailLoading(false);
+    }
+  };
+
+  const handleCreateDeal = async (contact: CrmContact) => {
+    if (!contact?.id) return;
+    setCrmCreatingDealContactId(contact.id);
+    try {
+      const payload = await callCrmApi('/api/crm/deals', {
+        method: 'POST',
+        body: JSON.stringify({
+          contact_id: contact.id,
+          source: contact.source || 'manual',
+        }),
+      });
+      const createdDeal = payload?.deal as CrmDeal;
+      if (createdDeal?.id) {
+        setCrmDeals((prev) => [createdDeal, ...prev]);
+        if (crmSelectedContactId === contact.id) {
+          setCrmContactDeals((prev) => [createdDeal, ...prev]);
+          await fetchCrmTimeline(contact.id, crmTimelineFilter);
+        }
+      }
+      toast({
+        title: dashboardIsEnglish ? 'Deal created' : 'Deal creado',
+        description: dashboardIsEnglish
+          ? 'Default values applied: new stage and +7 days close date.'
+          : 'Se aplicaron defaults: etapa nuevo y cierre en +7 dias.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: String(error?.message || 'No se pudo crear el deal'),
+        variant: 'destructive',
+      });
+    } finally {
+      setCrmCreatingDealContactId('');
+    }
+  };
+
+  const handleMoveDealStage = async (deal: CrmDeal, nextStage: CrmStage) => {
+    if (!deal?.id || deal.stage === nextStage) return;
+    try {
+      const payload = await callCrmApi('/api/crm/deals', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          id: deal.id,
+          stage: nextStage,
+        }),
+      });
+      const updatedDeal = payload?.deal as CrmDeal;
+      if (!updatedDeal?.id) return;
+      setCrmDeals((prev) => prev.map((item) => (item.id === updatedDeal.id ? updatedDeal : item)));
+      setCrmContactDeals((prev) => prev.map((item) => (item.id === updatedDeal.id ? updatedDeal : item)));
+      if (deal.contact_id) {
+        await fetchCrmTimeline(deal.contact_id, crmTimelineFilter);
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: String(error?.message || 'No se pudo mover el deal de etapa'),
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleCreateQuickTaskFromDeal = async (deal: CrmDeal) => {
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const dueLocal = new Date(tomorrow.getTime() - tomorrow.getTimezoneOffset() * 60 * 1000)
+      .toISOString()
+      .slice(0, 16);
+    await handleCreateTask('deal', deal.id, {
+      title: dashboardIsEnglish ? `Follow-up: ${deal.title}` : `Seguimiento: ${deal.title}`,
+      due_at: dueLocal,
+      priority: 'med',
+    });
+  };
+
+  const handleCreateTask = async (entityType: CrmEntityType, entityId: string, draft: { title: string; due_at: string; priority: 'low' | 'med' | 'high' }) => {
+    const title = String(draft.title || '').trim();
+    if (!title) return;
+    try {
+      const payload = await callCrmApi('/api/crm/tasks', {
+        method: 'POST',
+        body: JSON.stringify({
+          entity_type: entityType,
+          entity_id: entityId,
+          title,
+          due_at: draft.due_at ? new Date(draft.due_at).toISOString() : null,
+          priority: draft.priority,
+        }),
+      });
+      const createdTask = payload?.task as CrmTask;
+      if (createdTask?.id) {
+        setCrmTasks((prev) => [createdTask, ...prev]);
+        if (crmSelectedContactId && entityType === 'contact' && entityId === crmSelectedContactId) {
+          setCrmContactTasks((prev) => [createdTask, ...prev]);
+          await fetchCrmTimeline(crmSelectedContactId, crmTimelineFilter);
+        }
+      }
+      setCrmTaskDraftByEntity((prev) => ({
+        ...prev,
+        [`${entityType}:${entityId}`]: { title: '', due_at: '', priority: 'med' },
+      }));
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: String(error?.message || 'No se pudo crear la tarea'),
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleUpdateTaskStatus = async (task: CrmTask, status: 'open' | 'done' | 'overdue') => {
+    try {
+      const payload = await callCrmApi('/api/crm/tasks', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          id: task.id,
+          status,
+        }),
+      });
+      const updatedTask = payload?.task as CrmTask;
+      if (!updatedTask?.id) return;
+      setCrmTasks((prev) => prev.map((item) => (item.id === updatedTask.id ? updatedTask : item)));
+      setCrmContactTasks((prev) => prev.map((item) => (item.id === updatedTask.id ? updatedTask : item)));
+      if (crmSelectedContactId) {
+        await fetchCrmTimeline(crmSelectedContactId, crmTimelineFilter);
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: String(error?.message || 'No se pudo actualizar la tarea'),
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleAddTimelineNote = async () => {
+    const note = crmNoteDraft.trim();
+    if (!crmSelectedContactId || !note) return;
+    try {
+      await callCrmApi('/api/crm/timeline', {
+        method: 'POST',
+        body: JSON.stringify({
+          entity_type: 'contact',
+          entity_id: crmSelectedContactId,
+          type: 'manual_note',
+          note,
+        }),
+      });
+      setCrmNoteDraft('');
+      await fetchCrmTimeline(crmSelectedContactId, crmTimelineFilter);
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: String(error?.message || 'No se pudo guardar la nota'),
+        variant: 'destructive',
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab !== 'crm' || !user?.uid) return;
+    fetchCrmDeals().catch(() => {});
+    fetchCrmTasks(crmTasksWindow).catch(() => {});
+  }, [activeTab, user?.uid]);
+
+  useEffect(() => {
+    if (activeTab !== 'crm' || !user?.uid) return;
+    if (crmView === 'deals') {
+      fetchCrmDeals().catch(() => {});
+    }
+    if (crmView === 'tasks') {
+      fetchCrmTasks(crmTasksWindow).catch(() => {});
+    }
+  }, [crmView, crmTasksWindow, activeTab, user?.uid]);
+
+  useEffect(() => {
+    if (!crmSelectedContactId || activeTab !== 'crm' || crmDetailTab !== 'timeline') return;
+    fetchCrmTimeline(crmSelectedContactId, crmTimelineFilter).catch(() => {});
+  }, [crmSelectedContactId, crmTimelineFilter, crmDetailTab, activeTab]);
+
   const handleCreateCrmContact = async () => {
     if (!user?.uid) return;
     const name = crmDraft.name.trim();
@@ -3355,8 +3804,10 @@ export default function Dashboard() {
 
     setCrmCreating(true);
     try {
-      const createdRef = await addDoc(collection(db, 'crm_contacts'), payload);
-      setCrmContacts((prev) => sortCrmContacts([{ id: createdRef.id, ...payload }, ...prev]));
+      const mergeResult = await upsertCrmContactViaMerge(payload, 'manual_create');
+      if (mergeResult.contact) {
+        mergeContactsInState([mergeResult.contact]);
+      }
       setCrmDraft({
         name: '',
         phone: '',
@@ -3365,8 +3816,12 @@ export default function Dashboard() {
         notes: '',
       });
       toast({
-        title: dashboardIsEnglish ? 'Contact created' : 'Contacto creado',
-        description: dashboardIsEnglish ? 'Now visible in your CRM pipeline.' : 'Ya aparece en tu pipeline CRM.',
+        title: mergeResult.action === 'created'
+          ? (dashboardIsEnglish ? 'Contact created' : 'Contacto creado')
+          : (dashboardIsEnglish ? 'Contact updated' : 'Contacto actualizado'),
+        description: mergeResult.action === 'created'
+          ? (dashboardIsEnglish ? 'Now visible in your CRM pipeline.' : 'Ya aparece en tu pipeline CRM.')
+          : (dashboardIsEnglish ? 'Existing contact merged to avoid duplicates.' : 'Se fusiono con un contacto existente para evitar duplicados.'),
       });
     } catch (error: any) {
       toast({
@@ -3390,57 +3845,31 @@ export default function Dashboard() {
       return;
     }
 
-    const existingLeadIds = new Set(
-      crmContacts
-        .map((contact) => String(contact.source_lead_id || '').trim())
-        .filter(Boolean),
-    );
-    const existingFingerprints = new Set(
-      crmContacts.map((contact) => buildCrmFingerprint({
-        name: contact.name,
-        phone: contact.phone,
-        email: contact.email,
-      })),
-    );
-
-    const pendingLeadContacts = leads
-      .map((lead) => mapLeadToCrmContact(lead, user.uid))
-      .filter((contact) => {
-        if (contact.source_lead_id && existingLeadIds.has(contact.source_lead_id)) return false;
-        const fingerprint = buildCrmFingerprint({
-          name: contact.name,
-          phone: contact.phone,
-          email: contact.email,
-        });
-        return !existingFingerprints.has(fingerprint);
-      });
-
-    if (pendingLeadContacts.length === 0) {
-      toast({
-        title: dashboardIsEnglish ? 'CRM already synced' : 'CRM ya sincronizado',
-        description: dashboardIsEnglish ? 'No new leads found.' : 'No hay leads nuevos por pasar al CRM.',
-      });
-      return;
-    }
-
-    const MAX_BATCH = 200;
-    const toInsert = pendingLeadContacts.slice(0, MAX_BATCH);
     setCrmSyncing(true);
     try {
-      const batch = writeBatch(db);
-      const createdContacts: CrmContact[] = [];
-      toInsert.forEach((contact) => {
-        const contactRef = doc(collection(db, 'crm_contacts'));
-        batch.set(contactRef, contact);
-        createdContacts.push({ id: contactRef.id, ...contact });
-      });
-      await batch.commit();
-      setCrmContacts((prev) => sortCrmContacts([...createdContacts, ...prev]));
+      const normalized = leads
+        .slice(0, 350)
+        .map((lead) => mapLeadToCrmContact(lead, user.uid));
+
+      let created = 0;
+      let merged = 0;
+      const touchedContacts: CrmContact[] = [];
+
+      for (let index = 0; index < normalized.length; index += 1) {
+        const contact = normalized[index];
+        const mergeResult = await upsertCrmContactViaMerge(contact, 'sync_lead', String(index));
+        if (mergeResult.action === 'created') created += 1;
+        if (mergeResult.action === 'merged') merged += 1;
+        if (mergeResult.contact) touchedContacts.push(mergeResult.contact);
+      }
+
+      mergeContactsInState(touchedContacts);
+
       toast({
         title: dashboardIsEnglish ? 'CRM synced' : 'CRM sincronizado',
         description: dashboardIsEnglish
-          ? `${createdContacts.length} lead(s) moved to CRM.`
-          : `${createdContacts.length} lead(s) pasaron al CRM.`,
+          ? `${created} created, ${merged} merged.`
+          : `${created} creados, ${merged} fusionados.`,
       });
     } catch (error: any) {
       toast({
@@ -3574,24 +4003,10 @@ export default function Dashboard() {
           return;
         }
 
-        if (sourceLeadId && existingLeadIds.has(sourceLeadId)) {
-          previewRows.push({
-            ...previewBase,
-            status: 'skip',
-            reason: dashboardIsEnglish ? 'Duplicate source_lead_id' : 'source_lead_id duplicado',
-          });
-          return;
-        }
-
         const fingerprint = buildCrmFingerprint({ name, phone, email });
-        if (existingFingerprints.has(fingerprint)) {
-          previewRows.push({
-            ...previewBase,
-            status: 'skip',
-            reason: dashboardIsEnglish ? 'Duplicate contact' : 'Contacto duplicado',
-          });
-          return;
-        }
+        const duplicateByLeadId = Boolean(sourceLeadId && existingLeadIds.has(sourceLeadId));
+        const duplicateByFingerprint = existingFingerprints.has(fingerprint);
+        const shouldMergeExisting = duplicateByLeadId || duplicateByFingerprint;
 
         existingFingerprints.add(fingerprint);
         if (sourceLeadId) existingLeadIds.add(sourceLeadId);
@@ -3614,7 +4029,9 @@ export default function Dashboard() {
         previewRows.push({
           ...previewBase,
           status: 'ready',
-          reason: dashboardIsEnglish ? 'Ready to import' : 'Listo para importar',
+          reason: shouldMergeExisting
+            ? (dashboardIsEnglish ? 'Will merge existing contact' : 'Se fusionara con contacto existente')
+            : (dashboardIsEnglish ? 'Ready to import' : 'Listo para importar'),
         });
       });
 
@@ -3674,25 +4091,23 @@ export default function Dashboard() {
 
     setCrmImportApplying(true);
     try {
-      const MAX_BATCH = 450;
-      const createdContacts: CrmContact[] = [];
-      for (let index = 0; index < pendingContacts.length; index += MAX_BATCH) {
-        const chunk = pendingContacts.slice(index, index + MAX_BATCH);
-        const batch = writeBatch(db);
-        chunk.forEach((contact) => {
-          const contactRef = doc(collection(db, 'crm_contacts'));
-          batch.set(contactRef, contact);
-          createdContacts.push({ id: contactRef.id, ...contact });
-        });
-        await batch.commit();
+      let created = 0;
+      let merged = 0;
+      const touchedContacts: CrmContact[] = [];
+      for (let index = 0; index < pendingContacts.length; index += 1) {
+        const contact = pendingContacts[index];
+        const result = await upsertCrmContactViaMerge(contact, 'csv_import', String(index));
+        if (result.action === 'created') created += 1;
+        if (result.action === 'merged') merged += 1;
+        if (result.contact) touchedContacts.push(result.contact);
       }
-      setCrmContacts((prev) => sortCrmContacts([...createdContacts, ...prev]));
+      mergeContactsInState(touchedContacts);
       setCrmImportPreview(null);
       toast({
         title: dashboardIsEnglish ? 'Import complete' : 'Importacion completada',
         description: dashboardIsEnglish
-          ? `${createdContacts.length} contact(s) imported.`
-          : `${createdContacts.length} contacto(s) importados.`,
+          ? `${created} created, ${merged} merged.`
+          : `${created} creados, ${merged} fusionados.`,
       });
     } catch (error: any) {
       toast({
@@ -3707,6 +4122,7 @@ export default function Dashboard() {
 
   const handleUpdateCrmStage = async (contactId: string, stage: CrmStage) => {
     const nowIso = new Date().toISOString();
+    const previous = crmContacts.find((contact) => contact.id === contactId);
     setCrmUpdatingId(contactId);
     try {
       await updateDoc(doc(db, 'crm_contacts', contactId), {
@@ -3728,6 +4144,25 @@ export default function Dashboard() {
           ),
         ),
       );
+
+      if (previous && previous.stage !== stage) {
+        await callCrmApi('/api/crm/timeline', {
+          method: 'POST',
+          body: JSON.stringify({
+            entity_type: 'contact',
+            entity_id: contactId,
+            type: 'contact_stage_changed',
+            payload: {
+              from_stage: previous.stage,
+              to_stage: stage,
+            },
+          }),
+        });
+      }
+
+      if (crmSelectedContactId === contactId && crmDetailTab === 'timeline') {
+        await fetchCrmTimeline(contactId, crmTimelineFilter);
+      }
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -5937,6 +6372,37 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant={crmView === 'contacts' ? 'default' : 'outline'}
+                onClick={() => setCrmView('contacts')}
+                className="rounded-full"
+              >
+                <Users className="mr-2 h-4 w-4" />
+                {dashboardIsEnglish ? 'Contacts' : 'Contactos'}
+              </Button>
+              <Button
+                type="button"
+                variant={crmView === 'deals' ? 'default' : 'outline'}
+                onClick={() => setCrmView('deals')}
+                className="rounded-full"
+              >
+                <KanbanSquare className="mr-2 h-4 w-4" />
+                {dashboardIsEnglish ? 'Pipeline deals' : 'Pipeline deals'}
+              </Button>
+              <Button
+                type="button"
+                variant={crmView === 'tasks' ? 'default' : 'outline'}
+                onClick={() => setCrmView('tasks')}
+                className="rounded-full"
+              >
+                <ListTodo className="mr-2 h-4 w-4" />
+                {dashboardIsEnglish ? 'My tasks' : 'Mis tareas'}
+              </Button>
+            </div>
+
+            {crmView === 'contacts' ? (<>
             <Card>
               <CardHeader>
                 <CardTitle>{dashboardIsEnglish ? 'Create contact' : 'Crear contacto'}</CardTitle>
@@ -6251,6 +6717,31 @@ export default function Dashboard() {
                                 ))}
                               </SelectContent>
                             </Select>
+                            <div className="mt-2 flex flex-col gap-2">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => void openCrmContactDetail(contact.id)}
+                                className="w-full"
+                              >
+                                <NotebookPen className="mr-2 h-3.5 w-3.5" />
+                                {dashboardIsEnglish ? 'Open detail' : 'Abrir detalle'}
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant={crmDealsByContactCount.get(contact.id) ? 'outline' : 'secondary'}
+                                onClick={() => void handleCreateDeal(contact)}
+                                disabled={crmCreatingDealContactId === contact.id}
+                                className="w-full"
+                              >
+                                {crmCreatingDealContactId === contact.id ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <KanbanSquare className="mr-2 h-3.5 w-3.5" />}
+                                {dashboardIsEnglish
+                                  ? (crmDealsByContactCount.get(contact.id) ? 'Create deal' : 'Suggested: create deal')
+                                  : (crmDealsByContactCount.get(contact.id) ? 'Crear deal' : 'Sugerido: crear deal')}
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       </article>
@@ -6259,6 +6750,348 @@ export default function Dashboard() {
                 )}
               </CardContent>
             </Card>
+            {crmSelectedContact ? (
+              <Card>
+                <CardHeader>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <CardTitle>{dashboardIsEnglish ? 'Contact detail' : 'Detalle de contacto'}: {crmSelectedContact.name}</CardTitle>
+                      <CardDescription>
+                        {dashboardIsEnglish
+                          ? 'Track deals, timeline and tasks without leaving CRM.'
+                          : 'Gestiona deals, timeline y tareas sin salir del CRM.'}
+                      </CardDescription>
+                    </div>
+                    <Button type="button" variant="outline" onClick={() => setCrmSelectedContactId('')}>
+                      {dashboardIsEnglish ? 'Close' : 'Cerrar'}
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Tabs value={crmDetailTab} onValueChange={(value) => setCrmDetailTab(value as 'deals' | 'timeline' | 'tasks')}>
+                    <TabsList className="grid w-full grid-cols-3">
+                      <TabsTrigger value="deals">{dashboardIsEnglish ? 'Deals' : 'Deals'}</TabsTrigger>
+                      <TabsTrigger value="timeline">{dashboardIsEnglish ? 'Timeline' : 'Timeline'}</TabsTrigger>
+                      <TabsTrigger value="tasks">{dashboardIsEnglish ? 'Tasks' : 'Tareas'}</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="deals" className="space-y-3 pt-3">
+                      <div className="flex items-center justify-end">
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => void handleCreateDeal(crmSelectedContact)}
+                          disabled={crmCreatingDealContactId === crmSelectedContact.id}
+                        >
+                          {crmCreatingDealContactId === crmSelectedContact.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <KanbanSquare className="mr-2 h-4 w-4" />}
+                          {dashboardIsEnglish ? 'Create deal' : 'Crear deal'}
+                        </Button>
+                      </div>
+                      {crmContactDetailLoading ? (
+                        <p className="text-sm text-muted-foreground">{dashboardIsEnglish ? 'Loading detail...' : 'Cargando detalle...'}</p>
+                      ) : crmContactDeals.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                          {dashboardIsEnglish ? 'No deals yet for this contact.' : 'Aun no hay deals para este contacto.'}
+                        </p>
+                      ) : (
+                        <div className="space-y-2">
+                          {crmContactDeals.map((deal) => (
+                            <article key={deal.id} className="rounded-lg border border-border p-3">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <p className="font-medium">{deal.title}</p>
+                                <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${getCrmStageClass(deal.stage)}`}>
+                                  {crmStageLabels[deal.stage]}
+                                </span>
+                              </div>
+                              <div className="mt-2 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
+                                <p>{dashboardIsEnglish ? 'Value' : 'Valor'}: {deal.value ?? 0} {deal.currency}</p>
+                                <p>{dashboardIsEnglish ? 'Close date' : 'Cierre'}: {formatDateLabel(deal.expected_close_date || deal.updated_at)}</p>
+                                <p>{dashboardIsEnglish ? 'Probability' : 'Probabilidad'}: {deal.probability ?? 0}%</p>
+                              </div>
+                              <div className="mt-2 max-w-[220px]">
+                                <Select value={deal.stage} onValueChange={(next) => void handleMoveDealStage(deal, next as CrmStage)}>
+                                  <SelectTrigger className="h-8">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {CRM_STAGES.map((stage) => (
+                                      <SelectItem key={stage} value={stage}>{crmStageLabels[stage]}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </article>
+                          ))}
+                        </div>
+                      )}
+                    </TabsContent>
+                    <TabsContent value="timeline" className="space-y-3 pt-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Select value={crmTimelineFilter} onValueChange={(value) => setCrmTimelineFilter(value as CrmTimelineFilter)}>
+                          <SelectTrigger className="w-[220px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">{dashboardIsEnglish ? 'All' : 'Todo'}</SelectItem>
+                            <SelectItem value="notes">{dashboardIsEnglish ? 'Notes' : 'Notas'}</SelectItem>
+                            <SelectItem value="stage">{dashboardIsEnglish ? 'Stage changes' : 'Cambios de etapa'}</SelectItem>
+                            <SelectItem value="tasks">{dashboardIsEnglish ? 'Tasks' : 'Tareas'}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <div className="flex min-w-0 flex-1 gap-2">
+                          <Input
+                            value={crmNoteDraft}
+                            onChange={(event) => setCrmNoteDraft(event.target.value)}
+                            placeholder={dashboardIsEnglish ? 'Quick note...' : 'Nota rapida...'}
+                          />
+                          <Button type="button" onClick={() => void handleAddTimelineNote()} disabled={!crmNoteDraft.trim()}>
+                            <NotebookPen className="mr-2 h-4 w-4" />
+                            {dashboardIsEnglish ? 'Add note' : 'Agregar nota'}
+                          </Button>
+                        </div>
+                      </div>
+                      {crmContactTimeline.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                          {dashboardIsEnglish ? 'No events yet.' : 'Aun no hay eventos.'}
+                        </p>
+                      ) : (
+                        <div className="space-y-2">
+                          {crmContactTimeline.map((eventItem) => (
+                            <article key={eventItem.id} className="rounded-lg border border-border p-3 text-sm">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <p className="font-medium">{eventItem.type}</p>
+                                <span className="text-xs text-muted-foreground">{formatDateLabel(eventItem.created_at)}</span>
+                              </div>
+                              {eventItem.payload_json?.note ? (
+                                <p className="mt-1 text-muted-foreground">{String(eventItem.payload_json.note)}</p>
+                              ) : (
+                                <pre className="mt-1 overflow-auto whitespace-pre-wrap break-words text-xs text-muted-foreground">{JSON.stringify(eventItem.payload_json || {}, null, 2)}</pre>
+                              )}
+                            </article>
+                          ))}
+                        </div>
+                      )}
+                    </TabsContent>
+                    <TabsContent value="tasks" className="space-y-3 pt-3">
+                      {(() => {
+                        const draftKey = `contact:${crmSelectedContact.id}`;
+                        const draft = crmTaskDraftByEntity[draftKey] || { title: '', due_at: '', priority: 'med' as const };
+                        return (
+                          <div className="space-y-2">
+                            <div className="grid gap-2 sm:grid-cols-[1fr_180px_140px_auto]">
+                              <Input
+                                value={draft.title}
+                                onChange={(event) =>
+                                  setCrmTaskDraftByEntity((prev) => ({
+                                    ...prev,
+                                    [draftKey]: { ...draft, title: event.target.value },
+                                  }))
+                                }
+                                placeholder={dashboardIsEnglish ? 'Task title' : 'Titulo de tarea'}
+                              />
+                              <Input
+                                type="datetime-local"
+                                value={draft.due_at}
+                                onChange={(event) =>
+                                  setCrmTaskDraftByEntity((prev) => ({
+                                    ...prev,
+                                    [draftKey]: { ...draft, due_at: event.target.value },
+                                  }))
+                                }
+                              />
+                              <Select
+                                value={draft.priority}
+                                onValueChange={(value) =>
+                                  setCrmTaskDraftByEntity((prev) => ({
+                                    ...prev,
+                                    [draftKey]: { ...draft, priority: value as 'low' | 'med' | 'high' },
+                                  }))
+                                }
+                              >
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="low">{dashboardIsEnglish ? 'Low' : 'Baja'}</SelectItem>
+                                  <SelectItem value="med">{dashboardIsEnglish ? 'Medium' : 'Media'}</SelectItem>
+                                  <SelectItem value="high">{dashboardIsEnglish ? 'High' : 'Alta'}</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Button type="button" onClick={() => void handleCreateTask('contact', crmSelectedContact.id, draft)}>
+                                <ListTodo className="mr-2 h-4 w-4" />
+                                {dashboardIsEnglish ? 'Create' : 'Crear'}
+                              </Button>
+                            </div>
+                            {crmContactTasks.length === 0 ? (
+                              <p className="text-sm text-muted-foreground">
+                                {dashboardIsEnglish ? 'No tasks for this contact.' : 'No hay tareas para este contacto.'}
+                              </p>
+                            ) : (
+                              <div className="space-y-2">
+                                {crmContactTasks.map((task) => (
+                                  <article key={task.id} className="rounded-lg border border-border p-3 text-sm">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                      <div>
+                                        <p className="font-medium">{task.title}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                          {dashboardIsEnglish ? 'Due' : 'Vence'}: {task.due_at ? formatDateLabel(task.due_at) : '-'} - {task.priority}
+                                        </p>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs text-muted-foreground">{task.status}</span>
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          variant={task.status === 'done' ? 'outline' : 'default'}
+                                          onClick={() => void handleUpdateTaskStatus(task, task.status === 'done' ? 'open' : 'done')}
+                                        >
+                                          <CircleCheckBig className="mr-1.5 h-4 w-4" />
+                                          {task.status === 'done'
+                                            ? (dashboardIsEnglish ? 'Reopen' : 'Reabrir')
+                                            : (dashboardIsEnglish ? 'Mark done' : 'Marcar done')}
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  </article>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </TabsContent>
+                  </Tabs>
+                </CardContent>
+              </Card>
+            ) : null}
+            </>) : null}
+
+            {crmView === 'deals' ? (
+              <Card>
+                <CardHeader className="space-y-2">
+                  <CardTitle>{dashboardIsEnglish ? 'Pipeline deals' : 'Pipeline deals'}</CardTitle>
+                  <CardDescription>
+                    {dashboardIsEnglish
+                      ? 'Move opportunities between stages with minimal friction.'
+                      : 'Mueve oportunidades entre etapas con el menor esfuerzo.'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {crmDealsLoading ? (
+                    <p className="text-sm text-muted-foreground">{dashboardIsEnglish ? 'Loading deals...' : 'Cargando deals...'}</p>
+                  ) : (
+                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                      {CRM_STAGES.map((stage) => (
+                        <section key={stage} className="min-w-0 rounded-xl border border-border/70 bg-white/70 p-3 dark:bg-slate-900/40">
+                          <div className="mb-2 flex items-center justify-between">
+                            <p className="text-sm font-semibold">{crmStageLabels[stage]}</p>
+                            <span className="rounded-full border px-2 py-0.5 text-[11px]">{crmDealsByStage[stage].length}</span>
+                          </div>
+                          <div className="space-y-2">
+                            {crmDealsByStage[stage].length === 0 ? (
+                              <p className="text-xs text-muted-foreground">{dashboardIsEnglish ? 'No deals' : 'Sin deals'}</p>
+                            ) : crmDealsByStage[stage].map((deal) => (
+                              <article key={deal.id} className="rounded-lg border border-border bg-background p-2 text-xs">
+                                <p className="font-medium">{deal.title}</p>
+                                <p className="mt-1 text-muted-foreground">{deal.value ?? 0} {deal.currency}</p>
+                                <Select value={deal.stage} onValueChange={(next) => void handleMoveDealStage(deal, next as CrmStage)}>
+                                  <SelectTrigger className="mt-2 h-8">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {CRM_STAGES.map((nextStage) => (
+                                      <SelectItem key={nextStage} value={nextStage}>{crmStageLabels[nextStage]}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  className="mt-2 h-8 w-full text-[11px]"
+                                  onClick={() => void handleCreateQuickTaskFromDeal(deal)}
+                                >
+                                  <ListTodo className="mr-1.5 h-3.5 w-3.5" />
+                                  {dashboardIsEnglish ? 'Task' : 'Tarea'}
+                                </Button>
+                              </article>
+                            ))}
+                          </div>
+                        </section>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ) : null}
+
+            {crmView === 'tasks' ? (
+              <Card>
+                <CardHeader className="space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <CardTitle>{dashboardIsEnglish ? 'My tasks' : 'Mis tareas'}</CardTitle>
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5">{dashboardIsEnglish ? 'Total' : 'Total'}: {crmTaskStats.total}</span>
+                      <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-blue-700">{dashboardIsEnglish ? 'Open' : 'Abiertas'}: {crmTaskStats.open}</span>
+                      <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-amber-700">{dashboardIsEnglish ? 'Overdue' : 'Vencidas'}: {crmTaskStats.overdue}</span>
+                      <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-emerald-700">{dashboardIsEnglish ? 'Done' : 'Done'}: {crmTaskStats.done}</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {(['today', 'overdue', 'upcoming', 'completed'] as CrmTasksWindow[]).map((windowFilter) => (
+                      <Button
+                        key={windowFilter}
+                        type="button"
+                        size="sm"
+                        variant={crmTasksWindow === windowFilter ? 'default' : 'outline'}
+                        onClick={() => setCrmTasksWindow(windowFilter)}
+                        className="rounded-full"
+                      >
+                        {windowFilter === 'today' ? (dashboardIsEnglish ? 'Today' : 'Hoy') : null}
+                        {windowFilter === 'overdue' ? (dashboardIsEnglish ? 'Overdue' : 'Vencidas') : null}
+                        {windowFilter === 'upcoming' ? (dashboardIsEnglish ? 'Upcoming' : 'Proximas') : null}
+                        {windowFilter === 'completed' ? (dashboardIsEnglish ? 'Completed' : 'Completadas') : null}
+                      </Button>
+                    ))}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {crmTasksLoading ? (
+                    <p className="text-sm text-muted-foreground">{dashboardIsEnglish ? 'Loading tasks...' : 'Cargando tareas...'}</p>
+                  ) : crmTasks.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      {dashboardIsEnglish ? 'No tasks for this filter.' : 'No hay tareas para este filtro.'}
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {crmTasks.map((task) => (
+                        <article key={task.id} className="rounded-lg border border-border p-3 text-sm">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                              <p className="font-medium">{task.title}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {task.entity_type} - {dashboardIsEnglish ? 'Due' : 'Vence'}: {task.due_at ? formatDateLabel(task.due_at) : '-'}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs">{task.status}</span>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant={task.status === 'done' ? 'outline' : 'default'}
+                                onClick={() => void handleUpdateTaskStatus(task, task.status === 'done' ? 'open' : 'done')}
+                              >
+                                <CircleCheckBig className="mr-1.5 h-4 w-4" />
+                                {task.status === 'done'
+                                  ? (dashboardIsEnglish ? 'Reopen' : 'Reabrir')
+                                  : (dashboardIsEnglish ? 'Done' : 'Done')}
+                              </Button>
+                            </div>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ) : null}
 
           </TabsContent>
 

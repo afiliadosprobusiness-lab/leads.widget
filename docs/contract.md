@@ -127,6 +127,58 @@ Se escriben desde dos flujos (schema heterogeneo):
 - Flujo widget embebido via Firestore REST:
   - `client_id`, `name`, `phone`, `interest`, `source`, `status`, `created_at` (timestamp)
 
+### `crm_contacts`
+
+- `client_id`
+- `name`, `phone`, `email`, `interest`
+- `stage` (`new|contacted|qualified|won|lost`)
+- `source`, `source_lead_id`, `notes`
+- `dedupe_phone`, `dedupe_email`
+- `created_at`, `updated_at`, `last_activity_at`
+
+### `deals`
+
+- `client_id`, `contact_id`
+- `title`
+- `stage` (`new|contacted|qualified|won|lost`)
+- `value`, `currency`
+- `probability`
+- `expected_close_date`
+- `source`
+- `owner_user_id`
+- `created_at`, `updated_at`
+
+### `tasks`
+
+- `client_id`
+- `entity_type` (`contact|deal`)
+- `entity_id`
+- `title`
+- `due_at`
+- `status` (`open|done|overdue`)
+- `priority` (`low|med|high`)
+- `created_by`, `assigned_to`
+- `created_at`, `updated_at`, `completed_at`
+
+### `activity_events`
+
+- `client_id`
+- `entity_type` (`contact|deal`)
+- `entity_id`
+- `type`
+- `payload_json`
+- `created_at`
+- `created_by`
+
+### `crm_merge_operations`
+
+- `client_id`
+- `idempotency_key`
+- `status` (`pending_migration|completed`)
+- `primary_contact_id`, `duplicate_contact_id`
+- `result`
+- `created_at`, `updated_at`
+
 ### `payments`
 
 Campos observados:
@@ -315,6 +367,10 @@ Codigo observado:
 - `POST|OPTIONS /api/chat-event` (persistencia local de eventos por conversacion)
 - `POST|OPTIONS /api/analyze-conversation` (diagnostico IA/heuristico de conversaciones no completadas)
 - `POST|OPTIONS /api/generate-prompt` (generacion de bloque prompt contexto/sistema usando OpenAI del cliente autenticado)
+- `POST|OPTIONS /api/crm/contacts-merge` (upsert/merge idempotente de contactos con regla phone->email)
+- `GET|POST|PATCH|OPTIONS /api/crm/deals` (CRUD operativo de deals + pipeline por etapa)
+- `GET|POST|PATCH|OPTIONS /api/crm/tasks` (CRUD operativo de tareas + filtros Hoy/Vencidas/Proximas/Completadas)
+- `GET|POST|OPTIONS /api/crm/timeline` (eventos de actividad + notas manuales)
 - `POST|OPTIONS /api/track` (proxy a backend externo)
 - `POST|OPTIONS /api/verify-payment` (proxy a backend externo)
 - `GET /api/w/:widgetId.js` (proxy a backend externo)
@@ -324,6 +380,7 @@ Codigo observado:
 Asuncion:
 
 - En produccion, las funciones locales en `api/*.js` se resuelven primero; rutas `/api/*` sin archivo local caen al backend externo via fallback.
+- CRM v2 vive en funciones locales `api/crm/*` y no depende del backend externo para operaciones de deals/tasks/timeline/dedupe.
 - El proxy local de `POST /api/chat` ademas persiste trazas resumidas de cada intercambio en `ai_chat_logs` para consola de debugging en Dashboard (sin cambiar el contrato de respuesta hacia el cliente).
 - `POST /api/analyze-conversation` requiere `Authorization: Bearer <Firebase ID token>` del usuario dashboard; usa `profiles.ai_api_key` (o fallback `widget_configs.ai_api_key` del mismo owner) para ejecutar analisis OpenAI. Si no hay key configurada, responde analisis heuristico (`provider: heuristic_no_client_key`).
 - `POST /api/generate-prompt` requiere `Authorization: Bearer <Firebase ID token>` del usuario dashboard; usa `profiles.ai_api_key` (o fallback `widget_configs.ai_api_key`) para generar texto de prompt via OpenAI y devuelve `creditsConsumed: true`.
@@ -345,6 +402,55 @@ Asuncion:
   - `400`: `{ error: "No OpenAI API key configured in IA settings." }`
   - `401`: `{ error: "Unauthorized" }`
   - `500`: `{ error: "Could not generate prompt", details?: string }`
+
+#### `POST /api/crm/contacts-merge`
+
+- Headers:
+  - `Authorization: Bearer <Firebase ID token>` (requerido)
+- Body JSON:
+  - `incomingContact` (objeto contacto) **o** (`primaryContactId` + `duplicateContactId`)
+  - `reason` (opcional)
+  - `idempotencyKey` (opcional, recomendado)
+- Comportamiento:
+  - Aplica regla de dedupe: `phone` principal, fallback `email`.
+  - Modo upsert: crea contacto nuevo o fusiona con existente.
+  - Modo merge por IDs: migra referencias de `deals/tasks/activity_events` al contacto primario y elimina duplicado.
+- Respuestas:
+  - `200`: `{ success: true, action: "created"|"merged"|"noop", contact, primary_contact_id, merged_contact_id }`
+  - `400`: `{ error: "<validation>" }`
+  - `401`: `{ error: "Unauthorized" }`
+  - `500`: `{ error: "<runtime>" }`
+
+#### `GET|POST|PATCH /api/crm/deals`
+
+- `GET`: lista deals del cliente (`?pipeline=1` opcional, `?contactId=` opcional)
+- `POST`: crea deal con defaults (`title`, `stage=new`, `expected_close_date=+7d` cuando no se envia)
+- `PATCH`: actualiza deal (incluye cambio de etapa)
+- Respuestas:
+  - `200`: `{ deals, metrics, pipeline? }` en GET; `{ success: true, deal }` en PATCH
+  - `201`: `{ success: true, deal }` en POST
+  - `400|401|403|404|500`: `{ error: string }`
+
+#### `GET|POST|PATCH /api/crm/tasks`
+
+- `GET`: lista tareas por filtro (`window=today|overdue|upcoming|completed|all`, `contactId`, `dealId`)
+- `POST`: crea tarea (`entity_type`, `entity_id`, `title`, `due_at`, `priority`)
+- `PATCH`: actualiza tarea (`status/title/due_at/priority`)
+- Comportamiento:
+  - Marca `overdue` automaticamente cuando `due_at < now` y `status=open`.
+- Respuestas:
+  - `200`: `{ tasks, totals }` en GET; `{ success: true, task }` en PATCH
+  - `201`: `{ success: true, task }` en POST
+  - `400|401|403|404|500`: `{ error: string }`
+
+#### `GET|POST /api/crm/timeline`
+
+- `GET`: lista eventos por entidad (`entityType+entityId`) o por contacto (`contactId`) con filtro (`all|notes|stage|tasks`)
+- `POST`: crea evento manual (`manual_note`) u otros tipos permitidos de actividad
+- Respuestas:
+  - `200`: `{ events: ActivityEvent[] }`
+  - `201`: `{ success: true, event }`
+  - `400|401|500`: `{ error: string }`
 
 ## Formato de errores
 
@@ -492,3 +598,7 @@ Cambios de comportamiento relevantes:
 - Cambio: dashboard aplica limites de peso para media inmobiliaria en subida (`imagen propiedad <=5MB`, `video propiedad <=15MB`) para controlar costo y rendimiento en Cloudinary.
 - Tipo: non-breaking
 - Impacto: evita cargas pesadas en plan free sin modificar shape de endpoints ni contratos de lectura.
+- Fecha: 2026-02-22
+- Cambio: CRM v2 agrega rutas locales `api/crm/*` (`contacts-merge`, `deals`, `tasks`, `timeline`) y nuevos modelos `deals`, `tasks`, `activity_events`, `crm_merge_operations`; dashboard CRM incorpora vistas `Contactos/Pipeline deals/Mis tareas` y `Contact detail` con tabs.
+- Tipo: non-breaking
+- Impacto: evoluciona CRM operativo a seguimiento comercial con dedupe/merge idempotente sin modificar contratos legacy de chat/widget/pagos ni depender del backend externo.

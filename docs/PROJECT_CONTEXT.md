@@ -37,12 +37,18 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
   - Pagos manuales Yape/Plin guardan `plan_type` y `partner_id` cuando aplica.
 - CRM cliente:
   - Permite crear contactos manualmente (`crm_contacts`) desde dashboard.
+  - El tab CRM opera en modo simple con 3 vistas: `Contactos`, `Pipeline deals`, `Mis tareas`.
+  - Incluye `Contact detail` con tabs `Deals`, `Timeline`, `Tasks` para seguimiento sin cambiar de modulo.
   - `Listado de contactos` incorpora exportacion CSV de toda la base CRM (contactos totales).
   - Incluye boton `Descargar plantilla CSV` para estandarizar headers y minimizar incompatibilidades en importacion.
   - Importacion CSV ahora usa vista previa obligatoria (filas listas/omitidas + motivo) y requiere confirmacion explicita antes de guardar en Firestore.
   - Permite importar base de clientes por archivo CSV desde el tab CRM con mapeo flexible de columnas (`name/nombre`, `phone/telefono`, `email`, `interest/interes`, `stage/etapa`, `notes/notas`, `source/origen`).
-  - Permite sincronizar leads existentes (`leads`) hacia CRM con deduplicacion por `source_lead_id` y huella `nombre+telefono+email`.
+  - Sync/import/create de contactos usan merge idempotente server-side (`/api/crm/contacts-merge`) con regla unica de dedupe: `phone` principal, fallback `email`.
+  - El merge conserva datos no vacios y, cuando aplica merge entre contactos, migra referencias de `deals`, `tasks` y `activity_events`.
   - Pipeline CRM maneja etapas `new`, `contacted`, `qualified`, `won`, `lost` con actualizacion en tiempo real en Firestore.
+  - Deals se modelan como entidad separada (`deals`) con defaults inteligentes: titulo `Venta - {Nombre}`, etapa `new`, cierre estimado `+7 dias`.
+  - Tareas de follow-up se gestionan en `tasks` con estados `open/done/overdue`; el estado `overdue` se actualiza automaticamente desde API.
+  - Timeline de actividad usa `activity_events` y registra al menos: creacion/merge de contacto, cambios de etapa, notas, eventos de tarea y eventos de deal.
 
 ## Objetivo activo Lead Chat + IACloser (2026-02-19)
 - Nuevo objetivo comercial del canal chat:
@@ -138,6 +144,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 ## Configuracion relevante
 - Front usa rutas `/api/*` (rewrite a backend Cloud Run).
 - `vercel.json` prioriza `filesystem` para que funciones locales `api/*.js` (ej. `api/chat.js`) se ejecuten antes del fallback `/api/*` al backend externo.
+- CRM v2 agrega funciones locales bajo `api/crm/*` (`contacts-merge`, `deals`, `tasks`, `timeline`) para evolucionar CRM sin tocar el backend externo.
 - Firestore rules ampliadas para colecciones partner, manteniendo mutacion directa restringida a superadmin en cliente web.
 - Firestore rules incluyen coleccion `crm_contacts` (lectura/escritura solo owner `client_id` o superadmin) para el nuevo tab CRM.
 - Superadmin incorpora fallback de compatibilidad a Firestore para modulo de agencias cuando el backend aun no expone `/api/admin/partners*` en el entorno desplegado.
