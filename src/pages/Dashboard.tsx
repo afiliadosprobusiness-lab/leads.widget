@@ -651,17 +651,6 @@ export default function Dashboard() {
   const isTrialPlan = String(profile?.subscription_status || 'trial').toLowerCase() !== 'active';
   const plusCurrentChargePen = isTrialPlan ? PLAN_PLUS_FIRST_PAYMENT_PEN : PLAN_PLUS_MONTHLY_PEN;
   const plusCurrentChargeUsd = (plusCurrentChargePen / PEN_TO_USD_RATE).toFixed(2);
-  const realEstateCatalogSummary = useMemo(() => {
-    const properties = Array.isArray(formConfig.real_estate_properties) ? formConfig.real_estate_properties : [];
-    const withImage = properties.filter((item) => String(item?.image_url || '').trim().length > 0).length;
-    const withVideo = properties.filter((item) => String(item?.video_url || '').trim().length > 0).length;
-    return {
-      count: properties.length,
-      withImage,
-      withVideo,
-    };
-  }, [formConfig.real_estate_properties]);
-
   const filteredAiChatLogs = useMemo(() => {
     if (aiChatStatusFilter === 'all') return aiChatLogs;
     return aiChatLogs.filter((item) => item.status === aiChatStatusFilter);
@@ -1608,6 +1597,24 @@ export default function Dashboard() {
     lead_chat_live_toasts: initialLeadChatDefaults.leadChatLiveToasts.join('\n'),
     real_estate_properties: [] as RealEstateProperty[],
   });
+
+  const realEstateCatalogSummary = useMemo(() => {
+    const properties = Array.isArray(formConfig.real_estate_properties)
+      ? formConfig.real_estate_properties
+      : [];
+    const withImage = properties.filter(
+      (item) => String(item?.image_url || '').trim().length > 0,
+    ).length;
+    const withVideo = properties.filter(
+      (item) => String(item?.video_url || '').trim().length > 0,
+    ).length;
+
+    return {
+      count: properties.length,
+      withImage,
+      withVideo,
+    };
+  }, [formConfig.real_estate_properties]);
 
   const [showApiKey, setShowApiKey] = useState(false);
   const [uploadingWelcomeImage, setUploadingWelcomeImage] = useState(false);
