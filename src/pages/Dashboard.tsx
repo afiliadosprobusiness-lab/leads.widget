@@ -42,7 +42,7 @@ import {
   ShieldCheck, ShieldAlert, TrendingUp, Info, MessageCircle, Copy, Check, Download,
   ExternalLink, Settings, History, Lock, AlertCircle, LogOut, Loader2, Sparkles,
   Layout, Palette, Code, BarChart as BarChartIcon, BarChart3, User, Users, CreditCard,
-  Eye, Target, Clock, Bot, Key, Shield, X, Smartphone, EyeOff, MoreHorizontal, Globe,
+  Eye, Target, Clock, Bot, Key, Shield, X, Smartphone, EyeOff, MoreHorizontal, Globe, ChevronRight, ChevronDown,
   ShoppingBag, HeartPulse, Wrench, Home, Utensils, Banknote, Calculator, HandCoins, BookOpen, Rocket
 } from 'lucide-react';
 import {
@@ -1668,6 +1668,7 @@ export default function Dashboard() {
   const [uploadingWelcomeAudio, setUploadingWelcomeAudio] = useState(false);
   const [uploadingWelcomeVideo, setUploadingWelcomeVideo] = useState(false);
   const [propertyUploadState, setPropertyUploadState] = useState<Record<string, { image?: boolean; video?: boolean }>>({});
+  const [expandedRealEstatePropertyId, setExpandedRealEstatePropertyId] = useState<string | null>(null);
   const [recordingWelcomeAudio, setRecordingWelcomeAudio] = useState(false);
   const [welcomeAudioRecordingSupported, setWelcomeAudioRecordingSupported] = useState(false);
   const welcomeAudioRecorderRef = useRef<MediaRecorder | null>(null);
@@ -1829,13 +1830,15 @@ export default function Dashboard() {
   };
 
   const addRealEstateProperty = () => {
+    const newProperty = createEmptyRealEstateProperty();
     setFormConfig((prev) => ({
       ...prev,
       real_estate_properties: [
         ...(Array.isArray(prev.real_estate_properties) ? prev.real_estate_properties : []),
-        createEmptyRealEstateProperty(),
+        newProperty,
       ].slice(0, 20),
     }));
+    setExpandedRealEstatePropertyId(newProperty.id);
   };
 
   const removeRealEstateProperty = (propertyId: string) => {
@@ -1843,11 +1846,16 @@ export default function Dashboard() {
       ...prev,
       real_estate_properties: (Array.isArray(prev.real_estate_properties) ? prev.real_estate_properties : []).filter((item) => item.id !== propertyId),
     }));
+    setExpandedRealEstatePropertyId((prev) => (prev === propertyId ? null : prev));
     setPropertyUploadState((prev) => {
       const next = { ...prev };
       delete next[propertyId];
       return next;
     });
+  };
+
+  const toggleRealEstatePropertyExpanded = (propertyId: string) => {
+    setExpandedRealEstatePropertyId((prev) => (prev === propertyId ? null : propertyId));
   };
 
   type RealEstateEditableField = Exclude<keyof RealEstateProperty, 'id' | 'image_urls' | 'video_urls'>;
@@ -1998,6 +2006,15 @@ export default function Dashboard() {
       setPropertyMediaUploading(propertyId, kind, false);
     }
   };
+
+  useEffect(() => {
+    if (!expandedRealEstatePropertyId) return;
+    const hasExpandedProperty = (Array.isArray(formConfig.real_estate_properties) ? formConfig.real_estate_properties : [])
+      .some((item) => item.id === expandedRealEstatePropertyId);
+    if (!hasExpandedProperty) {
+      setExpandedRealEstatePropertyId(null);
+    }
+  }, [expandedRealEstatePropertyId, formConfig.real_estate_properties]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -3778,10 +3795,32 @@ export default function Dashboard() {
                           const videoItems = getPropertyMediaList(property, 'video');
                           const visibleImageItems = imageItems.length > 0 ? imageItems : [''];
                           const visibleVideoItems = videoItems.length > 0 ? videoItems : [''];
+                          const isExpanded = expandedRealEstatePropertyId === property.id;
+                          const imageCount = imageItems.filter((item) => sanitizeMediaUrl(item).length > 0).length;
+                          const videoCount = videoItems.filter((item) => sanitizeMediaUrl(item).length > 0).length;
+                          const summaryTokens = [
+                            String(property.title || '').trim(),
+                            String(property.district || '').trim(),
+                            String(property.price || '').trim(),
+                          ].filter(Boolean);
                           return (
                             <div key={property.id} className="space-y-3 rounded-lg border border-emerald-200 bg-white/90 p-3 dark:border-emerald-900 dark:bg-slate-950/50">
-                              <div className="flex items-center justify-between gap-2">
-                                <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">Propiedad {index + 1}</p>
+                              <div className="flex items-start justify-between gap-2">
+                                <button
+                                  type="button"
+                                  className="flex min-w-0 flex-1 flex-col items-start rounded-md px-1 py-0.5 text-left transition hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 dark:hover:bg-emerald-900/20"
+                                  onClick={() => toggleRealEstatePropertyExpanded(property.id)}
+                                  aria-expanded={isExpanded}
+                                  aria-controls={`property-card-body-${property.id}`}
+                                >
+                                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+                                    {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                                    Propiedad {index + 1}
+                                  </span>
+                                  <span className="mt-1 line-clamp-1 text-[11px] text-emerald-700/90 dark:text-emerald-300/80">
+                                    {summaryTokens.length > 0 ? summaryTokens.join(' | ') : 'Sin datos aun'} | {imageCount} fotos | {videoCount} videos
+                                  </span>
+                                </button>
                                 <Button
                                   type="button"
                                   size="sm"
@@ -3792,6 +3831,8 @@ export default function Dashboard() {
                                   Eliminar
                                 </Button>
                               </div>
+                              {isExpanded ? (
+                                <div id={`property-card-body-${property.id}`} className="space-y-3">
                               <div className="grid gap-2 sm:grid-cols-2">
                                 <div className="space-y-1">
                                   <Label htmlFor={`property-title-${property.id}`} className="text-xs">Titulo</Label>
@@ -3981,6 +4022,8 @@ export default function Dashboard() {
                                   </div>
                                 </div>
                               </div>
+                                </div>
+                              ) : null}
                             </div>
                           );
                         })}
