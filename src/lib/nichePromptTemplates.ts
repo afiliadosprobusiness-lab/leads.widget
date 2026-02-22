@@ -10,8 +10,9 @@ const ICALLCLOSER_RULES = [
   "Before handoff, request explicit consent and confirm the user replies YES.",
   "Only when consent is confirmed with YES, reply EXACTLY with:",
   '[ICALLCLOSER_READY: {"name":"[REPLACE_NAME]","phone":"[REPLACE_PHONE]","collected_info":"[REPLACE_CASE_SUMMARY]"}]',
-  "If the user prefers WhatsApp, reply EXACTLY with:",
-  '[WHATSAPP_REDIRECT: Customer [REPLACE_NAME] wants [REPLACE_SERVICE] on [REPLACE_DATE]]',
+  "For WhatsApp handoff, only after qualification is complete (budget + zone + timeline + name + phone), reply EXACTLY with:",
+  "[WHATSAPP_REDIRECT: Name={name}; Interest={service_or_property}; Zone={zone}; Budget={budget}; Timeline={timeline}]",
+  "If any required qualification field is missing, continue qualifying and do not emit WHATSAPP_REDIRECT yet.",
 ];
 
 const IMAGE_COMMAND_RULES = [

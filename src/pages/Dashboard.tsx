@@ -309,8 +309,10 @@ const AI_ICALLCLOSER_COMMAND_SNIPPET = [
 ].join('\n');
 
 const AI_WHATSAPP_COMMAND_SNIPPET = [
-  "If the lead prefers WhatsApp, reply EXACTLY:",
-  "[WHATSAPP_REDIRECT: Customer [REPLACE_NAME] wants [REPLACE_SERVICE] on [REPLACE_DATE]]",
+  "When the lead is qualified (budget + zone + timeline) and required data is complete (name + phone), include EXACTLY one WhatsApp command at the end:",
+  "[WHATSAPP_REDIRECT: Name={name}; Interest={service_or_property}; Zone={zone}; Budget={budget}; Timeline={timeline}]",
+  "If required data is missing or the lead is not qualified, continue qualifying and DO NOT emit WHATSAPP_REDIRECT yet.",
+  "Do not rename or omit the WHATSAPP_REDIRECT token once the lead is qualified.",
 ].join('\n');
 type AiClosingMode = 'icallcloser' | 'whatsapp';
 
@@ -332,6 +334,9 @@ function stripClosingCommandSections(prompt: string) {
     .replace(/\[\s*(?:ICALLCLOSER|IACALLCLOSER|ICLOSER)_READY\s*:[^\]]*]/gi, '')
     .replace(/^\s*If the lead.*reply EXACTLY:.*$/gim, '')
     .replace(/^\s*If the lead prefers WhatsApp.*reply EXACTLY:.*$/gim, '')
+    .replace(/^\s*When the lead is qualified.*WhatsApp command.*$/gim, '')
+    .replace(/^\s*If required data is missing.*DO NOT emit WHATSAPP_REDIRECT yet\..*$/gim, '')
+    .replace(/^\s*Do not rename or omit the WHATSAPP_REDIRECT token.*$/gim, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
   return sanitized;

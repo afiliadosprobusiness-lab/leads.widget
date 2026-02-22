@@ -128,6 +128,13 @@ function getUserInstruction(body) {
         ? "Important: do not include command tokens ([ICALLCLOSER_READY] or [WHATSAPP_REDIRECT]) because the app injects them automatically."
         : "Importante: no incluyas comandos token ([ICALLCLOSER_READY] o [WHATSAPP_REDIRECT]) porque la app los inyecta automaticamente.",
     ];
+    if (closingMode === "whatsapp") {
+      lines.push(
+        isEnglish
+          ? "For WhatsApp channel, define handoff as mandatory after qualification is complete (budget + zone + timeline + required data). Do not frame it as optional preference."
+          : "Para canal WhatsApp, define el pase como obligatorio cuando la calificacion este completa (presupuesto + zona + plazo + datos requeridos). No lo redactes como preferencia opcional.",
+      );
+    }
     if (closingMode === "icallcloser") {
       lines.splice(8, 0, `consent_rule: ${trimText(source.consentRule || "", 260) || "N/A"}`);
     }
