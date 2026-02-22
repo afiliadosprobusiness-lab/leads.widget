@@ -1910,13 +1910,22 @@
         scroll-behavior: smooth;
         -webkit-overflow-scrolling: touch;
         touch-action: pan-x;
+        overscroll-behavior-x: contain;
         scroll-snap-type: x proximity;
         scrollbar-width: none;
         -ms-overflow-style: none;
         padding-bottom: 2px;
         padding-right: 2px;
+        cursor: grab;
+        user-select: none;
+        -webkit-user-select: none;
       }
       #lw-quick-replies::-webkit-scrollbar { display: none; }
+      #lw-quick-replies.lw-dragging {
+        cursor: grabbing;
+        scroll-behavior: auto;
+      }
+      #lw-quick-replies.lw-dragging .lw-quick-btn { pointer-events: none; }
       .lw-quick-btn {
         flex: 0 0 auto;
         scroll-snap-align: start;
@@ -1929,6 +1938,7 @@
         transition: all 0.2s;
         color: var(--lw-muted);
         white-space: nowrap;
+        touch-action: pan-x;
       }
       .lw-quick-btn:hover { background: color-mix(in srgb, var(--lw-primary) 13%, var(--lw-surface)); color: var(--lw-primary); border-color: color-mix(in srgb, var(--lw-primary) 40%, var(--lw-border)); }
 
@@ -2717,8 +2727,79 @@
       button.classList.remove('lw-vibrating-soft', 'lw-vibrating-strong');
     }
 
+    function initQuickRepliesScroll() {
+      if (!quickRepliesContainer || quickRepliesContainer.dataset.dragScrollInit === '1') return;
+      quickRepliesContainer.dataset.dragScrollInit = '1';
+
+      let pointerActive = false;
+      let pointerId = null;
+      let startX = 0;
+      let startScrollLeft = 0;
+      let moved = false;
+      let suppressClickUntil = 0;
+
+      const releasePointer = () => {
+        if (!pointerActive) return;
+        pointerActive = false;
+        if (moved) suppressClickUntil = Date.now() + 140;
+        moved = false;
+        quickRepliesContainer.classList.remove('lw-dragging');
+        if (pointerId !== null && quickRepliesContainer.releasePointerCapture) {
+          try { quickRepliesContainer.releasePointerCapture(pointerId); } catch (_) {}
+        }
+        pointerId = null;
+      };
+
+      quickRepliesContainer.addEventListener('pointerdown', (event) => {
+        if (event.pointerType === 'mouse' && event.button !== 0) return;
+        if (quickRepliesContainer.scrollWidth <= quickRepliesContainer.clientWidth) return;
+
+        pointerActive = true;
+        pointerId = event.pointerId;
+        startX = event.clientX;
+        startScrollLeft = quickRepliesContainer.scrollLeft;
+        moved = false;
+        quickRepliesContainer.classList.add('lw-dragging');
+
+        if (quickRepliesContainer.setPointerCapture) {
+          try { quickRepliesContainer.setPointerCapture(pointerId); } catch (_) {}
+        }
+      });
+
+      quickRepliesContainer.addEventListener('pointermove', (event) => {
+        if (!pointerActive || event.pointerId !== pointerId) return;
+        const deltaX = event.clientX - startX;
+        if (!moved && Math.abs(deltaX) > 3) moved = true;
+        quickRepliesContainer.scrollLeft = startScrollLeft - deltaX;
+        if (moved) event.preventDefault();
+      });
+
+      quickRepliesContainer.addEventListener('pointerup', releasePointer);
+      quickRepliesContainer.addEventListener('pointercancel', releasePointer);
+      quickRepliesContainer.addEventListener('pointerleave', (event) => {
+        if (!pointerActive || event.pointerType !== 'mouse') return;
+        releasePointer();
+      });
+
+      quickRepliesContainer.addEventListener('wheel', (event) => {
+        if (quickRepliesContainer.scrollWidth <= quickRepliesContainer.clientWidth) return;
+        const hasVerticalIntent = Math.abs(event.deltaY) > Math.abs(event.deltaX);
+        const delta = hasVerticalIntent ? event.deltaY : event.deltaX;
+        if (!delta) return;
+        quickRepliesContainer.scrollLeft += delta;
+        if (hasVerticalIntent) event.preventDefault();
+      }, { passive: false });
+
+      quickRepliesContainer.addEventListener('click', (event) => {
+        if (Date.now() > suppressClickUntil) return;
+        event.preventDefault();
+        event.stopPropagation();
+      }, true);
+    }
+
     // Render quick replies
     function renderQuickReplies() {
+      initQuickRepliesScroll();
       const quickReplies = getLocalizedQuickReplies(config.quickReplies);
       if (!Array.isArray(quickReplies) || quickReplies.length === 0) {
         quickRepliesContainer.style.display = 'none';

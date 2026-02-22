@@ -83,7 +83,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - En la tarjeta de consentimiento de Lead Chat, `nombre` y `telefono` son obligatorios; el boton `Enviar` permanece deshabilitado hasta que ambos sean validos y el checkbox este aceptado.
 - Quick replies de Lead Chat y `SalesWidget` usan una sola fila con scroll horizontal suave (sin wrap) para mantener CTA compactos en todas las resoluciones.
 - Lead Chat consume `language` del widget config para defaults EN/ES (mensaje inicial, quick replies, consentimiento, estados y copys de conversion).
-- Widget embebido (`public/widget-embed.js`) replica mejoras de retencion: quick replies en una sola fila con scroll horizontal (mobile-first), selector de emojis, entrada por voz y toggle sutil claro/oscuro.
+- Widget embebido (`public/widget-embed.js`) replica mejoras de retencion: quick replies en una sola fila con scroll horizontal (mobile-first) con soporte swipe/drag y rueda del mouse en desktop, selector de emojis, entrada por voz y toggle sutil claro/oscuro.
 - En Lead Chat/widget embebido/SalesWidget, la entrada por voz usa fallback `SpeechRecognition/webkitSpeechRecognition` y autoenvia el mensaje al terminar el dictado.
 - En Lead Chat/widget embebido/SalesWidget, cuando el microfono esta activo se muestra un overlay inmersivo tipo "speak now" con animacion para feedback visual inmediato del estado de escucha.
 - Lead Chat/widget embebido/SalesWidget interpretan comandos IA de redireccion tanto a WhatsApp como a IACloser (`WHATSAPP_REDIRECT`, `ICLOSER/ICALLCLOSER/IACALLCLOSER_REDIRECT` y alias `*_READY`), con CTA visible y apertura automatica del destino.
