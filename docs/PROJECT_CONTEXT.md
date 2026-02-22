@@ -146,6 +146,10 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - En Dashboard > IA, el CTA `Guardar configuracion de IA` ahora se muestra en una barra sticky superior del tab (igual que Configuracion Widget) para mantenerlo visible durante todo el scroll.
 - En Dashboard > IA, `Prompt de contexto` y `Prompt del sistema` tienen boton `Crear prompt` con modal guiado para generar texto estructurado por formulario (negocio/nicho/reglas/comercial).
 - En Dashboard > IA, el canal de cierre (`ICallCloser` o `WhatsApp`) se selecciona desde el modal `Crear prompt` del sistema; el comando se inserta automaticamente al compilar/guardar el prompt.
+- En Dashboard > IA > `Crear prompt del sistema`, la `Regla de consentimiento` se solicita solo cuando el canal de cierre es `ICallCloser`; en `WhatsApp` se omite para evitar ruido en prompts sin handoff legal.
+- En Dashboard > IA > `Crear prompt del sistema`, el bloque `Canal de cierre` se muestra al inicio del modal para definir primero el flujo (`ICallCloser` o `WhatsApp`) y luego renderizar campos acordes.
+- En Dashboard > IA > `Crear prompt del sistema`, el bloque `Consentimiento y handoff` (URL fija IACloser, texto de consentimiento y version legal) se muestra solo si el canal de cierre es `ICallCloser`; en `WhatsApp` no aparece.
+- En Dashboard > IA, al guardar o recompilar prompts se integra tambien el bloque `Protocolo de seguridad y bloqueo` (`ai_security_prompt`) dentro del `ai_system_prompt` final usado por runtime.
 - En modales `Crear prompt` (contexto/sistema), existe accion `Generar con IA` que consume creditos de la API key OpenAI del cliente y muestra aviso explicito de costo; tambien se mantiene fallback `Generar rapido (sin IA)` local.
 - En IA > Prompt del Sistema, el dashboard mantiene boton de plantilla por `Industria / Nicho` (`general`, `inmobiliaria`, `clinica`, `taller`, `delivery`; en `personalizado` usa base general), con enfoque de conversion y soporte de bloque `IMAGE`.
 - En IA > Prompt del Sistema (plantillas por nicho), cuando el lead pregunta por precio/costo/inversion, el guion responde la oferta exacta: `S/ 100 mensual + S/ 200 implementacion unica`.
@@ -154,10 +158,11 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Upload de bienvenida en dashboard (imagen/audio/video) usa Cloudinary cuando existen `VITE_CLOUDINARY_CLOUD_NAME` + `VITE_CLOUDINARY_UPLOAD_PRESET`; si no existen, usa fallback a Firebase Storage.
 - En Dashboard > Configuracion del widget > Audio de bienvenida, ademas de subir archivo/URL ahora se puede grabar audio en el momento (microfono del navegador) y se sube por el mismo pipeline Cloudinary/Firebase.
 - En Dashboard > Configuracion del widget, cuando `Industria/Nicho = inmobiliaria` se habilita `Catalogo de propiedades` para cargar y gestionar fotos/videos por propiedad (`real_estate_properties`), reutilizando el pipeline Cloudinary/Firebase.
+- En Dashboard > IA > `Crear prompt de contexto`, si el nicho es `inmobiliaria` se muestra un bloque hibrido de catalogo (conteo de propiedades/fotos/videos + CTA `Ir al catalogo`) para aclarar que el prompt consume el catalogo estructurado en runtime sin duplicar URLs.
 - En plantilla `inmobiliaria`, Lead Chat/widget embebido inyectan una directiva de catalogo al historial de chat para que la IA seleccione multimedia real del cliente (sin inventar URLs) cuando el usuario pide ver propiedades o el contexto lo amerita.
 - Para reducir costo de tokens, Lead Chat/widget embebido/SalesWidget ahora envian al backend una directiva compacta de respuesta y una ventana de historial acotada (ultimos 12 mensajes no-system).
 - En Dashboard > IA, `ai_max_tokens` ahora respeta el valor persistido y se normaliza al rango `100..4000` al guardar (evita fallback visual involuntario a `500` tras recargar).
-- En configuracion Lead Chat, la URL de redireccion post-consentimiento queda fija en `https://ai-call-closer.vercel.app/` y no es editable desde dashboard.
+- En el modal `Crear prompt del sistema` (canal `ICallCloser`), la URL de redireccion post-consentimiento queda fija en `https://ai-call-closer.vercel.app/` y no es editable.
 - En Dashboard > Analiticas, se agrego la `Consola de conversaciones IA` con historial por conversacion, estado (`ok/bloqueado/limite/error`), mensajes usuario/asistente y pista de mejora para depurar fallos del prompt.
 - El proxy `POST /api/chat` ahora registra cada intercambio en `ai_chat_logs` (por `client_id/widget_id/conversation_id`) para auditoria y mejora continua del cierre.
 - En Dashboard > Analiticas, la consola IA ahora clasifica conversaciones en `No completados`, `Lead completado` y `Riesgo/Hack`, con filtro adicional por estado tecnico (`ok/bloqueado/limite/error`).
@@ -165,6 +170,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - En Dashboard > Analiticas, la consola IA agrega la categoria `Interesado no cerrado` (subset de no completados) para identificar conversaciones con senales de interes comercial o consumo de multimedia, sin cierre final.
 - En Dashboard > Analiticas, los filtros tecnicos de estado (`ok/bloqueado/limite/error`) quedan ocultos por defecto y se muestran solo al activar `Ver diagnostico tecnico`, priorizando UX comercial simple.
 - En Dashboard > Analiticas, la consola IA permite exportar conversaciones en CSV tanto en modo individual (por conversacion) como masivo segun filtros activos.
+- En Dashboard > Seguridad, la carga de IPs bloqueadas consulta `blocked_ips` por multiples identificadores del widget (`doc id`, `widget_id` y `lead_chat_slug`) para mantener compatibilidad con bloqueos legacy.
 - Lead Chat/widget embebido/SalesWidget reportan eventos de apertura (`whatsapp_open`/`iacallcloser_open`) a `POST /api/chat-event`; el dashboard usa esos eventos (`ai_chat_events`) para marcar `Lead completado`.
 - En conversaciones `No completadas`, el dashboard ofrece `Analizar conversacion`: boton 1-click que llama `POST /api/analyze-conversation` y devuelve diagnostico (causas raiz, mejoras, patch de prompt y score de calidad).
 - `Analizar conversacion` consume creditos de la API key OpenAI configurada por cliente (`ai_api_key`); la UI muestra aviso explicito de consumo para evitar sorpresas de costo.

@@ -119,7 +119,6 @@ function getUserInstruction(body) {
       `required_data: ${trimText(source.requiredData || "", 240) || "N/A"}`,
       `budget_rule: ${trimText(source.budgetRule || "", 260) || "N/A"}`,
       `objection_handling: ${trimText(source.objectionHandling || "", 300) || "N/A"}`,
-      `consent_rule: ${trimText(source.consentRule || "", 260) || "N/A"}`,
       `security_level: ${trimText(source.securityLevel || "", 100) || "N/A"}`,
       `blocked_topics: ${trimText(source.blockedTopics || "", 280) || "N/A"}`,
       `fallback_flow: ${trimText(source.fallbackFlow || "", 220) || "N/A"}`,
@@ -129,6 +128,9 @@ function getUserInstruction(body) {
         ? "Important: do not include command tokens ([ICALLCLOSER_READY] or [WHATSAPP_REDIRECT]) because the app injects them automatically."
         : "Importante: no incluyas comandos token ([ICALLCLOSER_READY] o [WHATSAPP_REDIRECT]) porque la app los inyecta automaticamente.",
     ];
+    if (closingMode === "icallcloser") {
+      lines.splice(8, 0, `consent_rule: ${trimText(source.consentRule || "", 260) || "N/A"}`);
+    }
     return lines.join("\n");
   }
 
@@ -251,4 +253,3 @@ export default async function handler(req, res) {
     });
   }
 }
-
