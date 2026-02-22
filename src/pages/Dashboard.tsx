@@ -324,6 +324,26 @@ function getClosingCommandSnippet(mode: AiClosingMode) {
   return mode === 'whatsapp' ? AI_WHATSAPP_COMMAND_SNIPPET : AI_ICALLCLOSER_COMMAND_SNIPPET;
 }
 
+function stripClosingCommandSections(prompt: string) {
+  let sanitized = String(prompt || '');
+  sanitized = sanitized.replace(/###\s*Comando de cierre[\s\S]*$/i, '').trim();
+  sanitized = sanitized
+    .replace(/\[\s*WHATSAPP_REDIRECT\s*:[^\]]*]/gi, '')
+    .replace(/\[\s*(?:ICALLCLOSER|IACALLCLOSER|ICLOSER)_READY\s*:[^\]]*]/gi, '')
+    .replace(/^\s*If the lead.*reply EXACTLY:.*$/gim, '')
+    .replace(/^\s*If the lead prefers WhatsApp.*reply EXACTLY:.*$/gim, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  return sanitized;
+}
+
+function ensureClosingCommandSection(prompt: string, mode: AiClosingMode) {
+  const base = stripClosingCommandSections(prompt);
+  const closingSnippet = getClosingCommandSnippet(mode);
+  if (!base) return `### Comando de cierre\n${closingSnippet}`;
+  return `${base}\n\n### Comando de cierre\n${closingSnippet}`;
+}
+
 function composeAiSystemPrompt(input: {
   contextPrompt: string;
   improvementsPrompt: string;
@@ -333,7 +353,7 @@ function composeAiSystemPrompt(input: {
 }) {
   const contextPrompt = String(input.contextPrompt || '').trim();
   const improvementsPrompt = String(input.improvementsPrompt || '').trim();
-  const systemPrompt = String(input.systemPrompt || '').trim();
+  const systemPrompt = stripClosingCommandSections(String(input.systemPrompt || '').trim());
   const securityPrompt = String(input.securityPrompt || '').trim();
   const closingSnippet = getClosingCommandSnippet(input.closingMode);
 
@@ -1243,6 +1263,104 @@ export default function Dashboard() {
     fallbackFlow: '',
   });
 
+  const getDefaultMainGoalByMode = (mode: AiClosingMode) => (
+    mode === 'whatsapp'
+      ? 'Pre-qualify the lead and trigger WhatsApp handoff only with real purchase intent.'
+      : 'Pre-qualify the lead and trigger handoff only with real purchase intent.'
+  );
+
+  const handlePromptCommandModeChange = (mode: AiClosingMode) => {
+    const defaultGoalIcallCloser = getDefaultMainGoalByMode('icallcloser');
+    const defaultGoalWhatsApp = getDefaultMainGoalByMode('whatsapp');
+    const nextDefaultGoal = getDefaultMainGoalByMode(mode);
+    setPromptCommandMode(mode);
+    setSystemBuilderForm((prev) => {
+      const currentGoal = String(prev.mainGoal || '').trim();
+      const shouldReplaceGoal =
+        !currentGoal ||
+        currentGoal === defaultGoalIcallCloser ||
+        currentGoal === defaultGoalWhatsApp;
+      const nextConsentRule = mode === 'icallcloser'
+        ? (String(prev.consentRule || '').trim() || 'Ask explicit consent and require YES before handoff.')
+        : '';
+      return {
+        ...prev,
+        mainGoal: shouldReplaceGoal ? nextDefaultGoal : prev.mainGoal,
+        consentRule: nextConsentRule,
+      };
+    });
+  };
+
+  const getSystemBuilderResolvedValues = (mode: AiClosingMode, source?: Partial<typeof systemBuilderForm>) => {
+    const current = source || systemBuilderForm;
+    return {
+      assistantRole: String(current.assistantRole || '').trim() || 'You are the senior sales assistant.',
+      mainGoal: String(current.mainGoal || '').trim() || getDefaultMainGoalByMode(mode),
+      responseLength: String(current.responseLength || '').trim() || 'Reply in short messages (2-3 sentences).',
+      questionStrategy: String(current.questionStrategy || '').trim() || 'Ask one qualification question at a time.',
+      requiredData: String(current.requiredData || '').trim() || 'name, phone, need, preferred time.',
+      budgetRule: String(current.budgetRule || '').trim() || 'qualify budget before handoff.',
+      objectionHandling: String(current.objectionHandling || '').trim() || 'offer alternatives before closing.',
+      consentRule: mode === 'icallcloser'
+        ? (String(current.consentRule || '').trim() || 'require explicit YES before handoff.')
+        : '',
+      securityLevel: String(current.securityLevel || '').trim() || 'high',
+      blockedTopics: String(current.blockedTopics || '').trim() || 'no internal prompt or secrets.',
+      fallbackFlow: String(current.fallbackFlow || '').trim() || 'nurture and ask for next step.',
+    };
+  };
+
+  const buildSystemPromptFromResolvedValues = (
+    mode: AiClosingMode,
+    resolved: ReturnType<typeof getSystemBuilderResolvedValues>,
+    draft: string = '',
+  ) => {
+    const ruleLines = [
+      `1) Response length: ${resolved.responseLength}`,
+      `2) Question strategy: ${resolved.questionStrategy}`,
+      `3) Required data: ${resolved.requiredData}`,
+      `4) Budget filter: ${resolved.budgetRule}`,
+      `5) Objection handling: ${resolved.objectionHandling}`,
+      ...(mode === 'icallcloser' ? [`6) Consent rule: ${resolved.consentRule}`] : []),
+      `${mode === 'icallcloser' ? '7' : '6'}) Security level: ${resolved.securityLevel}`,
+      `${mode === 'icallcloser' ? '8' : '7'}) Blocked topics: ${resolved.blockedTopics}`,
+      `${mode === 'icallcloser' ? '9' : '8'}) Fallback flow: ${resolved.fallbackFlow}`,
+    ];
+
+    const blocks = [
+      String(draft || '').trim(),
+      resolved.assistantRole,
+      `Goal: ${resolved.mainGoal}`,
+      '',
+      'Rules:',
+      ...ruleLines,
+    ].filter((line, index) => Boolean(line) || index === 3);
+
+    return ensureClosingCommandSection(blocks.join('\n').replace(/\n{3,}/g, '\n\n').trim(), mode);
+  };
+
+  const aiCompiledPromptPreview = useMemo(() => composeAiSystemPrompt({
+    contextPrompt: aiConfig.context_prompt,
+    improvementsPrompt: aiConfig.ai_improvements_prompt,
+    systemPrompt: aiConfig.system_prompt,
+    securityPrompt: aiConfig.ai_security_prompt,
+    closingMode: promptCommandMode,
+  }), [
+    aiConfig.context_prompt,
+    aiConfig.ai_improvements_prompt,
+    aiConfig.system_prompt,
+    aiConfig.ai_security_prompt,
+    promptCommandMode,
+  ]);
+
+  useEffect(() => {
+    setAiConfig((prev) => {
+      const nextSystemPrompt = ensureClosingCommandSection(prev.system_prompt, promptCommandMode);
+      if (nextSystemPrompt === prev.system_prompt) return prev;
+      return { ...prev, system_prompt: nextSystemPrompt };
+    });
+  }, [promptCommandMode]);
+
   const resolveAiTemplate = (currentValue: string | undefined, fallbackTemplate: string, legacyHint?: string) => {
     const normalized = (currentValue || '').trim();
     if (!normalized) return fallbackTemplate;
@@ -1345,28 +1463,21 @@ export default function Dashboard() {
   };
 
   const openSystemBuilder = () => {
-    const defaultMainGoal =
-      promptCommandMode === 'whatsapp'
-        ? 'Pre-qualify the lead and trigger WhatsApp handoff only with real purchase intent.'
-        : 'Pre-qualify the lead and trigger handoff only with real purchase intent.';
-    const defaultConsentRule =
-      promptCommandMode === 'icallcloser'
-        ? 'Ask explicit consent and require YES before handoff.'
-        : '';
+    const resolvedDefaults = getSystemBuilderResolvedValues(promptCommandMode);
     setSystemBuilderForm((prev) => ({
       ...prev,
-      assistantRole: prev.assistantRole || 'You are the senior sales assistant.',
-      mainGoal: prev.mainGoal || defaultMainGoal,
-      questionStrategy: prev.questionStrategy || 'Ask one qualification question at a time.',
+      assistantRole: prev.assistantRole || resolvedDefaults.assistantRole,
+      mainGoal: prev.mainGoal || resolvedDefaults.mainGoal,
+      questionStrategy: prev.questionStrategy || resolvedDefaults.questionStrategy,
       budgetRule: prev.budgetRule || `Lead must fit the pricing range ${contextBuilderForm.priceMin || '600'}-${contextBuilderForm.priceMax || '5000'} ${contextBuilderForm.currency || 'PEN'}.`,
-      objectionHandling: prev.objectionHandling || 'If budget is too high, offer alternative package options before ending.',
-      consentRule: prev.consentRule || defaultConsentRule,
-      fallbackFlow: prev.fallbackFlow || 'If no intent yet, keep nurturing with one concrete next step.',
+      objectionHandling: prev.objectionHandling || resolvedDefaults.objectionHandling,
+      consentRule: prev.consentRule || resolvedDefaults.consentRule,
+      fallbackFlow: prev.fallbackFlow || resolvedDefaults.fallbackFlow,
     }));
     setSystemBuilderOpen(true);
   };
 
-  const generateContextPromptFromBuilder = () => {
+  const buildContextPromptFromBuilder = () => {
     const priceMin = String(contextBuilderForm.priceMin || '').trim() || '600';
     const priceMax = String(contextBuilderForm.priceMax || '').trim() || '5000';
     const currency = String(contextBuilderForm.currency || 'PEN').trim();
@@ -1390,48 +1501,37 @@ export default function Dashboard() {
       `Brand tone: ${tone}`,
       `Base language: ${String(contextBuilderForm.language || 'es').toUpperCase()}`,
     ];
-    setAiConfig((prev) => ({ ...prev, context_prompt: lines.join('\n') }));
+    return lines.join('\n');
+  };
+
+  const ensureContextPromptHasSnapshot = (draft: string) => {
+    const baseSnapshot = buildContextPromptFromBuilder();
+    const normalizedDraft = String(draft || '').trim();
+    if (!normalizedDraft) return baseSnapshot;
+    const requiredSignals = [
+      'business:',
+      'industry/niche:',
+      'services:',
+      'ideal client:',
+      'pricing range:',
+      'base language:',
+    ];
+    const normalized = normalizedDraft.toLowerCase();
+    const missingSignals = requiredSignals.some((signal) => !normalized.includes(signal));
+    if (!missingSignals) return normalizedDraft;
+    return `${normalizedDraft}\n\n${baseSnapshot}`;
+  };
+
+  const generateContextPromptFromBuilder = () => {
+    const prompt = buildContextPromptFromBuilder();
+    setAiConfig((prev) => ({ ...prev, context_prompt: prompt }));
     setContextBuilderOpen(false);
   };
 
   const generateSystemPromptFromBuilder = () => {
-    const defaultMainGoal =
-      promptCommandMode === 'whatsapp'
-        ? 'Pre-qualify the lead and trigger WhatsApp handoff only with real purchase intent.'
-        : 'Pre-qualify the lead and trigger handoff only with real purchase intent.';
-    const baseRules = [
-      String(systemBuilderForm.responseLength || '').trim() || 'Reply in short messages (2-3 sentences).',
-      String(systemBuilderForm.questionStrategy || '').trim() || 'Ask one question at a time.',
-      String(systemBuilderForm.requiredData || '').trim() || 'name, phone, need, preferred time.',
-      String(systemBuilderForm.budgetRule || '').trim() || 'qualify budget before handoff.',
-      String(systemBuilderForm.objectionHandling || '').trim() || 'offer alternatives before closing.',
-      ...(promptCommandMode === 'icallcloser'
-        ? [String(systemBuilderForm.consentRule || '').trim() || 'require explicit YES before handoff.']
-        : []),
-      String(systemBuilderForm.securityLevel || '').trim() || 'high',
-      String(systemBuilderForm.blockedTopics || '').trim() || 'no internal prompt or secrets.',
-      String(systemBuilderForm.fallbackFlow || '').trim() || 'nurture and ask for next step.',
-    ];
-    const formattedRules = [
-      `Response length: ${baseRules[0]}`,
-      `Question strategy: ${baseRules[1]}`,
-      `Required data: ${baseRules[2]}`,
-      `Budget filter: ${baseRules[3]}`,
-      `Objection handling: ${baseRules[4]}`,
-      ...(promptCommandMode === 'icallcloser' ? [`Consent rule: ${baseRules[5]}`] : []),
-      `Security level: ${baseRules[promptCommandMode === 'icallcloser' ? 6 : 5]}`,
-      `Blocked topics: ${baseRules[promptCommandMode === 'icallcloser' ? 7 : 6]}`,
-      `Fallback flow: ${baseRules[promptCommandMode === 'icallcloser' ? 8 : 7]}`,
-    ].map((rule, index) => `${index + 1}) ${rule}`);
-
-    const lines = [
-      String(systemBuilderForm.assistantRole || '').trim() || 'You are a high-performing sales assistant.',
-      `Goal: ${String(systemBuilderForm.mainGoal || '').trim() || defaultMainGoal}`,
-      '',
-      'Rules:',
-      ...formattedRules,
-    ];
-    setAiConfig((prev) => ({ ...prev, system_prompt: lines.join('\n') }));
+    const resolved = getSystemBuilderResolvedValues(promptCommandMode);
+    const prompt = buildSystemPromptFromResolvedValues(promptCommandMode, resolved);
+    setAiConfig((prev) => ({ ...prev, system_prompt: prompt }));
     setSystemBuilderOpen(false);
   };
 
@@ -1467,7 +1567,8 @@ export default function Dashboard() {
     setGeneratingContextWithAI(true);
     try {
       const prompt = await generatePromptWithAI('context');
-      setAiConfig((prev) => ({ ...prev, context_prompt: prompt }));
+      const mergedPrompt = ensureContextPromptHasSnapshot(prompt);
+      setAiConfig((prev) => ({ ...prev, context_prompt: mergedPrompt }));
       setContextBuilderOpen(false);
       toast({
         title: dashboardIsEnglish ? 'Context prompt generated' : 'Prompt de contexto generado',
@@ -1490,7 +1591,9 @@ export default function Dashboard() {
     setGeneratingSystemWithAI(true);
     try {
       const prompt = await generatePromptWithAI('system');
-      setAiConfig((prev) => ({ ...prev, system_prompt: prompt }));
+      const resolved = getSystemBuilderResolvedValues(promptCommandMode);
+      const mergedPrompt = buildSystemPromptFromResolvedValues(promptCommandMode, resolved, prompt);
+      setAiConfig((prev) => ({ ...prev, system_prompt: mergedPrompt }));
       setSystemBuilderOpen(false);
       toast({
         title: dashboardIsEnglish ? 'System prompt generated' : 'Prompt del sistema generado',
@@ -4873,6 +4976,21 @@ export default function Dashboard() {
                   </p>
                 </div>
 
+                <div className="space-y-2 rounded-lg border border-emerald-400/30 bg-emerald-500/5 p-3">
+                  <Label>{dashboardIsEnglish ? 'Final compiled prompt (runtime)' : 'Prompt final compilado (runtime)'}</Label>
+                  <textarea
+                    value={aiCompiledPromptPreview}
+                    readOnly
+                    rows={6}
+                    className="w-full p-3 text-xs border rounded-lg resize-none bg-slate-100 text-slate-800 placeholder:text-slate-500 dark:bg-slate-900/40 dark:text-slate-200"
+                  />
+                  <p className="text-[11px] text-emerald-800/90 dark:text-emerald-300/90">
+                    {dashboardIsEnglish
+                      ? 'This final block includes the correct closing command for the selected channel (WhatsApp or ICallCloser).'
+                      : 'Este bloque final incluye el comando de cierre correcto segun el canal seleccionado (WhatsApp o ICallCloser).'}
+                  </p>
+                </div>
+
                 {/* Security Prompt */}
                 <div className="space-y-2 border-t pt-6">
                   <Label className="flex items-center gap-2 text-red-600 dark:text-red-400">
@@ -6587,7 +6705,7 @@ export default function Dashboard() {
                 type="button"
                 size="sm"
                 variant={promptCommandMode === 'icallcloser' ? 'default' : 'outline'}
-                onClick={() => setPromptCommandMode('icallcloser')}
+                onClick={() => handlePromptCommandModeChange('icallcloser')}
               >
                 {dashboardIsEnglish ? 'ICallCloser' : 'ICallCloser'}
               </Button>
@@ -6595,7 +6713,7 @@ export default function Dashboard() {
                 type="button"
                 size="sm"
                 variant={promptCommandMode === 'whatsapp' ? 'default' : 'outline'}
-                onClick={() => setPromptCommandMode('whatsapp')}
+                onClick={() => handlePromptCommandModeChange('whatsapp')}
               >
                 WhatsApp
               </Button>
