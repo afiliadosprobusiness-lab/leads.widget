@@ -38,6 +38,8 @@ type RealEstateProperty = {
   areaM2: string;
   imageUrl: string;
   videoUrl: string;
+  imageUrls: string[];
+  videoUrls: string[];
 };
 
 type PublicWidgetConfig = {
@@ -83,6 +85,8 @@ const PUBLIC_FIRESTORE_API_KEY = "AIzaSyCXNFoeg1nrYcFHzU9TEKNnDPg1mHU3_tA";
 const IDLE_TEASER_DELAY_MS = 6200;
 const IDLE_TEASER_VISIBLE_MS = 3800;
 const IDLE_TEASER_ROTATE_MS = 8500;
+const REAL_ESTATE_MAX_IMAGES = 5;
+const REAL_ESTATE_MAX_VIDEOS = 2;
 
 type ChatLocale = "es" | "en";
 
@@ -530,6 +534,24 @@ function normalizeRealEstateProperties(raw: unknown): RealEstateProperty[] {
 
   if (!Array.isArray(source)) return [];
 
+  const normalizeMediaList = (
+    value: unknown,
+    maxItems: number,
+    sanitizer: (url: string) => string,
+  ) => {
+    const sourceList = Array.isArray(value) ? value : [value];
+    const unique = new Set<string>();
+    const normalized: string[] = [];
+    for (const entry of sourceList) {
+      const safe = sanitizer(String(entry || ""));
+      if (!safe || unique.has(safe)) continue;
+      unique.add(safe);
+      normalized.push(safe);
+      if (normalized.length >= maxItems) break;
+    }
+    return normalized;
+  };
+
   return source
     .map((item, index) => {
       if (!item || typeof item !== "object") return null;
@@ -541,9 +563,23 @@ function normalizeRealEstateProperties(raw: unknown): RealEstateProperty[] {
       const bedrooms = String(row.bedrooms || row.rooms || row.dorms || "").trim();
       const bathrooms = String(row.bathrooms || row.baths || row.banos || "").trim();
       const areaM2 = String(row.areaM2 || row.area_m2 || row.m2 || "").trim();
-      const imageUrl = optimizeImageDeliveryUrl(String(row.imageUrl || row.image_url || row.photo || ""));
-      const videoUrl = sanitizeHttpUrl(String(row.videoUrl || row.video_url || row.video || ""));
-      if (!title && !imageUrl && !videoUrl) return null;
+      const imageUrls = normalizeMediaList(
+        Array.isArray(row.imageUrls) || Array.isArray(row.image_urls)
+          ? (row.imageUrls || row.image_urls)
+          : [row.imageUrl || row.image_url || row.photo || ""],
+        REAL_ESTATE_MAX_IMAGES,
+        (url) => optimizeImageDeliveryUrl(url),
+      );
+      const videoUrls = normalizeMediaList(
+        Array.isArray(row.videoUrls) || Array.isArray(row.video_urls)
+          ? (row.videoUrls || row.video_urls)
+          : [row.videoUrl || row.video_url || row.video || ""],
+        REAL_ESTATE_MAX_VIDEOS,
+        (url) => sanitizeHttpUrl(url),
+      );
+      const imageUrl = imageUrls[0] || "";
+      const videoUrl = videoUrls[0] || "";
+      if (!title && imageUrls.length === 0 && videoUrls.length === 0) return null;
       return {
         id: id || `property-${index + 1}`,
         title: title || `Propiedad ${index + 1}`,
@@ -554,6 +590,8 @@ function normalizeRealEstateProperties(raw: unknown): RealEstateProperty[] {
         areaM2,
         imageUrl,
         videoUrl,
+        imageUrls,
+        videoUrls,
       } as RealEstateProperty;
     })
     .filter((item): item is RealEstateProperty => Boolean(item))
@@ -751,6 +789,12 @@ function getRealEstateMediaDirective(config: PublicWidgetConfig | null, locale: 
   const catalog = properties
     .slice(0, 8)
     .map((property, index) => {
+      const imageUrls = (Array.isArray(property.imageUrls) ? property.imageUrls : [])
+        .filter(Boolean)
+        .slice(0, REAL_ESTATE_MAX_IMAGES);
+      const videoUrls = (Array.isArray(property.videoUrls) ? property.videoUrls : [])
+        .filter(Boolean)
+        .slice(0, REAL_ESTATE_MAX_VIDEOS);
       const rows = [
         `id=${property.id || `prop-${index + 1}`}`,
         `title=${property.title || "-"}`,
@@ -758,8 +802,8 @@ function getRealEstateMediaDirective(config: PublicWidgetConfig | null, locale: 
         property.price ? `price=${property.price}` : "",
         property.bedrooms ? `bedrooms=${property.bedrooms}` : "",
         property.areaM2 ? `m2=${property.areaM2}` : "",
-        property.imageUrl ? `image=${property.imageUrl}` : "",
-        property.videoUrl ? `video=${property.videoUrl}` : "",
+        ...imageUrls.map((url, mediaIndex) => `image_${mediaIndex + 1}=${url}`),
+        ...videoUrls.map((url, mediaIndex) => `video_${mediaIndex + 1}=${url}`),
       ].filter(Boolean);
       return rows.join(" | ");
     })

@@ -155,6 +155,8 @@ interface RealEstateProperty {
   area_m2: string;
   image_url: string;
   video_url: string;
+  image_urls: string[];
+  video_urls: string[];
 }
 
 
@@ -359,8 +361,13 @@ type WelcomeMediaKind = 'image' | 'audio' | 'video';
 type PropertyMediaKind = 'image' | 'video';
 type WidgetUploadMediaKind = 'image' | 'audio' | 'video';
 type WidgetUploadScope = 'welcome' | 'property';
+const WELCOME_IMAGE_MAX_MB = 6;
+const PROPERTY_IMAGE_MAX_MB = 5;
 const WELCOME_VIDEO_MAX_MB = 25;
-const PROPERTY_VIDEO_MAX_MB = 35;
+const PROPERTY_VIDEO_MAX_MB = 15;
+const AUDIO_MAX_MB = 15;
+const MAX_PROPERTY_IMAGES = 5;
+const MAX_PROPERTY_VIDEOS = 2;
 
 function sanitizeMediaUrl(value: unknown) {
   const raw = String(value || '').trim();
@@ -372,6 +379,20 @@ function sanitizeMediaUrl(value: unknown) {
   } catch {
     return '';
   }
+}
+
+function normalizePropertyMediaUrls(value: unknown, maxItems: number) {
+  const source = Array.isArray(value) ? value : [value];
+  const unique = new Set<string>();
+  const normalized: string[] = [];
+  for (const item of source) {
+    const safe = sanitizeMediaUrl(item);
+    if (!safe || unique.has(safe)) continue;
+    unique.add(safe);
+    normalized.push(safe);
+    if (normalized.length >= maxItems) break;
+  }
+  return normalized;
 }
 
 function normalizeRealEstateProperties(value: unknown): RealEstateProperty[] {
@@ -387,9 +408,21 @@ function normalizeRealEstateProperties(value: unknown): RealEstateProperty[] {
       const bedrooms = String(row.bedrooms || row.rooms || '').trim();
       const bathrooms = String(row.bathrooms || row.baths || '').trim();
       const area_m2 = String(row.area_m2 || row.areaM2 || row.m2 || '').trim();
-      const image_url = sanitizeMediaUrl(row.image_url || row.imageUrl || row.photo || '');
-      const video_url = sanitizeMediaUrl(row.video_url || row.videoUrl || row.video || '');
-      if (!title && !image_url && !video_url) return null;
+      const image_urls = normalizePropertyMediaUrls(
+        Array.isArray(row.image_urls) || Array.isArray(row.imageUrls)
+          ? (row.image_urls || row.imageUrls)
+          : [row.image_url || row.imageUrl || row.photo || ''],
+        MAX_PROPERTY_IMAGES,
+      );
+      const video_urls = normalizePropertyMediaUrls(
+        Array.isArray(row.video_urls) || Array.isArray(row.videoUrls)
+          ? (row.video_urls || row.videoUrls)
+          : [row.video_url || row.videoUrl || row.video || ''],
+        MAX_PROPERTY_VIDEOS,
+      );
+      const image_url = image_urls[0] || '';
+      const video_url = video_urls[0] || '';
+      if (!title && image_urls.length === 0 && video_urls.length === 0) return null;
       return {
         id: id || `property-${index + 1}`,
         title: title || `Propiedad ${index + 1}`,
@@ -400,6 +433,8 @@ function normalizeRealEstateProperties(value: unknown): RealEstateProperty[] {
         area_m2,
         image_url,
         video_url,
+        image_urls,
+        video_urls,
       } as RealEstateProperty;
     })
     .filter((item): item is RealEstateProperty => Boolean(item))
@@ -417,6 +452,8 @@ function createEmptyRealEstateProperty(): RealEstateProperty {
     area_m2: '',
     image_url: '',
     video_url: '',
+    image_urls: [],
+    video_urls: [],
   };
 }
 
@@ -1603,10 +1640,20 @@ export default function Dashboard() {
       ? formConfig.real_estate_properties
       : [];
     const withImage = properties.filter(
-      (item) => String(item?.image_url || '').trim().length > 0,
+      (item) => normalizePropertyMediaUrls(
+        Array.isArray(item?.image_urls) && item.image_urls.length > 0
+          ? item.image_urls
+          : [item?.image_url || ''],
+        MAX_PROPERTY_IMAGES,
+      ).length > 0,
     ).length;
     const withVideo = properties.filter(
-      (item) => String(item?.video_url || '').trim().length > 0,
+      (item) => normalizePropertyMediaUrls(
+        Array.isArray(item?.video_urls) && item.video_urls.length > 0
+          ? item.video_urls
+          : [item?.video_url || ''],
+        MAX_PROPERTY_VIDEOS,
+      ).length > 0,
     ).length;
 
     return {
@@ -1649,21 +1696,23 @@ export default function Dashboard() {
   ) => {
     const maxBytes =
       kind === 'audio'
-        ? 15 * 1024 * 1024
+        ? AUDIO_MAX_MB * 1024 * 1024
         : kind === 'video'
           ? (scope === 'welcome' ? WELCOME_VIDEO_MAX_MB : PROPERTY_VIDEO_MAX_MB) * 1024 * 1024
-          : 6 * 1024 * 1024;
+          : (scope === 'welcome' ? WELCOME_IMAGE_MAX_MB : PROPERTY_IMAGE_MAX_MB) * 1024 * 1024;
     if (file.size <= maxBytes) return true;
     toast({
       title: 'Archivo demasiado grande',
       description:
         kind === 'audio'
-          ? 'El audio debe ser menor a 15MB.'
+          ? `El audio debe ser menor a ${AUDIO_MAX_MB}MB.`
           : kind === 'video'
             ? scope === 'welcome'
               ? `El video de bienvenida debe ser menor a ${WELCOME_VIDEO_MAX_MB}MB.`
               : `El video de propiedad debe ser menor a ${PROPERTY_VIDEO_MAX_MB}MB.`
-            : 'La imagen debe ser menor a 6MB.',
+            : scope === 'welcome'
+              ? `La imagen de bienvenida debe ser menor a ${WELCOME_IMAGE_MAX_MB}MB.`
+              : `La imagen de propiedad debe ser menor a ${PROPERTY_IMAGE_MAX_MB}MB.`,
       variant: 'destructive',
     });
     return false;
@@ -1801,7 +1850,20 @@ export default function Dashboard() {
     });
   };
 
-  const updateRealEstatePropertyField = (propertyId: string, field: keyof RealEstateProperty, value: string) => {
+  type RealEstateEditableField = Exclude<keyof RealEstateProperty, 'id' | 'image_urls' | 'video_urls'>;
+
+  const getPropertyMediaCap = (kind: PropertyMediaKind) => (
+    kind === 'image' ? MAX_PROPERTY_IMAGES : MAX_PROPERTY_VIDEOS
+  );
+
+  const getPropertyMediaList = (property: RealEstateProperty, kind: PropertyMediaKind) => {
+    const list = kind === 'image' ? property.image_urls : property.video_urls;
+    const legacy = kind === 'image' ? property.image_url : property.video_url;
+    const source = Array.isArray(list) && list.length > 0 ? list : (legacy ? [legacy] : []);
+    return source.map((entry) => String(entry ?? '')).slice(0, getPropertyMediaCap(kind));
+  };
+
+  const updateRealEstatePropertyField = (propertyId: string, field: RealEstateEditableField, value: string) => {
     setFormConfig((prev) => ({
       ...prev,
       real_estate_properties: (Array.isArray(prev.real_estate_properties) ? prev.real_estate_properties : []).map((item) =>
@@ -1815,10 +1877,95 @@ export default function Dashboard() {
     }));
   };
 
+  const updateRealEstatePropertyMediaAt = (
+    propertyId: string,
+    kind: PropertyMediaKind,
+    mediaIndex: number,
+    value: string,
+  ) => {
+    setFormConfig((prev) => ({
+      ...prev,
+      real_estate_properties: (Array.isArray(prev.real_estate_properties) ? prev.real_estate_properties : []).map((item) => {
+        if (item.id !== propertyId) return item;
+        const cap = getPropertyMediaCap(kind);
+        const nextList = [...getPropertyMediaList(item, kind)];
+        while (nextList.length <= mediaIndex && nextList.length < cap) {
+          nextList.push('');
+        }
+        if (mediaIndex < nextList.length) {
+          nextList[mediaIndex] = value;
+        }
+
+        if (kind === 'image') {
+          return {
+            ...item,
+            image_urls: nextList.slice(0, cap),
+            image_url: String(nextList[0] || ''),
+          };
+        }
+        return {
+          ...item,
+          video_urls: nextList.slice(0, cap),
+          video_url: String(nextList[0] || ''),
+        };
+      }),
+    }));
+  };
+
+  const addRealEstatePropertyMediaSlot = (propertyId: string, kind: PropertyMediaKind) => {
+    setFormConfig((prev) => ({
+      ...prev,
+      real_estate_properties: (Array.isArray(prev.real_estate_properties) ? prev.real_estate_properties : []).map((item) => {
+        if (item.id !== propertyId) return item;
+        const cap = getPropertyMediaCap(kind);
+        const list = getPropertyMediaList(item, kind);
+        const visibleList = list.length > 0 ? list : [''];
+        if (visibleList.length >= cap) return item;
+        const nextList = [...visibleList, ''];
+        if (kind === 'image') {
+          return {
+            ...item,
+            image_urls: nextList,
+            image_url: String(nextList[0] || ''),
+          };
+        }
+        return {
+          ...item,
+          video_urls: nextList,
+          video_url: String(nextList[0] || ''),
+        };
+      }),
+    }));
+  };
+
+  const removeRealEstatePropertyMediaSlot = (propertyId: string, kind: PropertyMediaKind, mediaIndex: number) => {
+    setFormConfig((prev) => ({
+      ...prev,
+      real_estate_properties: (Array.isArray(prev.real_estate_properties) ? prev.real_estate_properties : []).map((item) => {
+        if (item.id !== propertyId) return item;
+        const list = getPropertyMediaList(item, kind);
+        const nextList = list.filter((_, index) => index !== mediaIndex);
+        if (kind === 'image') {
+          return {
+            ...item,
+            image_urls: nextList,
+            image_url: String(nextList[0] || ''),
+          };
+        }
+        return {
+          ...item,
+          video_urls: nextList,
+          video_url: String(nextList[0] || ''),
+        };
+      }),
+    }));
+  };
+
   const handlePropertyMediaUpload = async (
     event: ChangeEvent<HTMLInputElement>,
     propertyId: string,
     kind: PropertyMediaKind,
+    mediaIndex: number,
   ) => {
     const file = event.target.files?.[0];
     event.target.value = '';
@@ -1834,7 +1981,7 @@ export default function Dashboard() {
       if (!safeUrl) {
         throw new Error('No se obtuvo una URL valida del archivo subido.');
       }
-      updateRealEstatePropertyField(propertyId, kind === 'image' ? 'image_url' : 'video_url', safeUrl);
+      updateRealEstatePropertyMediaAt(propertyId, kind, mediaIndex, safeUrl);
       toast({
         title: 'Archivo subido',
         description: canUseCloudinaryUploads
@@ -2527,18 +2674,34 @@ export default function Dashboard() {
           ? formConfig.lead_chat_live_toasts.split('\n').map((value: string) => value.trim()).filter(Boolean).slice(0, 12)
           : [],
         real_estate_properties: (Array.isArray(formConfig.real_estate_properties) ? formConfig.real_estate_properties : [])
-          .map((item: RealEstateProperty, index: number) => ({
-            id: String(item.id || `property-${index + 1}`).trim(),
-            title: String(item.title || '').trim(),
-            district: String(item.district || '').trim(),
-            price: String(item.price || '').trim(),
-            bedrooms: String(item.bedrooms || '').trim(),
-            bathrooms: String(item.bathrooms || '').trim(),
-            area_m2: String(item.area_m2 || '').trim(),
-            image_url: sanitizeMediaUrl(item.image_url),
-            video_url: sanitizeMediaUrl(item.video_url),
-          }))
-          .filter((item: RealEstateProperty) => item.title || item.image_url || item.video_url)
+          .map((item: RealEstateProperty, index: number) => {
+            const image_urls = normalizePropertyMediaUrls(
+              Array.isArray(item.image_urls) && item.image_urls.length > 0
+                ? item.image_urls
+                : [item.image_url],
+              MAX_PROPERTY_IMAGES,
+            );
+            const video_urls = normalizePropertyMediaUrls(
+              Array.isArray(item.video_urls) && item.video_urls.length > 0
+                ? item.video_urls
+                : [item.video_url],
+              MAX_PROPERTY_VIDEOS,
+            );
+            return {
+              id: String(item.id || `property-${index + 1}`).trim(),
+              title: String(item.title || '').trim(),
+              district: String(item.district || '').trim(),
+              price: String(item.price || '').trim(),
+              bedrooms: String(item.bedrooms || '').trim(),
+              bathrooms: String(item.bathrooms || '').trim(),
+              area_m2: String(item.area_m2 || '').trim(),
+              image_url: image_urls[0] || '',
+              video_url: video_urls[0] || '',
+              image_urls,
+              video_urls,
+            };
+          })
+          .filter((item: RealEstateProperty) => item.title || item.image_urls.length > 0 || item.video_urls.length > 0)
           .slice(0, 20),
         custom_tracking_code: deleteField(),
         custom_code: deleteField(),
@@ -3611,8 +3774,10 @@ export default function Dashboard() {
                         {(Array.isArray(formConfig.real_estate_properties) ? formConfig.real_estate_properties : []).map((property: RealEstateProperty, index: number) => {
                           const uploadingImage = propertyUploadState[property.id]?.image === true;
                           const uploadingVideo = propertyUploadState[property.id]?.video === true;
-                          const safeImageUrl = sanitizeMediaUrl(property.image_url);
-                          const safeVideoUrl = sanitizeMediaUrl(property.video_url);
+                          const imageItems = getPropertyMediaList(property, 'image');
+                          const videoItems = getPropertyMediaList(property, 'video');
+                          const visibleImageItems = imageItems.length > 0 ? imageItems : [''];
+                          const visibleVideoItems = videoItems.length > 0 ? videoItems : [''];
                           return (
                             <div key={property.id} className="space-y-3 rounded-lg border border-emerald-200 bg-white/90 p-3 dark:border-emerald-900 dark:bg-slate-950/50">
                               <div className="flex items-center justify-between gap-2">
@@ -3688,58 +3853,132 @@ export default function Dashboard() {
 
                               <div className="grid gap-3 sm:grid-cols-2">
                                 <div className="space-y-2 rounded-md border border-emerald-200 p-2 dark:border-emerald-900">
-                                  <Label htmlFor={`property-image-${property.id}`} className="text-xs">Foto (URL o subida)</Label>
-                                  <Input
-                                    id={`property-image-${property.id}`}
-                                    value={property.image_url}
-                                    onChange={(event) => updateRealEstatePropertyField(property.id, 'image_url', event.target.value)}
-                                    placeholder="https://..."
-                                  />
-                                  <label className={`inline-flex h-8 items-center rounded-md border border-input px-3 text-xs font-medium ${uploadingImage ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-accent'}`}>
-                                    {uploadingImage ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
-                                    {uploadingImage ? 'Subiendo...' : 'Subir foto'}
-                                    <input
-                                      type="file"
-                                      accept="image/*"
-                                      className="sr-only"
-                                      disabled={uploadingImage}
-                                      onChange={(event) => void handlePropertyMediaUpload(event, property.id, 'image')}
-                                    />
-                                  </label>
-                                  {safeImageUrl ? (
-                                    <img
-                                      src={safeImageUrl}
-                                      alt={`Vista previa ${property.title || `propiedad ${index + 1}`}`}
-                                      loading="lazy"
-                                      className="max-h-28 w-full rounded-md border object-cover"
-                                    />
-                                  ) : null}
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <Label className="text-xs">Fotos (URL o subida)</Label>
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-7 px-2 text-xs"
+                                      disabled={imageItems.length >= MAX_PROPERTY_IMAGES}
+                                      onClick={() => addRealEstatePropertyMediaSlot(property.id, 'image')}
+                                    >
+                                      Agregar foto
+                                    </Button>
+                                  </div>
+                                  <p className="text-[11px] text-muted-foreground">
+                                    Hasta {MAX_PROPERTY_IMAGES} fotos por propiedad (max {PROPERTY_IMAGE_MAX_MB}MB c/u).
+                                  </p>
+                                  <div className="space-y-2">
+                                    {visibleImageItems.map((imageValue: string, imageIndex: number) => {
+                                      const safeImageUrl = sanitizeMediaUrl(imageValue);
+                                      const canRemoveImage = visibleImageItems.length > 1 || String(imageValue || '').trim().length > 0;
+                                      return (
+                                        <div key={`${property.id}-image-${imageIndex}`} className="space-y-1 rounded-md border border-emerald-100 p-2 dark:border-emerald-900/80">
+                                          <Input
+                                            id={`property-image-${property.id}-${imageIndex}`}
+                                            value={imageValue}
+                                            onChange={(event) => updateRealEstatePropertyMediaAt(property.id, 'image', imageIndex, event.target.value)}
+                                            placeholder={`https://... (${imageIndex + 1}/${MAX_PROPERTY_IMAGES})`}
+                                          />
+                                          <div className="flex flex-wrap items-center gap-2">
+                                            <label className={`inline-flex h-8 items-center rounded-md border border-input px-3 text-xs font-medium ${uploadingImage ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-accent'}`}>
+                                              {uploadingImage ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
+                                              {uploadingImage ? 'Subiendo...' : 'Subir foto'}
+                                              <input
+                                                type="file"
+                                                accept="image/*"
+                                                className="sr-only"
+                                                disabled={uploadingImage}
+                                                onChange={(event) => void handlePropertyMediaUpload(event, property.id, 'image', imageIndex)}
+                                              />
+                                            </label>
+                                            <Button
+                                              type="button"
+                                              size="sm"
+                                              variant="ghost"
+                                              className="h-8 px-2 text-xs text-rose-600 hover:bg-rose-100 hover:text-rose-700 dark:hover:bg-rose-900/30"
+                                              disabled={!canRemoveImage}
+                                              onClick={() => removeRealEstatePropertyMediaSlot(property.id, 'image', imageIndex)}
+                                            >
+                                              Quitar
+                                            </Button>
+                                          </div>
+                                          {safeImageUrl ? (
+                                            <img
+                                              src={safeImageUrl}
+                                              alt={`Vista previa ${property.title || `propiedad ${index + 1}`}`}
+                                              loading="lazy"
+                                              className="max-h-28 w-full rounded-md border object-cover"
+                                            />
+                                          ) : null}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
                                 </div>
 
                                 <div className="space-y-2 rounded-md border border-emerald-200 p-2 dark:border-emerald-900">
-                                  <Label htmlFor={`property-video-${property.id}`} className="text-xs">Video (URL o subida)</Label>
-                                  <Input
-                                    id={`property-video-${property.id}`}
-                                    value={property.video_url}
-                                    onChange={(event) => updateRealEstatePropertyField(property.id, 'video_url', event.target.value)}
-                                    placeholder="https://..."
-                                  />
-                                  <label className={`inline-flex h-8 items-center rounded-md border border-input px-3 text-xs font-medium ${uploadingVideo ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-accent'}`}>
-                                    {uploadingVideo ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
-                                    {uploadingVideo ? 'Subiendo...' : 'Subir video'}
-                                    <input
-                                      type="file"
-                                      accept="video/*"
-                                      className="sr-only"
-                                      disabled={uploadingVideo}
-                                      onChange={(event) => void handlePropertyMediaUpload(event, property.id, 'video')}
-                                    />
-                                  </label>
-                                  {safeVideoUrl ? (
-                                    <video controls preload="metadata" className="max-h-28 w-full rounded-md border bg-black">
-                                      <source src={safeVideoUrl} />
-                                    </video>
-                                  ) : null}
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <Label className="text-xs">Videos (URL o subida)</Label>
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-7 px-2 text-xs"
+                                      disabled={videoItems.length >= MAX_PROPERTY_VIDEOS}
+                                      onClick={() => addRealEstatePropertyMediaSlot(property.id, 'video')}
+                                    >
+                                      Agregar video
+                                    </Button>
+                                  </div>
+                                  <p className="text-[11px] text-muted-foreground">
+                                    Hasta {MAX_PROPERTY_VIDEOS} videos por propiedad (max {PROPERTY_VIDEO_MAX_MB}MB c/u).
+                                  </p>
+                                  <div className="space-y-2">
+                                    {visibleVideoItems.map((videoValue: string, videoIndex: number) => {
+                                      const safeVideoUrl = sanitizeMediaUrl(videoValue);
+                                      const canRemoveVideo = visibleVideoItems.length > 1 || String(videoValue || '').trim().length > 0;
+                                      return (
+                                        <div key={`${property.id}-video-${videoIndex}`} className="space-y-1 rounded-md border border-emerald-100 p-2 dark:border-emerald-900/80">
+                                          <Input
+                                            id={`property-video-${property.id}-${videoIndex}`}
+                                            value={videoValue}
+                                            onChange={(event) => updateRealEstatePropertyMediaAt(property.id, 'video', videoIndex, event.target.value)}
+                                            placeholder={`https://... (${videoIndex + 1}/${MAX_PROPERTY_VIDEOS})`}
+                                          />
+                                          <div className="flex flex-wrap items-center gap-2">
+                                            <label className={`inline-flex h-8 items-center rounded-md border border-input px-3 text-xs font-medium ${uploadingVideo ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-accent'}`}>
+                                              {uploadingVideo ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
+                                              {uploadingVideo ? 'Subiendo...' : 'Subir video'}
+                                              <input
+                                                type="file"
+                                                accept="video/*"
+                                                className="sr-only"
+                                                disabled={uploadingVideo}
+                                                onChange={(event) => void handlePropertyMediaUpload(event, property.id, 'video', videoIndex)}
+                                              />
+                                            </label>
+                                            <Button
+                                              type="button"
+                                              size="sm"
+                                              variant="ghost"
+                                              className="h-8 px-2 text-xs text-rose-600 hover:bg-rose-100 hover:text-rose-700 dark:hover:bg-rose-900/30"
+                                              disabled={!canRemoveVideo}
+                                              onClick={() => removeRealEstatePropertyMediaSlot(property.id, 'video', videoIndex)}
+                                            >
+                                              Quitar
+                                            </Button>
+                                          </div>
+                                          {safeVideoUrl ? (
+                                            <video controls preload="metadata" className="max-h-28 w-full rounded-md border bg-black">
+                                              <source src={safeVideoUrl} />
+                                            </video>
+                                          ) : null}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
                                 </div>
                               </div>
                             </div>

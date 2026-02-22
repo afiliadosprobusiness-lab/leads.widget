@@ -34,6 +34,8 @@
     projectId: 'leads-widget',
     apiKey: 'AIzaSyCXNFoeg1nrYcFHzU9TEKNnDPg1mHU3_tA'
   };
+  const REAL_ESTATE_MAX_IMAGES = 5;
+  const REAL_ESTATE_MAX_VIDEOS = 2;
 
   const LEGACY_QUICK_REPLIES = {
     en: ['Book more appointments', 'Close deals by phone', 'See how it works'],
@@ -257,6 +259,11 @@
             if (typeof entry?.stringValue === 'string') mapped[key] = entry.stringValue;
             else if (typeof entry?.integerValue === 'string') mapped[key] = entry.integerValue;
             else if (typeof entry?.doubleValue === 'number') mapped[key] = entry.doubleValue;
+            else if (Array.isArray(entry?.arrayValue?.values)) {
+              mapped[key] = entry.arrayValue.values
+                .map((arrayItem) => (typeof arrayItem?.stringValue === 'string' ? arrayItem.stringValue : ''))
+                .filter(Boolean);
+            }
           });
           return mapped;
         });
@@ -281,6 +288,20 @@
 
     if (!Array.isArray(source)) return [];
 
+    const normalizeMediaList = (rawValue, maxItems, sanitizer) => {
+      const sourceList = Array.isArray(rawValue) ? rawValue : [rawValue];
+      const unique = new Set();
+      const normalized = [];
+      for (const entry of sourceList) {
+        const safe = sanitizer(String(entry || ''));
+        if (!safe || unique.has(safe)) continue;
+        unique.add(safe);
+        normalized.push(safe);
+        if (normalized.length >= maxItems) break;
+      }
+      return normalized;
+    };
+
     return source
       .map((item, index) => {
         if (!item || typeof item !== 'object') return null;
@@ -291,9 +312,23 @@
         const price = String(row.price || row.amount || '').trim();
         const bedrooms = String(row.bedrooms || row.rooms || row.dorms || '').trim();
         const areaM2 = String(row.areaM2 || row.area_m2 || row.m2 || '').trim();
-        const imageUrl = optimizeCloudinaryImageUrl(row.imageUrl || row.image_url || row.photo || '');
-        const videoUrl = sanitizeHttpUrl(row.videoUrl || row.video_url || row.video || '');
-        if (!title && !imageUrl && !videoUrl) return null;
+        const imageUrls = normalizeMediaList(
+          (Array.isArray(row.imageUrls) || Array.isArray(row.image_urls))
+            ? (row.imageUrls || row.image_urls)
+            : [row.imageUrl || row.image_url || row.photo || ''],
+          REAL_ESTATE_MAX_IMAGES,
+          optimizeCloudinaryImageUrl
+        );
+        const videoUrls = normalizeMediaList(
+          (Array.isArray(row.videoUrls) || Array.isArray(row.video_urls))
+            ? (row.videoUrls || row.video_urls)
+            : [row.videoUrl || row.video_url || row.video || ''],
+          REAL_ESTATE_MAX_VIDEOS,
+          sanitizeHttpUrl
+        );
+        const imageUrl = imageUrls[0] || '';
+        const videoUrl = videoUrls[0] || '';
+        if (!title && imageUrls.length === 0 && videoUrls.length === 0) return null;
         return {
           id: id || `property-${index + 1}`,
           title: title || `Property ${index + 1}`,
@@ -302,7 +337,9 @@
           bedrooms,
           areaM2,
           imageUrl,
-          videoUrl
+          videoUrl,
+          imageUrls,
+          videoUrls
         };
       })
       .filter(Boolean)
@@ -317,6 +354,12 @@
     const catalog = properties
       .slice(0, 8)
       .map((property, index) => {
+        const imageUrls = (Array.isArray(property.imageUrls) ? property.imageUrls : [])
+          .filter(Boolean)
+          .slice(0, REAL_ESTATE_MAX_IMAGES);
+        const videoUrls = (Array.isArray(property.videoUrls) ? property.videoUrls : [])
+          .filter(Boolean)
+          .slice(0, REAL_ESTATE_MAX_VIDEOS);
         const rows = [
           `id=${property.id || `prop-${index + 1}`}`,
           `title=${property.title || '-'}`,
@@ -324,8 +367,8 @@
           property.price ? `price=${property.price}` : '',
           property.bedrooms ? `bedrooms=${property.bedrooms}` : '',
           property.areaM2 ? `m2=${property.areaM2}` : '',
-          property.imageUrl ? `image=${property.imageUrl}` : '',
-          property.videoUrl ? `video=${property.videoUrl}` : ''
+          ...imageUrls.map((url, mediaIndex) => `image_${mediaIndex + 1}=${url}`),
+          ...videoUrls.map((url, mediaIndex) => `video_${mediaIndex + 1}=${url}`)
         ].filter(Boolean);
         return rows.join(' | ');
       })

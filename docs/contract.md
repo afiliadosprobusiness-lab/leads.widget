@@ -59,7 +59,7 @@ Campos observados:
 - WhatsApp y flujo: `whatsapp_destination`, `niche_question`
 - Triggers: `trigger_delay`, `trigger_exit_intent`, `exit_intent_title`, `exit_intent_description`, `exit_intent_cta`, `vibration_intensity`
 - Mensajeria: `teaser_messages` (array o string), `quick_replies` (array o string)
-- Inmobiliaria: `real_estate_properties` (array de objetos con metadata y media por propiedad; opcional)
+- Inmobiliaria: `real_estate_properties` (array de objetos con metadata y media por propiedad; soporta campos legacy `image_url/video_url` y campos extendidos `image_urls[]/video_urls[]`; opcional)
 - Testimonios: `testimonials_json` (string JSON), opcional `testimonials` (array)
 - IA: `ai_enabled`, `ai_provider`, `ai_api_key`, `ai_model`, `ai_system_prompt`, `business_description`, `ai_context_prompt`, `ai_improvements_prompt`, `ai_system_base_prompt`, `ai_closing_channel`, `ai_temperature`, `ai_max_tokens`, `ai_security_prompt`
 - Tracking declarativo: `facebook_pixel_id`, `tiktok_pixel_id`, `google_tag_id`
@@ -484,3 +484,11 @@ Cambios de comportamiento relevantes:
 - Cambio: `widget_configs` agrega `welcome_video_url`; dashboard permite subir/quitar video de bienvenida y clientes Lead Chat/widget embebido lo renderizan como multimedia inicial.
 - Tipo: non-breaking
 - Impacto: extiende multimedia de bienvenida (imagen/audio/video) sin romper payloads existentes.
+- Fecha: 2026-02-22
+- Cambio: `real_estate_properties` amplia media por propiedad con `image_urls[]` (hasta 5) y `video_urls[]` (hasta 2), manteniendo compatibilidad con `image_url/video_url` legacy como primer elemento.
+- Tipo: non-breaking
+- Impacto: permite catalogo inmobiliario multi-media por propiedad sin romper consumidores existentes que leen una sola URL.
+- Fecha: 2026-02-22
+- Cambio: dashboard aplica limites de peso para media inmobiliaria en subida (`imagen propiedad <=5MB`, `video propiedad <=15MB`) para controlar costo y rendimiento en Cloudinary.
+- Tipo: non-breaking
+- Impacto: evita cargas pesadas en plan free sin modificar shape de endpoints ni contratos de lectura.
