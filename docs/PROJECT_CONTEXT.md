@@ -14,6 +14,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 ## Arquitectura (decisiones clave)
 - Dashboard cliente (`/app`) se mantiene compatible; modulo de afiliados fue deprecado en UI (data historica se conserva en Firestore).
 - Dashboard cliente incorpora nuevo tab `CRM` para gestion comercial operativa: lista de contactos, pipeline por etapas y filtros.
+- Navegacion de dashboard prioriza `CRM` como hub comercial; `Leads` deja de mostrarse como tab independiente y su tabla se integra dentro de CRM bajo seccion amigable para negocio (`Leads recientes`).
 - Nuevo portal partner separado:
   - Landing: `/partners`
   - Login partner: `/login?portal=partner`

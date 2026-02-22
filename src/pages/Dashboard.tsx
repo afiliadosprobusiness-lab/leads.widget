@@ -4170,7 +4170,7 @@ export default function Dashboard() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
           {/* Mobile Navigation (Segmented Control) */}
-          <div className="sm:hidden grid grid-cols-6 gap-1 mb-6 bg-background/50 backdrop-blur-sm p-1 rounded-2xl sticky top-[73px] z-40 border border-border/50 shadow-sm">
+          <div className="sm:hidden grid grid-cols-5 gap-1 mb-6 bg-background/50 backdrop-blur-sm p-1 rounded-2xl sticky top-[73px] z-40 border border-border/50 shadow-sm">
             {/* 1. Widget */}
             <button
               onClick={() => setActiveTab('config')}
@@ -4189,16 +4189,7 @@ export default function Dashboard() {
               <span className="text-[10px] leading-none">{t('dashboard.tabs.ai')}</span>
             </button>
 
-            {/* 3. Leads */}
-            <button
-              onClick={() => setActiveTab('leads')}
-              className={`flex flex-col items-center justify-center gap-1 min-h-[56px] rounded-xl transition-all duration-300 active:scale-95 ${activeTab === 'leads' ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-muted-foreground hover:bg-muted/50'}`}
-            >
-              <Users className={`w-5 h-5 ${activeTab === 'leads' ? 'stroke-[2.5px]' : ''}`} />
-              <span className="text-[10px] leading-none">{t('dashboard.tabs.leads')}</span>
-            </button>
-
-            {/* 4. CRM */}
+            {/* 3. CRM */}
             <button
               onClick={() => setActiveTab('crm')}
               className={`flex flex-col items-center justify-center gap-1 min-h-[56px] rounded-xl transition-all duration-300 active:scale-95 ${activeTab === 'crm' ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-muted-foreground hover:bg-muted/50'}`}
@@ -4207,7 +4198,7 @@ export default function Dashboard() {
               <span className="text-[10px] leading-none">{t('dashboard.tabs.crm', { defaultValue: 'CRM' })}</span>
             </button>
 
-            {/* 5. Data */}
+            {/* 4. Data */}
             <button
               onClick={() => setActiveTab('analytics')}
               className={`flex flex-col items-center justify-center gap-1 min-h-[56px] rounded-xl transition-all duration-300 active:scale-95 ${activeTab === 'analytics' ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-muted-foreground hover:bg-muted/50'}`}
@@ -4216,7 +4207,7 @@ export default function Dashboard() {
               <span className="text-[10px] leading-none">{t('dashboard.tabs.data')}</span>
             </button>
 
-            {/* 6. More (Dropdown) */}
+            {/* 5. More (Dropdown) */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -4254,10 +4245,6 @@ export default function Dashboard() {
             <TabsTrigger value="ai" className="gap-2 flex-shrink-0 px-4">
               <Bot className="w-4 h-4" />
               <span>{t('dashboard.tabs.ai')}</span>
-            </TabsTrigger>
-            <TabsTrigger value="leads" className="gap-2 flex-shrink-0 px-4">
-              <Users className="w-4 h-4" />
-              <span>{t('dashboard.leads')}</span>
             </TabsTrigger>
             <TabsTrigger value="crm" className="gap-2 flex-shrink-0 px-4">
               <Target className="w-4 h-4" />
@@ -6223,6 +6210,76 @@ export default function Dashboard() {
                         </div>
                       </article>
                     ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle>{dashboardIsEnglish ? 'Recent leads' : 'Leads recientes'}</CardTitle>
+                  <CardDescription>
+                    {dashboardIsEnglish
+                      ? 'People who recently wrote through your widget or lead chat.'
+                      : 'Personas que escribieron recientemente por tu widget o lead chat.'}
+                  </CardDescription>
+                </div>
+                <Button variant="outline" onClick={exportLeadsCSV} disabled={leads.length === 0}>
+                  <Download className="mr-2 h-4 w-4" />
+                  {t('dashboard.leads_list.export_csv')}
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {leads.length === 0 ? (
+                  <div className="rounded-2xl border-2 border-dashed py-12 text-center text-muted-foreground">
+                    <Users className="mx-auto mb-4 h-12 w-12 opacity-10" />
+                    <p>{t('dashboard.leads_list.no_leads')}</p>
+                    <p className="mt-1 text-sm">{t('dashboard.leads_list.install_hint')}</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[680px]">
+                      <thead>
+                        <tr className="border-b text-xs uppercase tracking-wider text-muted-foreground">
+                          <th className="px-4 py-3 text-left font-medium">{t('dashboard.leads_list.table_name')}</th>
+                          <th className="px-4 py-3 text-left font-medium">{t('dashboard.leads_list.table_phone')}</th>
+                          <th className="px-4 py-3 text-left font-medium">{t('dashboard.leads_list.table_interest')}</th>
+                          <th className="px-4 py-3 text-left font-medium">{t('dashboard.leads_list.table_date')}</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-sm">
+                        {leads.map((lead) => (
+                          <tr key={`crm-raw-${lead.id}`} className="border-b transition-colors hover:bg-muted/50">
+                            <td className="px-4 py-4 font-medium">{lead.name}</td>
+                            <td className="px-4 py-4 font-mono text-xs">
+                              {(lead.phone === 'Clic en WhatsApp' ||
+                                lead.phone === 'Usuario WhatsApp' ||
+                                (formConfig?.whatsapp_destination && lead.phone.replace(/\D/g, '') === formConfig.whatsapp_destination.replace(/\D/g, ''))) ? (
+                                <span className="flex w-fit items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2 py-1 font-sans font-medium text-green-600 dark:border-green-800 dark:bg-green-900/20">
+                                  <MessageCircle className="h-3 w-3" /> {t('dashboard.leads_list.status_started')}
+                                </span>
+                              ) : lead.phone === 'Pendiente (Click WA)' ? (
+                                <span className="rounded-full border border-amber-100 bg-amber-50 px-2 py-0.5 text-amber-600">{t('dashboard.leads_list.status_pending')}</span>
+                              ) : (
+                                <a href={`https://wa.me/${lead.phone.replace(/\D/g, '')}`} target="_blank" className="text-primary hover:underline">
+                                  {lead.phone}
+                                </a>
+                              )}
+                            </td>
+                            <td className="max-w-[260px] truncate px-4 py-4 text-muted-foreground">{lead.interest || '-'}</td>
+                            <td className="px-4 py-4 text-xs text-muted-foreground">
+                              {(() => {
+                                const dateValue = lead.created_at;
+                                if (!dateValue) return '-';
+                                if (dateValue.seconds) return new Date(dateValue.seconds * 1000).toLocaleString('es-PE');
+                                return new Date(dateValue).toLocaleString('es-PE');
+                              })()}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </CardContent>
