@@ -3258,6 +3258,45 @@ export default function Dashboard() {
     });
   };
 
+  const exportCrmContactsCSV = () => {
+    const escape = (value: unknown) => {
+      const text = String(value ?? '').trim();
+      return `"${text.replace(/"/g, '""')}"`;
+    };
+
+    const headers = dashboardIsEnglish
+      ? ['Name', 'Phone', 'Email', 'Interest', 'Stage', 'Notes', 'Source', 'Created At', 'Updated At']
+      : ['Nombre', 'Telefono', 'Email', 'Interes', 'Etapa', 'Notas', 'Origen', 'Creado', 'Actualizado'];
+
+    const rows = sortCrmContacts(crmContacts).map((contact) => [
+      escape(contact.name),
+      escape(contact.phone),
+      escape(contact.email),
+      escape(contact.interest),
+      escape(crmStageLabels[contact.stage]),
+      escape(contact.notes),
+      escape(contact.source),
+      escape(formatDateLabel(contact.created_at)),
+      escape(formatDateLabel(contact.updated_at)),
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n');
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `crm_contactos_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: dashboardIsEnglish ? 'CRM exported' : 'CRM exportado',
+      description: dashboardIsEnglish
+        ? 'Your full contact database was downloaded.'
+        : 'Se descargo toda tu base de contactos.',
+    });
+  };
+
   const formatDateLabel = (value: unknown) => {
     const ms = parseDateToMs(value);
     if (!ms) return '-';
@@ -6091,13 +6130,19 @@ export default function Dashboard() {
 
             <Card>
               <CardHeader className="space-y-4">
-                <div>
-                  <CardTitle>{dashboardIsEnglish ? 'Contact list' : 'Listado de contactos'}</CardTitle>
-                  <CardDescription>
-                    {dashboardIsEnglish
-                      ? 'Search contacts and update their stage as your team progresses.'
-                      : 'Busca contactos y actualiza su etapa conforme avanza tu equipo.'}
-                  </CardDescription>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <CardTitle>{dashboardIsEnglish ? 'Contact list' : 'Listado de contactos'}</CardTitle>
+                    <CardDescription>
+                      {dashboardIsEnglish
+                        ? 'Search contacts and update their stage as your team progresses.'
+                        : 'Busca contactos y actualiza su etapa conforme avanza tu equipo.'}
+                    </CardDescription>
+                  </div>
+                  <Button variant="outline" onClick={exportCrmContactsCSV} disabled={crmContacts.length === 0}>
+                    <Download className="mr-2 h-4 w-4" />
+                    {dashboardIsEnglish ? 'Export contacts CSV' : 'Exportar contactos CSV'}
+                  </Button>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <div className="space-y-2">
@@ -6215,75 +6260,6 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <CardTitle>{dashboardIsEnglish ? 'Recent leads' : 'Leads recientes'}</CardTitle>
-                  <CardDescription>
-                    {dashboardIsEnglish
-                      ? 'People who recently wrote through your widget or lead chat.'
-                      : 'Personas que escribieron recientemente por tu widget o lead chat.'}
-                  </CardDescription>
-                </div>
-                <Button variant="outline" onClick={exportLeadsCSV} disabled={leads.length === 0}>
-                  <Download className="mr-2 h-4 w-4" />
-                  {t('dashboard.leads_list.export_csv')}
-                </Button>
-              </CardHeader>
-              <CardContent>
-                {leads.length === 0 ? (
-                  <div className="rounded-2xl border-2 border-dashed py-12 text-center text-muted-foreground">
-                    <Users className="mx-auto mb-4 h-12 w-12 opacity-10" />
-                    <p>{t('dashboard.leads_list.no_leads')}</p>
-                    <p className="mt-1 text-sm">{t('dashboard.leads_list.install_hint')}</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[680px]">
-                      <thead>
-                        <tr className="border-b text-xs uppercase tracking-wider text-muted-foreground">
-                          <th className="px-4 py-3 text-left font-medium">{t('dashboard.leads_list.table_name')}</th>
-                          <th className="px-4 py-3 text-left font-medium">{t('dashboard.leads_list.table_phone')}</th>
-                          <th className="px-4 py-3 text-left font-medium">{t('dashboard.leads_list.table_interest')}</th>
-                          <th className="px-4 py-3 text-left font-medium">{t('dashboard.leads_list.table_date')}</th>
-                        </tr>
-                      </thead>
-                      <tbody className="text-sm">
-                        {leads.map((lead) => (
-                          <tr key={`crm-raw-${lead.id}`} className="border-b transition-colors hover:bg-muted/50">
-                            <td className="px-4 py-4 font-medium">{lead.name}</td>
-                            <td className="px-4 py-4 font-mono text-xs">
-                              {(lead.phone === 'Clic en WhatsApp' ||
-                                lead.phone === 'Usuario WhatsApp' ||
-                                (formConfig?.whatsapp_destination && lead.phone.replace(/\D/g, '') === formConfig.whatsapp_destination.replace(/\D/g, ''))) ? (
-                                <span className="flex w-fit items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2 py-1 font-sans font-medium text-green-600 dark:border-green-800 dark:bg-green-900/20">
-                                  <MessageCircle className="h-3 w-3" /> {t('dashboard.leads_list.status_started')}
-                                </span>
-                              ) : lead.phone === 'Pendiente (Click WA)' ? (
-                                <span className="rounded-full border border-amber-100 bg-amber-50 px-2 py-0.5 text-amber-600">{t('dashboard.leads_list.status_pending')}</span>
-                              ) : (
-                                <a href={`https://wa.me/${lead.phone.replace(/\D/g, '')}`} target="_blank" className="text-primary hover:underline">
-                                  {lead.phone}
-                                </a>
-                              )}
-                            </td>
-                            <td className="max-w-[260px] truncate px-4 py-4 text-muted-foreground">{lead.interest || '-'}</td>
-                            <td className="px-4 py-4 text-xs text-muted-foreground">
-                              {(() => {
-                                const dateValue = lead.created_at;
-                                if (!dateValue) return '-';
-                                if (dateValue.seconds) return new Date(dateValue.seconds * 1000).toLocaleString('es-PE');
-                                return new Date(dateValue).toLocaleString('es-PE');
-                              })()}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
           </TabsContent>
 
           {/* Analytics Tab */}

@@ -14,7 +14,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 ## Arquitectura (decisiones clave)
 - Dashboard cliente (`/app`) se mantiene compatible; modulo de afiliados fue deprecado en UI (data historica se conserva en Firestore).
 - Dashboard cliente incorpora nuevo tab `CRM` para gestion comercial operativa: lista de contactos, pipeline por etapas y filtros.
-- Navegacion de dashboard prioriza `CRM` como hub comercial; `Leads` deja de mostrarse como tab independiente y su tabla se integra dentro de CRM bajo seccion amigable para negocio (`Leads recientes`).
+- Navegacion de dashboard prioriza `CRM` como hub comercial; la operacion diaria se concentra en `Listado de contactos` y pipeline dentro del mismo tab.
 - Nuevo portal partner separado:
   - Landing: `/partners`
   - Login partner: `/login?portal=partner`
@@ -37,6 +37,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
   - Pagos manuales Yape/Plin guardan `plan_type` y `partner_id` cuando aplica.
 - CRM cliente:
   - Permite crear contactos manualmente (`crm_contacts`) desde dashboard.
+  - `Listado de contactos` incorpora exportacion CSV de toda la base CRM (contactos totales).
   - Incluye boton `Descargar plantilla CSV` para estandarizar headers y minimizar incompatibilidades en importacion.
   - Importacion CSV ahora usa vista previa obligatoria (filas listas/omitidas + motivo) y requiere confirmacion explicita antes de guardar en Firestore.
   - Permite importar base de clientes por archivo CSV desde el tab CRM con mapeo flexible de columnas (`name/nombre`, `phone/telefono`, `email`, `interest/interes`, `stage/etapa`, `notes/notas`, `source/origen`).
