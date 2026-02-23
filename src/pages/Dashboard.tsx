@@ -2134,6 +2134,7 @@ export default function Dashboard() {
   const [metaCapiLoading, setMetaCapiLoading] = useState(true);
   const [metaCapiSaving, setMetaCapiSaving] = useState(false);
   const [metaCapiTokenVisible, setMetaCapiTokenVisible] = useState(false);
+  const [isMetaCapiGuideOpen, setIsMetaCapiGuideOpen] = useState(false);
 
   const realEstateCatalogSummary = useMemo(() => {
     const properties = Array.isArray(formConfig.real_estate_properties)
@@ -5835,6 +5836,63 @@ export default function Dashboard() {
                           'Guardar Meta CAPI'
                         )}
                       </Button>
+                      <Dialog open={isMetaCapiGuideOpen} onOpenChange={setIsMetaCapiGuideOpen}>
+                        <DialogTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-10 w-10 rounded-full"
+                            aria-label="Guia para configurar Meta CAPI"
+                          >
+                            ?
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-xl">
+                          <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2">
+                              <Info className="h-4 w-4" />
+                              Guia para encontrar datos de Meta CAPI
+                            </DialogTitle>
+                            <DialogDescription>
+                              Necesitas permisos de administrador en el Business Manager del cliente.
+                            </DialogDescription>
+                          </DialogHeader>
+
+                          <div className="space-y-3 text-sm text-muted-foreground">
+                            <div className="rounded-lg border bg-muted/20 p-3">
+                              <p className="font-medium text-foreground">1. Business Manager ID</p>
+                              <p>
+                                Ve a <span className="font-medium text-foreground">Configuracion del negocio</span> &gt;{" "}
+                                <span className="font-medium text-foreground">Informacion del negocio</span>.
+                              </p>
+                            </div>
+                            <div className="rounded-lg border bg-muted/20 p-3">
+                              <p className="font-medium text-foreground">2. Ad Account ID</p>
+                              <p>
+                                En <span className="font-medium text-foreground">Ads Manager</span>, abre la cuenta publicitaria
+                                y copia el ID de cuenta. Puedes pegarlo con o sin prefijo <code>act_</code>.
+                              </p>
+                            </div>
+                            <div className="rounded-lg border bg-muted/20 p-3">
+                              <p className="font-medium text-foreground">3. Pixel/Dataset ID</p>
+                              <p>
+                                En <span className="font-medium text-foreground">Events Manager</span>, entra a la fuente de datos
+                                (Pixel o Dataset) y copia su ID.
+                              </p>
+                            </div>
+                            <div className="rounded-lg border bg-muted/20 p-3">
+                              <p className="font-medium text-foreground">4. Access Token (Conversions API)</p>
+                              <p>
+                                En la misma fuente de datos:{" "}
+                                <span className="font-medium text-foreground">Configuracion</span> &gt;{" "}
+                                <span className="font-medium text-foreground">Conversions API</span> &gt;{" "}
+                                <span className="font-medium text-foreground">Generar token de acceso</span>.
+                              </p>
+                            </div>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
                       {metaCapiLoading && (
                         <p className="text-xs text-muted-foreground">Cargando configuracion de Meta CAPI...</p>
                       )}
