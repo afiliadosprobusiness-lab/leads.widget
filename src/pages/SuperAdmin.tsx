@@ -1,7 +1,7 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, getDocs, getDoc, doc, updateDoc, setDoc, where, limit, onSnapshot, deleteDoc } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, getDoc, doc, updateDoc, setDoc, where, limit, onSnapshot, deleteDoc, deleteField } from 'firebase/firestore';
 import { useAuth, isSuperAdminEmail } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -58,6 +58,7 @@ interface Profile {
   email: string;
   business_name: string;
   whatsapp_number?: string;
+  plus_monthly_price_pen?: number | null;
   subscription_status?: string;
   created_at: string;
   trial_ends_at?: string;
@@ -107,6 +108,14 @@ const PROTECTED_SUPERADMINS = new Set([
   'superadmin2@leadwidget.pe',
 ]);
 
+const DEFAULT_PLUS_MONTHLY_PRICE_PEN = 150;
+
+const resolvePlusMonthlyPricePen = (value: unknown) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return DEFAULT_PLUS_MONTHLY_PRICE_PEN;
+  return Math.round(parsed);
+};
+
 export default function SuperAdmin() {
   const { user, isSuperAdmin, signOut, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -123,7 +132,7 @@ export default function SuperAdmin() {
   // New States for Management
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Profile | null>(null);
-  const [editForm, setEditForm] = useState({ business_name: '', phone: '', email: '' });
+  const [editForm, setEditForm] = useState({ business_name: '', phone: '', email: '', plus_monthly_price_pen: '' });
   const [blockedDemoIps, setBlockedDemoIps] = useState<any[]>([]);
   const [agencies, setAgencies] = useState<Agency[]>([]);
   const [agenciesLoading, setAgenciesLoading] = useState(false);
@@ -232,7 +241,7 @@ export default function SuperAdmin() {
         setAgencies(fallbackAgencies);
         toast({
           title: 'Modo compatibilidad',
-          description: 'Se cargaron agencias desde Firestore porque el endpoint no está desplegado.',
+          description: 'Se cargaron agencias desde Firestore porque el endpoint no est� desplegado.',
         });
       } else {
         toast({ title: 'Error cargando agencias', description: error.message, variant: 'destructive' });
@@ -303,7 +312,7 @@ export default function SuperAdmin() {
         });
 
         if (!eligible.length) {
-          toast({ title: 'Sin registros elegibles', description: 'No hay filas de comisión para este periodo.', variant: 'destructive' });
+          toast({ title: 'Sin registros elegibles', description: 'No hay filas de comisi�n para este periodo.', variant: 'destructive' });
           return;
         }
 
@@ -427,7 +436,7 @@ export default function SuperAdmin() {
       const profilesData = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as Profile[];
 
       setClients(prev => {
-        // preserve leads_count map or re-calc if needed. 
+        // preserve leads_count map or re-calc if needed.
         // Ideally we fetch leads count too, but let's assume leads updates handle that.
         // Or if this is the first load, we need leads count.
         // For simplicity, we initialize with 0 if map missing, but the Leads listener handles the count updates.
@@ -525,6 +534,9 @@ export default function SuperAdmin() {
     const trialCount = clients.filter(c => c.subscription_status === 'trial' || !c.subscription_status).length;
     const suspendedCount = clients.filter(c => c.subscription_status === 'suspended').length;
     const pendingPaymentsCount = payments.filter(p => p.status === 'pending').length;
+    const estimatedMrr = clients
+      .filter((c) => c.subscription_status === 'active' && String(c.plan_type || '').toLowerCase() === 'plus')
+      .reduce((sum, client) => sum + resolvePlusMonthlyPricePen(client.plus_monthly_price_pen), 0);
 
     setStats(prev => ({
       ...prev,
@@ -533,7 +545,7 @@ export default function SuperAdmin() {
       trialClients: trialCount,
       suspendedClients: suspendedCount,
       pendingPayments: pendingPaymentsCount,
-      mrr: activeCount * 100,
+      mrr: estimatedMrr,
     }));
   }, [clients, payments]);  const handleDeleteUser = async (clientId: string) => {
     const targetClient = clients.find(c => c.id === clientId);
@@ -544,7 +556,7 @@ export default function SuperAdmin() {
       return;
     }
 
-    const confirm = window.confirm('¿Estás seguro de eliminar este usuario? Se borrará su perfil y acceso.');
+    const confirm = window.confirm('�Est�s seguro de eliminar este usuario? Se borrar� su perfil y acceso.');
     if (!confirm) return;
 
     try {
@@ -566,7 +578,7 @@ export default function SuperAdmin() {
       setClients((prev) => prev.filter((c) => c.id !== clientId));
       toast({
         title: 'Usuario eliminado',
-        description: 'Se eliminó acceso (Firebase Auth) y datos principales.',
+        description: 'Se elimin� acceso (Firebase Auth) y datos principales.',
       });
     } catch (error: any) {
       toast({ title: 'Error al eliminar', description: error.message, variant: 'destructive' });
@@ -660,12 +672,12 @@ export default function SuperAdmin() {
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(payload?.error || 'No se pudo procesar la verificación');
+        throw new Error(payload?.error || 'No se pudo procesar la verificaci�n');
       }
 
       toast({
         title: status === 'verified' ? 'Pago verificado' : 'Pago rechazado',
-        description: status === 'verified' ? 'Cliente activado y comisión registrada' : 'Se notificará al cliente',
+        description: status === 'verified' ? 'Cliente activado y comisi�n registrada' : 'Se notificar� al cliente',
       });
 
     } catch (error: any) {
@@ -680,7 +692,11 @@ export default function SuperAdmin() {
     setEditForm({
       business_name: client.business_name || '',
       phone: client.whatsapp_number || '',
-      email: client.email || ''
+      email: client.email || '',
+      plus_monthly_price_pen:
+        client.plus_monthly_price_pen && Number(client.plus_monthly_price_pen) > 0
+          ? String(Math.round(Number(client.plus_monthly_price_pen)))
+          : '',
     });
   };
 
@@ -689,9 +705,22 @@ export default function SuperAdmin() {
 
     setLoading(true);
     try {
+      const rawPrice = String(editForm.plus_monthly_price_pen || '').trim();
+      const parsedPrice = rawPrice ? Number(rawPrice) : null;
+      if (rawPrice && (!Number.isFinite(parsedPrice) || Number(parsedPrice) < 50 || Number(parsedPrice) > 5000)) {
+        toast({
+          title: 'Precio inv�lido',
+          description: 'Ingresa un precio mensual entre S/ 50 y S/ 5000.',
+          variant: 'destructive',
+        });
+        setLoading(false);
+        return;
+      }
+
       await updateDoc(doc(db, 'profiles', editingClient.id), {
         business_name: editForm.business_name,
-        whatsapp_number: editForm.phone
+        whatsapp_number: editForm.phone,
+        plus_monthly_price_pen: rawPrice ? Math.round(Number(parsedPrice)) : deleteField(),
       });
 
       toast({ title: 'Cliente actualizado correctamente' });
@@ -785,10 +814,10 @@ export default function SuperAdmin() {
             <CardContent className="pt-6 text-sm text-red-900 space-y-2">
               <p className="font-bold">Acceso denegado por reglas de Firestore</p>
               <p>
-                Estás viendo <code>permission-denied</code>. Esto pasa cuando se publican reglas de otro proyecto (por ejemplo, las de ContApp).
+                Est�s viendo <code>permission-denied</code>. Esto pasa cuando se publican reglas de otro proyecto (por ejemplo, las de ContApp).
               </p>
               <p>
-                Solución: en Firebase Console del proyecto <strong>leads-widget</strong>, publica el contenido del archivo <code>leads.widget/firestore.rules</code>.
+                Soluci�n: en Firebase Console del proyecto <strong>leads-widget</strong>, publica el contenido del archivo <code>leads.widget/firestore.rules</code>.
               </p>
             </CardContent>
           </Card>
@@ -928,7 +957,7 @@ export default function SuperAdmin() {
               <CardHeader>
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
-                <CardTitle>Gestión de clientes</CardTitle>
+                <CardTitle>Gesti�n de clientes</CardTitle>
                     <CardDescription>{clients.length} clientes registrados</CardDescription>
                   </div>
                   <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
@@ -981,6 +1010,7 @@ export default function SuperAdmin() {
                         <th className="text-left py-3 px-4 font-medium">Estado</th>
                         <th className="text-left py-3 px-4 font-medium">Leads</th>
                         <th className="text-left py-3 px-4 font-medium">Trial Expira</th>
+                        <th className="text-left py-3 px-4 font-medium">Precio PLUS</th>
                         <th className="text-left py-3 px-4 font-medium">Acciones</th>
                       </tr>
                     </thead>
@@ -1008,6 +1038,23 @@ export default function SuperAdmin() {
                               const trialEnd = new Date(created);
                               trialEnd.setDate(created.getDate() + 3);
                               return trialEnd.toLocaleDateString('es-PE');
+                            })()}
+                          </td>
+                          <td className="py-3 px-4">
+                            {(() => {
+                              const customPrice = Number(client.plus_monthly_price_pen || 0);
+                              if (Number.isFinite(customPrice) && customPrice > 0) {
+                                return (
+                                  <span className="inline-flex items-center rounded-full border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">
+                                    S/ {Math.round(customPrice)}
+                                  </span>
+                                );
+                              }
+                              return (
+                                <span className="text-xs text-muted-foreground">
+                                  Global (S/ {DEFAULT_PLUS_MONTHLY_PRICE_PEN})
+                                </span>
+                              );
                             })()}
                           </td>
                           <td className="py-3 px-4">
@@ -1040,7 +1087,7 @@ export default function SuperAdmin() {
                                     <Check className="w-4 h-4 mr-3 text-blue-600 shrink-0" />
                                     <div className="flex flex-col">
                                       <span className="font-semibold">Activar plan PLUS</span>
-                                      <span className="text-xs text-muted-foreground">Pasa el estado a Activo y asigna PLUS (S/ 100/mes).</span>
+                                      <span className="text-xs text-muted-foreground">Pasa el estado a Activo y asigna PLUS (S/ {DEFAULT_PLUS_MONTHLY_PRICE_PEN}/mes base).</span>
                                     </div>
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
@@ -1101,7 +1148,7 @@ export default function SuperAdmin() {
           <TabsContent value="payments">
             <Card>
               <CardHeader>
-                <CardTitle>Pagos pendientes de verificación</CardTitle>
+                <CardTitle>Pagos pendientes de verificaci�n</CardTitle>
                 <CardDescription>Revisa los comprobantes y activa cuentas</CardDescription>
               </CardHeader>
               <CardContent>
@@ -1123,7 +1170,7 @@ export default function SuperAdmin() {
                             <div>
                               <p className="font-medium">{client?.business_name || client?.email}</p>
                               <p className="text-sm text-muted-foreground">
-                                S/{payment.amount} â€¢ {payment.payment_method || 'Yape/Plin'}
+                                S/{payment.amount} • {payment.payment_method || 'Yape/Plin'}
                               </p>
                               <p className="text-xs text-muted-foreground">
                                 {new Date(payment.created_at).toLocaleString('es-PE')}
@@ -1412,7 +1459,9 @@ export default function SuperAdmin() {
                             const referrer = clients.find(c => c.id === client.referred_by);
                             const isActive = client.subscription_status === 'active';
                             const plan = String(client.plan_type || 'trial').toLowerCase() === 'plus' ? 'plus' : 'trial';
-                            const basePrice = plan === 'plus' ? 100 : 0;
+                            const basePrice = plan === 'plus'
+                              ? resolvePlusMonthlyPricePen(client.plus_monthly_price_pen)
+                              : 0;
                             const commission = isActive ? (basePrice * 0.2).toFixed(2) : '0.00';
 
                             return (
@@ -1484,7 +1533,8 @@ export default function SuperAdmin() {
                             <li>Cada cliente activo genera un 20% de comision mensual para su afiliado.</li>
                             <li>Alternativamente, puede otorgarse 1 mes gratis por referido activo.</li>
                             <li>Plan Trial = no genera comision hasta activacion.</li>
-                            <li>Plan PLUS (S/ 100) = S/ 20 de comision al mes.</li>
+                            <li>Plan PLUS base (S/ 150) = S/ 30 de comision al mes.</li>
+                            <li>Si un cliente tiene precio personalizado, la comisi�n se calcula sobre ese monto.</li>
                             <li>El tracking es automatico via parametro `?ref=USER_ID`.</li>
                           </ul>
                         </div>
@@ -1501,7 +1551,7 @@ export default function SuperAdmin() {
               <CardHeader>
                 <CardTitle>Agencias (Partners)</CardTitle>
                 <CardDescription>
-                  Gestión de agencias, KPIs, clientes atribuidos y payouts.
+                  Gesti�n de agencias, KPIs, clientes atribuidos y payouts.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -1527,10 +1577,10 @@ export default function SuperAdmin() {
                     <thead>
                       <tr className="border-b text-left">
                         <th className="py-2 px-3">Agencia</th>
-                        <th className="py-2 px-3">Código</th>
+                        <th className="py-2 px-3">C�digo</th>
                         <th className="py-2 px-3">Estado</th>
                         <th className="py-2 px-3">Clientes</th>
-                        <th className="py-2 px-3">Comisión pendiente</th>
+                        <th className="py-2 px-3">Comisi�n pendiente</th>
                         <th className="py-2 px-3">Acciones</th>
                       </tr>
                     </thead>
@@ -1540,7 +1590,7 @@ export default function SuperAdmin() {
                           <td className="py-2 px-3">
                             <p className="font-semibold">{agency.name}</p>
                             <p className="text-xs text-muted-foreground">
-                              1er pago: {Math.round((agency.commission_first_rate || 0) * 100)}% · recurrente: {Math.round((agency.commission_recurring_rate || 0) * 100)}%
+                              1er pago: {Math.round((agency.commission_first_rate || 0) * 100)}% � recurrente: {Math.round((agency.commission_recurring_rate || 0) * 100)}%
                             </p>
                           </td>
                           <td className="py-2 px-3 font-mono text-xs">{agency.code}</td>
@@ -1582,7 +1632,7 @@ export default function SuperAdmin() {
 
                 {agencies.length === 0 && (
                   <div className="text-center py-10 text-muted-foreground border-2 border-dashed rounded-xl">
-                    Aún no hay agencias registradas.
+                    A�n no hay agencias registradas.
                   </div>
                 )}
 
@@ -1641,6 +1691,21 @@ export default function SuperAdmin() {
                   value={editForm.phone}
                   onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
                 />
+              </div>
+              <div className="space-y-2">
+                <Label>Precio mensual PLUS (S/)</Label>
+                <Input
+                  type="number"
+                  min={50}
+                  max={5000}
+                  step={1}
+                  value={editForm.plus_monthly_price_pen}
+                  onChange={(e) => setEditForm({ ...editForm, plus_monthly_price_pen: e.target.value })}
+                  placeholder={`${DEFAULT_PLUS_MONTHLY_PRICE_PEN}`}
+                />
+                <p className="text-xs text-muted-foreground">
+                  D�jalo vac�o para usar el precio global (S/ {DEFAULT_PLUS_MONTHLY_PRICE_PEN}).
+                </p>
               </div>
             </div>
             <DialogFooter>

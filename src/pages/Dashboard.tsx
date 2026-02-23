@@ -417,6 +417,7 @@ interface Profile {
   trial_ends_at?: string;
   next_renewal_at?: string;
   plan_type?: string;
+  plus_monthly_price_pen?: number | null;
   ai_enabled: boolean;
   ai_api_key?: string;
   ai_provider?: string;
@@ -621,9 +622,8 @@ const FIXED_IACLOSER_REDIRECT_URL = 'https://ai-call-closer.vercel.app/';
 const AI_MAX_TOKENS_DEFAULT = 500;
 const AI_MAX_TOKENS_MIN = 100;
 const AI_MAX_TOKENS_MAX = 4000;
-const PLAN_PLUS_MONTHLY_PEN = 100;
+const PLAN_PLUS_MONTHLY_PEN = 150;
 const PLAN_PLUS_SETUP_PEN = 200;
-const PLAN_PLUS_FIRST_PAYMENT_PEN = PLAN_PLUS_MONTHLY_PEN + PLAN_PLUS_SETUP_PEN;
 const PEN_TO_USD_RATE = 3.75;
 const CLOUDINARY_CLOUD_NAME = String(import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '').trim();
 const CLOUDINARY_UPLOAD_PRESET = String(import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || '').trim();
@@ -639,6 +639,12 @@ const AUDIO_MAX_MB = 15;
 const MAX_PROPERTY_IMAGES = 5;
 const MAX_PROPERTY_VIDEOS = 2;
 const MAX_REAL_ESTATE_PROPERTIES = 100;
+
+const resolvePlusMonthlyPricePen = (value: unknown) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return PLAN_PLUS_MONTHLY_PEN;
+  return Math.round(parsed);
+};
 
 function sanitizeMediaUrl(value: unknown) {
   const raw = String(value || '').trim();
@@ -1007,8 +1013,10 @@ export default function Dashboard() {
       won: 'Ganado',
       lost: 'Perdido',
     };
+  const plusMonthlyPricePen = resolvePlusMonthlyPricePen(profile?.plus_monthly_price_pen);
+  const plusFirstPaymentPen = plusMonthlyPricePen + PLAN_PLUS_SETUP_PEN;
   const isTrialPlan = String(profile?.subscription_status || 'trial').toLowerCase() !== 'active';
-  const plusCurrentChargePen = isTrialPlan ? PLAN_PLUS_FIRST_PAYMENT_PEN : PLAN_PLUS_MONTHLY_PEN;
+  const plusCurrentChargePen = isTrialPlan ? plusFirstPaymentPen : plusMonthlyPricePen;
   const plusCurrentChargeUsd = (plusCurrentChargePen / PEN_TO_USD_RATE).toFixed(2);
   const crmMetrics = useMemo(() => {
     return crmContacts.reduce(
@@ -3042,8 +3050,8 @@ export default function Dashboard() {
               const key = getDayKey(dateField);
 
               // Only count as 'Today' if key matches todayKey essentially, but for chart we map to days
-              // If date is invalid/missing, we shouldn't default to today for historical data integrity, 
-              // but for now let's keep it safe or ignore. 
+              // If date is invalid/missing, we shouldn't default to today for historical data integrity,
+              // but for now let's keep it safe or ignore.
               // Better: If no date, don't plot it, or plot as today only if it really just happened?
               // Let's stick to the mapping but fix the field read.
               if (key) {
@@ -3274,7 +3282,7 @@ export default function Dashboard() {
       return;
     }
 
-    // Generate the widget URL 
+    // Generate the widget URL
     const currentDomain = window.location.origin;
     const publicWidgetId = widgetConfig?.widget_id || widgetConfig?.id || user?.uid || '';
     const configScript = `<script src="${currentDomain}/api/w/${publicWidgetId}.js" async></script>`;
@@ -4460,13 +4468,13 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent className="space-y-4 pt-6 animate-in fade-in slide-in-from-bottom-4">
             <PayPalPaymentButton
-              amount={(PLAN_PLUS_FIRST_PAYMENT_PEN / PEN_TO_USD_RATE).toFixed(2)}
+              amount={(plusFirstPaymentPen / PEN_TO_USD_RATE).toFixed(2)}
               currency="USD"
               onSuccess={async (details) => {
                 try {
                   await addDoc(collection(db, 'payments'), {
                     user_id: user?.uid,
-                    amount: PLAN_PLUS_FIRST_PAYMENT_PEN,
+                    amount: plusFirstPaymentPen,
                     currency: 'USD',
                     payment_method: 'PayPal',
                     description: 'Plan PLUS (Implementacion + primer mes)',
@@ -4502,7 +4510,7 @@ export default function Dashboard() {
             <div className="rounded-xl border border-border bg-muted/30 p-4 text-left">
               <p className="text-sm font-bold text-slate-900 dark:text-white">Pago local (Yape / Plin)</p>
               <p className="text-xs text-muted-foreground mt-1">
-                Envía S/ 300 (implementación + primer mes) y confirma por WhatsApp para activar tu plan.
+                Envía S/ {plusFirstPaymentPen.toFixed(2)} (implementacion + primer mes) y confirma por WhatsApp para activar tu plan.
               </p>
               <div className="mt-3 flex items-center justify-between gap-3">
                 <div className="min-w-0">
@@ -4525,10 +4533,10 @@ export default function Dashboard() {
             <div className="bg-muted/20 p-4 rounded-xl border border-border shadow-sm text-center">
               <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold mb-1">Primer pago</p>
               <div className="flex items-center justify-center gap-1">
-                <span className="text-3xl font-black text-primary">S/ 300.00</span>
+                <span className="text-3xl font-black text-primary">S/ {plusFirstPaymentPen.toFixed(2)}</span>
               </div>
-              <p className="text-[11px] text-muted-foreground mt-1">Incluye S/ 200 de implementacion unica + S/ 100 del primer mes.</p>
-              <p className="text-[11px] text-muted-foreground">Renovacion posterior: S/ 100 / mes.</p>
+              <p className="text-[11px] text-muted-foreground mt-1">Incluye S/ 200 de implementacion unica + S/ {plusMonthlyPricePen.toFixed(2)} del primer mes.</p>
+              <p className="text-[11px] text-muted-foreground">Renovacion posterior: S/ {plusMonthlyPricePen.toFixed(2)} / mes.</p>
             </div>
 
             {!showPayment ? (
@@ -4567,7 +4575,7 @@ export default function Dashboard() {
                       try {
                         await addDoc(collection(db, 'payments'), {
                           user_id: user?.uid,
-                          amount: PLAN_PLUS_FIRST_PAYMENT_PEN,
+                          amount: plusFirstPaymentPen,
                           description: 'Activacion PLUS (Implementacion + primer mes)',
                           operation_ref: refInput.value,
                           status: 'pending',
@@ -5792,7 +5800,7 @@ export default function Dashboard() {
                           <p className="text-xs text-emerald-700">
                             {profile?.plan_type === 'plus'
                               ? 'Activa esta opcion para remover la promo del pie del chat.'
-                              : 'Actualiza al Plan PLUS (S/ 100/mes) para remover la marca de agua y tener un widget 100% tuyo.'
+                              : `Actualiza al Plan PLUS (S/ ${plusMonthlyPricePen}/mes) para remover la marca de agua y tener un widget 100% tuyo.`
                             }
                           </p>
                         </div>
@@ -7768,8 +7776,8 @@ export default function Dashboard() {
                         <span className="text-muted-foreground">{t('dashboard.billing_section.table_amount')}:</span>
                         <span className="font-bold text-slate-900 dark:text-white">
                           {profile?.subscription_status === 'active'
-                            ? 'S/ 100.00 / mes'
-                            : 'S/ 300.00 (S/ 200 implementacion + S/ 100 primer mes)'}
+                            ? `S/ ${plusMonthlyPricePen.toFixed(2)} / mes`
+                            : `S/ ${plusFirstPaymentPen.toFixed(2)} (S/ 200 implementacion + S/ ${plusMonthlyPricePen.toFixed(2)} primer mes)`}
                         </span>
                       </div>
                       <div className="flex justify-between text-sm">
@@ -7801,7 +7809,7 @@ export default function Dashboard() {
                     <div className="text-center py-4">
                       <div className="flex items-baseline justify-center gap-2 mb-1">
                         <span className="text-4xl font-black text-emerald-900 dark:text-emerald-100">
-                          S/ 100
+                          S/ {plusMonthlyPricePen}
                         </span>
                         <span className="text-sm text-emerald-700 dark:text-emerald-300">/mes</span>
                       </div>
@@ -7849,7 +7857,7 @@ export default function Dashboard() {
                         }, 100);
                         toast({
                           title: "💎 Upgrade a Plan PLUS",
-                          description: "Primer pago: S/ 300 (implementacion + primer mes).",
+                          description: `Primer pago: S/ ${plusFirstPaymentPen.toFixed(2)} (implementacion + primer mes).`,
                         });
                       }}
                     >
@@ -7875,7 +7883,7 @@ export default function Dashboard() {
                       <div className="text-center">
                         <div className="text-xs text-emerald-600 mb-1">Plan</div>
                         <div className="font-bold text-2xl mb-2">PLUS</div>
-                        <div className="text-3xl font-black text-emerald-600">S/ 100</div>
+                        <div className="text-3xl font-black text-emerald-600">S/ {plusMonthlyPricePen}</div>
                         <div className="text-[11px] text-emerald-700 mt-1">/ mes</div>
                         <div className="mt-3 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
                           Implementacion unica: S/ 200 (solo primer pago)
@@ -7894,8 +7902,8 @@ export default function Dashboard() {
                       </div>
                       <p className="text-xs text-muted-foreground">
                         {isTrialPlan
-                          ? 'Incluye implementacion unica (S/ 200) + primer mes (S/ 100).'
-                          : 'Renovacion mensual de S/ 100.00.'}
+                          ? `Incluye implementacion unica (S/ 200) + primer mes (S/ ${plusMonthlyPricePen.toFixed(2)}).`
+                          : `Renovacion mensual de S/ ${plusMonthlyPricePen.toFixed(2)}.`}
                       </p>
                     </div>
                   </div>
@@ -8445,7 +8453,7 @@ export default function Dashboard() {
                           onClick={() => setAffiliatePlanType('plus')}
                           className={`py-2 px-3 text-xs font-bold rounded-md transition-all ${affiliatePlanType === 'plus' ? 'bg-white dark:bg-slate-700 shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
                         >
-                          Plan Plus ({currency === 'USD' ? '$26.67' : 'S/ 100'})
+                          Plan Plus ({currency === 'USD' ? `$${(PLAN_PLUS_MONTHLY_PEN / PEN_TO_USD_RATE).toFixed(2)}` : `S/ ${PLAN_PLUS_MONTHLY_PEN}`})
                         </button>
                       </div>
                     </div>
@@ -9161,6 +9169,3 @@ export default function Dashboard() {
     </div >
   );
 }
-
-
-

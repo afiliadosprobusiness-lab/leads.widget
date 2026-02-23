@@ -179,8 +179,9 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - En modales `Crear prompt` (contexto/sistema), existe accion `Generar con IA` que consume creditos de la API key OpenAI del cliente y muestra aviso explicito de costo; tambien se mantiene fallback `Generar rapido (sin IA)` local.
 - En `Prompt de contexto` generado con IA, el dashboard valida que no falten campos clave de negocio y anexa snapshot estructurado cuando detecta omisiones.
 - En IA > Prompt del Sistema, el dashboard mantiene boton de plantilla por `Industria / Nicho` (`general`, `inmobiliaria`, `clinica`, `taller`, `delivery`; en `personalizado` usa base general), con enfoque de conversion y soporte de bloque `IMAGE`.
-- En IA > Prompt del Sistema (plantillas por nicho), cuando el lead pregunta por precio/costo/inversion, el guion responde la oferta exacta: `S/ 100 mensual + S/ 200 implementacion unica`.
-- En Dashboard > Billing, el esquema comercial activo es: `trial` (3 dias gratis) y `PLUS` (S/ 100 mensual); en activacion inicial se muestra `S/ 200` de implementacion unica + primer mes.
+- En IA > Prompt del Sistema (plantillas por nicho), cuando el lead pregunta por precio/costo/inversion, el guion responde la oferta exacta: `S/ 150 mensual + S/ 200 implementacion unica`.
+- En Dashboard > Billing, el esquema comercial activo es: `trial` (3 dias gratis) y `PLUS` (S/ 150 mensual base); en activacion inicial se muestra `S/ 200` de implementacion unica + primer mes.
+- En SuperAdmin > Clientes, se puede definir `plus_monthly_price_pen` por usuario (opcional). Si existe, Billing del dashboard usa ese monto; si no existe, usa base global `S/ 150`.
 - `WHATSAPP_REDIRECT` se mantiene como opcion secundaria frente a `ICALLCLOSER_READY`; ya no se usa la guia manual de insercion, ahora el comando se agrega automaticamente segun el canal seleccionado.
 - Upload de bienvenida en dashboard (imagen/audio/video) usa Cloudinary cuando existen `VITE_CLOUDINARY_CLOUD_NAME` + `VITE_CLOUDINARY_UPLOAD_PRESET`; si no existen, usa fallback a Firebase Storage.
 - En Dashboard > Configuracion del widget > Audio de bienvenida, ademas de subir archivo/URL ahora se puede grabar audio en el momento (microfono del navegador) y se sube por el mismo pipeline Cloudinary/Firebase.

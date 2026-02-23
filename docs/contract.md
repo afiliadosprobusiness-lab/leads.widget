@@ -26,6 +26,7 @@ Campos observados (pueden coexistir segun flujo):
 - `whatsapp_number: string`
 - `subscription_status: "trial" | "active" | "pro" | "verified" | "suspended" | string`
 - `plan_type: "trial" | "plus" | string` (legacy `pro` puede existir)
+- `plus_monthly_price_pen: number | null` (opcional, override de facturacion mensual por cliente para plan PLUS)
 - `trial_ends_at: string | null` (ISO date)
 - `ai_enabled: boolean`
 - `ai_provider: string`
@@ -602,3 +603,7 @@ Cambios de comportamiento relevantes:
 - Cambio: CRM v2 agrega rutas locales `api/crm/*` (`contacts-merge`, `deals`, `tasks`, `timeline`) y nuevos modelos `deals`, `tasks`, `activity_events`, `crm_merge_operations`; dashboard CRM incorpora vistas `Contactos/Pipeline deals/Mis tareas` y `Contact detail` con tabs.
 - Tipo: non-breaking
 - Impacto: evoluciona CRM operativo a seguimiento comercial con dedupe/merge idempotente sin modificar contratos legacy de chat/widget/pagos ni depender del backend externo.
+- Fecha: 2026-02-23
+- Cambio: esquema comercial de Billing pasa a `PLUS` base `S/150/mes` + `S/200` de implementacion unica; SuperAdmin puede configurar `profiles.plus_monthly_price_pen` por cliente para override opcional del cargo mensual.
+- Tipo: non-breaking
+- Impacto: el frontend de dashboard/superadmin mantiene shape existente y agrega personalizacion de cobro por cliente sin romper consumidores actuales.
