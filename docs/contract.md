@@ -78,6 +78,21 @@ Comportamiento observado:
 
 - `custom_tracking_code` y `custom_code` se eliminan/ignoran (frontend los borra y backend publico responde `customTrackingCode: ""`).
 
+### `meta_capi_configs` (doc id = `uid`, acceso via endpoint local autenticado)
+
+Configuracion privada para preparacion de Conversions API (sin exponer token en colecciones publicas):
+
+- `user_id`
+- `business_manager_id`
+- `ad_account_id`
+- `dataset_id`
+- `token_ciphertext_b64` (token cifrado)
+- `token_iv_b64`
+- `token_tag_b64`
+- `access_token_mask` (solo sufijo enmascarado para UI)
+- `access_token_updated_at`
+- `created_at`, `updated_at`
+
 ### `analytics`
 
 Eventos generados por backend:
@@ -376,6 +391,7 @@ Codigo observado:
 - `POST|OPTIONS /api/chat-event` (persistencia local de eventos por conversacion)
 - `POST|OPTIONS /api/analyze-conversation` (diagnostico IA/heuristico de conversaciones no completadas)
 - `POST|OPTIONS /api/generate-prompt` (generacion de bloque prompt contexto/sistema usando OpenAI del cliente autenticado)
+- `GET|PUT|OPTIONS /api/meta-capi-config` (configuracion privada de credenciales Meta CAPI por cliente autenticado)
 - `POST|OPTIONS /api/crm/contacts-merge` (upsert/merge idempotente de contactos con regla phone->email)
 - `GET|POST|PATCH|OPTIONS /api/crm/deals` (CRUD operativo de deals + pipeline por etapa)
 - `GET|POST|PATCH|OPTIONS /api/crm/tasks` (CRUD operativo de tareas + filtros Hoy/Vencidas/Proximas/Completadas)
@@ -393,6 +409,7 @@ Asuncion:
 - El proxy local de `POST /api/chat` ademas persiste trazas resumidas de cada intercambio en `ai_chat_logs` para consola de debugging en Dashboard (sin cambiar el contrato de respuesta hacia el cliente).
 - `POST /api/analyze-conversation` requiere `Authorization: Bearer <Firebase ID token>` del usuario dashboard; usa `profiles.ai_api_key` (o fallback `widget_configs.ai_api_key` del mismo owner) para ejecutar analisis OpenAI. Si no hay key configurada, responde analisis heuristico (`provider: heuristic_no_client_key`).
 - `POST /api/generate-prompt` requiere `Authorization: Bearer <Firebase ID token>` del usuario dashboard; usa `profiles.ai_api_key` (o fallback `widget_configs.ai_api_key`) para generar texto de prompt via OpenAI y devuelve `creditsConsumed: true`.
+- `GET|PUT /api/meta-capi-config` requiere `Authorization: Bearer <Firebase ID token>`; persiste IDs de Meta y token cifrado en `meta_capi_configs` (no en `widget_configs` publico).
 
 #### `POST /api/generate-prompt`
 
@@ -411,6 +428,24 @@ Asuncion:
   - `400`: `{ error: "No OpenAI API key configured in IA settings." }`
   - `401`: `{ error: "Unauthorized" }`
   - `500`: `{ error: "Could not generate prompt", details?: string }`
+
+#### `GET|PUT /api/meta-capi-config`
+
+- Headers:
+  - `Authorization: Bearer <Firebase ID token>` (requerido)
+- `GET`:
+  - Devuelve configuracion privada resumida (sin token plano).
+  - `200`: `{ success: true, config: { businessManagerId, adAccountId, datasetId, hasAccessToken, accessTokenMask, updatedAt } }`
+- `PUT` body JSON:
+  - `businessManagerId` (requerido, numerico)
+  - `adAccountId` (requerido, numerico; acepta entrada `act_` y normaliza)
+  - `datasetId` (requerido, numerico)
+  - `accessToken` (requerido solo si no existe token previo)
+- Respuestas:
+  - `200`: `{ success: true, config: { ... } }`
+  - `400`: `{ error: "<validation>", errors?: string[] }`
+  - `401`: `{ error: "Unauthorized" }`
+  - `500`: `{ error: "META_CAPI_ENCRYPTION_KEY no esta configurada en el servidor." }` o error de persistencia
 
 #### `POST /api/crm/contacts-merge`
 
@@ -619,3 +654,7 @@ Cambios de comportamiento relevantes:
 - Cambio: SuperAdmin agrega control global de precio base en `system_settings/billing.plus_monthly_price_pen`; Billing dashboard usa ese valor como fallback cuando no existe `profiles.plus_monthly_price_pen`.
 - Tipo: non-breaking
 - Impacto: permite facturacion diferenciada por cliente manteniendo un precio base central sin romper flujos ni contratos existentes.
+- Fecha: 2026-02-23
+- Cambio: nuevo endpoint local `GET|PUT /api/meta-capi-config` para guardar configuracion de Meta CAPI por cliente autenticado; se agrega coleccion privada `meta_capi_configs` con token cifrado (`token_ciphertext_b64/token_iv_b64/token_tag_b64`) y mascara para UI.
+- Tipo: non-breaking
+- Impacto: habilita captura segura de credenciales Meta sin exponer Access Token en `widget_configs` publico y deja listo el sistema para activar envio de eventos en una siguiente fase.

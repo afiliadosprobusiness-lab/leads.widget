@@ -73,6 +73,7 @@ import { WidgetPreview } from '@/components/WidgetPreview';
 import { AffiliateCard } from '@/components/AffiliateCard';
 import { useToast } from '@/hooks/use-toast';
 import { normalizeTrackingPixels, validateTrackingPixels } from '@/lib/trackingPixels';
+import { normalizeMetaCapiConfig, validateMetaCapiConfig } from '@/lib/metaCapi';
 import { getNichePromptTemplate } from '@/lib/nichePromptTemplates';
 
 interface Lead {
@@ -2122,6 +2123,17 @@ export default function Dashboard() {
     lead_chat_live_toasts: initialLeadChatDefaults.leadChatLiveToasts.join('\n'),
     real_estate_properties: [] as RealEstateProperty[],
   });
+  const [metaCapiConfig, setMetaCapiConfig] = useState({
+    businessManagerId: '',
+    adAccountId: '',
+    datasetId: '',
+    accessToken: '',
+    hasAccessToken: false,
+    accessTokenMask: '',
+  });
+  const [metaCapiLoading, setMetaCapiLoading] = useState(true);
+  const [metaCapiSaving, setMetaCapiSaving] = useState(false);
+  const [metaCapiTokenVisible, setMetaCapiTokenVisible] = useState(false);
 
   const realEstateCatalogSummary = useMemo(() => {
     const properties = Array.isArray(formConfig.real_estate_properties)
@@ -2883,6 +2895,35 @@ export default function Dashboard() {
         }
       }
 
+      try {
+        setMetaCapiLoading(true);
+        const token = await user.getIdToken();
+        const metaConfigResponse = await fetch('/api/meta-capi-config', {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const metaConfigPayload = await metaConfigResponse.json().catch(() => ({}));
+        if (!metaConfigResponse.ok) {
+          throw new Error(String(metaConfigPayload?.error || metaConfigPayload?.details || `HTTP ${metaConfigResponse.status}`));
+        }
+        const rawMetaConfig = metaConfigPayload?.config || {};
+        setMetaCapiConfig((prev) => ({
+          ...prev,
+          businessManagerId: String(rawMetaConfig.businessManagerId || ''),
+          adAccountId: String(rawMetaConfig.adAccountId || ''),
+          datasetId: String(rawMetaConfig.datasetId || ''),
+          accessToken: '',
+          hasAccessToken: Boolean(rawMetaConfig.hasAccessToken),
+          accessTokenMask: String(rawMetaConfig.accessTokenMask || ''),
+        }));
+      } catch (metaCapiError) {
+        console.error('Non-critical: Error loading Meta CAPI config:', metaCapiError);
+      } finally {
+        setMetaCapiLoading(false);
+      }
+
       // Load leads (remove orderBy)
       const qLeads = query(collection(db, 'leads'), where('client_id', '==', userId));
       const leadsSnap = await getDocs(qLeads);
@@ -3156,6 +3197,7 @@ export default function Dashboard() {
       });
     } finally {
       setLoading(false);
+      setMetaCapiLoading(false);
     }
   };
 
@@ -3288,6 +3330,75 @@ export default function Dashboard() {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const saveMetaCapiConfig = async () => {
+    if (!user) return;
+
+    const normalized = normalizeMetaCapiConfig({
+      businessManagerId: metaCapiConfig.businessManagerId,
+      adAccountId: metaCapiConfig.adAccountId,
+      datasetId: metaCapiConfig.datasetId,
+      accessToken: metaCapiConfig.accessToken,
+    });
+    const validationErrors = validateMetaCapiConfig(normalized, {
+      requireIdentifiers: true,
+      requireAccessToken: true,
+      hasStoredAccessToken: metaCapiConfig.hasAccessToken,
+    });
+    if (validationErrors.length > 0) {
+      toast({
+        title: 'Configuracion incompleta',
+        description: validationErrors[0],
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setMetaCapiSaving(true);
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch('/api/meta-capi-config', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          businessManagerId: normalized.businessManagerId,
+          adAccountId: normalized.adAccountId,
+          datasetId: normalized.datasetId,
+          accessToken: normalized.accessToken || undefined,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(String(payload?.error || payload?.details || `HTTP ${response.status}`));
+      }
+      const savedConfig = payload?.config || {};
+      setMetaCapiConfig((prev) => ({
+        ...prev,
+        businessManagerId: String(savedConfig.businessManagerId || normalized.businessManagerId || ''),
+        adAccountId: String(savedConfig.adAccountId || normalized.adAccountId || ''),
+        datasetId: String(savedConfig.datasetId || normalized.datasetId || ''),
+        accessToken: '',
+        hasAccessToken: Boolean(savedConfig.hasAccessToken),
+        accessTokenMask: String(savedConfig.accessTokenMask || ''),
+      }));
+      setMetaCapiTokenVisible(false);
+      toast({
+        title: 'Meta CAPI guardado',
+        description: 'La configuracion quedo lista para pruebas con tu primer cliente.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: String(error?.message || 'No se pudo guardar la configuracion de Meta CAPI'),
+        variant: 'destructive',
+      });
+    } finally {
+      setMetaCapiSaving(false);
     }
   };
 
@@ -5617,6 +5728,117 @@ export default function Dashboard() {
                       />
                     </div>
 
+                  </div>
+
+                  <div className="space-y-4 pt-4 border-t">
+                    <h4 className="font-semibold text-sm flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4" />
+                      Meta Conversions API (Precalificacion)
+                    </h4>
+                    <p className="text-xs text-muted-foreground">
+                      Guarda credenciales de Meta para habilitar optimizacion por calidad de lead cuando inicies las pruebas.
+                    </p>
+
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="meta-business-manager-id">Business Manager ID</Label>
+                        <Input
+                          id="meta-business-manager-id"
+                          value={metaCapiConfig.businessManagerId}
+                          onChange={(e) =>
+                            setMetaCapiConfig((prev) => ({
+                              ...prev,
+                              businessManagerId: e.target.value,
+                            }))
+                          }
+                          placeholder="Ej: 123456789012345"
+                          inputMode="numeric"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="meta-ad-account-id">Ad Account ID</Label>
+                        <Input
+                          id="meta-ad-account-id"
+                          value={metaCapiConfig.adAccountId}
+                          onChange={(e) =>
+                            setMetaCapiConfig((prev) => ({
+                              ...prev,
+                              adAccountId: e.target.value,
+                            }))
+                          }
+                          placeholder="Ej: act_987654321 o 987654321"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="meta-dataset-id">Pixel/Dataset ID</Label>
+                      <Input
+                        id="meta-dataset-id"
+                        value={metaCapiConfig.datasetId}
+                        onChange={(e) =>
+                          setMetaCapiConfig((prev) => ({
+                            ...prev,
+                            datasetId: e.target.value,
+                          }))
+                        }
+                        placeholder="Ej: 112233445566778"
+                        inputMode="numeric"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="meta-access-token">Access Token (Conversions API)</Label>
+                      <div className="flex flex-col gap-2 sm:flex-row">
+                        <Input
+                          id="meta-access-token"
+                          type={metaCapiTokenVisible ? 'text' : 'password'}
+                          value={metaCapiConfig.accessToken}
+                          onChange={(e) =>
+                            setMetaCapiConfig((prev) => ({
+                              ...prev,
+                              accessToken: e.target.value,
+                            }))
+                          }
+                          placeholder={metaCapiConfig.hasAccessToken ? 'Token guardado. Escribe uno nuevo solo si deseas reemplazarlo.' : 'Pega aqui el token de Meta'}
+                          autoComplete="new-password"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setMetaCapiTokenVisible((prev) => !prev)}
+                        >
+                          {metaCapiTokenVisible ? 'Ocultar' : 'Mostrar'}
+                        </Button>
+                      </div>
+                      {metaCapiConfig.hasAccessToken && (
+                        <p className="text-xs text-muted-foreground">
+                          Token guardado: {metaCapiConfig.accessTokenMask || '****'}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        type="button"
+                        onClick={saveMetaCapiConfig}
+                        disabled={metaCapiSaving || metaCapiLoading}
+                        className="min-w-[210px]"
+                      >
+                        {metaCapiSaving ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Guardando...
+                          </>
+                        ) : (
+                          'Guardar Meta CAPI'
+                        )}
+                      </Button>
+                      {metaCapiLoading && (
+                        <p className="text-xs text-muted-foreground">Cargando configuracion de Meta CAPI...</p>
+                      )}
+                    </div>
                   </div>
 
                   {/* Testimonial Management Section */}
