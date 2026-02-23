@@ -3585,6 +3585,35 @@ export default function Dashboard() {
     return payload;
   };
 
+  const dispatchMetaCapiStageEvent = async (payload: {
+    previousStage: CrmStage;
+    nextStage: CrmStage;
+    contact: CrmContact;
+  }) => {
+    if (!user?.uid || !payload?.contact?.id) return;
+    const headers = await getCrmAuthHeaders();
+    const response = await fetch('/api/meta-capi-dispatch', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        source: 'crm_contact_stage',
+        previousStage: payload.previousStage,
+        contact: {
+          id: payload.contact.id,
+          name: payload.contact.name,
+          phone: payload.contact.phone,
+          email: payload.contact.email,
+          source: payload.contact.source,
+          stage: payload.nextStage,
+        },
+      }),
+    });
+    if (!response.ok) {
+      const failedPayload = await response.json().catch(() => ({}));
+      throw new Error(String(failedPayload?.error || failedPayload?.details || `HTTP ${response.status}`));
+    }
+  };
+
   const mergeContactsInState = (contacts: CrmContact[]) => {
     if (contacts.length === 0) return;
     setCrmContacts((prev) => {
@@ -4335,6 +4364,18 @@ export default function Dashboard() {
               to_stage: stage,
             },
           }),
+        });
+        await dispatchMetaCapiStageEvent({
+          previousStage: previous.stage,
+          nextStage: stage,
+          contact: {
+            ...previous,
+            stage,
+            updated_at: nowIso,
+            last_activity_at: nowIso,
+          },
+        }).catch((metaError) => {
+          console.warn('Meta CAPI stage dispatch warning:', metaError);
         });
       }
 

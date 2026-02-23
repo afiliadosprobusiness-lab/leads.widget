@@ -150,9 +150,11 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - `vercel.json` prioriza `filesystem` para que funciones locales `api/*.js` (ej. `api/chat.js`) se ejecuten antes del fallback `/api/*` al backend externo.
 - `vercel.json` agrega rewrite interno `/api/crm/:resource` -> `/api/crm?resource=:resource` para concentrar CRM v2 en una sola Serverless Function y mantenerse dentro del limite Hobby de Vercel.
 - CRM v2 se atiende desde funcion local `api/crm.js` (dispatcher por `resource`) para `contacts-merge`, `deals`, `tasks` y `timeline`, manteniendo intacto el backend externo.
-- Dashboard agrega bloque `Meta Conversions API (Precalificacion)` para capturar `Business Manager ID`, `Ad Account ID`, `Pixel/Dataset ID` y `Access Token` sin activar envio de eventos aun.
+- Dashboard agrega bloque `Meta Conversions API (Precalificacion)` para capturar `Business Manager ID`, `Ad Account ID`, `Pixel/Dataset ID` y `Access Token` con guardado seguro.
 - En el bloque Meta CAPI del dashboard, el CTA `?` junto a `Guardar Meta CAPI` abre una guia in-app para ubicar cada dato dentro de Meta Business/Ads Manager/Events Manager y explica como crear conversiones de calidad (`Lead`, `QualifiedLead`, `Appointment`, `Sale`) para optimizacion en Ads Manager.
 - La configuracion sensible de Meta CAPI se gestiona via endpoint local autenticado `GET|PUT /api/meta-capi-config` y se almacena en coleccion privada `meta_capi_configs` con token cifrado server-side (no en `widget_configs` publico).
+- El dispatch de eventos Meta CAPI usa endpoints locales autenticados (`POST /api/meta-capi-dispatch`) y hooks server-side en CRM (`contacts-merge` y `deals`) para enviar eventos de calidad sin exponer credenciales al cliente.
+- Mapeo CRM -> Meta CAPI activo: `Lead` (contacto creado), `Appointment` (`contacted`), `QualifiedLead` (`qualified`), `Sale` (`won`), con registro idempotente en `meta_capi_event_logs`.
 - El endpoint local de Meta CAPI requiere variable de entorno server-side `META_CAPI_ENCRYPTION_KEY` para cifrar tokens de acceso.
 - Guia operativa CRM disponible en `docs/CRM_V2_GUIDE.md`.
 - Firestore rules ampliadas para colecciones partner, manteniendo mutacion directa restringida a superadmin en cliente web.

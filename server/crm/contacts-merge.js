@@ -13,6 +13,7 @@ import {
   setCors,
   trimText,
 } from "./_common.js";
+import { dispatchMetaCapiEvent } from "../meta-capi/client.js";
 
 async function findContactByDedupeTx(tx, clientId, dedupePhone, dedupeEmail) {
   if (dedupePhone) {
@@ -366,6 +367,27 @@ export default async function handler(req, res) {
           { merge: true },
         );
       }
+    }
+
+    if (result?.action === "created" && result?.contact?.id) {
+      const leadEventId = `crm_contact_lead_${trimText(result.contact.id, 120)}_${trimText(result.contact.created_at || "", 40)}`;
+      await dispatchMetaCapiEvent({
+        uid,
+        eventName: "Lead",
+        eventId: leadEventId,
+        contact: {
+          id: result.contact.id,
+          name: result.contact.name,
+          phone: result.contact.phone,
+          email: result.contact.email,
+        },
+        req,
+        customData: {
+          source: trimText(result.contact.source || "crm", 80) || "crm",
+          crm_reason: reason,
+          crm_stage: trimText(result.contact.stage || "new", 40) || "new",
+        },
+      }).catch(() => {});
     }
 
     return res.status(200).json(result || { success: true, action: "noop" });

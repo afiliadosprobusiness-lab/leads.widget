@@ -93,6 +93,20 @@ Configuracion privada para preparacion de Conversions API (sin exponer token en 
 - `access_token_updated_at`
 - `created_at`, `updated_at`
 
+### `meta_capi_event_logs` (doc id hash, acceso server-side)
+
+Bitacora de envio Meta CAPI para deduplicacion e inspeccion operacional:
+
+- `user_id`
+- `dataset_id`
+- `event_name`
+- `event_id`
+- `status` (`sent|error`)
+- `upstream_status`
+- `upstream_body` (resumen)
+- `contact_id`
+- `created_at`, `updated_at`
+
 ### `analytics`
 
 Eventos generados por backend:
@@ -392,6 +406,7 @@ Codigo observado:
 - `POST|OPTIONS /api/analyze-conversation` (diagnostico IA/heuristico de conversaciones no completadas)
 - `POST|OPTIONS /api/generate-prompt` (generacion de bloque prompt contexto/sistema usando OpenAI del cliente autenticado)
 - `GET|PUT|OPTIONS /api/meta-capi-config` (configuracion privada de credenciales Meta CAPI por cliente autenticado)
+- `POST|OPTIONS /api/meta-capi-dispatch` (dispatch autenticado de eventos Meta CAPI para cambios de etapa CRM)
 - `POST|OPTIONS /api/crm/contacts-merge` (upsert/merge idempotente de contactos con regla phone->email)
 - `GET|POST|PATCH|OPTIONS /api/crm/deals` (CRUD operativo de deals + pipeline por etapa)
 - `GET|POST|PATCH|OPTIONS /api/crm/tasks` (CRUD operativo de tareas + filtros Hoy/Vencidas/Proximas/Completadas)
@@ -410,6 +425,8 @@ Asuncion:
 - `POST /api/analyze-conversation` requiere `Authorization: Bearer <Firebase ID token>` del usuario dashboard; usa `profiles.ai_api_key` (o fallback `widget_configs.ai_api_key` del mismo owner) para ejecutar analisis OpenAI. Si no hay key configurada, responde analisis heuristico (`provider: heuristic_no_client_key`).
 - `POST /api/generate-prompt` requiere `Authorization: Bearer <Firebase ID token>` del usuario dashboard; usa `profiles.ai_api_key` (o fallback `widget_configs.ai_api_key`) para generar texto de prompt via OpenAI y devuelve `creditsConsumed: true`.
 - `GET|PUT /api/meta-capi-config` requiere `Authorization: Bearer <Firebase ID token>`; persiste IDs de Meta y token cifrado en `meta_capi_configs` (no en `widget_configs` publico).
+- `POST /api/meta-capi-dispatch` requiere `Authorization: Bearer <Firebase ID token>`; mapea etapa CRM -> evento Meta y envia via Conversions API usando credenciales cifradas del owner.
+- `POST /api/crm/contacts-merge` y `PATCH /api/crm/deals` ejecutan dispatch server-side a Meta CAPI cuando corresponde (`Lead`, `Appointment`, `QualifiedLead`, `Sale`).
 
 #### `POST /api/generate-prompt`
 
@@ -446,6 +463,27 @@ Asuncion:
   - `400`: `{ error: "<validation>", errors?: string[] }`
   - `401`: `{ error: "Unauthorized" }`
   - `500`: `{ error: "META_CAPI_ENCRYPTION_KEY no esta configurada en el servidor." }` o error de persistencia
+
+#### `POST /api/meta-capi-dispatch`
+
+- Headers:
+  - `Authorization: Bearer <Firebase ID token>` (requerido)
+- Body JSON:
+  - `source` (opcional, default `crm_contact_stage`)
+  - `previousStage` (opcional)
+  - `contact` (requerido):
+    - `id`
+    - `stage` (`contacted|qualified|won` para dispatch; otras etapas devuelven `stage_not_mapped`)
+    - opcional `name`, `phone`, `email`, `source`
+- Mapeo de etapa a evento:
+  - `contacted` -> `Appointment`
+  - `qualified` -> `QualifiedLead`
+  - `won` -> `Sale`
+- Respuestas:
+  - `200`: `{ success: true, sent: boolean, reason: "ok|duplicate_event|not_configured|stage_not_mapped|..." , eventName?, upstreamStatus? }`
+  - `400`: `{ error: "<validation>" }`
+  - `401`: `{ error: "Unauthorized" }`
+  - `500`: `{ error: "No se pudo despachar el evento Meta CAPI", details?: string }`
 
 #### `POST /api/crm/contacts-merge`
 
@@ -658,3 +696,7 @@ Cambios de comportamiento relevantes:
 - Cambio: nuevo endpoint local `GET|PUT /api/meta-capi-config` para guardar configuracion de Meta CAPI por cliente autenticado; se agrega coleccion privada `meta_capi_configs` con token cifrado (`token_ciphertext_b64/token_iv_b64/token_tag_b64`) y mascara para UI.
 - Tipo: non-breaking
 - Impacto: habilita captura segura de credenciales Meta sin exponer Access Token en `widget_configs` publico y deja listo el sistema para activar envio de eventos en una siguiente fase.
+- Fecha: 2026-02-23
+- Cambio: activacion de dispatch Meta CAPI para CRM: nuevo endpoint `POST /api/meta-capi-dispatch`, hooks server-side en `contacts-merge`/`deals`, y bitacora `meta_capi_event_logs` para deduplicacion.
+- Tipo: non-breaking
+- Impacto: eventos de calidad (`Lead`, `Appointment`, `QualifiedLead`, `Sale`) empiezan a enviarse a Meta sin romper flujos existentes ni exponer credenciales.

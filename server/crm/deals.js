@@ -10,6 +10,7 @@ import {
   trimText,
 } from "./_common.js";
 import { db } from "../../api/_firebase.js";
+import { dispatchMetaCapiEvent, mapCrmStageToMetaEvent } from "../meta-capi/client.js";
 
 function normalizeDealStage(value, fallback = "new") {
   const stage = trimText(value || "", 40).toLowerCase();
@@ -216,6 +217,33 @@ export default async function handler(req, res) {
           contact_id: current.contact_id,
         },
       });
+
+      const mappedEventName = mapCrmStageToMetaEvent(nextStage);
+      if (mappedEventName && current.contact_id) {
+        const contactSnap = await db.collection("crm_contacts").doc(current.contact_id).get().catch(() => null);
+        const contactData = contactSnap?.exists ? contactSnap.data() || {} : {};
+        const stageEventId = `crm_deal_stage_${trimText(dealId, 100)}_${trimText(nextStage, 40)}_${trimText(nowIso, 40)}`;
+        await dispatchMetaCapiEvent({
+          uid,
+          eventName: mappedEventName,
+          eventId: stageEventId,
+          contact: {
+            id: current.contact_id,
+            name: trimText(contactData.name || "", 180),
+            phone: trimText(contactData.phone || "", 60),
+            email: trimText(contactData.email || "", 200),
+          },
+          req,
+          customData: {
+            crm_entity: "deal",
+            deal_id: dealId,
+            from_stage: current.stage,
+            to_stage: nextStage,
+            value: updates.value ?? current.value ?? undefined,
+            currency: updates.currency ?? current.currency ?? "PEN",
+          },
+        }).catch(() => {});
+      }
     }
 
     return res.status(200).json({
