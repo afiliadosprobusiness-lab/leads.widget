@@ -45,26 +45,26 @@ export default function Landing() {
   }, []);
 
   const copy = {
-    heroBadge: isEn ? "Conversion engine for outbound calls" : "Motor de conversion para llamadas outbound",
+    heroBadge: isEn ? "Lead qualification widget for real estate" : "Widget de precalificacion para inmobiliarias",
     heroTitle: isEn
-      ? "Turn more traffic into booked calls in under 2 minutes"
-      : "Convierte mas trafico en llamadas agendadas en menos de 2 minutos",
+      ? "Pre-qualify leads and send only serious buyers to WhatsApp"
+      : "Precalifica leads y envia solo compradores serios a WhatsApp",
     heroSubtitle: isEn
-      ? "Capture intent, qualify in chat, collect explicit consent, and trigger IACloser without losing momentum."
-      : "Capta intencion, califica en chat, recoge consentimiento explicito y activa IACloser sin perder impulso.",
+      ? "Lead Widget asks, filters by zone, budget and timeline, and sends your team only high-intent conversations with key data."
+      : "Lead Widget pregunta, filtra por zona, presupuesto y plazo, y pasa a tu equipo solo conversaciones de alta intencion con datos clave.",
     ctaPrimary: isEn ? "Start free" : "Empezar gratis",
-    ctaSecondary: isEn ? "See conversion demo" : "Ver demo de conversion",
-    modesTitle: isEn ? "Choose your conversion channel" : "Elige tu canal de conversion",
-    capabilitiesTitle: isEn ? "What helps you close faster" : "Lo que te ayuda a cerrar mas rapido",
-    useCasesTitle: isEn ? "Who gets faster payback" : "Quien recupera inversion mas rapido",
+    ctaSecondary: isEn ? "See widget demo" : "Ver demo del widget",
+    modesTitle: isEn ? "One product, two deployment modes" : "Un producto, dos modos de uso",
+    capabilitiesTitle: isEn ? "What helps your team close better" : "Lo que ayuda a tu equipo a cerrar mejor",
+    useCasesTitle: isEn ? "Built for real estate teams" : "Pensado para equipos inmobiliarios",
     testimonialsTitle: isEn ? "Results from active clients" : "Resultados de clientes activos",
-    pricingTitle: isEn ? "One plan focused on conversion" : "Un plan enfocado en conversion",
+    pricingTitle: isEn ? "One plan focused on qualified leads" : "Un plan enfocado en leads calificados",
     finalTitle: isEn
-      ? "If you already buy traffic, this is the missing layer"
-      : "Si ya inviertes en trafico, esta es la capa que te falta",
+      ? "Stop losing time with low-intent conversations"
+      : "Deja de perder tiempo en conversaciones sin intencion real",
     finalSubtitle: isEn
-      ? "Reduce response delay, improve lead quality, and send hot conversations to a closing call."
-      : "Reduce tiempo de respuesta, mejora calidad de lead y envia conversaciones calientes a llamada de cierre.",
+      ? "Pre-qualify in chat, route only qualified leads to WhatsApp, and keep your pipeline ordered with CRM follow-up."
+      : "Precalifica en chat, deriva solo leads calificados a WhatsApp y ordena tu seguimiento con CRM.",
     navLogin: isEn ? "Login" : "Iniciar sesion",
     navRegister: isEn ? "Create account" : "Crear cuenta",
     navTry: isEn ? "Try demo" : "Probar demo",
@@ -74,8 +74,8 @@ export default function Landing() {
       : "2026 Lead Widget. Todos los derechos reservados.",
     exitTitle: isEn ? "Before you leave" : "Antes de salir",
     exitSubtitle: isEn
-      ? "Run the complete flow and compare your current lead quality."
-      : "Prueba el flujo completo y compara la calidad de tus leads.",
+      ? "Run the full flow and compare lead quality against your current process."
+      : "Prueba el flujo completo y compara la calidad de leads frente a tu proceso actual.",
     exitCta: isEn ? "Open demo now" : "Abrir demo ahora",
     exitDismiss: isEn ? "Keep browsing" : "Seguir navegando",
   };
@@ -83,62 +83,62 @@ export default function Landing() {
   const capabilities = isEn
     ? [
         {
-          title: "Reply while intent is hot",
-          body: "One-row quick actions keep users moving instead of dropping after first click.",
+          title: "Pre-qualification before handoff",
+          body: "Ask one focused question per turn and filter by property type, zone, budget and move-in timeline.",
         },
         {
-          title: "Lower friction in chat",
-          body: "Emoji and voice input reduce typing friction and increase started conversations.",
+          title: "Property catalog with media",
+          body: "Show property images and short videos directly in chat to speed up decision-making.",
         },
         {
-          title: "Trust without interruptions",
-          body: "Live social proof and testimonial strip reinforce confidence while users chat.",
+          title: "Automatic WhatsApp handoff",
+          body: "When the lead qualifies, the chat shows a short countdown and opens WhatsApp with preloaded details.",
         },
         {
-          title: "From chat to call in one flow",
-          body: "Consent gate plus IACloser handoff sends qualified leads directly to outbound call.",
+          title: "CRM follow-up ready",
+          body: "Qualified conversations go into your operation with cleaner context for pipeline, tasks and next actions.",
         },
       ]
     : [
         {
-          title: "Responde cuando la intencion esta caliente",
-          body: "Acciones rapidas en una fila para evitar que el usuario se enfrie tras el primer click.",
+          title: "Precalificacion antes del handoff",
+          body: "Hace una pregunta puntual por turno y filtra por tipo de inmueble, zona, presupuesto y plazo de mudanza.",
         },
         {
-          title: "Menos friccion para escribir",
-          body: "Emoji y voz reducen esfuerzo y aumentan conversaciones iniciadas.",
+          title: "Catalogo de propiedades con multimedia",
+          body: "Muestra fotos y videos cortos de propiedades dentro del chat para acelerar decision.",
         },
         {
-          title: "Confianza sin interrumpir el chat",
-          body: "Prueba social en vivo y testimonios visibles mientras el usuario conversa.",
+          title: "Handoff automatico a WhatsApp",
+          body: "Cuando el lead califica, el chat muestra cuenta regresiva y abre WhatsApp con datos precargados.",
         },
         {
-          title: "Del chat a la llamada en un flujo",
-          body: "Consentimiento y handoff a IACloser para pasar leads calificados directo a llamada outbound.",
+          title: "Seguimiento con CRM",
+          body: "Las conversaciones calificadas llegan con mejor contexto para pipeline, tareas y siguientes pasos.",
         },
       ];
 
   const useCases = isEn
     ? [
-        "Clinics running paid ads",
-        "Real estate teams with slow follow-up",
-        "High-ticket services closing by call",
-        "Ecommerce with consultative sales",
-        "Agencies managing multiple clients",
-        "Businesses that still do not have website",
+        "Real estate brokers with paid traffic",
+        "Agencies selling projects in multiple districts",
+        "Teams that need to filter by real budget",
+        "Businesses that need qualification before WhatsApp",
+        "Sales teams that need CRM follow-up discipline",
+        "Operations without website using public Lead Chat",
       ]
     : [
-        "Clinicas con anuncios activos",
-        "Inmobiliarias con seguimiento lento",
-        "Servicios high ticket por llamada",
-        "Ecommerce con venta consultiva",
-        "Agencias con cartera de clientes",
-        "Negocios que aun no tienen web",
+        "Brokers inmobiliarios con trafico pago",
+        "Agencias que venden proyectos en varios distritos",
+        "Equipos que necesitan filtrar por presupuesto real",
+        "Negocios que requieren precalificacion antes de WhatsApp",
+        "Equipos comerciales que necesitan disciplina de seguimiento CRM",
+        "Operaciones sin web usando Lead Chat publico",
       ];
 
   const conversionBullets = isEn
-    ? ["No setup fees", "No long-term contracts", "Launch in under 5 minutes"]
-    : ["Sin costo de setup", "Sin contratos largos", "Activa en menos de 5 minutos"];
+    ? ["No setup fees", "Only qualified leads go to WhatsApp", "Launch in under 5 minutes"]
+    : ["Sin costo de setup", "Solo leads calificados pasan a WhatsApp", "Activa en menos de 5 minutos"];
 
   const testimonials = useMemo<LandingTestimonial[]>(
     () =>
@@ -146,15 +146,15 @@ export default function Landing() {
         ? [
             {
               quote:
-                "Lead quality improved in week one. We now spend time only on prospects that are ready for a call.",
+                "Lead quality improved in week one. We now spend time only on prospects with real purchase intent.",
               name: "Daniela Rojas",
               role: "Commercial Director",
-              result: "2.4x qualified calls",
+              result: "2.4x qualified leads",
               avatar: "https://i.pravatar.cc/160?img=48",
             },
             {
               quote:
-                "Public Lead Chat gave us a strong conversion channel while our website was still under construction.",
+                "Public Lead Chat gave us a high-conversion channel while our website was still under construction.",
               name: "Carlos Mena",
               role: "Founder",
               result: "+39% useful leads",
@@ -162,20 +162,20 @@ export default function Landing() {
             },
             {
               quote:
-                "The consent step reduced legal risk and clarified operations. Team only jumps in on real intent.",
+                "The WhatsApp handoff with preloaded context helped our team respond faster and with better close rate.",
               name: "Valeria Torres",
               role: "Operations Lead",
-              result: "-34% wasted handling time",
+              result: "-34% wasted follow-up time",
               avatar: "https://i.pravatar.cc/160?img=23",
             },
           ]
         : [
             {
               quote:
-                "La calidad de lead subio desde la primera semana. Ahora solo atendemos prospectos listos para llamada.",
+                "La calidad de lead subio desde la primera semana. Ahora solo atendemos prospectos con intencion real de compra.",
               name: "Daniela Rojas",
               role: "Directora Comercial",
-              result: "2.4x llamadas calificadas",
+              result: "2.4x leads calificados",
               avatar: "https://i.pravatar.cc/160?img=48",
             },
             {
@@ -188,7 +188,7 @@ export default function Landing() {
             },
             {
               quote:
-                "El paso de consentimiento redujo riesgo legal y ordeno la operacion. El equipo entra solo con intencion real.",
+                "El handoff a WhatsApp con datos precargados mejoro el tiempo de respuesta y el porcentaje de cierre.",
               name: "Valeria Torres",
               role: "Lider de Operaciones",
               result: "-34% tiempo improductivo",
@@ -412,7 +412,7 @@ export default function Landing() {
             <div className="grid gap-3 pt-2 sm:grid-cols-3">
               <div className={`rounded-2xl border p-4 ${isLandingDark ? "border-slate-800 bg-slate-900/80" : "border-slate-200/80 bg-white/70"}`}><p className="text-xl font-semibold">&lt; 5 min</p><p className={`mt-1 text-xs uppercase tracking-[0.12em] ${isLandingDark ? "text-slate-400" : "text-slate-500"}`}>Go live</p></div>
               <div className={`rounded-2xl border p-4 ${isLandingDark ? "border-slate-800 bg-slate-900/80" : "border-slate-200/80 bg-white/70"}`}><p className="text-xl font-semibold">+37%</p><p className={`mt-1 text-xs uppercase tracking-[0.12em] ${isLandingDark ? "text-slate-400" : "text-slate-500"}`}>{isEn ? "More qualified leads" : "Mas leads calificados"}</p></div>
-              <div className={`rounded-2xl border p-4 ${isLandingDark ? "border-slate-800 bg-slate-900/80" : "border-slate-200/80 bg-white/70"}`}><p className="text-xl font-semibold">&lt; 2 min</p><p className={`mt-1 text-xs uppercase tracking-[0.12em] ${isLandingDark ? "text-slate-400" : "text-slate-500"}`}>AI callback</p></div>
+              <div className={`rounded-2xl border p-4 ${isLandingDark ? "border-slate-800 bg-slate-900/80" : "border-slate-200/80 bg-white/70"}`}><p className="text-xl font-semibold">&lt; 2 min</p><p className={`mt-1 text-xs uppercase tracking-[0.12em] ${isLandingDark ? "text-slate-400" : "text-slate-500"}`}>WhatsApp handoff</p></div>
             </div>
           </div>
 
@@ -423,20 +423,20 @@ export default function Landing() {
                 <div className="flex items-center justify-between bg-gradient-to-r from-emerald-600 to-emerald-500 px-4 py-3">
                   <div className="flex items-center gap-2">
                     <span className="grid h-8 w-8 place-items-center rounded-full bg-white/20"><Bot className="h-4 w-4" /></span>
-                    <div><p className="text-sm font-semibold leading-none">Agencia Demo</p><p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-emerald-50/90">instant replies</p></div>
+                    <div><p className="text-sm font-semibold leading-none">Inmobiliaria Demo</p><p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-emerald-50/90">instant replies</p></div>
                   </div>
                 </div>
 
                 <div className="mx-3 mt-3 rounded-xl border border-cyan-300/30 bg-slate-950/80 px-3 py-2 text-xs">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-200">Testimonios</p>
-                  <p className="mt-1 truncate">"Me gusto la llamada de demo, fue rapida y clara"</p>
+                  <p className="mt-1 truncate">"Nos mostro propiedades y filtro compradores reales"</p>
                   <p className="mt-1 text-[11px] text-slate-300">Andrea Ruiz - *****</p>
                 </div>
 
                 <div className="space-y-3 px-3 pb-3 pt-3">
-                  <div className="max-w-[86%] rounded-2xl rounded-bl-md border border-white/10 bg-white/[0.05] px-3 py-2 text-sm">Hola. En menos de 2 minutos podemos activar una llamada guiada.</div>
+                  <div className="max-w-[86%] rounded-2xl rounded-bl-md border border-white/10 bg-white/[0.05] px-3 py-2 text-sm">Hola. Te ayudo a encontrar propiedad y, si calificas, te paso por WhatsApp con un asesor.</div>
                   <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                    {[(isEn ? "How it works?" : "Como funciona?"), (isEn ? "Book demo" : "Quiero demo"), (isEn ? "See pricing" : "Ver precios")].map((item) => (
+                    {[(isEn ? "How it works?" : "Como funciona?"), (isEn ? "Show properties" : "Ver propiedades"), (isEn ? "See pricing" : "Ver precios")].map((item) => (
                       <span key={item} className="shrink-0 rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs text-slate-200">{item}</span>
                     ))}
                   </div>
@@ -491,12 +491,12 @@ export default function Landing() {
             <article className={`rounded-3xl border p-6 ${isLandingDark ? "border-slate-800 bg-slate-900/70" : "border-slate-200/80 bg-white/85"}`}>
               <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${isLandingDark ? "bg-emerald-400/15 text-emerald-200" : "bg-emerald-50 text-emerald-700"}`}>Widget embebido</span>
               <h3 className="mt-4 text-2xl font-semibold">{isEn ? "Embedded widget" : "Widget embebido"}</h3>
-              <p className={`mt-3 text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>{isEn ? "Install script, keep users in your website, and capture intent with one-row quick replies and social proof." : "Instala script, mantienes al usuario en tu web y capturas intencion con quick replies y prueba social."}</p>
+              <p className={`mt-3 text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>{isEn ? "Install the script on your website and qualify leads in real time before your team gets involved." : "Instala el script en tu web y precalifica leads en tiempo real antes de que entre tu equipo."}</p>
             </article>
             <article className={`rounded-3xl border p-6 ${isLandingDark ? "border-slate-800 bg-slate-900/70" : "border-slate-200/80 bg-white/85"}`}>
               <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${isLandingDark ? "bg-cyan-400/15 text-cyan-200" : "bg-cyan-50 text-cyan-700"}`}>Lead Chat publico</span>
               <h3 className="mt-4 text-2xl font-semibold">{isEn ? "Public Lead Chat" : "Lead Chat publico"}</h3>
-              <p className={`mt-3 text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>{isEn ? "Share one URL, qualify leads without website, gather consent, and trigger IACloser outbound handoff." : "Comparte una URL, califica leads sin web, recoge consentimiento y activa handoff outbound con IACloser."}</p>
+              <p className={`mt-3 text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>{isEn ? "Share one URL, qualify leads even without website, and send only serious prospects to WhatsApp." : "Comparte una URL, precalifica leads incluso sin web y envia solo prospectos serios a WhatsApp."}</p>
             </article>
           </div>
         </div>
@@ -537,9 +537,10 @@ export default function Landing() {
           <div className="mx-auto mt-7 grid max-w-xl gap-3 text-left">
             {[
               isEn ? "Embedded widget + Public Lead Chat" : "Widget embebido + Lead Chat publico",
-              isEn ? "Voice auto-send + conversion-focused composer" : "Voz con autoenvio + composer enfocado en conversion",
+              isEn ? "Property catalog with images and videos in chat" : "Catalogo de propiedades con imagenes y videos en chat",
               isEn ? "Live activity + social proof strip in flow" : "Actividad en vivo + prueba social dentro del flujo",
-              isEn ? "Consent flow + IACloser handoff" : "Flujo de consentimiento + handoff IACloser",
+              isEn ? "Pre-qualification + automatic WhatsApp handoff" : "Precalificacion + redireccion automatica a WhatsApp",
+              isEn ? "CRM pipeline, tasks and follow-up context" : "Pipeline CRM, tareas y contexto para seguimiento",
             ].map((item) => <p key={item} className={`flex items-start gap-3 rounded-xl border px-4 py-3 text-sm ${isLandingDark ? "border-slate-700 bg-slate-800/80 text-slate-200" : "border-slate-200 bg-slate-50/80 text-slate-700"}`}><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" /><span>{item}</span></p>)}
           </div>
           <Link to="/register" className="mt-8 inline-block"><Button size="xl" className="rounded-full px-9 text-white">{copy.navRegister}</Button></Link>
@@ -562,7 +563,7 @@ export default function Landing() {
 
       <footer className={`relative z-10 border-t px-4 py-12 backdrop-blur sm:px-6 ${isLandingDark ? "border-slate-800/80 bg-slate-950/85" : "border-slate-200/80 bg-white/80"}`}>
         <div className="mx-auto flex w-full max-w-[1160px] flex-col items-center justify-between gap-4 text-center sm:flex-row sm:text-left">
-          <div><p className="text-sm font-semibold">Lead Widget</p><p className={`text-sm ${isLandingDark ? "text-slate-400" : "text-slate-600"}`}>{isEn ? "Conversion system for capture and outbound handoff." : "Sistema de conversion para captura y handoff outbound."}</p></div>
+          <div><p className="text-sm font-semibold">Lead Widget</p><p className={`text-sm ${isLandingDark ? "text-slate-400" : "text-slate-600"}`}>{isEn ? "Pre-qualification system for real leads and fast WhatsApp handoff." : "Sistema de precalificacion para leads reales y handoff rapido a WhatsApp."}</p></div>
           <div className={`flex gap-4 text-sm ${isLandingDark ? "text-slate-400" : "text-slate-600"}`}><Link to="/legal/privacy" className={isLandingDark ? "hover:text-slate-100" : "hover:text-slate-900"}>Privacy</Link><Link to="/legal/terms" className={isLandingDark ? "hover:text-slate-100" : "hover:text-slate-900"}>Terms</Link><Link to="/legal/claims" className={isLandingDark ? "hover:text-slate-100" : "hover:text-slate-900"}>Claims</Link></div>
         </div>
         <div className={`mx-auto mt-6 w-full max-w-[1160px] border-t pt-5 text-xs ${isLandingDark ? "border-slate-800 text-slate-500" : "border-slate-200 text-slate-500"}`}>{copy.footerRights}</div>

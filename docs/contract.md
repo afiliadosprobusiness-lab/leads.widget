@@ -26,7 +26,7 @@ Campos observados (pueden coexistir segun flujo):
 - `whatsapp_number: string`
 - `subscription_status: "trial" | "active" | "pro" | "verified" | "suspended" | string`
 - `plan_type: "trial" | "plus" | string` (legacy `pro` puede existir)
-- `plus_monthly_price_pen: number | null` (opcional, override de facturacion mensual por cliente para plan PLUS)
+- `plus_monthly_price_pen: number | null` (opcional, override de facturacion mensual por cliente para plan PLUS; tiene prioridad sobre el precio global)
 - `trial_ends_at: string | null` (ISO date)
 - `ai_enabled: boolean`
 - `ai_provider: string`
@@ -49,6 +49,14 @@ Campos observados (pueden coexistir segun flujo):
 
 - `role: "superadmin" | string`
 - `updated_at: string`
+
+### `system_settings` (doc id = config key)
+
+Configuracion global editable por superadmin.
+
+`billing`:
+- `plus_monthly_price_pen: number` (precio base global del plan PLUS)
+- `updated_at: string` (ISO date, opcional)
 
 ### `widget_configs` (doc id auto, publico para lectura)
 
@@ -607,3 +615,7 @@ Cambios de comportamiento relevantes:
 - Cambio: esquema comercial de Billing pasa a `PLUS` base `S/150/mes` + `S/200` de implementacion unica; SuperAdmin puede configurar `profiles.plus_monthly_price_pen` por cliente para override opcional del cargo mensual.
 - Tipo: non-breaking
 - Impacto: el frontend de dashboard/superadmin mantiene shape existente y agrega personalizacion de cobro por cliente sin romper consumidores actuales.
+- Fecha: 2026-02-23
+- Cambio: SuperAdmin agrega control global de precio base en `system_settings/billing.plus_monthly_price_pen`; Billing dashboard usa ese valor como fallback cuando no existe `profiles.plus_monthly_price_pen`.
+- Tipo: non-breaking
+- Impacto: permite facturacion diferenciada por cliente manteniendo un precio base central sin romper flujos ni contratos existentes.

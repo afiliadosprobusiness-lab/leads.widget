@@ -640,9 +640,9 @@ const MAX_PROPERTY_IMAGES = 5;
 const MAX_PROPERTY_VIDEOS = 2;
 const MAX_REAL_ESTATE_PROPERTIES = 100;
 
-const resolvePlusMonthlyPricePen = (value: unknown) => {
+const resolvePlusMonthlyPricePen = (value: unknown, fallback = PLAN_PLUS_MONTHLY_PEN) => {
   const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed <= 0) return PLAN_PLUS_MONTHLY_PEN;
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
   return Math.round(parsed);
 };
 
@@ -903,6 +903,7 @@ export default function Dashboard() {
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [isTestimonialDialogOpen, setIsTestimonialDialogOpen] = useState(false);
   const [currency, setCurrency] = useState<'PEN' | 'USD'>('PEN');
+  const [globalPlusMonthlyPricePen, setGlobalPlusMonthlyPricePen] = useState(PLAN_PLUS_MONTHLY_PEN);
   const [affiliateRefers, setAffiliateRefers] = useState(10); // Calculator state
   const [affiliatePlanType, setAffiliatePlanType] = useState<'trial' | 'plus'>('plus'); // Calculator Plan Selector
 
@@ -1013,7 +1014,7 @@ export default function Dashboard() {
       won: 'Ganado',
       lost: 'Perdido',
     };
-  const plusMonthlyPricePen = resolvePlusMonthlyPricePen(profile?.plus_monthly_price_pen);
+  const plusMonthlyPricePen = resolvePlusMonthlyPricePen(profile?.plus_monthly_price_pen, globalPlusMonthlyPricePen);
   const plusFirstPaymentPen = plusMonthlyPricePen + PLAN_PLUS_SETUP_PEN;
   const isTrialPlan = String(profile?.subscription_status || 'trial').toLowerCase() !== 'active';
   const plusCurrentChargePen = isTrialPlan ? plusFirstPaymentPen : plusMonthlyPricePen;
@@ -2681,6 +2682,20 @@ export default function Dashboard() {
 
     try {
       const userId = user.uid;
+
+      // Load global billing defaults (read-only for client dashboard)
+      try {
+        const billingSettingsSnap = await getDoc(doc(db, 'system_settings', 'billing'));
+        if (billingSettingsSnap.exists()) {
+          const billingSettings = billingSettingsSnap.data() as Record<string, unknown>;
+          setGlobalPlusMonthlyPricePen(resolvePlusMonthlyPricePen(billingSettings.plus_monthly_price_pen));
+        } else {
+          setGlobalPlusMonthlyPricePen(PLAN_PLUS_MONTHLY_PEN);
+        }
+      } catch (billingSettingsError) {
+        console.error('Non-critical: Error loading billing settings:', billingSettingsError);
+        setGlobalPlusMonthlyPricePen(PLAN_PLUS_MONTHLY_PEN);
+      }
 
       // Load profile
       const profileSnap = await getDoc(doc(db, 'profiles', userId));

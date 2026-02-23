@@ -84,7 +84,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Landing principal `/` ahora comunica dos modos de producto: widget embebible y Lead Chat como pagina publica sin web.
 - Landing principal `/` ahora muestra copy comercial de entrada: `Desde 150 soles al mes` (EN: `From S/ 150 per month`), manteniendo el bloque de implementacion unica en la tarjeta de precio.
 - Landing principal `/` fue redisenada con estilo visual premium tipo Apple (glass + gradientes suaves), narrativa simplificada orientada a conversion, preview del widget embebido en hero y secciones actualizadas de capacidades/casos/testimonios/precio.
-- Landing principal `/` incluye toggle claro/oscuro visible en navbar (desktop/mobile) y copy reforzado a conversion para trafico pago + cierre por llamada.
+- Landing principal `/` incluye toggle claro/oscuro visible en navbar (desktop/mobile) y copy reforzado a precalificacion de leads + handoff a WhatsApp (sin narrativa de llamadas outbound).
 - Landing principal `/` ahora prioriza prueba social arriba del fold: la seccion de testimonios se muestra inmediatamente debajo del hero.
 - Testimonios de landing principal usan scroll horizontal con autoavance (desktop/mobile), controles prev/next y avatar por caso para reforzar prueba social.
 - Testimonios de landing principal, widget embebido y Lead Chat usan efecto visual tipo Instagram (anillo degradado + glow de transicion) para enfatizar prueba social sin bloquear lectura.
@@ -135,6 +135,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - El widget comercial (`SalesWidget`) tambien esta activo en `/partners`.
 - El `SalesWidget` de landing replica la experiencia visual del embebido (header con acciones, barra de testimonios, composer con emoji/voz) y agrega selector de color con contraste automatico para mantener legibilidad.
 - En `SalesWidget` de landing, el header mantiene selector de idioma + paleta de color + cierre (sin toggle de tema en header) para reducir ruido visual.
+- En `SalesWidget` de landing, los textos EN/ES priorizan precalificacion inmobiliaria y derivacion de leads serios a WhatsApp (sin guion comercial de llamada guiada).
 - Dashboard partner incluye secciones:
   - Ventas/Atribucion
   - Clientes
@@ -182,6 +183,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - En IA > Prompt del Sistema (plantillas por nicho), cuando el lead pregunta por precio/costo/inversion, el guion responde la oferta exacta: `S/ 150 mensual + S/ 200 implementacion unica`.
 - En Dashboard > Billing, el esquema comercial activo es: `trial` (3 dias gratis) y `PLUS` (S/ 150 mensual base); en activacion inicial se muestra `S/ 200` de implementacion unica + primer mes.
 - En SuperAdmin > Clientes, se puede definir `plus_monthly_price_pen` por usuario (opcional). Si existe, Billing del dashboard usa ese monto; si no existe, usa base global `S/ 150`.
+- En SuperAdmin, existe configuracion global de precio base `PLUS` en `system_settings/billing.plus_monthly_price_pen`; ese valor aplica a dashboard Billing cuando el usuario no tiene override personalizado.
 - `WHATSAPP_REDIRECT` se mantiene como opcion secundaria frente a `ICALLCLOSER_READY`; ya no se usa la guia manual de insercion, ahora el comando se agrega automaticamente segun el canal seleccionado.
 - Upload de bienvenida en dashboard (imagen/audio/video) usa Cloudinary cuando existen `VITE_CLOUDINARY_CLOUD_NAME` + `VITE_CLOUDINARY_UPLOAD_PRESET`; si no existen, usa fallback a Firebase Storage.
 - En Dashboard > Configuracion del widget > Audio de bienvenida, ademas de subir archivo/URL ahora se puede grabar audio en el momento (microfono del navegador) y se sube por el mismo pipeline Cloudinary/Firebase.
