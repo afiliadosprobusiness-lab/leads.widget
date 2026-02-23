@@ -5890,6 +5890,29 @@ export default function Dashboard() {
                                 <span className="font-medium text-foreground">Generar token de acceso</span>.
                               </p>
                             </div>
+                            <div className="rounded-lg border bg-muted/20 p-3">
+                              <p className="font-medium text-foreground">5. Crear eventos de calidad (Meta)</p>
+                              <p>
+                                En <span className="font-medium text-foreground">Events Manager</span> &gt;{" "}
+                                <span className="font-medium text-foreground">Custom Conversions</span> &gt;{" "}
+                                <span className="font-medium text-foreground">Create</span>, crea conversiones usando estos nombres:
+                              </p>
+                              <p className="mt-1 font-mono text-xs text-foreground/90">
+                                Lead, QualifiedLead, Appointment, Sale
+                              </p>
+                              <p className="mt-1">
+                                Para cierre real puedes mapear <span className="font-medium text-foreground">Sale</span> a{" "}
+                                <span className="font-medium text-foreground">Purchase</span> si lo prefieres.
+                              </p>
+                            </div>
+                            <div className="rounded-lg border bg-muted/20 p-3">
+                              <p className="font-medium text-foreground">6. Usarlo en Ads Manager</p>
+                              <p>
+                                En el conjunto de anuncios, optimiza por la conversion de calidad (por ejemplo{" "}
+                                <span className="font-medium text-foreground">QualifiedLead</span> o{" "}
+                                <span className="font-medium text-foreground">Appointment</span>) para que Meta aprenda con esos eventos.
+                              </p>
+                            </div>
                           </div>
                         </DialogContent>
                       </Dialog>
