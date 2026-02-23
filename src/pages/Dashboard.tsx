@@ -638,6 +638,7 @@ const PROPERTY_VIDEO_MAX_MB = 15;
 const AUDIO_MAX_MB = 15;
 const MAX_PROPERTY_IMAGES = 5;
 const MAX_PROPERTY_VIDEOS = 2;
+const MAX_REAL_ESTATE_PROPERTIES = 100;
 
 function sanitizeMediaUrl(value: unknown) {
   const raw = String(value || '').trim();
@@ -708,7 +709,7 @@ function normalizeRealEstateProperties(value: unknown): RealEstateProperty[] {
       } as RealEstateProperty;
     })
     .filter((item): item is RealEstateProperty => Boolean(item))
-    .slice(0, 20);
+    .slice(0, MAX_REAL_ESTATE_PROPERTIES);
 }
 
 function createEmptyRealEstateProperty(): RealEstateProperty {
@@ -2314,7 +2315,7 @@ export default function Dashboard() {
       real_estate_properties: [
         ...(Array.isArray(prev.real_estate_properties) ? prev.real_estate_properties : []),
         newProperty,
-      ].slice(0, 20),
+      ].slice(0, MAX_REAL_ESTATE_PROPERTIES),
     }));
     setExpandedRealEstatePropertyId(newProperty.id);
   };
@@ -3241,7 +3242,7 @@ export default function Dashboard() {
             };
           })
           .filter((item: RealEstateProperty) => item.title || item.image_urls.length > 0 || item.video_urls.length > 0)
-          .slice(0, 20),
+          .slice(0, MAX_REAL_ESTATE_PROPERTIES),
         custom_tracking_code: deleteField(),
         custom_code: deleteField(),
         updated_at: new Date().toISOString(),
@@ -5143,6 +5144,7 @@ export default function Dashboard() {
                           <Label className="text-emerald-900 dark:text-emerald-300">Catalogo de propiedades (solo inmobiliaria)</Label>
                           <p className="text-xs text-emerald-700 dark:text-emerald-300/85">
                             Sube fotos/videos por propiedad para que la IA los muestre automaticamente cuando el lead los pida.
+                            {' '}Hasta {MAX_REAL_ESTATE_PROPERTIES} propiedades por catalogo.
                           </p>
                         </div>
                         <Button
@@ -5151,7 +5153,7 @@ export default function Dashboard() {
                           variant="outline"
                           className="border-emerald-500/60 text-emerald-700 hover:bg-emerald-100 dark:text-emerald-300 dark:hover:bg-emerald-900/30"
                           onClick={addRealEstateProperty}
-                          disabled={(Array.isArray(formConfig.real_estate_properties) ? formConfig.real_estate_properties.length : 0) >= 20}
+                          disabled={(Array.isArray(formConfig.real_estate_properties) ? formConfig.real_estate_properties.length : 0) >= MAX_REAL_ESTATE_PROPERTIES}
                         >
                           Agregar propiedad
                         </Button>

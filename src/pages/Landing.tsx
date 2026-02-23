@@ -526,7 +526,11 @@ export default function Landing() {
       <section className="relative z-10 px-4 py-16 sm:px-6 lg:py-20">
         <div className={`mx-auto max-w-[820px] rounded-[30px] border p-8 text-center shadow-[0_34px_80px_-50px_rgba(2,132,199,0.45)] ${isLandingDark ? "border-slate-700 bg-slate-900/85" : "border-slate-200/90 bg-white/92"}`}>
           <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">{copy.pricingTitle}</h2>
-          <div className="mt-7 flex items-end justify-center gap-2"><span className="text-5xl font-semibold tracking-tight sm:text-6xl">S/ 100</span><span className={`pb-2 text-sm uppercase tracking-[0.14em] ${isLandingDark ? "text-slate-400" : "text-slate-500"}`}>{isEn ? "/ month" : "/ mes"}</span></div>
+          <div className="mt-7">
+            <span className="text-4xl font-semibold tracking-tight sm:text-5xl">
+              {isEn ? "From S/ 150 per month" : "Desde 150 soles al mes"}
+            </span>
+          </div>
           <p className={`mt-2 text-sm font-medium ${isLandingDark ? "text-cyan-200" : "text-cyan-700"}`}>
             {isEn ? "One-time setup: S/ 200" : "Implementacion unica: S/ 200"}
           </p>
@@ -547,7 +551,7 @@ export default function Landing() {
           <h2 className="text-3xl font-semibold tracking-tight sm:text-5xl">{copy.finalTitle}</h2>
           <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-slate-300 sm:text-base">{copy.finalSubtitle}</p>
           <p className="mx-auto mt-2 max-w-2xl text-sm font-medium text-cyan-200">
-            {isEn ? "Current offer: S/ 100 / month + S/ 200 one-time setup." : "Oferta actual: S/ 100 / mes + S/ 200 implementacion unica."}
+            {isEn ? "Current offer: from S/ 150 per month." : "Oferta actual: desde 150 soles al mes."}
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link to="/register"><Button size="xl" className="rounded-full px-8 text-white">{copy.navRegister}</Button></Link>

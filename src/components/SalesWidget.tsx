@@ -6,14 +6,17 @@ import { PremiumAudioPlayer } from "@/components/PremiumAudioPlayer";
 import { buildWhatsAppRedirectUrl, parseChatResponseCommands, sanitizeHttpUrl } from "@/lib/chatCommands";
 
 type Message = {
+  id?: string;
   role: "user" | "assistant" | "system";
   content: string;
   actionUrl?: string;
   actionLabel?: string;
   imageUrl?: string;
+  imageUrls?: string[];
   imageAlt?: string;
   audioUrl?: string;
   videoUrl?: string;
+  videoUrls?: string[];
 };
 
 type WidgetLocale = "es" | "en";
@@ -42,6 +45,8 @@ const QUICK_EMOJIS = [
 const IDLE_TEASER_DELAY_MS = 6200;
 const IDLE_TEASER_ROTATE_MS = 8200;
 const IDLE_TEASER_VISIBLE_MS = 3600;
+const CHAT_IMAGE_CAROUSEL_MAX = 5;
+const CHAT_VIDEO_CAROUSEL_MAX = 2;
 
 const WIDGET_COPY: Record<
   WidgetLocale,
@@ -94,7 +99,7 @@ const WIDGET_COPY: Record<
     ],
     typing: "Escribiendo...",
     hint: "Estamos listos para ayudarte",
-    openingWhatsApp: "Abriendo WhatsApp...",
+    openingWhatsApp: "Listo, ahora te paso con un representante por WhatsApp para continuar tu atencion.",
     openWhatsAppNow: "Abrir WhatsApp Ahora",
     openingIACallCloser: "Abriendo IACloser...",
     openIACallCloserNow: "Abrir IACloser ahora",
@@ -130,7 +135,7 @@ const WIDGET_COPY: Record<
     ],
     typing: "Typing...",
     hint: "We are ready to help",
-    openingWhatsApp: "Opening WhatsApp...",
+    openingWhatsApp: "Great, now I'll connect you with a representative on WhatsApp to continue your support.",
     openWhatsAppNow: "Open WhatsApp Now",
     openingIACallCloser: "Opening IACloser...",
     openIACallCloserNow: "Open IACloser now",
@@ -236,6 +241,13 @@ function buildWhatsAppStars(value: number) {
   return Array.from({ length: total }, () => "\u2B50").join("");
 }
 
+function getRedirectCountdownText(locale: WidgetLocale, seconds: number) {
+  if (seconds <= 0) return locale === "es" ? "Redireccionando..." : "Redirecting...";
+  if (seconds === 3) return locale === "es" ? "Redireccionando 3..2..1.." : "Redirecting 3..2..1..";
+  if (seconds === 2) return locale === "es" ? "Redireccionando 2..1.." : "Redirecting 2..1..";
+  return locale === "es" ? "Redireccionando 1.." : "Redirecting 1..";
+}
+
 export function SalesWidget() {
   const inferredLocale: WidgetLocale = "en";
 
@@ -274,6 +286,8 @@ export function SalesWidget() {
   const pendingVoiceAutoSendRef = useRef(false);
   const handleSendFromVoiceRef = useRef<(value: string) => void>(() => {});
   const conversationIdRef = useRef(`sales-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
+  const redirectCountdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const redirectCountdownTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const trackConversationEvent = useCallback(async (eventType: ChatEventType, meta: Record<string, string> = {}) => {
     try {
@@ -305,6 +319,59 @@ export function SalesWidget() {
       window.open(cleanUrl, "_blank", "noopener,noreferrer");
     },
     [trackConversationEvent],
+  );
+
+  const clearRedirectCountdown = useCallback(() => {
+    if (redirectCountdownIntervalRef.current) {
+      clearInterval(redirectCountdownIntervalRef.current);
+      redirectCountdownIntervalRef.current = null;
+    }
+    if (redirectCountdownTimeoutRef.current) {
+      clearTimeout(redirectCountdownTimeoutRef.current);
+      redirectCountdownTimeoutRef.current = null;
+    }
+  }, []);
+
+  const startRedirectCountdown = useCallback(
+    (targetUrl: string, activeLocale: WidgetLocale) => {
+      const cleanUrl = String(targetUrl || "").trim();
+      if (!cleanUrl) return;
+
+      clearRedirectCountdown();
+      let secondsLeft = 3;
+      const countdownMessageId = `redirect-countdown-${Date.now()}`;
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: countdownMessageId,
+          role: "system",
+          content: getRedirectCountdownText(activeLocale, secondsLeft),
+        },
+      ]);
+
+      redirectCountdownIntervalRef.current = setInterval(() => {
+        secondsLeft -= 1;
+        setMessages((prev) =>
+          prev.map((message) =>
+            message.id === countdownMessageId
+              ? { ...message, content: getRedirectCountdownText(activeLocale, secondsLeft) }
+              : message,
+          ),
+        );
+
+        if (secondsLeft <= 0) {
+          clearRedirectCountdown();
+          redirectCountdownTimeoutRef.current = setTimeout(() => {
+            const eventType = inferChatEventTypeByUrl(cleanUrl);
+            if (eventType) {
+              void trackConversationEvent(eventType, { trigger: "auto" });
+            }
+            window.location.href = cleanUrl;
+          }, 320);
+        }
+      }, 1000);
+    },
+    [clearRedirectCountdown, trackConversationEvent],
   );
 
   const testimonial = copy.testimonials[activeTestimonialIndex % copy.testimonials.length];
@@ -352,6 +419,10 @@ export function SalesWidget() {
       window.removeEventListener("open-lead-widget", handleExternalOpen);
     };
   }, []);
+
+  useEffect(() => () => {
+    clearRedirectCountdown();
+  }, [clearRedirectCountdown]);
 
   useEffect(() => {
     if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
@@ -551,7 +622,7 @@ export function SalesWidget() {
         const budgetedAudios = parsed.audios
           .filter((item) => !existingAudioUrls.has(item.url))
           .slice(0, availableAudioSlots);
-        const budgetedVideos = parsed.videos.slice(0, 1);
+        const budgetedVideos = parsed.videos.slice(0, CHAT_VIDEO_CAROUSEL_MAX);
         const whatsappUrl = buildWhatsAppRedirectUrl(
           SALES_WIDGET_WHATSAPP_DESTINATION,
           parsed.whatsappPayload || userMessage,
@@ -596,25 +667,34 @@ export function SalesWidget() {
         actionCandidates.sort((a, b) => a.index - b.index);
         const selectedAction = actionCandidates[0];
         const assistantReply = parsed.cleanText || selectedAction?.notice || (parsed.images.length > 0 || budgetedAudios.length > 0 || budgetedVideos.length > 0 ? "" : copy.hint);
+        const groupedImageUrls = parsed.images
+          .map((item) => item.url)
+          .filter(Boolean)
+          .slice(0, CHAT_IMAGE_CAROUSEL_MAX);
+        const groupedVideoUrls = budgetedVideos
+          .map((item) => item.url)
+          .filter(Boolean)
+          .slice(0, CHAT_VIDEO_CAROUSEL_MAX);
 
         setMessages((prev) => [
           ...prev,
           ...(assistantReply ? [{ role: "assistant" as const, content: assistantReply }] : []),
-          ...parsed.images.map((item, idx) => ({
-            role: "assistant" as const,
-            content: "",
-            imageUrl: item.url,
-            imageAlt: item.alt || `assistant-image-${idx + 1}`,
-          })),
+          ...(groupedImageUrls.length > 0 || groupedVideoUrls.length > 0
+            ? [{
+                id: `assistant-image-${Date.now()}`,
+                role: "assistant" as const,
+                content: "",
+                imageUrl: groupedImageUrls[0],
+                imageUrls: groupedImageUrls,
+                videoUrl: groupedVideoUrls[0],
+                videoUrls: groupedVideoUrls,
+                imageAlt: parsed.images[0]?.alt || "Assistant image",
+              }]
+            : []),
           ...budgetedAudios.map((item) => ({
             role: "assistant" as const,
             content: "",
             audioUrl: item.url,
-          })),
-          ...budgetedVideos.map((item) => ({
-            role: "assistant" as const,
-            content: "",
-            videoUrl: item.url,
           })),
           ...(selectedAction
             ? [{
@@ -627,10 +707,16 @@ export function SalesWidget() {
         ]);
 
         if (selectedAction) {
-          if (selectedAction.type === "whatsapp" && window.fbq) window.fbq("track", "Lead");
-          window.setTimeout(() => {
-            openTrackedAction(selectedAction.url, "auto");
-          }, 1600);
+          if (selectedAction.type === "whatsapp") {
+            if (window.fbq) window.fbq("track", "Lead");
+            window.setTimeout(() => {
+              startRedirectCountdown(selectedAction.url, responseLocale);
+            }, 250);
+          } else {
+            window.setTimeout(() => {
+              openTrackedAction(selectedAction.url, "auto");
+            }, 1600);
+          }
         }
       } catch (error) {
         console.error("SalesWidget chat error", error);
@@ -654,6 +740,7 @@ export function SalesWidget() {
       markUserInteraction,
       messages,
       openTrackedAction,
+      startRedirectCountdown,
     ],
   );
 
@@ -926,8 +1013,18 @@ export function SalesWidget() {
                 </div>
               ) : (
                 (() => {
-                  const hasMediaOnly = !msg.content && (Boolean(msg.imageUrl) || Boolean(msg.audioUrl) || Boolean(msg.videoUrl));
-                  const shouldExpandForAudio = Boolean(msg.audioUrl || msg.videoUrl);
+                  const bubbleImageUrls = (Array.isArray(msg.imageUrls) && msg.imageUrls.length > 0
+                    ? msg.imageUrls
+                    : (msg.imageUrl ? [msg.imageUrl] : []))
+                    .filter(Boolean)
+                    .slice(0, CHAT_IMAGE_CAROUSEL_MAX);
+                  const bubbleVideoUrls = (Array.isArray(msg.videoUrls) && msg.videoUrls.length > 0
+                    ? msg.videoUrls
+                    : (msg.videoUrl ? [msg.videoUrl] : []))
+                    .filter(Boolean)
+                    .slice(0, CHAT_VIDEO_CAROUSEL_MAX);
+                  const hasMediaOnly = !msg.content && (bubbleImageUrls.length > 0 || bubbleVideoUrls.length > 0 || Boolean(msg.audioUrl));
+                  const shouldExpandForAudio = Boolean(msg.audioUrl || bubbleVideoUrls.length > 0);
                   return (
                 <div
                   className={`max-w-[86%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
@@ -940,13 +1037,26 @@ export function SalesWidget() {
                   style={msg.role === "user" ? { backgroundColor: primaryColor, color: userBubbleTextColor } : undefined}
                 >
                   {msg.content ? <p>{msg.content}</p> : null}
-                  {msg.imageUrl ? (
+                  {bubbleImageUrls.length === 1 ? (
                     <img
-                      src={msg.imageUrl}
+                      src={bubbleImageUrls[0]}
                       alt={msg.imageAlt || "Assistant image"}
                       loading="lazy"
                       className="mt-2 w-full max-w-[250px] rounded-lg border border-white/10 object-cover"
                     />
+                  ) : null}
+                  {bubbleImageUrls.length > 1 ? (
+                    <div className="mt-2 flex max-w-[250px] gap-2 overflow-x-auto scroll-smooth pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [scroll-snap-type:x_mandatory] [-webkit-overflow-scrolling:touch] [touch-action:pan-x] [&::-webkit-scrollbar]:hidden">
+                      {bubbleImageUrls.map((imageUrl, imageIndex) => (
+                        <img
+                          key={`${imageUrl}-${imageIndex}`}
+                          src={imageUrl}
+                          alt={`${msg.imageAlt || "Assistant image"} ${imageIndex + 1}`}
+                          loading="lazy"
+                          className="h-36 w-[220px] shrink-0 rounded-lg border border-white/10 object-cover [scroll-snap-align:start]"
+                        />
+                      ))}
+                    </div>
                   ) : null}
                   {msg.audioUrl ? (
                     <PremiumAudioPlayer
@@ -956,15 +1066,30 @@ export function SalesWidget() {
                       label={copy.talkNow}
                     />
                   ) : null}
-                  {msg.videoUrl ? (
+                  {bubbleVideoUrls.length === 1 ? (
                     <video
                       controls
                       preload="metadata"
                       playsInline
                       className="mt-2 w-full max-w-[250px] rounded-lg border border-white/10 bg-black/80"
                     >
-                      <source src={msg.videoUrl} />
+                      <source src={bubbleVideoUrls[0]} />
                     </video>
+                  ) : null}
+                  {bubbleVideoUrls.length > 1 ? (
+                    <div className="mt-2 flex max-w-[250px] gap-2 overflow-x-auto scroll-smooth pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [scroll-snap-type:x_mandatory] [-webkit-overflow-scrolling:touch] [touch-action:pan-x] [&::-webkit-scrollbar]:hidden">
+                      {bubbleVideoUrls.map((videoUrl, videoIndex) => (
+                        <video
+                          key={`${videoUrl}-${videoIndex}`}
+                          controls
+                          preload="metadata"
+                          playsInline
+                          className="h-36 w-[220px] shrink-0 rounded-lg border border-white/10 bg-black/80 [scroll-snap-align:start]"
+                        >
+                          <source src={videoUrl} />
+                        </video>
+                      ))}
+                    </div>
                   ) : null}
                 </div>
                   );

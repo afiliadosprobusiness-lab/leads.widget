@@ -13,9 +13,11 @@ type ChatMessage = {
   content: string;
   audioUrl?: string;
   videoUrl?: string;
+  videoUrls?: string[];
   actionUrl?: string;
   actionLabel?: string;
   imageUrl?: string;
+  imageUrls?: string[];
   imageAlt?: string;
 };
 type BrowserSpeechRecognitionCtor = new () => SpeechRecognition;
@@ -87,6 +89,8 @@ const IDLE_TEASER_VISIBLE_MS = 3800;
 const IDLE_TEASER_ROTATE_MS = 8500;
 const REAL_ESTATE_MAX_IMAGES = 5;
 const REAL_ESTATE_MAX_VIDEOS = 2;
+const REAL_ESTATE_MAX_PROPERTIES = 100;
+const CHAT_VIDEO_CAROUSEL_MAX = 2;
 
 type ChatLocale = "es" | "en";
 
@@ -211,7 +215,7 @@ const SALES_COPY: Record<
     consentRequired: "Debes aceptar el consentimiento para activar la llamada.",
     handoffSuccess: "Todo listo. Te llamaremos en menos de 2 minutos.",
     activationMessage: "Perfecto. Estamos iniciando tu llamada de prueba ahora mismo...",
-    openingWhatsApp: "Abriendo WhatsApp...",
+    openingWhatsApp: "Listo, ahora te paso con un representante por WhatsApp para continuar tu atencion.",
     openWhatsAppNow: "Abrir WhatsApp ahora",
     openingIACallCloser: "Abriendo IACloser...",
     openIACallCloserNow: "Abrir IACloser ahora",
@@ -286,7 +290,7 @@ const SALES_COPY: Record<
     consentRequired: "You must accept consent to trigger the call.",
     handoffSuccess: "All set. We will call you in under 2 minutes.",
     activationMessage: "Perfect. We are starting your demo call right now...",
-    openingWhatsApp: "Opening WhatsApp...",
+    openingWhatsApp: "Great, now I'll connect you with a representative on WhatsApp to continue your support.",
     openWhatsAppNow: "Open WhatsApp now",
     openingIACallCloser: "Opening IACloser...",
     openIACallCloserNow: "Open IACloser now",
@@ -595,7 +599,7 @@ function normalizeRealEstateProperties(raw: unknown): RealEstateProperty[] {
       } as RealEstateProperty;
     })
     .filter((item): item is RealEstateProperty => Boolean(item))
-    .slice(0, 20);
+    .slice(0, REAL_ESTATE_MAX_PROPERTIES);
 }
 
 async function fetchLeadChatRealEstatePropertiesFromFirestore(identity: string): Promise<RealEstateProperty[]> {
@@ -815,7 +819,7 @@ function getRealEstateMediaDirective(config: PublicWidgetConfig | null, locale: 
     return [
       "Modo inmobiliaria activo.",
       "Usa SOLO URLs del catalogo, no inventes enlaces.",
-      "Si el usuario pide ver propiedad/departamento/casa o el contexto lo amerita, muestra maximo 1 imagen y 1 video relevantes con comandos:",
+      "Si el usuario pide ver propiedad/departamento/casa o el contexto lo amerita, muestra hasta 5 imagenes y 2 videos relevantes con comandos:",
       "- [IMAGE: <url>|<alt corto>]",
       "- [VIDEO: <url>]",
       "Catalogo de propiedades:",
@@ -826,7 +830,7 @@ function getRealEstateMediaDirective(config: PublicWidgetConfig | null, locale: 
   return [
     "Real estate mode is active.",
     "Use ONLY URLs from the catalog. Never invent links.",
-    "If the user asks to see listings/house/apartment, or context suggests visual proof, show up to 1 image and 1 video with:",
+    "If the user asks to see listings/house/apartment, or context suggests visual proof, show up to 5 images and 2 videos with:",
     "- [IMAGE: <url>|<short alt>]",
     "- [VIDEO: <url>]",
     "Property catalog:",
@@ -1043,10 +1047,10 @@ async function fetchLeadChatTestimonialsFromFirestore(identity: string) {
 }
 
 function getRedirectCountdownText(locale: ChatLocale, seconds: number) {
-  if (seconds <= 0) {
-    return locale === "es" ? "Redireccionando..." : "Redirecting...";
-  }
-  return locale === "es" ? `Redireccionando en ${seconds}...` : `Redirecting in ${seconds}...`;
+  if (seconds <= 0) return locale === "es" ? "Redireccionando..." : "Redirecting...";
+  if (seconds === 3) return locale === "es" ? "Redireccionando 3..2..1.." : "Redirecting 3..2..1..";
+  if (seconds === 2) return locale === "es" ? "Redireccionando 2..1.." : "Redirecting 2..1..";
+  return locale === "es" ? "Redireccionando 1.." : "Redirecting 1..";
 }
 
 export default function LeadChat() {
@@ -1763,7 +1767,7 @@ export default function LeadChat() {
       const budgetedAudios = parsed.audios
         .filter((item) => !existingAudioUrls.has(item.url))
         .slice(0, availableAudioSlots);
-      const budgetedVideos = parsed.videos.slice(0, 1);
+      const budgetedVideos = parsed.videos.slice(0, CHAT_VIDEO_CAROUSEL_MAX);
       const hasIaCallCloserReady = parsed.iaCallCloserReady;
       const normalizedWhatsAppMessage = parsed.whatsappPayload || text;
       const whatsappUrl = buildWhatsAppRedirectUrl(config.whatsappDestination || "", normalizedWhatsAppMessage);
@@ -1782,16 +1786,27 @@ export default function LeadChat() {
             : (hasMediaImages || hasMediaAudios || hasMediaVideos ? "" : copy.step3Description)));
 
       await appendAssistantWithTypewriter(cleanResponse);
-      if (parsed.images.length > 0) {
+      const imageList = parsed.images
+        .map((item) => item.url)
+        .filter(Boolean)
+        .slice(0, REAL_ESTATE_MAX_IMAGES);
+      const videoList = budgetedVideos
+        .map((item) => item.url)
+        .filter(Boolean)
+        .slice(0, CHAT_VIDEO_CAROUSEL_MAX);
+      if (imageList.length > 0 || videoList.length > 0) {
         setMessages((prev) => [
           ...prev,
-          ...parsed.images.map((item, idx) => ({
-            id: `assistant-image-${Date.now()}-${idx}`,
+          {
+            id: `assistant-image-${Date.now()}`,
             role: "assistant" as const,
             content: "",
-            imageUrl: item.url,
-            imageAlt: item.alt || "Assistant image",
-          })),
+            imageUrl: imageList[0] || undefined,
+            imageUrls: imageList,
+            videoUrl: videoList[0] || undefined,
+            videoUrls: videoList,
+            imageAlt: parsed.images[0]?.alt || "Assistant image",
+          },
         ]);
       }
       if (budgetedAudios.length > 0) {
@@ -1805,18 +1820,6 @@ export default function LeadChat() {
           })),
         ]);
       }
-      if (budgetedVideos.length > 0) {
-        setMessages((prev) => [
-          ...prev,
-          ...budgetedVideos.map((item, idx) => ({
-            id: `assistant-video-${Date.now()}-${idx}`,
-            role: "assistant" as const,
-            content: "",
-            videoUrl: item.url,
-          })),
-        ]);
-      }
-
       if (hasIaCallCloserReady) {
         if (parsed.iaCallCloserSeed?.name) setLeadName(parsed.iaCallCloserSeed.name.trim());
         if (parsed.iaCallCloserSeed?.phone) setLeadPhone(sanitizePhone(parsed.iaCallCloserSeed.phone));
@@ -1830,6 +1833,7 @@ export default function LeadChat() {
       }
 
       const actionCandidates: Array<{
+        type: "whatsapp" | "iacallcloser";
         index: number;
         url: string;
         notice: string;
@@ -1838,6 +1842,7 @@ export default function LeadChat() {
 
       if (parsed.whatsappIndex !== null && whatsappUrl) {
         actionCandidates.push({
+          type: "whatsapp",
           index: parsed.whatsappIndex,
           url: whatsappUrl,
           notice: copy.openingWhatsApp,
@@ -1847,6 +1852,7 @@ export default function LeadChat() {
 
       if (parsed.iaCallCloserRedirectIndex !== null && iaCallCloserRedirectUrl) {
         actionCandidates.push({
+          type: "iacallcloser",
           index: parsed.iaCallCloserRedirectIndex,
           url: iaCallCloserRedirectUrl,
           notice: copy.openingIACallCloser,
@@ -1867,8 +1873,16 @@ export default function LeadChat() {
           },
         ]);
         window.setTimeout(() => {
+          if (action.type === "whatsapp") {
+            const redirectEventType = inferChatEventTypeByUrl(action.url);
+            if (redirectEventType) {
+              void trackConversationEvent(redirectEventType, { trigger: "auto" });
+            }
+            startRedirectCountdown(action.url, responseLocale);
+            return;
+          }
           openTrackedAction(action.url, "auto");
-        }, 1400);
+        }, 250);
       }
     } catch (error: any) {
       setMessages((prev) => [
@@ -2202,8 +2216,18 @@ export default function LeadChat() {
                       </div>
                     ) : (
                       (() => {
-                        const hasMediaOnly = !msg.content && (Boolean(msg.imageUrl) || Boolean(msg.audioUrl) || Boolean(msg.videoUrl));
-                        const shouldExpandForAudio = Boolean(msg.audioUrl || msg.videoUrl);
+                        const bubbleImageUrls = (Array.isArray(msg.imageUrls) && msg.imageUrls.length > 0
+                          ? msg.imageUrls
+                          : (msg.imageUrl ? [msg.imageUrl] : []))
+                          .filter(Boolean)
+                          .slice(0, REAL_ESTATE_MAX_IMAGES);
+                        const bubbleVideoUrls = (Array.isArray(msg.videoUrls) && msg.videoUrls.length > 0
+                          ? msg.videoUrls
+                          : (msg.videoUrl ? [msg.videoUrl] : []))
+                          .filter(Boolean)
+                          .slice(0, CHAT_VIDEO_CAROUSEL_MAX);
+                        const hasMediaOnly = !msg.content && (bubbleImageUrls.length > 0 || bubbleVideoUrls.length > 0 || Boolean(msg.audioUrl));
+                        const shouldExpandForAudio = Boolean(msg.audioUrl || bubbleVideoUrls.length > 0);
                         return (
                       <div
                         className={`max-w-[88%] break-words rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed animate-in fade-in slide-in-from-bottom-2 duration-300 ${
@@ -2220,13 +2244,26 @@ export default function LeadChat() {
                         style={msg.role === "user" ? { backgroundColor: config.primaryColor || "#00C185" } : {}}
                       >
                         {msg.content ? <p>{msg.content}</p> : null}
-                        {msg.imageUrl ? (
+                        {bubbleImageUrls.length === 1 ? (
                           <img
-                            src={msg.imageUrl}
+                            src={bubbleImageUrls[0]}
                             alt={msg.imageAlt || "Assistant image"}
                             loading="lazy"
                             className="mt-2 w-full max-w-[280px] rounded-xl border border-white/10 object-cover"
                           />
+                        ) : null}
+                        {bubbleImageUrls.length > 1 ? (
+                          <div className="mt-2 flex max-w-[280px] gap-2 overflow-x-auto scroll-smooth pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [scroll-snap-type:x_mandatory] [-webkit-overflow-scrolling:touch] [touch-action:pan-x] [&::-webkit-scrollbar]:hidden">
+                            {bubbleImageUrls.map((imageUrl, imageIndex) => (
+                              <img
+                                key={`${imageUrl}-${imageIndex}`}
+                                src={imageUrl}
+                                alt={`${msg.imageAlt || "Assistant image"} ${imageIndex + 1}`}
+                                loading="lazy"
+                                className="h-40 w-[240px] shrink-0 rounded-xl border border-white/10 object-cover [scroll-snap-align:start]"
+                              />
+                            ))}
+                          </div>
                         ) : null}
                         {msg.audioUrl ? (
                           <PremiumAudioPlayer
@@ -2236,15 +2273,30 @@ export default function LeadChat() {
                             label={copy.talkNow}
                           />
                         ) : null}
-                        {msg.videoUrl ? (
+                        {bubbleVideoUrls.length === 1 ? (
                           <video
                             controls
                             preload="metadata"
                             playsInline
                             className="mt-2 w-full max-w-[280px] rounded-xl border border-white/10 bg-black/80"
                           >
-                            <source src={msg.videoUrl} />
+                            <source src={bubbleVideoUrls[0]} />
                           </video>
+                        ) : null}
+                        {bubbleVideoUrls.length > 1 ? (
+                          <div className="mt-2 flex max-w-[280px] gap-2 overflow-x-auto scroll-smooth pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [scroll-snap-type:x_mandatory] [-webkit-overflow-scrolling:touch] [touch-action:pan-x] [&::-webkit-scrollbar]:hidden">
+                            {bubbleVideoUrls.map((videoUrl, videoIndex) => (
+                              <video
+                                key={`${videoUrl}-${videoIndex}`}
+                                controls
+                                preload="metadata"
+                                playsInline
+                                className="h-40 w-[240px] shrink-0 rounded-xl border border-white/10 bg-black/80 [scroll-snap-align:start]"
+                              >
+                                <source src={videoUrl} />
+                              </video>
+                            ))}
+                          </div>
                         ) : null}
                       </div>
                         );

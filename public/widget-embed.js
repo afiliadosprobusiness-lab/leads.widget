@@ -36,6 +36,7 @@
   };
   const REAL_ESTATE_MAX_IMAGES = 5;
   const REAL_ESTATE_MAX_VIDEOS = 2;
+  const REAL_ESTATE_MAX_PROPERTIES = 100;
 
   const LEGACY_QUICK_REPLIES = {
     en: ['Book more appointments', 'Close deals by phone', 'See how it works'],
@@ -98,7 +99,7 @@
       aiUnavailableNoWa: 'The AI assistant is not configured yet. The admin must add an OpenAI or Anthropic API key.',
       fallbackResponse: 'I had a connection issue. Want to continue on WhatsApp?',
       blockedPlaceholder: 'Chat blocked for security reasons',
-      waFallback: 'Great! I will connect you with an advisor on WhatsApp now.',
+      waFallback: 'Great, now I will connect you with a representative on WhatsApp to continue your support.',
       openWhatsAppNow: 'Open WhatsApp now',
       iacallcloserFallback: 'Great! I will open IACloser now.',
       systemAudioUnsupported: 'Voice input is not supported in this browser.',
@@ -122,7 +123,7 @@
       aiUnavailableNoWa: 'El asistente de IA aun no esta configurado. El administrador debe agregar la API key de OpenAI o Anthropic.',
       fallbackResponse: 'Tuve un problema de conexion. Quieres continuar por WhatsApp?',
       blockedPlaceholder: 'Chat blocked for security reasons',
-      waFallback: 'Excelente, te paso con un asesor por WhatsApp.',
+      waFallback: 'Listo, ahora te paso con un representante por WhatsApp para continuar tu atencion.',
       openWhatsAppNow: 'Abrir WhatsApp ahora',
       iacallcloserFallback: 'Excelente, abrimos IACloser ahora.',
       systemAudioUnsupported: 'La entrada por voz no es compatible con este navegador.',
@@ -162,6 +163,8 @@
   let pendingVoiceAutoSend = false;
   let latestVoiceTranscript = '';
   let conversationId = `embed-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  let redirectCountdownInterval = null;
+  let redirectCountdownTimeout = null;
   let hasUserInteracted = false;
   let inlineTeaserStartTimeout = null;
   let inlineTeaserHideTimeout = null;
@@ -180,6 +183,8 @@
     if (inlineTeaserHideTimeout) clearTimeout(inlineTeaserHideTimeout);
     if (autoOpenTimeout) clearTimeout(autoOpenTimeout);
     if (teaserStartTimeout) clearTimeout(teaserStartTimeout);
+    if (redirectCountdownInterval) clearInterval(redirectCountdownInterval);
+    if (redirectCountdownTimeout) clearTimeout(redirectCountdownTimeout);
 
     teaserInterval = null;
     vibrationInterval = null;
@@ -190,6 +195,8 @@
     inlineTeaserHideTimeout = null;
     autoOpenTimeout = null;
     teaserStartTimeout = null;
+    redirectCountdownInterval = null;
+    redirectCountdownTimeout = null;
   }
 
   function normalizeText(value) {
@@ -343,7 +350,7 @@
         };
       })
       .filter(Boolean)
-      .slice(0, 20);
+      .slice(0, REAL_ESTATE_MAX_PROPERTIES);
   }
 
   function getRealEstateDirectiveFromConfig() {
@@ -380,7 +387,7 @@
       return [
         'Modo inmobiliaria activo.',
         'Usa SOLO URLs del catalogo y no inventes enlaces.',
-        'Si el usuario pide ver propiedad/departamento/casa o el contexto lo amerita, responde con maximo 1 imagen y 1 video usando:',
+        'Si el usuario pide ver propiedad/departamento/casa o el contexto lo amerita, responde con hasta 5 imagenes y 2 videos usando:',
         '- [IMAGE: <url>|<alt corto>]',
         '- [VIDEO: <url>]',
         'Catalogo de propiedades:',
@@ -391,7 +398,7 @@
     return [
       'Real estate mode is active.',
       'Use ONLY catalog URLs. Never invent links.',
-      'If user asks to see listings/house/apartment, or context suggests visual proof, return up to 1 image and 1 video with:',
+      'If user asks to see listings/house/apartment, or context suggests visual proof, return up to 5 images and 2 videos with:',
       '- [IMAGE: <url>|<short alt>]',
       '- [VIDEO: <url>]',
       'Property catalog:',
@@ -655,7 +662,7 @@
     }
 
     parsed.images.sort((a, b) => a.index - b.index);
-    parsed.images = parsed.images.slice(0, 4);
+    parsed.images = parsed.images.slice(0, 5);
     parsed.audios.sort((a, b) => a.index - b.index);
     parsed.audios = parsed.audios.slice(0, 4);
     parsed.videos.sort((a, b) => a.index - b.index);
@@ -2960,6 +2967,67 @@
       });
     }
 
+    function getRedirectCountdownText(seconds) {
+      const safeSeconds = Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds)) : 0;
+      if (safeSeconds <= 0) {
+        return activeLanguage === 'es' ? 'Redireccionando...' : 'Redirecting...';
+      }
+      if (safeSeconds === 3) {
+        return activeLanguage === 'es' ? 'Redireccionando 3..2..1..' : 'Redirecting 3..2..1..';
+      }
+      if (safeSeconds === 2) {
+        return activeLanguage === 'es' ? 'Redireccionando 2..1..' : 'Redirecting 2..1..';
+      }
+      return activeLanguage === 'es' ? 'Redireccionando 1..' : 'Redirecting 1..';
+    }
+
+    function clearRedirectCountdown() {
+      if (redirectCountdownInterval) {
+        clearInterval(redirectCountdownInterval);
+        redirectCountdownInterval = null;
+      }
+      if (redirectCountdownTimeout) {
+        clearTimeout(redirectCountdownTimeout);
+        redirectCountdownTimeout = null;
+      }
+    }
+
+    function startRedirectCountdown(targetUrl) {
+      const cleanUrl = String(targetUrl || '').trim();
+      if (!cleanUrl) return;
+
+      clearRedirectCountdown();
+      let secondsLeft = 3;
+      const countdownMessageId = `redirect-countdown-${Date.now()}`;
+      messages.push({
+        id: countdownMessageId,
+        role: 'system',
+        content: getRedirectCountdownText(secondsLeft)
+      });
+      renderMessages();
+
+      redirectCountdownInterval = setInterval(() => {
+        secondsLeft -= 1;
+        messages = messages.map((item) => (
+          item.id === countdownMessageId
+            ? { ...item, content: getRedirectCountdownText(secondsLeft) }
+            : item
+        ));
+        renderMessages();
+
+        if (secondsLeft <= 0) {
+          clearRedirectCountdown();
+          redirectCountdownTimeout = setTimeout(() => {
+            const eventType = inferChatEventTypeByUrl(cleanUrl);
+            if (eventType) {
+              trackConversationEvent(eventType, { trigger: 'auto' });
+            }
+            window.location.href = cleanUrl;
+          }, 320);
+        }
+      }, 1000);
+    }
+
     // Render messages
     function renderMessages() {
       let html = messages.map((m, messageIndex) => {
@@ -2970,22 +3038,44 @@
         if (m.role === 'system') {
           return `<div class="lw-msg lw-msg-system">${m.content}</div>`;
         }
-        const imageUrl = optimizeCloudinaryImageUrl(m.imageUrl || '');
+        const imageUrls = (Array.isArray(m.imageUrls) && m.imageUrls.length > 0
+          ? m.imageUrls
+          : (m.imageUrl ? [m.imageUrl] : []))
+          .map((url) => optimizeCloudinaryImageUrl(url || ''))
+          .filter(Boolean)
+          .slice(0, REAL_ESTATE_MAX_IMAGES);
+        const videoUrls = (Array.isArray(m.videoUrls) && m.videoUrls.length > 0
+          ? m.videoUrls
+          : (m.videoUrl ? [m.videoUrl] : []))
+          .map((url) => sanitizeHttpUrl(url || ''))
+          .filter(Boolean)
+          .slice(0, REAL_ESTATE_MAX_VIDEOS);
+        const imageUrl = imageUrls[0] || '';
         const audioUrl = sanitizeHttpUrl(m.audioUrl || '');
-        const videoUrl = sanitizeHttpUrl(m.videoUrl || '');
-        const isMediaOnly = !m.content && (imageUrl || audioUrl || videoUrl);
-        const shouldExpandForAudio = Boolean(audioUrl || videoUrl);
+        const videoUrl = videoUrls[0] || '';
+        const isMediaOnly = !m.content && ((imageUrls.length > 0) || (videoUrls.length > 0) || audioUrl);
+        const shouldExpandForAudio = Boolean(audioUrl || videoUrls.length > 0);
         const textMarkup = m.content ? `<div>${m.content}</div>` : '';
-        const imageMarkup = imageUrl
+        const singleImageMarkup = imageUrls.length === 1
           ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(m.imageAlt || 'Assistant image')}" loading="lazy" style="margin-top:8px;width:100%;max-width:260px;border-radius:12px;border:1px solid var(--lw-border);display:block;">`
+          : '';
+        const carouselImageMarkup = imageUrls.length > 1
+          ? `<div style="margin-top:8px;display:flex;gap:8px;overflow-x:auto;scroll-behavior:smooth;padding-bottom:4px;-ms-overflow-style:none;scrollbar-width:none;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;touch-action:pan-x;">${imageUrls
+            .map((url, idx) => `<img src="${escapeHtml(url)}" alt="${escapeHtml((m.imageAlt || 'Assistant image') + ` ${idx + 1}`)}" loading="lazy" style="height:150px;width:230px;flex:0 0 auto;scroll-snap-align:start;border-radius:12px;border:1px solid var(--lw-border);object-fit:cover;">`)
+            .join('')}</div>`
           : '';
         const audioMarkup = audioUrl
           ? `<div class="lw-audio-premium" data-audio-card data-audio-id="audio-${messageIndex}"><div class="lw-audio-row"><span class="lw-audio-title"><span class="lw-audio-dot"></span>${escapeHtml(getText('talkNow'))}</span><span class="lw-audio-time" data-audio-time>0:00 / --:--</span></div><div class="lw-audio-controls"><button type="button" class="lw-audio-btn" data-audio-play aria-label="Play audio"><span class="lw-audio-glyph" data-audio-play-glyph>\u25B6</span></button><button type="button" class="lw-audio-track" data-audio-track aria-label="Seek audio"><span class="lw-audio-fill" data-audio-fill></span></button><button type="button" class="lw-audio-btn" data-audio-mute aria-label="Mute audio"><span class="lw-audio-glyph" data-audio-mute-glyph>\uD83D\uDD0A</span></button></div><audio preload="metadata" class="lw-audio-el" data-audio-el><source src="${escapeHtml(audioUrl)}"></audio></div>`
           : '';
-        const videoMarkup = videoUrl
+        const singleVideoMarkup = videoUrls.length === 1
           ? `<video controls preload="metadata" playsinline style="margin-top:8px;width:100%;max-width:260px;border-radius:12px;border:1px solid var(--lw-border);display:block;background:rgba(2,6,23,0.82);"><source src="${escapeHtml(videoUrl)}"></video>`
           : '';
-        return `<div class="lw-msg lw-msg-${m.role}${(isMediaOnly || shouldExpandForAudio) ? ' lw-msg-media-only' : ''}">${textMarkup}${imageMarkup}${audioMarkup}${videoMarkup}</div>`;
+        const carouselVideoMarkup = videoUrls.length > 1
+          ? `<div style="margin-top:8px;display:flex;gap:8px;overflow-x:auto;scroll-behavior:smooth;padding-bottom:4px;-ms-overflow-style:none;scrollbar-width:none;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;touch-action:pan-x;">${videoUrls
+            .map((url) => `<video controls preload="metadata" playsinline style="height:150px;width:230px;flex:0 0 auto;scroll-snap-align:start;border-radius:12px;border:1px solid var(--lw-border);display:block;background:rgba(2,6,23,0.82);"><source src="${escapeHtml(url)}"></video>`)
+            .join('')}</div>`
+          : '';
+        return `<div class="lw-msg lw-msg-${m.role}${(isMediaOnly || shouldExpandForAudio) ? ' lw-msg-media-only' : ''}">${textMarkup}${singleImageMarkup}${carouselImageMarkup}${audioMarkup}${singleVideoMarkup}${carouselVideoMarkup}</div>`;
       }).join('');
 
       if (isLoading) {
@@ -3070,7 +3160,7 @@
             .slice(0, availableAudioSlots)
           : [];
         const budgetedVideos = Array.isArray(parsedCommands.videos)
-          ? parsedCommands.videos.slice(0, 1)
+          ? parsedCommands.videos.slice(0, REAL_ESTATE_MAX_VIDEOS)
           : [];
         waRedirectData = parsedCommands.whatsappPayload || userMessage;
         const whatsappUrl = buildWhatsAppRedirectUrl(config.whatsappDestination, waRedirectData);
@@ -3123,14 +3213,28 @@
         messages.push({ role: 'assistant', content: withBotEmoji(response) });
       }
       if (parsedCommands && Array.isArray(parsedCommands.images) && parsedCommands.images.length > 0) {
-        parsedCommands.images.forEach((item, index) => {
+        const groupedImageUrls = parsedCommands.images
+          .map((item) => optimizeCloudinaryImageUrl(item.url || ''))
+          .filter(Boolean)
+          .slice(0, REAL_ESTATE_MAX_IMAGES);
+        const groupedVideoUrls = parsedCommands && Array.isArray(parsedCommands.videos)
+          ? parsedCommands.videos
+            .map((item) => sanitizeHttpUrl(item.url || ''))
+            .filter(Boolean)
+            .slice(0, REAL_ESTATE_MAX_VIDEOS)
+          : [];
+        if (groupedImageUrls.length > 0 || groupedVideoUrls.length > 0) {
           messages.push({
+            id: `assistant-image-${Date.now()}`,
             role: 'assistant',
             content: '',
-            imageUrl: item.url,
-            imageAlt: item.alt || `assistant-image-${index + 1}`
+            imageUrl: groupedImageUrls[0],
+            imageUrls: groupedImageUrls,
+            videoUrl: groupedVideoUrls[0],
+            videoUrls: groupedVideoUrls,
+            imageAlt: parsedCommands.images[0]?.alt || 'Assistant image'
           });
-        });
+        }
       }
       if (parsedCommands && Array.isArray(parsedCommands.audios) && parsedCommands.audios.length > 0) {
         parsedCommands.audios.forEach((item) => {
@@ -3141,14 +3245,25 @@
           });
         });
       }
-      if (parsedCommands && Array.isArray(parsedCommands.videos) && parsedCommands.videos.length > 0) {
-        parsedCommands.videos.forEach((item) => {
+      if (
+        parsedCommands &&
+        (!Array.isArray(parsedCommands.images) || parsedCommands.images.length === 0) &&
+        Array.isArray(parsedCommands.videos) &&
+        parsedCommands.videos.length > 0
+      ) {
+        const groupedVideoUrls = parsedCommands.videos
+          .map((item) => sanitizeHttpUrl(item.url || ''))
+          .filter(Boolean)
+          .slice(0, REAL_ESTATE_MAX_VIDEOS);
+        if (groupedVideoUrls.length > 0) {
           messages.push({
+            id: `assistant-video-${Date.now()}`,
             role: 'assistant',
             content: '',
-            videoUrl: item.url
+            videoUrl: groupedVideoUrls[0],
+            videoUrls: groupedVideoUrls
           });
-        });
+        }
       }
 
       // Handle Auto-Redirect & Save Lead
@@ -3184,13 +3299,19 @@
       }
 
       if (selectedAction) {
-        setTimeout(() => {
-          const eventType = inferChatEventTypeByUrl(selectedAction.url);
-          if (eventType) {
-            trackConversationEvent(eventType, { trigger: 'auto' });
-          }
-          window.open(selectedAction.url, '_blank', 'noopener,noreferrer');
-        }, 1800);
+        if (selectedAction.type === 'whatsapp') {
+          setTimeout(() => {
+            startRedirectCountdown(selectedAction.url);
+          }, 250);
+        } else {
+          setTimeout(() => {
+            const eventType = inferChatEventTypeByUrl(selectedAction.url);
+            if (eventType) {
+              trackConversationEvent(eventType, { trigger: 'auto' });
+            }
+            window.open(selectedAction.url, '_blank', 'noopener,noreferrer');
+          }, 1800);
+        }
       }
 
       renderMessages();
@@ -3220,6 +3341,9 @@
     // Toggle panel
     function togglePanel(show) {
       isOpen = show;
+      if (!show) {
+        clearRedirectCountdown();
+      }
       panel.style.display = show ? 'flex' : 'none';
       panel.classList.toggle('open', show);
       closeMobile.classList.toggle('visible', show);

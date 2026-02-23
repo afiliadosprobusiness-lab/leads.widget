@@ -298,7 +298,7 @@ export function parseChatResponseCommands(
   }
 
   output.images.sort((a, b) => a.index - b.index);
-  output.images = output.images.slice(0, 4);
+  output.images = output.images.slice(0, 5);
   output.audios.sort((a, b) => a.index - b.index);
   output.audios = output.audios.slice(0, 4);
   output.videos.sort((a, b) => a.index - b.index);
