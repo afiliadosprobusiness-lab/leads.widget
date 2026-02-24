@@ -311,9 +311,17 @@ async function validateDniWithEldni(dni) {
     return { status: "invalid_format", valid: false, dni: "", fullName: "", provider: "eldni_public" };
   }
 
-  const formUrl = trimText(process.env.ELDNI_FORM_URL || ELDNI_FORM_URL_DEFAULT, 500);
+  const configuredFormUrl = trimText(process.env.ELDNI_FORM_URL || "", 500);
+  const formUrl = configuredFormUrl || ELDNI_FORM_URL_DEFAULT;
   if (!formUrl) {
     return { status: "not_configured", valid: false, dni, fullName: "", provider: "eldni_public" };
+  }
+  let formOrigin = "";
+  try {
+    const parsedForm = new URL(formUrl);
+    formOrigin = `${parsedForm.protocol}//${parsedForm.host}`;
+  } catch {
+    return { status: "not_configured", valid: false, dni, fullName: "", provider: "eldni_public", details: "invalid_form_url" };
   }
 
   const timeoutMsRaw = Number(process.env.ELDNI_TIMEOUT_MS || process.env.RENIEC_API_TIMEOUT_MS || 9000);
@@ -324,7 +332,13 @@ async function validateDniWithEldni(dni) {
   try {
     const page = await fetch(formUrl, {
       method: "GET",
-      headers: { Accept: "text/html,application/xhtml+xml" },
+      headers: {
+        Accept: "text/html,application/xhtml+xml",
+        "Accept-Language": "es-PE,es;q=0.9,en;q=0.8",
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36",
+        Referer: formUrl,
+      },
       signal: controller.signal,
       redirect: "follow",
     });
@@ -340,7 +354,14 @@ async function validateDniWithEldni(dni) {
       };
     }
 
-    const token = trimText(pageHtml.match(/name=["']_token["']\s+value=["']([^"']+)["']/i)?.[1] || "", 180);
+    const token =
+      trimText(
+        pageHtml.match(/<input[^>]*name=["']_token["'][^>]*value=["']([^"']+)["'][^>]*>/i)?.[1] ||
+          pageHtml.match(/<input[^>]*value=["']([^"']+)["'][^>]*name=["']_token["'][^>]*>/i)?.[1] ||
+          pageHtml.match(/name=["']_token["']\s+value=["']([^"']+)["']/i)?.[1] ||
+          "",
+        180,
+      ) || "";
     if (!token) {
       return { status: "unavailable", valid: false, dni, fullName: "", provider: "eldni_public", details: "csrf_missing" };
     }
@@ -352,6 +373,11 @@ async function validateDniWithEldni(dni) {
       headers: {
         Accept: "text/html,application/xhtml+xml",
         "Content-Type": "application/x-www-form-urlencoded",
+        "Accept-Language": "es-PE,es;q=0.9,en;q=0.8",
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36",
+        Referer: formUrl,
+        Origin: formOrigin,
         ...(cookieHeader ? { Cookie: cookieHeader } : {}),
       },
       body: postBody,
@@ -360,6 +386,9 @@ async function validateDniWithEldni(dni) {
     });
 
     const html = await post.text();
+    if (/captcha|cloudflare|attention required|just a moment/i.test(html)) {
+      return { status: "unavailable", valid: false, dni, fullName: "", provider: "eldni_public", details: "bot_protection" };
+    }
     if (!post.ok) {
       if (post.status === 404 || post.status === 422) {
         return { status: "not_found", valid: false, dni, fullName: "", provider: "eldni_public" };
