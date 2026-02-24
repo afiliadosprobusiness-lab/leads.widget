@@ -900,7 +900,8 @@ function getRealEstateMediaDirective(config: PublicWidgetConfig | null, locale: 
     return [
       "Modo inmobiliaria activo.",
       "Usa SOLO URLs del catalogo, no inventes enlaces.",
-      "Si el usuario pide ver propiedad/departamento/casa o el contexto lo amerita, muestra hasta 5 imagenes y 2 videos relevantes con comandos:",
+      "Si recomiendas una propiedad especifica, devuelve TODAS sus imagenes disponibles (max 5) y todos sus videos disponibles (max 2) con comandos.",
+      "Si el usuario pide ver propiedad/departamento/casa o el contexto lo amerita, muestra multimedia relevante usando:",
       "- [IMAGE: <url>|<alt corto>]",
       "- [VIDEO: <url>]",
       "Catalogo de propiedades:",
@@ -911,12 +912,64 @@ function getRealEstateMediaDirective(config: PublicWidgetConfig | null, locale: 
   return [
     "Real estate mode is active.",
     "Use ONLY URLs from the catalog. Never invent links.",
-    "If the user asks to see listings/house/apartment, or context suggests visual proof, show up to 5 images and 2 videos with:",
+    "If you recommend a specific property, return ALL its available images (max 5) and all its available videos (max 2) using commands.",
+    "If the user asks to see listings/house/apartment, or context suggests visual proof, show relevant media with:",
     "- [IMAGE: <url>|<short alt>]",
     "- [VIDEO: <url>]",
     "Property catalog:",
     catalog,
   ].join("\n");
+}
+
+function inferPropertyMediaFromAssistantText(
+  config: PublicWidgetConfig | null,
+  assistantText: string,
+): { imageUrls: string[]; videoUrls: string[]; imageAlt: string } {
+  if (!config || String(config.template || "").trim().toLowerCase() !== "inmobiliaria") {
+    return { imageUrls: [], videoUrls: [], imageAlt: "" };
+  }
+  const properties = Array.isArray(config.realEstateProperties) ? config.realEstateProperties : [];
+  if (properties.length === 0) return { imageUrls: [], videoUrls: [], imageAlt: "" };
+
+  const normalizedAssistant = normalizeText(assistantText || "");
+  if (!normalizedAssistant) return { imageUrls: [], videoUrls: [], imageAlt: "" };
+
+  let best: RealEstateProperty | null = null;
+  let bestScore = 0;
+  for (const property of properties) {
+    const title = normalizeText(property.title || "");
+    const district = normalizeText(property.district || "");
+    if (!title) continue;
+
+    let score = 0;
+    if (normalizedAssistant.includes(title)) score += 100 + Math.min(title.length, 80);
+    if (district && normalizedAssistant.includes(district)) score += 15;
+    if (property.price && normalizedAssistant.includes(normalizeText(property.price))) score += 8;
+
+    if (score > bestScore) {
+      bestScore = score;
+      best = property;
+    }
+  }
+
+  if (!best || bestScore < 100) {
+    return { imageUrls: [], videoUrls: [], imageAlt: "" };
+  }
+
+  const imageUrls = (Array.isArray(best.imageUrls) ? best.imageUrls : [])
+    .map((url) => optimizeImageDeliveryUrl(url || ""))
+    .filter(Boolean)
+    .slice(0, REAL_ESTATE_MAX_IMAGES);
+  const videoUrls = (Array.isArray(best.videoUrls) ? best.videoUrls : [])
+    .map((url) => sanitizeHttpUrl(url || ""))
+    .filter(Boolean)
+    .slice(0, CHAT_VIDEO_CAROUSEL_MAX);
+
+  return {
+    imageUrls,
+    videoUrls,
+    imageAlt: best.title || "Property image",
+  };
 }
 
 function arraysLooselyMatch(a: string[], b: string[]) {
@@ -1877,14 +1930,23 @@ export default function LeadChat() {
             : (hasMediaImages || hasMediaAudios || hasMediaVideos ? "" : copy.step3Description)));
 
       await appendAssistantWithTypewriter(cleanResponse);
-      const imageList = parsed.images
+      const inferredPropertyMedia = inferPropertyMediaFromAssistantText(config, cleanResponse || aiText);
+      let imageList = parsed.images
         .map((item) => item.url)
         .filter(Boolean)
         .slice(0, REAL_ESTATE_MAX_IMAGES);
-      const videoList = budgetedVideos
+      let videoList = budgetedVideos
         .map((item) => item.url)
         .filter(Boolean)
         .slice(0, CHAT_VIDEO_CAROUSEL_MAX);
+
+      if (inferredPropertyMedia.imageUrls.length > 0) {
+        imageList = Array.from(new Set([...imageList, ...inferredPropertyMedia.imageUrls])).slice(0, REAL_ESTATE_MAX_IMAGES);
+      }
+      if (inferredPropertyMedia.videoUrls.length > 0) {
+        videoList = Array.from(new Set([...videoList, ...inferredPropertyMedia.videoUrls])).slice(0, CHAT_VIDEO_CAROUSEL_MAX);
+      }
+
       if (imageList.length > 0 || videoList.length > 0) {
         setMessages((prev) => [
           ...prev,
@@ -1896,7 +1958,7 @@ export default function LeadChat() {
             imageUrls: imageList,
             videoUrl: videoList[0] || undefined,
             videoUrls: videoList,
-            imageAlt: parsed.images[0]?.alt || "Assistant image",
+            imageAlt: parsed.images[0]?.alt || inferredPropertyMedia.imageAlt || "Assistant image",
           },
         ]);
       }

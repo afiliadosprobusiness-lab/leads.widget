@@ -566,6 +566,7 @@ Comportamientos actuales que clientes ya consumen:
 - En Plan PLUS, `branding_link` permite redireccion configurable del texto de marca; si falta o es invalido se usa `/crear-ahora?ref=<clientId>`.
 - En plantilla `inmobiliaria`, Lead Chat y widget embebido pueden recibir directiva de catalogo para seleccionar multimedia de propiedades via comandos `[IMAGE: ...]` y `[VIDEO: ...]` usando URLs existentes del cliente.
 - En comandos multimedia (`[IMAGE: ...]`, `[VIDEO: ...]`), el parser soporta multiples URLs dentro del mismo comando (pipe/CSV/saltos de linea/JSON array) y renderiza carrusel cuando corresponde.
+- En plantilla `inmobiliaria`, cuando el texto del asistente identifica una propiedad del catalogo, el cliente puede completar media faltante de esa propiedad para mostrar carrusel completo aunque la IA haya enviado solo una URL.
 
 
 ## Extensiones Partner Program (2026-02-16)
@@ -738,3 +739,7 @@ Cambios de comportamiento relevantes:
 - Cambio: parser multimedia en Lead Chat/widget embebido/SalesWidget acepta multiples URLs de imagen/video dentro de un mismo comando y mantiene render en carrusel.
 - Tipo: non-breaking
 - Impacto: evita perdida de media cuando la IA responde varias URLs en un solo bloque `[IMAGE]` o `[VIDEO]`.
+- Fecha: 2026-02-24
+- Cambio: en plantilla `inmobiliaria`, Lead Chat/widget embebido completan automaticamente media faltante de la propiedad mencionada (imagenes/videos del catalogo) cuando la IA devuelve una parte del set.
+- Tipo: non-breaking
+- Impacto: asegura carrusel completo por propiedad en respuestas inmobiliarias sin cambiar shape de payload.

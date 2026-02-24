@@ -388,7 +388,8 @@
       return [
         'Modo inmobiliaria activo.',
         'Usa SOLO URLs del catalogo y no inventes enlaces.',
-        'Si el usuario pide ver propiedad/departamento/casa o el contexto lo amerita, responde con hasta 5 imagenes y 2 videos usando:',
+        'Si recomiendas una propiedad especifica, devuelve TODAS sus imagenes disponibles (max 5) y todos sus videos disponibles (max 2) usando comandos.',
+        'Si el usuario pide ver propiedad/departamento/casa o el contexto lo amerita, responde con multimedia relevante usando:',
         '- [IMAGE: <url>|<alt corto>]',
         '- [VIDEO: <url>]',
         'Catalogo de propiedades:',
@@ -399,12 +400,58 @@
     return [
       'Real estate mode is active.',
       'Use ONLY catalog URLs. Never invent links.',
-      'If user asks to see listings/house/apartment, or context suggests visual proof, return up to 5 images and 2 videos with:',
+      'If you recommend a specific property, return ALL its available images (max 5) and all its available videos (max 2) using commands.',
+      'If user asks to see listings/house/apartment, or context suggests visual proof, return relevant media with:',
       '- [IMAGE: <url>|<short alt>]',
       '- [VIDEO: <url>]',
       'Property catalog:',
       catalog
     ].join('\n');
+  }
+
+  function inferPropertyMediaFromAssistantText(rawText) {
+    if (normalizeText(config.template) !== 'inmobiliaria') {
+      return { imageUrls: [], videoUrls: [], imageAlt: '' };
+    }
+    const properties = Array.isArray(config.realEstateProperties) ? config.realEstateProperties : [];
+    if (properties.length === 0) return { imageUrls: [], videoUrls: [], imageAlt: '' };
+
+    const normalizedText = normalizeText(rawText || '');
+    if (!normalizedText) return { imageUrls: [], videoUrls: [], imageAlt: '' };
+
+    let best = null;
+    let bestScore = 0;
+    properties.forEach((property) => {
+      const title = normalizeText(property.title || '');
+      const district = normalizeText(property.district || '');
+      if (!title) return;
+
+      let score = 0;
+      if (normalizedText.includes(title)) score += 100 + Math.min(title.length, 80);
+      if (district && normalizedText.includes(district)) score += 15;
+      if (property.price && normalizedText.includes(normalizeText(property.price || ''))) score += 8;
+      if (score > bestScore) {
+        bestScore = score;
+        best = property;
+      }
+    });
+
+    if (!best || bestScore < 100) return { imageUrls: [], videoUrls: [], imageAlt: '' };
+
+    const imageUrls = (Array.isArray(best.imageUrls) ? best.imageUrls : [])
+      .map((url) => optimizeCloudinaryImageUrl(url || ''))
+      .filter(Boolean)
+      .slice(0, REAL_ESTATE_MAX_IMAGES);
+    const videoUrls = (Array.isArray(best.videoUrls) ? best.videoUrls : [])
+      .map((url) => sanitizeHttpUrl(url || ''))
+      .filter(Boolean)
+      .slice(0, REAL_ESTATE_MAX_VIDEOS);
+
+    return {
+      imageUrls,
+      videoUrls,
+      imageAlt: String(best.title || 'Property image')
+    };
   }
 
   function sanitizeHttpUrl(value, maxLength = 500) {
@@ -3447,17 +3494,29 @@
       if (response) {
         messages.push({ role: 'assistant', content: withBotEmoji(response) });
       }
-      if (parsedCommands && Array.isArray(parsedCommands.images) && parsedCommands.images.length > 0) {
-        const groupedImageUrls = parsedCommands.images
-          .map((item) => optimizeCloudinaryImageUrl(item.url || ''))
-          .filter(Boolean)
-          .slice(0, REAL_ESTATE_MAX_IMAGES);
-        const groupedVideoUrls = parsedCommands && Array.isArray(parsedCommands.videos)
+      if (parsedCommands) {
+        let groupedImageUrls = Array.isArray(parsedCommands.images)
+          ? parsedCommands.images
+            .map((item) => optimizeCloudinaryImageUrl(item.url || ''))
+            .filter(Boolean)
+            .slice(0, REAL_ESTATE_MAX_IMAGES)
+          : [];
+        let groupedVideoUrls = Array.isArray(parsedCommands.videos)
           ? parsedCommands.videos
             .map((item) => sanitizeHttpUrl(item.url || ''))
             .filter(Boolean)
             .slice(0, REAL_ESTATE_MAX_VIDEOS)
           : [];
+        const inferredPropertyMedia = inferPropertyMediaFromAssistantText(response || parsedCommands.cleanText || '');
+        if (inferredPropertyMedia.imageUrls.length > 0) {
+          groupedImageUrls = Array.from(new Set([...groupedImageUrls, ...inferredPropertyMedia.imageUrls]))
+            .slice(0, REAL_ESTATE_MAX_IMAGES);
+        }
+        if (inferredPropertyMedia.videoUrls.length > 0) {
+          groupedVideoUrls = Array.from(new Set([...groupedVideoUrls, ...inferredPropertyMedia.videoUrls]))
+            .slice(0, REAL_ESTATE_MAX_VIDEOS);
+        }
+
         if (groupedImageUrls.length > 0 || groupedVideoUrls.length > 0) {
           messages.push({
             id: `assistant-image-${Date.now()}`,
@@ -3467,7 +3526,7 @@
             imageUrls: groupedImageUrls,
             videoUrl: groupedVideoUrls[0],
             videoUrls: groupedVideoUrls,
-            imageAlt: parsedCommands.images[0]?.alt || 'Assistant image'
+            imageAlt: parsedCommands.images[0]?.alt || inferredPropertyMedia.imageAlt || 'Assistant image'
           });
         }
       }
@@ -3479,26 +3538,6 @@
             audioUrl: item.url
           });
         });
-      }
-      if (
-        parsedCommands &&
-        (!Array.isArray(parsedCommands.images) || parsedCommands.images.length === 0) &&
-        Array.isArray(parsedCommands.videos) &&
-        parsedCommands.videos.length > 0
-      ) {
-        const groupedVideoUrls = parsedCommands.videos
-          .map((item) => sanitizeHttpUrl(item.url || ''))
-          .filter(Boolean)
-          .slice(0, REAL_ESTATE_MAX_VIDEOS);
-        if (groupedVideoUrls.length > 0) {
-          messages.push({
-            id: `assistant-video-${Date.now()}`,
-            role: 'assistant',
-            content: '',
-            videoUrl: groupedVideoUrls[0],
-            videoUrls: groupedVideoUrls
-          });
-        }
       }
 
       // Handle Auto-Redirect & Save Lead
