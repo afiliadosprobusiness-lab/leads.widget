@@ -48,6 +48,7 @@ type PublicWidgetConfig = {
   widgetId: string;
   template?: string;
   language?: "es" | "en";
+  facebookPixelId?: string;
   businessName?: string;
   primaryColor?: string;
   whatsappDestination?: string;
@@ -337,6 +338,10 @@ declare global {
     webkitSpeechRecognition?: BrowserSpeechRecognitionCtor;
     mozSpeechRecognition?: BrowserSpeechRecognitionCtor;
     msSpeechRecognition?: BrowserSpeechRecognitionCtor;
+    fbq?: (...args: unknown[]) => void;
+    __leadWidgetFbqInits?: Record<string, true>;
+    __leadWidgetFbqPageViews?: Record<string, true>;
+    __leadWidgetFbqLeads?: Record<string, true>;
   }
 }
 
@@ -354,6 +359,82 @@ function inferChatEventTypeByUrl(url: string): ChatEventType | null {
     return "iacallcloser_open";
   }
   return null;
+}
+
+function normalizeFacebookPixelId(value: unknown): string {
+  const normalized = String(value || "").replace(/\s+/g, "");
+  return /^\d{5,20}$/.test(normalized) ? normalized : "";
+}
+
+type FbqStub = ((...args: unknown[]) => void) & {
+  queue: unknown[][];
+  loaded?: boolean;
+  version?: string;
+};
+
+function ensureFacebookPixelLoaded(pixelIdRaw: string): string {
+  if (typeof window === "undefined" || typeof document === "undefined") return "";
+  const pixelId = normalizeFacebookPixelId(pixelIdRaw);
+  if (!pixelId) return "";
+
+  const win = window as Window;
+  if (typeof win.fbq !== "function") {
+    const fbqStub = ((...args: unknown[]) => {
+      fbqStub.queue.push(args);
+    }) as FbqStub;
+    fbqStub.loaded = true;
+    fbqStub.version = "2.0";
+    fbqStub.queue = [];
+    win.fbq = fbqStub;
+
+    if (!document.getElementById("leadwidget-fb-pixel")) {
+      const script = document.createElement("script");
+      script.id = "leadwidget-fb-pixel";
+      script.async = true;
+      script.src = "https://connect.facebook.net/en_US/fbevents.js";
+      const firstScript = document.getElementsByTagName("script")[0];
+      if (firstScript?.parentNode) {
+        firstScript.parentNode.insertBefore(script, firstScript);
+      } else {
+        document.head.appendChild(script);
+      }
+    }
+  }
+
+  win.__leadWidgetFbqInits = win.__leadWidgetFbqInits || {};
+  if (!win.__leadWidgetFbqInits[pixelId]) {
+    try {
+      win.fbq?.("init", pixelId);
+      win.__leadWidgetFbqInits[pixelId] = true;
+    } catch {
+      return "";
+    }
+  }
+  return pixelId;
+}
+
+function trackFacebookPageView(pixelIdRaw: string) {
+  if (typeof window === "undefined") return;
+  const pixelId = ensureFacebookPixelLoaded(pixelIdRaw);
+  if (!pixelId) return;
+
+  const key = `${pixelId}:${window.location.pathname}:${window.location.search}`;
+  window.__leadWidgetFbqPageViews = window.__leadWidgetFbqPageViews || {};
+  if (window.__leadWidgetFbqPageViews[key]) return;
+  window.__leadWidgetFbqPageViews[key] = true;
+  window.fbq?.("track", "PageView");
+}
+
+function trackFacebookLead(pixelIdRaw: string, conversationId: string) {
+  if (typeof window === "undefined") return;
+  const pixelId = ensureFacebookPixelLoaded(pixelIdRaw);
+  if (!pixelId) return;
+
+  const key = `${pixelId}:${conversationId}`;
+  window.__leadWidgetFbqLeads = window.__leadWidgetFbqLeads || {};
+  if (window.__leadWidgetFbqLeads[key]) return;
+  window.__leadWidgetFbqLeads[key] = true;
+  window.fbq?.("track", "Lead");
 }
 
 function withBotEmoji(value: string) {
@@ -1097,6 +1178,7 @@ export default function LeadChat() {
   const conversationIdRef = useRef(`leadchat-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
   const redirectCountdownIntervalRef = useRef<number | null>(null);
   const redirectCountdownTimeoutRef = useRef<number | null>(null);
+  const facebookPixelId = useMemo(() => normalizeFacebookPixelId(config?.facebookPixelId || ""), [config?.facebookPixelId]);
   const copy = useMemo(() => SALES_COPY[locale], [locale]);
   const markUserInteraction = () => {
     setHasUserInteracted(true);
@@ -1106,6 +1188,9 @@ export default function LeadChat() {
 
   const trackConversationEvent = useCallback(
     async (eventType: ChatEventType, meta: Record<string, string> = {}) => {
+      if (facebookPixelId) {
+        trackFacebookLead(facebookPixelId, conversationIdRef.current);
+      }
       const widgetId = String(config?.widgetId || "").trim();
       if (!widgetId) return;
       try {
@@ -1125,7 +1210,7 @@ export default function LeadChat() {
         // non-blocking telemetry
       }
     },
-    [config?.widgetId],
+    [config?.widgetId, facebookPixelId],
   );
 
   const openTrackedAction = useCallback(
@@ -1226,6 +1311,11 @@ export default function LeadChat() {
     });
 
   useEffect(() => {
+    if (!facebookPixelId) return;
+    trackFacebookPageView(facebookPixelId);
+  }, [facebookPixelId, identity]);
+
+  useEffect(() => {
     const loadConfig = async () => {
       setLoadingConfig(true);
       try {
@@ -1257,6 +1347,7 @@ export default function LeadChat() {
           widgetId: String(raw.widgetId || raw.widget_id || identity || ""),
           template: String(raw.template || raw.niche || (resolvedRealEstateProperties.length > 0 ? "inmobiliaria" : "general")),
           language: resolvedLocale,
+          facebookPixelId: normalizeFacebookPixelId(raw.facebookPixelId || raw.facebook_pixel_id || ""),
           businessName: String(raw.businessName || raw.business_name || localeCopy.defaultBusinessName),
           primaryColor: String(raw.primaryColor || raw.primary_color || "#00C185"),
           whatsappDestination: String(raw.whatsappDestination || raw.whatsapp_destination || ""),

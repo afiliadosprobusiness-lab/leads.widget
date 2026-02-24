@@ -156,6 +156,8 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - El dispatch de eventos Meta CAPI usa endpoints locales autenticados (`POST /api/meta-capi-dispatch`) y hooks server-side en CRM (`contacts-merge` y `deals`) para enviar eventos de calidad sin exponer credenciales al cliente.
 - Mapeo CRM -> Meta CAPI activo: `Lead` (contacto creado), `Appointment` (`contacted`), `QualifiedLead` (`qualified`), `Sale` (`won`), con registro idempotente en `meta_capi_event_logs`.
 - El endpoint local de Meta CAPI requiere variable de entorno server-side `META_CAPI_ENCRYPTION_KEY` para cifrar tokens de acceso.
+- La validacion de identidad del comando `VALIDAR_DNI` usa exclusivamente formulario publico `ELDNI_FORM_URL` (runtime forzado a fuente ELDNI).
+- Lead Chat y widget embebido disparan Meta Pixel en navegador cuando existe `facebook_pixel_id`: `PageView` al cargar la experiencia y `Lead` al abrir WhatsApp/IACloser.
 - Guia operativa CRM disponible en `docs/CRM_V2_GUIDE.md`.
 - Firestore rules ampliadas para colecciones partner, manteniendo mutacion directa restringida a superadmin en cliente web.
 - Firestore rules incluyen coleccion `crm_contacts` (lectura/escritura solo owner `client_id` o superadmin) para el nuevo tab CRM.
@@ -176,6 +178,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - En Dashboard > IA, la configuracion de prompt se separa en 3 bloques: `Prompt de contexto`, `Mejoras IA` (solo lectura auto), y `Prompt del sistema`.
 - En Dashboard > IA, el CTA `Guardar configuracion de IA` ahora se muestra en una barra sticky superior del tab (igual que Configuracion Widget) para mantenerlo visible durante todo el scroll.
 - En Dashboard > IA, `Prompt de contexto` y `Prompt del sistema` tienen boton `Crear prompt` con modal guiado para generar texto estructurado por formulario (negocio/nicho/reglas/comercial).
+- En Dashboard > IA, el prompt compilado inyecta siempre un bloque de identidad con comando `[VALIDAR_DNI: {dni}]` para exigir validacion de DNI antes de compartir data detallada.
 - En Dashboard > IA, el canal de cierre (`ICallCloser` o `WhatsApp`) se selecciona desde el modal `Crear prompt` del sistema; el comando se inserta automaticamente al compilar/guardar el prompt.
 - En Dashboard > IA, al cambiar el canal de cierre (`ICallCloser`/`WhatsApp`) el bloque de comando se sincroniza al canal activo y el dashboard muestra una vista `Prompt final compilado (runtime)` para verificar el comando exacto que usara produccion.
 - En Dashboard > IA, el comando de cierre para `WhatsApp` generado por builder/plantillas exige `WHATSAPP_REDIRECT` obligatorio solo cuando el lead ya esta calificado (presupuesto + zona + plazo + datos requeridos); deja de depender de la frase ambigua "prefiere WhatsApp".
@@ -203,6 +206,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - En el modal `Crear prompt del sistema` (canal `ICallCloser`), la URL de redireccion post-consentimiento queda fija en `https://ai-call-closer.vercel.app/` y no es editable.
 - En Dashboard > Analiticas, se agrego la `Consola de conversaciones IA` con historial por conversacion, estado (`ok/bloqueado/limite/error`), mensajes usuario/asistente y pista de mejora para depurar fallos del prompt.
 - El proxy `POST /api/chat` ahora registra cada intercambio en `ai_chat_logs` (por `client_id/widget_id/conversation_id`) para auditoria y mejora continua del cierre.
+- En `POST /api/chat`, cuando la IA emite `[VALIDAR_DNI: ...]` o `{validar_dni: ...}`, el proxy local valida DNI server-side con ELDNI, reemplaza el token por mensaje de validacion y marca `command_flags.dni_validation`.
 - En Dashboard > Analiticas, la consola IA ahora clasifica conversaciones en `No completados`, `Lead completado` y `Riesgo/Hack`, con filtro adicional por estado tecnico (`ok/bloqueado/limite/error`).
 - En Dashboard > Analiticas, la consola IA incluye una `Guia rapida` visible en la UI para que el equipo comercial interprete cada estado (`No completados`, `Lead completado`, `Riesgo/Hack`) sin depender de capacitacion externa.
 - En Dashboard > Analiticas, la consola IA agrega la categoria `Interesado no cerrado` (subset de no completados) para identificar conversaciones con senales de interes comercial o consumo de multimedia, sin cierre final.

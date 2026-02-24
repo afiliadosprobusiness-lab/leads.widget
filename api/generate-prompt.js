@@ -125,8 +125,8 @@ function getUserInstruction(body) {
       `industry_template: ${trimText(body.industry || "", 80) || "general"}`,
       `closing_channel: ${closingMode}`,
       isEnglish
-        ? "Important: do not include command tokens ([ICALLCLOSER_READY] or [WHATSAPP_REDIRECT]) because the app injects them automatically."
-        : "Importante: no incluyas comandos token ([ICALLCLOSER_READY] o [WHATSAPP_REDIRECT]) porque la app los inyecta automaticamente.",
+        ? "Important: do not include command tokens ([VALIDAR_DNI], [ICALLCLOSER_READY], or [WHATSAPP_REDIRECT]) because the app injects them automatically."
+        : "Importante: no incluyas comandos token ([VALIDAR_DNI], [ICALLCLOSER_READY] o [WHATSAPP_REDIRECT]) porque la app los inyecta automaticamente.",
     ];
     if (closingMode === "whatsapp") {
       lines.push(

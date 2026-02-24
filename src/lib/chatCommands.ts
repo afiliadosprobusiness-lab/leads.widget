@@ -37,6 +37,7 @@ export type ParsedChatCommands = {
 const WHATSAPP_COMMAND_RE = /\[\s*WHATSAPP_REDIRECT\s*:\s*([\s\S]*?)\]/gi;
 const IACALLCLOSER_REDIRECT_RE = /\[\s*(?:ICLOSER_REDIRECT|ICALLCLOSER_REDIRECT|IACALLCLOSER_REDIRECT)\s*:\s*([\s\S]*?)\]/gi;
 const IACALLCLOSER_READY_RE = /\[\s*(?:ICLOSER_READY|ICALLCLOSER_READY|IACALLCLOSER_READY)(?:\s*:\s*([\s\S]*?))?\s*\]/gi;
+const DNI_VALIDATE_COMMAND_RE = /\[\s*VALIDAR_DNI(?:\s*:\s*([\s\S]*?))?\s*\]|\{\s*validar_dni(?:\s*:\s*([\s\S]*?))?\s*\}/gi;
 const IMAGE_COMMAND_RE = /\[\s*(?:IMAGE|IMG|PHOTO)\s*:\s*([\s\S]*?)\]/gi;
 const AUDIO_COMMAND_RE = /\[\s*(?:AUDIO|VOICE|SOUND)\s*:\s*([\s\S]*?)\]/gi;
 const VIDEO_COMMAND_RE = /\[\s*(?:VIDEO|VID|CLIP)\s*:\s*([\s\S]*?)\]/gi;
@@ -308,6 +309,7 @@ export function parseChatResponseCommands(
     .replace(WHATSAPP_COMMAND_RE, "")
     .replace(IACALLCLOSER_REDIRECT_RE, "")
     .replace(IACALLCLOSER_READY_RE, "")
+    .replace(DNI_VALIDATE_COMMAND_RE, "")
     .replace(IMAGE_COMMAND_RE, "")
     .replace(MARKDOWN_IMAGE_RE, "")
     .replace(AUDIO_COMMAND_RE, "")

@@ -3,6 +3,10 @@ import { db } from "./_firebase.js";
 const BACKEND_URL = (process.env.BACKEND_URL || "https://leads-widget-backend-319905500449.us-central1.run.app").replace(/\/$/, "");
 const OWNER_CACHE_TTL_MS = 10 * 60 * 1000;
 const widgetOwnerCache = new Map();
+const RENIEC_API_DEFAULT_URL = "https://api.apis.net.pe/v2/reniec/dni";
+const ELDNI_FORM_URL_DEFAULT = "https://eldni.com/pe/buscar-datos-por-dni";
+const DNI_COMMAND_RE = /\[\s*VALIDAR_DNI(?:\s*:\s*([\s\S]*?))?\s*\]|\{\s*validar_dni(?:\s*:\s*([\s\S]*?))?\s*\}/gi;
+const DNI_NUMBER_RE = /\b\d{8}\b/;
 
 function trimText(value, max = 500) {
   const raw = String(value || "").trim();
@@ -47,14 +51,441 @@ function hasSecuritySignal(text) {
   return securityRegex.test(normalized);
 }
 
-function detectCommandFlags(responseText) {
+function detectCommandFlags(responseText, overrideFlags = null) {
   const text = String(responseText || "");
-  return {
+  const baseFlags = {
     whatsapp_redirect: /\[WHATSAPP_REDIRECT:/i.test(text),
     icallcloser_ready: /\[(ICALLCLOSER|IACALLCLOSER|ICLOSER)_READY:/i.test(text),
     has_image: /\[(IMAGE|IMG|PHOTO):/i.test(text) || /!\[[^\]]*]\((https?:\/\/[^)]+)\)/i.test(text),
     has_audio: /\[(AUDIO|VOICE|SOUND):/i.test(text),
     has_video: /\[(VIDEO|VID|CLIP):/i.test(text),
+    dni_validation: /\[\s*VALIDAR_DNI(?:\s*:|])/i.test(text) || /\{\s*validar_dni(?:\s*:|})/i.test(text),
+  };
+  if (!overrideFlags || typeof overrideFlags !== "object") return baseFlags;
+  return {
+    ...baseFlags,
+    ...overrideFlags,
+  };
+}
+
+function extractDni(value) {
+  const raw = String(value || "");
+  const match = raw.match(DNI_NUMBER_RE);
+  return match ? match[0] : "";
+}
+
+function extractDniCommand(responseText) {
+  const text = String(responseText || "");
+  if (!text) return null;
+  DNI_COMMAND_RE.lastIndex = 0;
+  const match = DNI_COMMAND_RE.exec(text);
+  if (!match) return null;
+  const payload = trimText(match[1] || match[2] || "", 220);
+  return {
+    payload,
+    dni: extractDni(payload),
+    index: match.index,
+  };
+}
+
+function stripDniCommands(responseText) {
+  DNI_COMMAND_RE.lastIndex = 0;
+  return String(responseText || "")
+    .replace(DNI_COMMAND_RE, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function inferLocaleFromMessage(body) {
+  const normalized = String(body?.message || "").toLowerCase();
+  if (!normalized) return "es";
+  const englishSignals = /\b(hello|price|pricing|book|schedule|appointment|yes|please|thanks|english|phone|email)\b/;
+  if (englishSignals.test(normalized)) return "en";
+  return "es";
+}
+
+function resolveDniValidationProvider() {
+  // Runtime policy: DNI validation is intentionally pinned to ELDNI only.
+  return "eldni";
+}
+
+function decodeHtmlText(value) {
+  const text = String(value || "");
+  if (!text) return "";
+  return text
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#0*39;|&apos;/gi, "'")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code) || 0))
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function readHtmlInputValueById(html, id) {
+  const safeId = String(id || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const regex = new RegExp(`id=["']${safeId}["'][^>]*value=["']([^"']*)["']`, "i");
+  const match = String(html || "").match(regex);
+  return decodeHtmlText(match?.[1] || "");
+}
+
+function parseSetCookieHeader(response) {
+  if (!response?.headers) return "";
+  if (typeof response.headers.getSetCookie === "function") {
+    const values = response.headers.getSetCookie();
+    if (Array.isArray(values) && values.length > 0) {
+      return values
+        .map((item) => String(item || "").split(";")[0].trim())
+        .filter(Boolean)
+        .join("; ");
+    }
+  }
+  const raw = String(response.headers.get?.("set-cookie") || "").trim();
+  if (!raw) return "";
+  return raw
+    .split(/,(?=\s*[^;,=\s]+=[^;,]+)/)
+    .map((item) => item.split(";")[0].trim())
+    .filter(Boolean)
+    .join("; ");
+}
+
+function parseEldniIdentity(html, expectedDni) {
+  const content = String(html || "");
+  if (!content) return { valid: false, dni: expectedDni, fullName: "" };
+  if (/No se encontraron datos para el DNI/i.test(content) || /No se encontraron datos/i.test(content)) {
+    return { valid: false, dni: expectedDni, fullName: "" };
+  }
+
+  const names = readHtmlInputValueById(content, "nombres");
+  const paternal = readHtmlInputValueById(content, "apellidop");
+  const maternal = readHtmlInputValueById(content, "apellidom");
+  const fullName = trimText([names, paternal, maternal].filter(Boolean).join(" ").replace(/\s+/g, " "), 220);
+
+  if (fullName) {
+    return { valid: true, dni: expectedDni, fullName };
+  }
+
+  const rowMatch = content.match(
+    /<tbody>\s*<tr>\s*<td>\s*(\d{8})\s*<\/td>\s*<td>\s*([^<]*)<\/td>\s*<td>\s*([^<]*)<\/td>\s*<td>\s*([^<]*)<\/td>/i,
+  );
+  if (!rowMatch) return { valid: false, dni: expectedDni, fullName: "" };
+
+  const rowDni = extractDni(rowMatch[1] || "");
+  if (rowDni && rowDni !== expectedDni) return { valid: false, dni: expectedDni, fullName: "" };
+
+  const parsedFullName = trimText(
+    [decodeHtmlText(rowMatch[2]), decodeHtmlText(rowMatch[3]), decodeHtmlText(rowMatch[4])]
+      .filter(Boolean)
+      .join(" ")
+      .replace(/\s+/g, " "),
+    220,
+  );
+  if (!parsedFullName) return { valid: false, dni: expectedDni, fullName: "" };
+  return { valid: true, dni: rowDni || expectedDni, fullName: parsedFullName };
+}
+
+function buildReniecRequestUrl(dni) {
+  const base = trimText(process.env.RENIEC_API_URL || RENIEC_API_DEFAULT_URL, 500);
+  if (!base || !dni) return "";
+  if (base.includes("{dni}")) {
+    return base.replace(/\{dni\}/gi, encodeURIComponent(dni));
+  }
+  try {
+    const parsed = new URL(base);
+    const queryParam = trimText(process.env.RENIEC_DNI_QUERY_PARAM || "numero", 40) || "numero";
+    if (!parsed.searchParams.has(queryParam)) {
+      parsed.searchParams.set(queryParam, dni);
+    }
+    return parsed.toString();
+  } catch {
+    return "";
+  }
+}
+
+function buildReniecHeaders() {
+  const headers = { Accept: "application/json" };
+  const token = trimText(process.env.RENIEC_API_TOKEN || process.env.RENIEC_TOKEN || "", 500);
+  if (!token) return headers;
+
+  const authHeader = trimText(process.env.RENIEC_API_TOKEN_HEADER || "Authorization", 60) || "Authorization";
+  const rawPrefix = String(process.env.RENIEC_API_TOKEN_PREFIX || "Bearer ").trim();
+  const prefix = rawPrefix ? `${rawPrefix} ` : "";
+  headers[authHeader] = `${prefix}${token}`.trim();
+  return headers;
+}
+
+function parseReniecIdentity(payload, inputDni) {
+  if (!payload || typeof payload !== "object") return { valid: false, dni: inputDni, fullName: "" };
+  const root = payload?.data && typeof payload.data === "object" ? payload.data : payload;
+  const hasExplicitError = payload?.success === false || root?.success === false || Boolean(payload?.error || root?.error);
+  if (hasExplicitError) return { valid: false, dni: inputDni, fullName: "" };
+
+  const candidateDni = extractDni(
+    root.numeroDocumento || root.dni || root.numero || root.document || root.documentNumber || payload.numeroDocumento || payload.dni,
+  );
+  const fullName = trimText(
+    root.nombreCompleto ||
+      root.fullName ||
+      root.full_name ||
+      [root.nombres || root.names || "", root.apellidoPaterno || root.firstLastName || "", root.apellidoMaterno || root.secondLastName || ""]
+        .join(" ")
+        .replace(/\s+/g, " ")
+        .trim(),
+    220,
+  );
+
+  if (candidateDni === inputDni && fullName) {
+    return { valid: true, dni: candidateDni, fullName };
+  }
+  if (candidateDni === inputDni && !fullName) {
+    return { valid: true, dni: candidateDni, fullName: "" };
+  }
+  if (!candidateDni && fullName) {
+    return { valid: true, dni: inputDni, fullName };
+  }
+  return { valid: false, dni: inputDni, fullName: "" };
+}
+
+async function validateDniWithReniec(dni) {
+  if (!/^\d{8}$/.test(String(dni || ""))) {
+    return { status: "invalid_format", valid: false, dni: "", fullName: "" };
+  }
+  const requestUrl = buildReniecRequestUrl(dni);
+  if (!requestUrl) {
+    return { status: "not_configured", valid: false, dni, fullName: "" };
+  }
+
+  const timeoutMsRaw = Number(process.env.RENIEC_API_TIMEOUT_MS || 9000);
+  const timeoutMs = Number.isFinite(timeoutMsRaw) && timeoutMsRaw > 0 ? Math.min(Math.round(timeoutMsRaw), 15000) : 9000;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const upstream = await fetch(requestUrl, {
+      method: "GET",
+      headers: buildReniecHeaders(),
+      signal: controller.signal,
+    });
+    const raw = await upstream.text();
+    if (!upstream.ok) {
+      if (upstream.status === 404 || upstream.status === 422) {
+        return { status: "not_found", valid: false, dni, fullName: "" };
+      }
+      return {
+        status: "unavailable",
+        valid: false,
+        dni,
+        fullName: "",
+        details: trimText(raw, 180),
+      };
+    }
+
+    let payload = null;
+    try {
+      payload = JSON.parse(raw);
+    } catch {
+      payload = null;
+    }
+    const identity = parseReniecIdentity(payload, dni);
+    if (!identity.valid) {
+      return { status: "not_found", valid: false, dni, fullName: "" };
+    }
+    return { status: "valid", valid: true, dni: identity.dni || dni, fullName: identity.fullName || "", provider: "reniec" };
+  } catch (error) {
+    return {
+      status: "unavailable",
+      valid: false,
+      dni,
+      fullName: "",
+      details: trimText(error?.message || "", 180),
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function validateDniWithEldni(dni) {
+  if (!/^\d{8}$/.test(String(dni || ""))) {
+    return { status: "invalid_format", valid: false, dni: "", fullName: "", provider: "eldni_public" };
+  }
+
+  const formUrl = trimText(process.env.ELDNI_FORM_URL || ELDNI_FORM_URL_DEFAULT, 500);
+  if (!formUrl) {
+    return { status: "not_configured", valid: false, dni, fullName: "", provider: "eldni_public" };
+  }
+
+  const timeoutMsRaw = Number(process.env.ELDNI_TIMEOUT_MS || process.env.RENIEC_API_TIMEOUT_MS || 9000);
+  const timeoutMs = Number.isFinite(timeoutMsRaw) && timeoutMsRaw > 0 ? Math.min(Math.round(timeoutMsRaw), 15000) : 9000;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const page = await fetch(formUrl, {
+      method: "GET",
+      headers: { Accept: "text/html,application/xhtml+xml" },
+      signal: controller.signal,
+      redirect: "follow",
+    });
+    const pageHtml = await page.text();
+    if (!page.ok) {
+      return {
+        status: "unavailable",
+        valid: false,
+        dni,
+        fullName: "",
+        provider: "eldni_public",
+        details: trimText(pageHtml, 180),
+      };
+    }
+
+    const token = trimText(pageHtml.match(/name=["']_token["']\s+value=["']([^"']+)["']/i)?.[1] || "", 180);
+    if (!token) {
+      return { status: "unavailable", valid: false, dni, fullName: "", provider: "eldni_public", details: "csrf_missing" };
+    }
+
+    const cookieHeader = parseSetCookieHeader(page);
+    const postBody = new URLSearchParams({ _token: token, dni }).toString();
+    const post = await fetch(formUrl, {
+      method: "POST",
+      headers: {
+        Accept: "text/html,application/xhtml+xml",
+        "Content-Type": "application/x-www-form-urlencoded",
+        ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+      },
+      body: postBody,
+      signal: controller.signal,
+      redirect: "follow",
+    });
+
+    const html = await post.text();
+    if (!post.ok) {
+      if (post.status === 404 || post.status === 422) {
+        return { status: "not_found", valid: false, dni, fullName: "", provider: "eldni_public" };
+      }
+      return {
+        status: "unavailable",
+        valid: false,
+        dni,
+        fullName: "",
+        provider: "eldni_public",
+        details: trimText(html, 180),
+      };
+    }
+
+    const parsed = parseEldniIdentity(html, dni);
+    if (!parsed.valid) {
+      return { status: "not_found", valid: false, dni, fullName: "", provider: "eldni_public" };
+    }
+
+    return {
+      status: "valid",
+      valid: true,
+      dni: parsed.dni || dni,
+      fullName: parsed.fullName || "",
+      provider: "eldni_public",
+    };
+  } catch (error) {
+    return {
+      status: "unavailable",
+      valid: false,
+      dni,
+      fullName: "",
+      provider: "eldni_public",
+      details: trimText(error?.message || "", 180),
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function validateDniIdentity(dni) {
+  if (!/^\d{8}$/.test(String(dni || ""))) {
+    return { status: "invalid_format", valid: false, dni: "", fullName: "" };
+  }
+
+  const provider = resolveDniValidationProvider();
+  if (provider === "reniec") {
+    return validateDniWithReniec(dni);
+  }
+  if (provider === "eldni") {
+    return validateDniWithEldni(dni);
+  }
+
+  const reniecResult = await validateDniWithReniec(dni);
+  if (reniecResult?.valid === true) return reniecResult;
+
+  if (reniecResult?.status === "not_found") return reniecResult;
+  if (reniecResult?.status === "invalid_format") return reniecResult;
+
+  const eldniResult = await validateDniWithEldni(dni);
+  if (eldniResult?.valid === true) return eldniResult;
+  if (eldniResult?.status === "not_found") return eldniResult;
+  return reniecResult?.status && reniecResult.status !== "not_configured" ? reniecResult : eldniResult;
+}
+
+function buildDniValidationMessage(result, locale = "es") {
+  const isEnglish = String(locale || "").toLowerCase().startsWith("en");
+  const fullName = trimText(result?.fullName || "", 160);
+  const provider = String(result?.provider || "eldni_public");
+
+  if (result?.status === "valid" && result?.valid) {
+    const sourceLabel = provider === "eldni_public" ? (isEnglish ? "public source" : "fuente publica") : "RENIEC";
+    if (isEnglish) {
+      return fullName
+        ? `Identity verified with ${sourceLabel} for DNI ${result.dni}: ${fullName}. Continue qualification.`
+        : `Identity verified with ${sourceLabel} for DNI ${result.dni}. Continue qualification.`;
+    }
+    return fullName
+      ? `Identidad validada con ${sourceLabel} para DNI ${result.dni}: ${fullName}. Continuemos con la precalificacion.`
+      : `Identidad validada con ${sourceLabel} para DNI ${result.dni}. Continuemos con la precalificacion.`;
+  }
+
+  if (result?.status === "invalid_format") {
+    return isEnglish
+      ? "To continue, share a valid 8-digit DNI so I can verify it."
+      : "Para continuar, comparte un DNI valido de 8 digitos para validarlo.";
+  }
+
+  if (result?.status === "not_found") {
+    return isEnglish
+      ? "I could not validate that DNI in available sources. Please verify it and try again."
+      : "No pude validar ese DNI en las fuentes disponibles. Verificalo y vuelve a intentarlo.";
+  }
+
+  return isEnglish
+    ? "DNI validation is temporarily unavailable. Please try again in a moment."
+    : "La validacion de DNI no esta disponible temporalmente. Intenta nuevamente en unos minutos.";
+}
+
+async function applyDniValidationCommand(body, parsedPayload) {
+  if (!parsedPayload || typeof parsedPayload !== "object" || typeof parsedPayload.response !== "string") {
+    return { payload: parsedPayload, overrideFlags: null };
+  }
+
+  const command = extractDniCommand(parsedPayload.response);
+  if (!command) {
+    return { payload: parsedPayload, overrideFlags: null };
+  }
+
+  const fallbackDni = extractDni(body?.message || "");
+  const dni = command.dni || fallbackDni;
+  const validation = await validateDniIdentity(dni);
+  const locale = inferLocaleFromMessage(body);
+  const cleanText = stripDniCommands(parsedPayload.response);
+  const validationMessage = buildDniValidationMessage(validation, locale);
+  const shouldKeepOriginalText = validation.valid && cleanText;
+  const response = shouldKeepOriginalText ? `${cleanText}\n\n${validationMessage}` : validationMessage;
+
+  return {
+    payload: {
+      ...parsedPayload,
+      response,
+    },
+    overrideFlags: {
+      dni_validation: true,
+    },
   };
 }
 
@@ -95,7 +526,7 @@ async function resolveWidgetOwner(widgetIdentityRaw) {
   return null;
 }
 
-async function persistChatLog({ req, body, upstreamStatus, payload, rawPayload, latencyMs }) {
+async function persistChatLog({ req, body, upstreamStatus, payload, rawPayload, latencyMs, commandFlagsOverride }) {
   const widgetIdentity = trimText(body?.widgetId || "", 140);
   const userMessage = trimText(body?.message || "", 1200);
   if (!widgetIdentity || !userMessage) return;
@@ -124,7 +555,7 @@ async function persistChatLog({ req, body, upstreamStatus, payload, rawPayload, 
     error_message: trimText(payload?.error || "", 320) || null,
     history_count: Array.isArray(body?.history) ? body.history.length : 0,
     history_excerpt: buildHistoryExcerpt(body?.history),
-    command_flags: detectCommandFlags(aiResponse),
+    command_flags: detectCommandFlags(aiResponse, commandFlagsOverride),
     security_signal: statusData.blocked || hasSecuritySignal(userMessage),
     upstream_status: Number.isFinite(Number(upstreamStatus)) ? Number(upstreamStatus) : null,
     latency_ms: Number.isFinite(Number(latencyMs)) ? Math.max(0, Math.round(Number(latencyMs))) : null,
@@ -169,14 +600,25 @@ export default async function handler(req, res) {
       parsedPayload = null;
     }
 
+    let payloadForClient = parsedPayload;
+    let commandFlagsOverride = null;
+    try {
+      const transformed = await applyDniValidationCommand(req.body || {}, parsedPayload);
+      payloadForClient = transformed.payload;
+      commandFlagsOverride = transformed.overrideFlags;
+    } catch (commandError) {
+      console.error("chat-command: validar_dni failed", commandError?.message || commandError);
+    }
+
     try {
       await persistChatLog({
         req,
         body: req.body || {},
         upstreamStatus: upstream.status,
-        payload: parsedPayload,
+        payload: payloadForClient,
         rawPayload,
         latencyMs: Date.now() - startedAt,
+        commandFlagsOverride,
       });
     } catch (logError) {
       console.error("chat-log: failed to persist", logError?.message || logError);
@@ -184,8 +626,8 @@ export default async function handler(req, res) {
 
     res.status(upstream.status);
 
-    if (parsedPayload) {
-      return res.json(parsedPayload);
+    if (payloadForClient) {
+      return res.json(payloadForClient);
     }
     return res.send(rawPayload);
   } catch (error) {

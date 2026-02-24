@@ -9,11 +9,13 @@ describe("chatCommands parser", () => {
       [IMAGE: https://cdn.example.com/panel.png|Dashboard preview]
       [AUDIO: https://cdn.example.com/welcome.mp3]
       [VIDEO: https://cdn.example.com/tour.mp4]
+      [VALIDAR_DNI: 12345678]
       [WHATSAPP_REDIRECT: "Hola, quiero activar"]
       [ICALLCLOSER_REDIRECT: https://ai-call-closer.vercel.app/demo]`,
     );
 
     expect(parsed.cleanText).toContain("Te muestro como se ve.");
+    expect(parsed.cleanText).not.toContain("VALIDAR_DNI");
     expect(parsed.cleanText).not.toContain("WHATSAPP_REDIRECT");
     expect(parsed.cleanText).not.toContain("IMAGE:");
     expect(parsed.whatsappPayload).toBe("Hola, quiero activar");
@@ -49,5 +51,10 @@ describe("chatCommands parser", () => {
 
     expect(parsed.images).toHaveLength(1);
     expect(parsed.images[0]?.url).toContain("/image/upload/f_auto,q_auto:good,c_limit,w_960/v1771596718/");
+  });
+
+  it("removes validar_dni token in braces format from clean text", () => {
+    const parsed = parseChatResponseCommands("Validando identidad... {validar_dni: 12345678}");
+    expect(parsed.cleanText).toBe("Validando identidad...");
   });
 });

@@ -128,7 +128,7 @@ Eventos de consola IA (persistidos por proxy de chat):
 - `blocked`, `rate_limited`
 - `user_message`, `ai_response`, `error_message`
 - `history_count`, `history_excerpt` (ultimos turnos truncados)
-- `command_flags` (`whatsapp_redirect`, `icallcloser_ready`, `has_image`, `has_audio`, `has_video`)
+- `command_flags` (`whatsapp_redirect`, `icallcloser_ready`, `has_image`, `has_audio`, `has_video`, `dni_validation`)
 - `security_signal` (bool para alertas de intento de bypass/hack)
 - `upstream_status`, `latency_ms`, `user_timezone`
 - `ip`, `user_agent`, `referer`
@@ -273,6 +273,7 @@ Base detectada:
   - `200`: `{ response: "<texto>" }`
   - `200`: `{ response: "<texto>", blocked: true }` (cierres de seguridad)
   - `200`: mensajes de estado negocio (trial vencido, AI deshabilitada, falta API key, error tecnico)
+  - `200`: cuando el asistente emite comando de identidad (`[VALIDAR_DNI: ...]` o `{validar_dni: ...}`), el proxy local valida DNI server-side usando ELDNI y responde al usuario con el resultado de validacion (mismo shape `{ response: "<texto>" }`).
   - `400`: `{ error: "Message and widgetId are required" }`
   - `403`: `{ response: "<texto>", blocked: true }` (filtros/blocked IP)
   - `404`: `{ error: "Widget not found" }`
@@ -422,6 +423,7 @@ Asuncion:
 - En produccion, las funciones locales en `api/*.js` se resuelven primero; rutas `/api/*` sin archivo local caen al backend externo via fallback.
 - CRM v2 vive en funciones locales `api/crm/*` y no depende del backend externo para operaciones de deals/tasks/timeline/dedupe.
 - El proxy local de `POST /api/chat` ademas persiste trazas resumidas de cada intercambio en `ai_chat_logs` para consola de debugging en Dashboard (sin cambiar el contrato de respuesta hacia el cliente).
+- El proxy local de `POST /api/chat` ejecuta validacion de identidad para comando `VALIDAR_DNI` usando solo ELDNI (`ELDNI_FORM_URL`, `ELDNI_TIMEOUT_MS`); `DNI_VALIDATION_PROVIDER` se mantiene por compatibilidad pero runtime fuerza fuente ELDNI.
 - `POST /api/analyze-conversation` requiere `Authorization: Bearer <Firebase ID token>` del usuario dashboard; usa `profiles.ai_api_key` (o fallback `widget_configs.ai_api_key` del mismo owner) para ejecutar analisis OpenAI. Si no hay key configurada, responde analisis heuristico (`provider: heuristic_no_client_key`).
 - `POST /api/generate-prompt` requiere `Authorization: Bearer <Firebase ID token>` del usuario dashboard; usa `profiles.ai_api_key` (o fallback `widget_configs.ai_api_key`) para generar texto de prompt via OpenAI y devuelve `creditsConsumed: true`.
 - `GET|PUT /api/meta-capi-config` requiere `Authorization: Bearer <Firebase ID token>`; persiste IDs de Meta y token cifrado en `meta_capi_configs` (no en `widget_configs` publico).
@@ -556,6 +558,7 @@ Comportamientos actuales que clientes ya consumen:
 - `GET /api/w/:widgetId.js` mantiene entrega de script autocontenido y globals `window.LEADWIDGET_CLIENT_ID`, `window.LEADWIDGET_WIDGET_ID`, `window.LEADWIDGET_CONFIG`.
 - Si `experience_mode=lead_chat`, `GET /api/w/:widgetId.js` responde script no embebible (warning) y se prioriza `leadChatUrl` publico.
 - Tracking declarativo se mantiene en `facebook_pixel_id`, `tiktok_pixel_id`, `google_tag_id`; `custom_tracking_code/custom_code` no se exponen.
+- Cuando `facebook_pixel_id` esta configurado, Lead Chat y widget embebido disparan browser events de Meta Pixel: `PageView` al cargar y `Lead` en aperturas de WhatsApp/IACloser.
 - `POST /api/verify-payment` es idempotente por `orderID` (`paypal_order_id`).
 - CORS acepta `GET,POST,OPTIONS` y header `Authorization`.
 - En Plan PLUS, `branding_link` permite redireccion configurable del texto de marca; si falta o es invalido se usa `/crear-ahora?ref=<clientId>`.
@@ -700,3 +703,15 @@ Cambios de comportamiento relevantes:
 - Cambio: activacion de dispatch Meta CAPI para CRM: nuevo endpoint `POST /api/meta-capi-dispatch`, hooks server-side en `contacts-merge`/`deals`, y bitacora `meta_capi_event_logs` para deduplicacion.
 - Tipo: non-breaking
 - Impacto: eventos de calidad (`Lead`, `Appointment`, `QualifiedLead`, `Sale`) empiezan a enviarse a Meta sin romper flujos existentes ni exponer credenciales.
+- Fecha: 2026-02-24
+- Cambio: prompt runtime agrega comando de identidad `VALIDAR_DNI`; proxy local `POST /api/chat` ejecuta validacion server-side cuando detecta `[VALIDAR_DNI: ...]` o `{validar_dni: ...}`, con estrategia configurable (`RENIEC` + fallback `ELDNI`) y registra flag `dni_validation` en `ai_chat_logs.command_flags`.
+- Tipo: non-breaking
+- Impacto: refuerza precalificacion de leads con validacion de identidad sin cambiar el shape base de respuesta del chat.
+- Fecha: 2026-02-24
+- Cambio: validacion de DNI en `POST /api/chat` pasa a usar exclusivamente fuente ELDNI; se desactiva el uso runtime de RENIEC para evitar indisponibilidad por token/proveedor.
+- Tipo: non-breaking
+- Impacto: mejora estabilidad del comando `VALIDAR_DNI` manteniendo el mismo contrato de respuesta (`{ response: "<texto>" }`).
+- Fecha: 2026-02-24
+- Cambio: Lead Chat y widget embebido activan Meta Pixel browser-side cuando existe `facebook_pixel_id` (`PageView` al cargar y `Lead` en aperturas de WhatsApp/IACloser).
+- Tipo: non-breaking
+- Impacto: habilita optimizacion de campanas Meta Ads con trafico directo a chat sin cambiar endpoints ni shape de respuestas API.

@@ -550,13 +550,21 @@ const AI_DEFAULT_BUSINESS_TEMPLATE = [
 
 const AI_DEFAULT_SYSTEM_PROMPT_TEMPLATE = getNichePromptTemplate('general');
 
+const AI_DNI_VALIDATION_COMMAND_SNIPPET = [
+  'Before sharing detailed information, ask for DNI and validate identity first.',
+  'When the user provides DNI, run EXACTLY:',
+  '[VALIDAR_DNI: {dni}]',
+  'If DNI is missing or invalid, request a valid 8-digit DNI and do not continue with detailed data.',
+  'If DNI is already validated in this conversation, do not ask for it again.',
+].join('\n');
+
 const AI_ICALLCLOSER_COMMAND_SNIPPET = [
   "If the lead confirms purchase intent and consent with YES, reply EXACTLY:",
   '[ICALLCLOSER_READY: {"name":"[REPLACE_NAME]","phone":"[REPLACE_PHONE]","collected_info":"[REPLACE_CASE_SUMMARY]"}]',
 ].join('\n');
 
 const AI_WHATSAPP_COMMAND_SNIPPET = [
-  "When the lead is qualified (budget + zone + timeline) and required data is complete (name + phone), include EXACTLY one WhatsApp command at the end:",
+  "When the lead is qualified (budget + zone + timeline) and required data is complete (validated DNI + name + phone), include EXACTLY one WhatsApp command at the end:",
   "[WHATSAPP_REDIRECT: Name={name}; Interest={service_or_property}; Zone={zone}; Budget={budget}; Timeline={timeline}]",
   "If required data is missing or the lead is not qualified, continue qualifying and DO NOT emit WHATSAPP_REDIRECT yet.",
   "Do not rename or omit the WHATSAPP_REDIRECT token once the lead is qualified.",
@@ -575,10 +583,19 @@ function getClosingCommandSnippet(mode: AiClosingMode) {
 
 function stripClosingCommandSections(prompt: string) {
   let sanitized = String(prompt || '');
-  sanitized = sanitized.replace(/###\s*Comando de cierre[\s\S]*$/i, '').trim();
+  sanitized = sanitized
+    .replace(/###\s*Comando de validaci[oó]n(?: de identidad)?[\s\S]*?(?=\n###\s*|$)/gi, '')
+    .replace(/###\s*Comando de cierre[\s\S]*?(?=\n###\s*|$)/gi, '')
+    .trim();
   sanitized = sanitized
     .replace(/\[\s*WHATSAPP_REDIRECT\s*:[^\]]*]/gi, '')
     .replace(/\[\s*(?:ICALLCLOSER|IACALLCLOSER|ICLOSER)_READY\s*:[^\]]*]/gi, '')
+    .replace(/\[\s*VALIDAR_DNI(?:\s*:[^\]]*)?]/gi, '')
+    .replace(/\{\s*validar_dni(?:\s*:[^}]*)?}/gi, '')
+    .replace(/^\s*Before sharing detailed information.*validate identity first\..*$/gim, '')
+    .replace(/^\s*When the user provides DNI.*run EXACTLY:.*$/gim, '')
+    .replace(/^\s*If DNI is missing or invalid.*detailed data\..*$/gim, '')
+    .replace(/^\s*If DNI is already validated.*do not ask for it again\..*$/gim, '')
     .replace(/^\s*If the lead.*reply EXACTLY:.*$/gim, '')
     .replace(/^\s*If the lead prefers WhatsApp.*reply EXACTLY:.*$/gim, '')
     .replace(/^\s*When the lead is qualified.*WhatsApp command.*$/gim, '')
@@ -592,8 +609,10 @@ function stripClosingCommandSections(prompt: string) {
 function ensureClosingCommandSection(prompt: string, mode: AiClosingMode) {
   const base = stripClosingCommandSections(prompt);
   const closingSnippet = getClosingCommandSnippet(mode);
-  if (!base) return `### Comando de cierre\n${closingSnippet}`;
-  return `${base}\n\n### Comando de cierre\n${closingSnippet}`;
+  if (!base) {
+    return `### Comando de validacion de identidad\n${AI_DNI_VALIDATION_COMMAND_SNIPPET}\n\n### Comando de cierre\n${closingSnippet}`;
+  }
+  return `${base}\n\n### Comando de validacion de identidad\n${AI_DNI_VALIDATION_COMMAND_SNIPPET}\n\n### Comando de cierre\n${closingSnippet}`;
 }
 
 function composeAiSystemPrompt(input: {
@@ -614,6 +633,7 @@ function composeAiSystemPrompt(input: {
     improvementsPrompt ? `### Mejoras IA\n${improvementsPrompt}` : '',
     systemPrompt ? `### Prompt del sistema\n${systemPrompt}` : '',
     securityPrompt ? `### Protocolo de seguridad y bloqueo\n${securityPrompt}` : '',
+    `### Comando de validacion de identidad\n${AI_DNI_VALIDATION_COMMAND_SNIPPET}`,
     `### Comando de cierre\n${closingSnippet}`,
   ].filter(Boolean);
 
@@ -1640,7 +1660,7 @@ export default function Dashboard() {
     mainGoal: '',
     responseLength: '2-3 sentences',
     questionStrategy: '',
-    requiredData: 'name, phone, main need, preferred contact time',
+    requiredData: 'dni, name, phone, main need, preferred contact time',
     budgetRule: '',
     objectionHandling: '',
     consentRule: 'Ask explicit consent and require YES before handoff.',
@@ -1684,7 +1704,7 @@ export default function Dashboard() {
       mainGoal: String(current.mainGoal || '').trim() || getDefaultMainGoalByMode(mode),
       responseLength: String(current.responseLength || '').trim() || 'Reply in short messages (2-3 sentences).',
       questionStrategy: String(current.questionStrategy || '').trim() || 'Ask one qualification question at a time.',
-      requiredData: String(current.requiredData || '').trim() || 'name, phone, need, preferred time.',
+      requiredData: String(current.requiredData || '').trim() || 'dni, name, phone, need, preferred time.',
       budgetRule: String(current.budgetRule || '').trim() || 'qualify budget before handoff.',
       objectionHandling: String(current.objectionHandling || '').trim() || 'offer alternatives before closing.',
       consentRule: mode === 'icallcloser'
@@ -1702,15 +1722,16 @@ export default function Dashboard() {
     draft: string = '',
   ) => {
     const ruleLines = [
-      `1) Response length: ${resolved.responseLength}`,
-      `2) Question strategy: ${resolved.questionStrategy}`,
-      `3) Required data: ${resolved.requiredData}`,
-      `4) Budget filter: ${resolved.budgetRule}`,
-      `5) Objection handling: ${resolved.objectionHandling}`,
-      ...(mode === 'icallcloser' ? [`6) Consent rule: ${resolved.consentRule}`] : []),
-      `${mode === 'icallcloser' ? '7' : '6'}) Security level: ${resolved.securityLevel}`,
-      `${mode === 'icallcloser' ? '8' : '7'}) Blocked topics: ${resolved.blockedTopics}`,
-      `${mode === 'icallcloser' ? '9' : '8'}) Fallback flow: ${resolved.fallbackFlow}`,
+      '1) Identity gate: before detailed guidance, request DNI and run [VALIDAR_DNI: {dni}].',
+      `2) Response length: ${resolved.responseLength}`,
+      `3) Question strategy: ${resolved.questionStrategy}`,
+      `4) Required data: ${resolved.requiredData}`,
+      `5) Budget filter: ${resolved.budgetRule}`,
+      `6) Objection handling: ${resolved.objectionHandling}`,
+      ...(mode === 'icallcloser' ? [`7) Consent rule: ${resolved.consentRule}`] : []),
+      `${mode === 'icallcloser' ? '8' : '7'}) Security level: ${resolved.securityLevel}`,
+      `${mode === 'icallcloser' ? '9' : '8'}) Blocked topics: ${resolved.blockedTopics}`,
+      `${mode === 'icallcloser' ? '10' : '9'}) Fallback flow: ${resolved.fallbackFlow}`,
     ];
 
     const blocks = [
@@ -5778,7 +5799,7 @@ export default function Dashboard() {
                       Meta Conversions API (Precalificacion)
                     </h4>
                     <p className="text-xs text-muted-foreground">
-                      Guarda credenciales de Meta para habilitar optimizacion por calidad de lead cuando inicies las pruebas.
+                      Para empezar con trafico a Lead Chat o widget, basta con Facebook Pixel ID. Meta CAPI es opcional (recomendado).
                     </p>
 
                     <div className="grid gap-3 md:grid-cols-2">
@@ -5893,65 +5914,42 @@ export default function Dashboard() {
                           <DialogHeader>
                             <DialogTitle className="flex items-center gap-2">
                               <Info className="h-4 w-4" />
-                              Guia para encontrar datos de Meta CAPI
+                              Guia rapida: Pixel primero, CAPI opcional
                             </DialogTitle>
                             <DialogDescription>
-                              Necesitas permisos de administrador en el Business Manager del cliente.
+                              Si quieres lanzar hoy, configura solo Facebook Pixel ID. CAPI se puede activar despues.
                             </DialogDescription>
                           </DialogHeader>
 
                           <div className="space-y-3 text-sm text-muted-foreground">
                             <div className="rounded-lg border bg-muted/20 p-3">
-                              <p className="font-medium text-foreground">1. Business Manager ID</p>
+                              <p className="font-medium text-foreground">1. Paso minimo para Meta Ads</p>
                               <p>
-                                Ve a <span className="font-medium text-foreground">Configuracion del negocio</span> &gt;{" "}
-                                <span className="font-medium text-foreground">Informacion del negocio</span>.
+                                En este dashboard, llena <span className="font-medium text-foreground">Facebook Pixel ID</span>.
+                                Con eso ya enviamos eventos <span className="font-medium text-foreground">PageView</span> y{" "}
+                                <span className="font-medium text-foreground">Lead</span> desde Lead Chat y widget embebido.
                               </p>
                             </div>
                             <div className="rounded-lg border bg-muted/20 p-3">
-                              <p className="font-medium text-foreground">2. Ad Account ID</p>
+                              <p className="font-medium text-foreground">2. Donde sacar el Pixel ID</p>
                               <p>
-                                En <span className="font-medium text-foreground">Ads Manager</span>, abre la cuenta publicitaria
-                                y copia el ID de cuenta. Puedes pegarlo con o sin prefijo <code>act_</code>.
+                                Ve a <span className="font-medium text-foreground">Events Manager</span>, abre tu Pixel y copia su ID numerico.
                               </p>
                             </div>
                             <div className="rounded-lg border bg-muted/20 p-3">
-                              <p className="font-medium text-foreground">3. Pixel/Dataset ID</p>
+                              <p className="font-medium text-foreground">3. CAPI (opcional, recomendado)</p>
                               <p>
-                                En <span className="font-medium text-foreground">Events Manager</span>, entra a la fuente de datos
-                                (Pixel o Dataset) y copia su ID.
-                              </p>
-                            </div>
-                            <div className="rounded-lg border bg-muted/20 p-3">
-                              <p className="font-medium text-foreground">4. Access Token (Conversions API)</p>
-                              <p>
-                                En la misma fuente de datos:{" "}
-                                <span className="font-medium text-foreground">Configuracion</span> &gt;{" "}
-                                <span className="font-medium text-foreground">Conversions API</span> &gt;{" "}
-                                <span className="font-medium text-foreground">Generar token de acceso</span>.
-                              </p>
-                            </div>
-                            <div className="rounded-lg border bg-muted/20 p-3">
-                              <p className="font-medium text-foreground">5. Crear eventos de calidad (Meta)</p>
-                              <p>
-                                En <span className="font-medium text-foreground">Events Manager</span> &gt;{" "}
-                                <span className="font-medium text-foreground">Custom Conversions</span> &gt;{" "}
-                                <span className="font-medium text-foreground">Create</span>, crea conversiones usando estos nombres:
+                                Si quieres mas estabilidad de datos (server-side), completa tambien:
                               </p>
                               <p className="mt-1 font-mono text-xs text-foreground/90">
-                                Lead, QualifiedLead, Appointment, Sale
-                              </p>
-                              <p className="mt-1">
-                                Para cierre real puedes mapear <span className="font-medium text-foreground">Sale</span> a{" "}
-                                <span className="font-medium text-foreground">Purchase</span> si lo prefieres.
+                                Business Manager ID, Ad Account ID, Pixel/Dataset ID, Access Token
                               </p>
                             </div>
                             <div className="rounded-lg border bg-muted/20 p-3">
-                              <p className="font-medium text-foreground">6. Usarlo en Ads Manager</p>
+                              <p className="font-medium text-foreground">4. En Ads Manager</p>
                               <p>
-                                En el conjunto de anuncios, optimiza por la conversion de calidad (por ejemplo{" "}
-                                <span className="font-medium text-foreground">QualifiedLead</span> o{" "}
-                                <span className="font-medium text-foreground">Appointment</span>) para que Meta aprenda con esos eventos.
+                                Usa ese mismo Pixel en tu campana y optimiza por{" "}
+                                <span className="font-medium text-foreground">Lead</span> para que Meta aprenda con los leads precalificados.
                               </p>
                             </div>
                           </div>
@@ -6628,8 +6626,8 @@ export default function Dashboard() {
                   />
                   <p className="text-[11px] text-emerald-800/90 dark:text-emerald-300/90">
                     {dashboardIsEnglish
-                      ? 'This final block includes the correct closing command for the selected channel (WhatsApp or ICallCloser).'
-                      : 'Este bloque final incluye el comando de cierre correcto segun el canal seleccionado (WhatsApp o ICallCloser).'}
+                      ? 'This final block includes DNI validation command plus the correct closing command for the selected channel.'
+                      : 'Este bloque final incluye el comando de validacion DNI y el comando de cierre correcto segun el canal seleccionado.'}
                   </p>
                 </div>
 
@@ -9197,8 +9195,8 @@ export default function Dashboard() {
             </div>
             <p className="text-xs text-emerald-800/90 dark:text-emerald-300/90">
               {dashboardIsEnglish
-                ? 'The selected command will be inserted automatically in the generated system prompt.'
-                : 'El comando seleccionado se insertara automaticamente en el prompt generado.'}
+                ? 'Identity command (VALIDAR_DNI) and the selected closing command will be inserted automatically.'
+                : 'El comando de identidad (VALIDAR_DNI) y el comando de cierre seleccionado se insertaran automaticamente.'}
             </p>
           </div>
 

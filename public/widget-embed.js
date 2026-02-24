@@ -31,6 +31,7 @@
     consentTextVersion: 'v1',
     iacloserRedirectUrl: '',
     iacloserEnabled: false,
+    facebookPixelId: '',
     projectId: 'leads-widget',
     apiKey: 'AIzaSyCXNFoeg1nrYcFHzU9TEKNnDPg1mHU3_tA'
   };
@@ -464,9 +465,79 @@
     return '';
   }
 
+  function normalizeFacebookPixelId(value) {
+    const normalized = String(value || '').replace(/\s+/g, '');
+    return /^\d{5,20}$/.test(normalized) ? normalized : '';
+  }
+
+  function ensureFacebookPixelLoaded(pixelIdRaw) {
+    const pixelId = normalizeFacebookPixelId(pixelIdRaw);
+    if (!pixelId) return '';
+    if (typeof window === 'undefined' || typeof document === 'undefined') return '';
+
+    if (typeof window.fbq !== 'function') {
+      const fbqStub = function() {
+        fbqStub.callMethod
+          ? fbqStub.callMethod.apply(fbqStub, arguments)
+          : fbqStub.queue.push(arguments);
+      };
+      fbqStub.queue = [];
+      fbqStub.loaded = true;
+      fbqStub.version = '2.0';
+      window.fbq = fbqStub;
+
+      if (!document.getElementById('leadwidget-fb-pixel')) {
+        const script = document.createElement('script');
+        script.id = 'leadwidget-fb-pixel';
+        script.async = true;
+        script.src = 'https://connect.facebook.net/en_US/fbevents.js';
+        const firstScript = document.getElementsByTagName('script')[0];
+        if (firstScript && firstScript.parentNode) {
+          firstScript.parentNode.insertBefore(script, firstScript);
+        } else {
+          document.head.appendChild(script);
+        }
+      }
+    }
+
+    window.__leadWidgetFbqInits = window.__leadWidgetFbqInits || {};
+    if (!window.__leadWidgetFbqInits[pixelId]) {
+      try {
+        window.fbq('init', pixelId);
+        window.__leadWidgetFbqInits[pixelId] = true;
+      } catch (_) {
+        return '';
+      }
+    }
+    return pixelId;
+  }
+
+  function trackFacebookPageView() {
+    const pixelId = ensureFacebookPixelLoaded(config.facebookPixelId || config.facebook_pixel_id || '');
+    if (!pixelId) return;
+    const key = `${pixelId}:${window.location.pathname}:${window.location.search}`;
+    window.__leadWidgetFbqPageViews = window.__leadWidgetFbqPageViews || {};
+    if (window.__leadWidgetFbqPageViews[key]) return;
+    window.__leadWidgetFbqPageViews[key] = true;
+    window.fbq('track', 'PageView');
+  }
+
+  function trackFacebookLeadForEvent(eventType) {
+    const normalizedEvent = String(eventType || '').trim().toLowerCase();
+    if (normalizedEvent !== 'whatsapp_open' && normalizedEvent !== 'iacallcloser_open') return;
+    const pixelId = ensureFacebookPixelLoaded(config.facebookPixelId || config.facebook_pixel_id || '');
+    if (!pixelId) return;
+    const dedupeKey = `${pixelId}:${conversationId}`;
+    window.__leadWidgetFbqLeads = window.__leadWidgetFbqLeads || {};
+    if (window.__leadWidgetFbqLeads[dedupeKey]) return;
+    window.__leadWidgetFbqLeads[dedupeKey] = true;
+    window.fbq('track', 'Lead');
+  }
+
   function trackConversationEvent(eventType, meta) {
     const safeEventType = String(eventType || '').trim().toLowerCase();
     if (!safeEventType) return;
+    trackFacebookLeadForEvent(safeEventType);
     const widgetId = String(config.widgetId || config.clientId || '').trim();
     if (!widgetId) return;
     let endpoint = '/api/chat-event';
@@ -580,6 +651,7 @@
     const whatsappRe = /\[\s*WHATSAPP_REDIRECT\s*:\s*([\s\S]*?)\]/ig;
     const iaCallCloserRedirectRe = /\[\s*(?:ICLOSER_REDIRECT|ICALLCLOSER_REDIRECT|IACALLCLOSER_REDIRECT)\s*:\s*([\s\S]*?)\]/ig;
     const iaCallCloserReadyRe = /\[\s*(?:ICLOSER_READY|ICALLCLOSER_READY|IACALLCLOSER_READY)(?:\s*:\s*([\s\S]*?))?\s*\]/ig;
+    const validateDniRe = /\[\s*VALIDAR_DNI(?:\s*:\s*([\s\S]*?))?\s*\]|\{\s*validar_dni(?:\s*:\s*([\s\S]*?))?\s*\}/ig;
     const imageCommandRe = /\[\s*(?:IMAGE|IMG|PHOTO)\s*:\s*([\s\S]*?)\]/ig;
     const audioCommandRe = /\[\s*(?:AUDIO|VOICE|SOUND)\s*:\s*([\s\S]*?)\]/ig;
     const videoCommandRe = /\[\s*(?:VIDEO|VID|CLIP)\s*:\s*([\s\S]*?)\]/ig;
@@ -672,6 +744,7 @@
       .replace(whatsappRe, '')
       .replace(iaCallCloserRedirectRe, '')
       .replace(iaCallCloserReadyRe, '')
+      .replace(validateDniRe, '')
       .replace(imageCommandRe, '')
       .replace(markdownImageRe, '')
       .replace(audioCommandRe, '')
@@ -1040,6 +1113,7 @@
               : { welcomeImageUrl: '', welcomeAudioUrl: '', welcomeVideoUrl: '' };
           return {
             ...payload.config,
+            facebookPixelId: normalizeFacebookPixelId(payload.config.facebookPixelId || payload.config.facebook_pixel_id || ''),
             template: payload.config.template || (firestoreRealEstatePropertiesFallback.length > 0 ? 'inmobiliaria' : (payload.config.template || 'general')),
             welcomeImageUrl: backendWelcomeImage || firestoreWelcomeFallback.welcomeImageUrl,
             welcomeAudioUrl: backendWelcomeAudio || firestoreWelcomeFallback.welcomeAudioUrl,
@@ -1203,6 +1277,7 @@
           hideBranding: fields.hide_branding?.booleanValue === true,
           brandingText: fields.branding_text?.stringValue || '',
           brandingLink: fields.branding_link?.stringValue || '',
+          facebookPixelId: normalizeFacebookPixelId(fields.facebook_pixel_id?.stringValue || ''),
           // AI Configuration (now stored in widget_configs for public access)
           ai_enabled: fields.ai_enabled?.booleanValue === true,
           ai_provider: fields.ai_provider?.stringValue || 'openai',
@@ -3696,6 +3771,7 @@
       // Always update config state (for AI parameters, logic, etc)
       if (hasFunctionalChanges) {
         Object.assign(config, newConfig);
+        trackFacebookPageView();
         console.log('LeadWidget: Config updated in background');
       }
 
@@ -3742,6 +3818,7 @@
     }
 
     renderWidget();
+    trackFacebookPageView();
 
     // Refresh config every 30 seconds for dynamic updates
     configRefreshInterval = setInterval(refreshConfig, 30000);
