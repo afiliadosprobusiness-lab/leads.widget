@@ -554,6 +554,7 @@ Comportamientos actuales que clientes ya consumen:
 
 - Rutas relativas `/api/*` en frontend/widget (sin versionado explicito).
 - `POST /api/chat` devuelve mayormente `200` con campo `response` incluso para varios casos de error de negocio.
+- En validacion DNI (`VALIDAR_DNI`), si ELDNI esta temporalmente indisponible se devuelve mensaje de continuidad (no bloqueante) para seguir flujo comercial y confirmar identidad manualmente.
 - `GET /api/widget-config/:identity` soporta lookup por `widget_id` y fallback por `user_id`.
 - `GET /api/w/:widgetId.js` mantiene entrega de script autocontenido y globals `window.LEADWIDGET_CLIENT_ID`, `window.LEADWIDGET_WIDGET_ID`, `window.LEADWIDGET_CONFIG`.
 - Si `experience_mode=lead_chat`, `GET /api/w/:widgetId.js` responde script no embebible (warning) y se prioriza `leadChatUrl` publico.
@@ -715,3 +716,7 @@ Cambios de comportamiento relevantes:
 - Cambio: Lead Chat y widget embebido activan Meta Pixel browser-side cuando existe `facebook_pixel_id` (`PageView` al cargar y `Lead` en aperturas de WhatsApp/IACloser).
 - Tipo: non-breaking
 - Impacto: habilita optimizacion de campanas Meta Ads con trafico directo a chat sin cambiar endpoints ni shape de respuestas API.
+- Fecha: 2026-02-24
+- Cambio: en `POST /api/chat`, cuando la validacion DNI por ELDNI no esta disponible, la respuesta pasa a modo continuidad (no bloqueante) en lugar de error temporal duro.
+- Tipo: non-breaking
+- Impacto: evita friccion en cierre comercial cuando la fuente publica de DNI presenta intermitencia.

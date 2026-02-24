@@ -484,8 +484,8 @@ function buildDniValidationMessage(result, locale = "es") {
   }
 
   return isEnglish
-    ? "DNI validation is temporarily unavailable. Please try again in a moment."
-    : "La validacion de DNI no esta disponible temporalmente. Intenta nuevamente en unos minutos.";
+    ? "I could not connect to the public DNI source right now. We can continue qualification and confirm identity manually before closing."
+    : "No pude conectar con la fuente publica de DNI en este momento. Podemos continuar la precalificacion y confirmar identidad manualmente antes del cierre.";
 }
 
 async function applyDniValidationCommand(body, parsedPayload) {
@@ -504,8 +504,17 @@ async function applyDniValidationCommand(body, parsedPayload) {
   const locale = inferLocaleFromMessage(body);
   const cleanText = stripDniCommands(parsedPayload.response);
   const validationMessage = buildDniValidationMessage(validation, locale);
-  const shouldKeepOriginalText = validation.valid && cleanText;
+  const shouldKeepOriginalText = Boolean(cleanText);
   const response = shouldKeepOriginalText ? `${cleanText}\n\n${validationMessage}` : validationMessage;
+
+  if (!validation?.valid && validation?.status && validation.status !== "not_found" && validation.status !== "invalid_format") {
+    console.warn("chat-command: validar_dni non-valid status", {
+      status: validation.status,
+      provider: validation.provider || "eldni_public",
+      details: validation.details || "",
+      widgetId: trimText(body?.widgetId || "", 140),
+    });
+  }
 
   return {
     payload: {
