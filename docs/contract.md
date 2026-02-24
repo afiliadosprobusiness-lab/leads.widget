@@ -273,7 +273,7 @@ Base detectada:
   - `200`: `{ response: "<texto>" }`
   - `200`: `{ response: "<texto>", blocked: true }` (cierres de seguridad)
   - `200`: mensajes de estado negocio (trial vencido, AI deshabilitada, falta API key, error tecnico)
-  - `200`: cuando el asistente emite comando de identidad (`[VALIDAR_DNI: ...]` o `{validar_dni: ...}`), el proxy local valida DNI server-side (API externa y/o ELDNI segun configuracion) y responde al usuario con el resultado de validacion (mismo shape `{ response: "<texto>" }`).
+  - `200`: cuando el asistente emite comando de identidad (`[VALIDAR_DNI: ...]` o `{validar_dni: ...}`), el proxy local resuelve DNI segun estrategia (`api|eldni|auto|capture`) y responde al usuario con mensaje operacional (mismo shape `{ response: "<texto>" }`).
   - `400`: `{ error: "Message and widgetId are required" }`
   - `403`: `{ response: "<texto>", blocked: true }` (filtros/blocked IP)
   - `404`: `{ error: "Widget not found" }`
@@ -423,7 +423,7 @@ Asuncion:
 - En produccion, las funciones locales en `api/*.js` se resuelven primero; rutas `/api/*` sin archivo local caen al backend externo via fallback.
 - CRM v2 vive en funciones locales `api/crm/*` y no depende del backend externo para operaciones de deals/tasks/timeline/dedupe.
 - El proxy local de `POST /api/chat` ademas persiste trazas resumidas de cada intercambio en `ai_chat_logs` para consola de debugging en Dashboard (sin cambiar el contrato de respuesta hacia el cliente).
-- El proxy local de `POST /api/chat` ejecuta validacion de identidad para comando `VALIDAR_DNI` con estrategia configurable (`DNI_VALIDATION_PROVIDER=auto|api|eldni`), soportando API externa (`DNI_API_*`) y fallback por formulario publico ELDNI (`ELDNI_FORM_URL`, `ELDNI_TIMEOUT_MS`).
+- El proxy local de `POST /api/chat` ejecuta resolucion de identidad para comando `VALIDAR_DNI` con estrategia configurable (`DNI_VALIDATION_PROVIDER=auto|api|eldni|capture`), soportando API externa (`DNI_API_*`), fallback por formulario publico ELDNI (`ELDNI_FORM_URL`, `ELDNI_TIMEOUT_MS`) y modo `capture` sin consulta externa.
 - `POST /api/analyze-conversation` requiere `Authorization: Bearer <Firebase ID token>` del usuario dashboard; usa `profiles.ai_api_key` (o fallback `widget_configs.ai_api_key` del mismo owner) para ejecutar analisis OpenAI. Si no hay key configurada, responde analisis heuristico (`provider: heuristic_no_client_key`).
 - `POST /api/generate-prompt` requiere `Authorization: Bearer <Firebase ID token>` del usuario dashboard; usa `profiles.ai_api_key` (o fallback `widget_configs.ai_api_key`) para generar texto de prompt via OpenAI y devuelve `creditsConsumed: true`.
 - `GET|PUT /api/meta-capi-config` requiere `Authorization: Bearer <Firebase ID token>`; persiste IDs de Meta y token cifrado en `meta_capi_configs` (no en `widget_configs` publico).
@@ -554,7 +554,7 @@ Comportamientos actuales que clientes ya consumen:
 
 - Rutas relativas `/api/*` en frontend/widget (sin versionado explicito).
 - `POST /api/chat` devuelve mayormente `200` con campo `response` incluso para varios casos de error de negocio.
-- En validacion DNI (`VALIDAR_DNI`), si ELDNI esta temporalmente indisponible se devuelve mensaje de continuidad (no bloqueante) para seguir flujo comercial y confirmar identidad manualmente.
+- En validacion DNI (`VALIDAR_DNI`), si la validacion externa no esta disponible o el modo es `capture`, se devuelve mensaje no bloqueante de `DNI recibido` para continuar flujo comercial.
 - `GET /api/widget-config/:identity` soporta lookup por `widget_id` y fallback por `user_id`.
 - `GET /api/w/:widgetId.js` mantiene entrega de script autocontenido y globals `window.LEADWIDGET_CLIENT_ID`, `window.LEADWIDGET_WIDGET_ID`, `window.LEADWIDGET_CONFIG`.
 - Si `experience_mode=lead_chat`, `GET /api/w/:widgetId.js` responde script no embebible (warning) y se prioriza `leadChatUrl` publico.
@@ -724,3 +724,7 @@ Cambios de comportamiento relevantes:
 - Cambio: `POST /api/chat` incorpora soporte de validacion DNI por API externa (`DNI_API_*`) con prioridad en modo `auto`, manteniendo fallback ELDNI y reintentos robustos.
 - Tipo: non-breaking
 - Impacto: mejora confiabilidad de validacion DNI en produccion sin cambiar el shape de respuesta del chat.
+- Fecha: 2026-02-24
+- Cambio: `POST /api/chat` agrega estrategia `DNI_VALIDATION_PROVIDER=capture`; ante indisponibilidad/no-configuracion externa, `VALIDAR_DNI` responde `DNI recibido` y continua precalificacion.
+- Tipo: non-breaking
+- Impacto: elimina friccion por dependencias externas de validacion DNI manteniendo el mismo contrato `{ response: "<texto>" }`.

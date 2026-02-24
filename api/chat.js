@@ -109,10 +109,21 @@ function inferLocaleFromMessage(body) {
 
 function resolveDniValidationProvider() {
   const normalized = trimText(process.env.DNI_VALIDATION_PROVIDER || "", 40).toLowerCase();
+  if (normalized === "capture" || normalized === "manual" || normalized === "none" || normalized === "off") {
+    return "capture";
+  }
   if (normalized === "api") return "api";
   if (normalized === "eldni") return "eldni";
   if (normalized === "reniec") return "reniec";
   return "auto";
+}
+
+function buildCapturedDniResult(dni) {
+  const normalizedDni = extractDni(dni);
+  if (!/^\d{8}$/.test(normalizedDni)) {
+    return { status: "invalid_format", valid: false, dni: "", fullName: "", provider: "capture" };
+  }
+  return { status: "captured", valid: true, dni: normalizedDni, fullName: "", provider: "capture" };
 }
 
 function decodeHtmlText(value) {
@@ -665,6 +676,7 @@ async function validateDniIdentity(dni) {
   }
 
   const provider = resolveDniValidationProvider();
+  if (provider === "capture") return buildCapturedDniResult(dni);
   if (provider === "api") return validateDniWithApi(dni);
   if (provider === "eldni") {
     return validateDniWithEldni(dni);
@@ -679,14 +691,26 @@ async function validateDniIdentity(dni) {
   if (eldniResult?.valid === true) return eldniResult;
   if (eldniResult?.status === "not_found" || eldniResult?.status === "invalid_format") return eldniResult;
 
-  if (apiResult?.status && apiResult.status !== "not_configured") return apiResult;
-  return eldniResult;
+  if (apiResult?.status === "not_found" || apiResult?.status === "invalid_format") return apiResult;
+  return buildCapturedDniResult(dni);
 }
 
 function buildDniValidationMessage(result, locale = "es") {
   const isEnglish = String(locale || "").toLowerCase().startsWith("en");
   const fullName = trimText(result?.fullName || "", 160);
   const provider = String(result?.provider || "eldni_public");
+  const normalizedDni = extractDni(result?.dni || "");
+
+  const buildCaptureMessage = () => {
+    if (isEnglish) {
+      return normalizedDni
+        ? `DNI received (${normalizedDni}). Continue qualification.`
+        : "DNI received. Continue qualification.";
+    }
+    return normalizedDni
+      ? `DNI recibido (${normalizedDni}). Continuemos con la precalificacion.`
+      : "DNI recibido. Continuemos con la precalificacion.";
+  };
 
   if (result?.status === "valid" && result?.valid) {
     const sourceLabel =
@@ -701,21 +725,26 @@ function buildDniValidationMessage(result, locale = "es") {
       : `Identidad validada con ${sourceLabel} para DNI ${result.dni}. Continuemos con la precalificacion.`;
   }
 
+  if (result?.status === "captured") {
+    return buildCaptureMessage();
+  }
+
   if (result?.status === "invalid_format") {
     return isEnglish
       ? "To continue, share a valid 8-digit DNI so I can verify it."
       : "Para continuar, comparte un DNI valido de 8 digitos para validarlo.";
   }
 
-  if (result?.status === "not_found") {
-    return isEnglish
-      ? "I could not validate that DNI in available sources. Please verify it and try again."
-      : "No pude validar ese DNI en las fuentes disponibles. Verificalo y vuelve a intentarlo.";
+  if (
+    result?.status === "not_found" ||
+    result?.status === "not_configured" ||
+    result?.status === "unavailable" ||
+    result?.status === "request_failed"
+  ) {
+    return buildCaptureMessage();
   }
 
-  return isEnglish
-    ? "I could not connect to the public DNI source right now. We can continue qualification and confirm identity manually before closing."
-    : "No pude conectar con la fuente publica de DNI en este momento. Podemos continuar la precalificacion y confirmar identidad manualmente antes del cierre.";
+  return buildCaptureMessage();
 }
 
 function replaceLegacyDniUnavailableMessage(responseText, locale = "es") {
