@@ -274,6 +274,7 @@ Base detectada:
   - `200`: `{ response: "<texto>", blocked: true }` (cierres de seguridad)
   - `200`: mensajes de estado negocio (trial vencido, AI deshabilitada, falta API key, error tecnico)
   - `200`: cuando el asistente emite comando de identidad (`[VALIDAR_DNI: ...]` o `{validar_dni: ...}`), el proxy local resuelve DNI segun estrategia (`api|eldni|auto|capture`) y responde al usuario con mensaje operacional (mismo shape `{ response: "<texto>" }`).
+  - `200`: si el asistente responde solo con comando DNI (sin texto), el proxy agrega una pregunta de continuidad de precalificacion para evitar que el flujo se quede detenido.
   - `400`: `{ error: "Message and widgetId are required" }`
   - `403`: `{ response: "<texto>", blocked: true }` (filtros/blocked IP)
   - `404`: `{ error: "Widget not found" }`
@@ -728,3 +729,7 @@ Cambios de comportamiento relevantes:
 - Cambio: `POST /api/chat` agrega estrategia `DNI_VALIDATION_PROVIDER=capture`; ante indisponibilidad/no-configuracion externa, `VALIDAR_DNI` responde `DNI recibido` y continua precalificacion.
 - Tipo: non-breaking
 - Impacto: elimina friccion por dependencias externas de validacion DNI manteniendo el mismo contrato `{ response: "<texto>" }`.
+- Fecha: 2026-02-24
+- Cambio: en `POST /api/chat`, cuando `VALIDAR_DNI` llega sin texto adicional del asistente, el proxy agrega una pregunta de continuidad de precalificacion.
+- Tipo: non-breaking
+- Impacto: evita que la conversacion se estanque tras capturar un DNI valido, sin cambiar el shape de respuesta.

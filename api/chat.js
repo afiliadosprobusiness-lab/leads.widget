@@ -747,6 +747,13 @@ function buildDniValidationMessage(result, locale = "es") {
   return buildCaptureMessage();
 }
 
+function buildDniContinuationPrompt(locale = "es") {
+  const isEnglish = String(locale || "").toLowerCase().startsWith("en");
+  return isEnglish
+    ? "To continue pre-qualification, tell me your main goal and your approximate budget."
+    : "Para continuar con la precalificacion, cuentame tu objetivo principal y tu presupuesto aproximado.";
+}
+
 function replaceLegacyDniUnavailableMessage(responseText, locale = "es") {
   const text = String(responseText || "");
   if (!text) return text;
@@ -788,7 +795,13 @@ async function applyDniValidationCommand(body, parsedPayload) {
   const cleanText = stripDniCommands(parsedPayload.response);
   const validationMessage = buildDniValidationMessage(validation, locale);
   const shouldKeepOriginalText = Boolean(cleanText);
-  const response = shouldKeepOriginalText ? `${cleanText}\n\n${validationMessage}` : validationMessage;
+  const shouldAppendContinuationPrompt = !shouldKeepOriginalText && validation?.valid === true;
+  const continuationPrompt = shouldAppendContinuationPrompt ? buildDniContinuationPrompt(locale) : "";
+  const response = shouldKeepOriginalText
+    ? `${cleanText}\n\n${validationMessage}`
+    : continuationPrompt
+      ? `${validationMessage}\n\n${continuationPrompt}`
+      : validationMessage;
 
   if (!validation?.valid && validation?.status && validation.status !== "not_found" && validation.status !== "invalid_format") {
     console.warn("chat-command: validar_dni non-valid status", {
