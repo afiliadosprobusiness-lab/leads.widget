@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Loader2, Mic, MicOff, Moon, PhoneCall, Send, ShieldCheck, Smile, Sun, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,114 @@ type Testimonial = {
   stars?: number;
   avatar_url?: string;
 };
+
+function HorizontalMediaStrip({ children, className = "" }: { children: ReactNode; className?: string }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || container.dataset.dragScrollInit === "1") return;
+    container.dataset.dragScrollInit = "1";
+
+    let pointerActive = false;
+    let pointerId: number | null = null;
+    let startX = 0;
+    let startY = 0;
+    let startScrollLeft = 0;
+    let moved = false;
+    let suppressClickUntil = 0;
+
+    const releasePointer = () => {
+      if (!pointerActive) return;
+      pointerActive = false;
+      if (moved) suppressClickUntil = Date.now() + 140;
+      moved = false;
+      if (pointerId !== null && container.releasePointerCapture) {
+        try {
+          container.releasePointerCapture(pointerId);
+        } catch {
+          // noop
+        }
+      }
+      pointerId = null;
+    };
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+      if (container.scrollWidth <= container.clientWidth) return;
+      pointerActive = true;
+      pointerId = event.pointerId;
+      startX = event.clientX;
+      startY = event.clientY;
+      startScrollLeft = container.scrollLeft;
+      moved = false;
+      if (container.setPointerCapture) {
+        try {
+          container.setPointerCapture(pointerId);
+        } catch {
+          // noop
+        }
+      }
+    };
+
+    const onPointerMove = (event: PointerEvent) => {
+      if (!pointerActive || event.pointerId !== pointerId) return;
+      const deltaX = event.clientX - startX;
+      const deltaY = event.clientY - startY;
+      const horizontalIntent = Math.abs(deltaX) > Math.abs(deltaY);
+      if (!moved && horizontalIntent && Math.abs(deltaX) > 8) moved = true;
+      if (moved) container.scrollLeft = startScrollLeft - deltaX;
+      if (moved) event.preventDefault();
+    };
+
+    const onPointerLeave = (event: PointerEvent) => {
+      if (!pointerActive || event.pointerType !== "mouse") return;
+      releasePointer();
+    };
+
+    const onWheel = (event: WheelEvent) => {
+      if (container.scrollWidth <= container.clientWidth) return;
+      const hasVerticalIntent = Math.abs(event.deltaY) > Math.abs(event.deltaX);
+      const delta = hasVerticalIntent ? event.deltaY : event.deltaX;
+      if (!delta) return;
+      container.scrollLeft += delta;
+      if (hasVerticalIntent) event.preventDefault();
+    };
+
+    const onClickCapture = (event: MouseEvent) => {
+      if (Date.now() > suppressClickUntil) return;
+      event.preventDefault();
+      event.stopPropagation();
+    };
+
+    container.addEventListener("pointerdown", onPointerDown);
+    container.addEventListener("pointermove", onPointerMove);
+    container.addEventListener("pointerup", releasePointer);
+    container.addEventListener("pointercancel", releasePointer);
+    container.addEventListener("pointerleave", onPointerLeave);
+    container.addEventListener("wheel", onWheel, { passive: false });
+    container.addEventListener("click", onClickCapture, true);
+
+    return () => {
+      container.removeEventListener("pointerdown", onPointerDown);
+      container.removeEventListener("pointermove", onPointerMove);
+      container.removeEventListener("pointerup", releasePointer);
+      container.removeEventListener("pointercancel", releasePointer);
+      container.removeEventListener("pointerleave", onPointerLeave);
+      container.removeEventListener("wheel", onWheel);
+      container.removeEventListener("click", onClickCapture, true);
+    };
+  }, []);
+
+  return (
+    <div
+      ref={containerRef}
+      className={`flex gap-2 overflow-x-auto scroll-smooth pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [scroll-snap-type:x_mandatory] [-webkit-overflow-scrolling:touch] [touch-action:pan-x] [&::-webkit-scrollbar]:hidden [user-select:none] cursor-grab active:cursor-grabbing ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
 
 type RealEstateProperty = {
   id: string;
@@ -2406,17 +2514,18 @@ export default function LeadChat() {
                           />
                         ) : null}
                         {bubbleImageUrls.length > 1 ? (
-                          <div className="mt-2 flex max-w-[280px] gap-2 overflow-x-auto scroll-smooth pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [scroll-snap-type:x_mandatory] [-webkit-overflow-scrolling:touch] [touch-action:pan-x] [&::-webkit-scrollbar]:hidden">
+                          <HorizontalMediaStrip className="mt-2 max-w-[280px]">
                             {bubbleImageUrls.map((imageUrl, imageIndex) => (
                               <img
                                 key={`${imageUrl}-${imageIndex}`}
                                 src={imageUrl}
                                 alt={`${msg.imageAlt || "Assistant image"} ${imageIndex + 1}`}
                                 loading="lazy"
+                                draggable={false}
                                 className="h-40 w-[240px] shrink-0 rounded-xl border border-white/10 object-cover [scroll-snap-align:start]"
                               />
                             ))}
-                          </div>
+                          </HorizontalMediaStrip>
                         ) : null}
                         {msg.audioUrl ? (
                           <PremiumAudioPlayer
@@ -2437,7 +2546,7 @@ export default function LeadChat() {
                           </video>
                         ) : null}
                         {bubbleVideoUrls.length > 1 ? (
-                          <div className="mt-2 flex max-w-[280px] gap-2 overflow-x-auto scroll-smooth pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [scroll-snap-type:x_mandatory] [-webkit-overflow-scrolling:touch] [touch-action:pan-x] [&::-webkit-scrollbar]:hidden">
+                          <HorizontalMediaStrip className="mt-2 max-w-[280px]">
                             {bubbleVideoUrls.map((videoUrl, videoIndex) => (
                               <video
                                 key={`${videoUrl}-${videoIndex}`}
@@ -2449,7 +2558,7 @@ export default function LeadChat() {
                                 <source src={videoUrl} />
                               </video>
                             ))}
-                          </div>
+                          </HorizontalMediaStrip>
                         ) : null}
                       </div>
                         );

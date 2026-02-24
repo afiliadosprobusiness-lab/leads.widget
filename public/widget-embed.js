@@ -3059,10 +3059,9 @@
       button.classList.remove('lw-vibrating-soft', 'lw-vibrating-strong');
     }
 
-    function initQuickRepliesScroll() {
-      if (!quickRepliesContainer || quickRepliesContainer.dataset.dragScrollInit === '1') return;
-      quickRepliesContainer.dataset.dragScrollInit = '1';
-
+    function initHorizontalDragScroll(element, datasetKey = 'dragScrollInit') {
+      if (!element || element.dataset[datasetKey] === '1') return;
+      element.dataset[datasetKey] = '1';
       let pointerActive = false;
       let pointerId = null;
       let startX = 0;
@@ -3076,61 +3075,74 @@
         pointerActive = false;
         if (moved) suppressClickUntil = Date.now() + 140;
         moved = false;
-        quickRepliesContainer.classList.remove('lw-dragging');
-        if (pointerId !== null && quickRepliesContainer.releasePointerCapture) {
-          try { quickRepliesContainer.releasePointerCapture(pointerId); } catch (_) {}
+        element.classList.remove('lw-dragging');
+        if (pointerId !== null && element.releasePointerCapture) {
+          try { element.releasePointerCapture(pointerId); } catch (_) {}
         }
         pointerId = null;
       };
 
-      quickRepliesContainer.addEventListener('pointerdown', (event) => {
+      element.addEventListener('pointerdown', (event) => {
         if (event.pointerType === 'mouse' && event.button !== 0) return;
-        if (quickRepliesContainer.scrollWidth <= quickRepliesContainer.clientWidth) return;
+        if (element.scrollWidth <= element.clientWidth) return;
 
         pointerActive = true;
         pointerId = event.pointerId;
         startX = event.clientX;
         startY = event.clientY;
-        startScrollLeft = quickRepliesContainer.scrollLeft;
+        startScrollLeft = element.scrollLeft;
         moved = false;
-        quickRepliesContainer.classList.add('lw-dragging');
+        element.classList.add('lw-dragging');
 
-        if (quickRepliesContainer.setPointerCapture) {
-          try { quickRepliesContainer.setPointerCapture(pointerId); } catch (_) {}
+        if (element.setPointerCapture) {
+          try { element.setPointerCapture(pointerId); } catch (_) {}
         }
       });
 
-      quickRepliesContainer.addEventListener('pointermove', (event) => {
+      element.addEventListener('pointermove', (event) => {
         if (!pointerActive || event.pointerId !== pointerId) return;
         const deltaX = event.clientX - startX;
         const deltaY = event.clientY - startY;
         const horizontalIntent = Math.abs(deltaX) > Math.abs(deltaY);
         if (!moved && horizontalIntent && Math.abs(deltaX) > 8) moved = true;
-        if (moved) quickRepliesContainer.scrollLeft = startScrollLeft - deltaX;
+        if (moved) element.scrollLeft = startScrollLeft - deltaX;
         if (moved) event.preventDefault();
       });
 
-      quickRepliesContainer.addEventListener('pointerup', releasePointer);
-      quickRepliesContainer.addEventListener('pointercancel', releasePointer);
-      quickRepliesContainer.addEventListener('pointerleave', (event) => {
+      element.addEventListener('pointerup', releasePointer);
+      element.addEventListener('pointercancel', releasePointer);
+      element.addEventListener('pointerleave', (event) => {
         if (!pointerActive || event.pointerType !== 'mouse') return;
         releasePointer();
       });
 
-      quickRepliesContainer.addEventListener('wheel', (event) => {
-        if (quickRepliesContainer.scrollWidth <= quickRepliesContainer.clientWidth) return;
+      element.addEventListener('wheel', (event) => {
+        if (element.scrollWidth <= element.clientWidth) return;
         const hasVerticalIntent = Math.abs(event.deltaY) > Math.abs(event.deltaX);
         const delta = hasVerticalIntent ? event.deltaY : event.deltaX;
         if (!delta) return;
-        quickRepliesContainer.scrollLeft += delta;
+        element.scrollLeft += delta;
         if (hasVerticalIntent) event.preventDefault();
       }, { passive: false });
 
-      quickRepliesContainer.addEventListener('click', (event) => {
+      element.addEventListener('click', (event) => {
         if (Date.now() > suppressClickUntil) return;
         event.preventDefault();
         event.stopPropagation();
       }, true);
+    }
+
+    function initQuickRepliesScroll() {
+      if (!quickRepliesContainer) return;
+      initHorizontalDragScroll(quickRepliesContainer, 'dragScrollInit');
+    }
+
+    function initMediaCarousels(container) {
+      if (!container) return;
+      const mediaCarousels = container.querySelectorAll('.lw-media-carousel');
+      mediaCarousels.forEach((node) => {
+        initHorizontalDragScroll(node, 'mediaDragInit');
+      });
     }
 
     function insertQuickReplyIntoComposer(value) {
@@ -3342,7 +3354,7 @@
           ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(m.imageAlt || 'Assistant image')}" loading="lazy" style="margin-top:8px;width:100%;max-width:260px;border-radius:12px;border:1px solid var(--lw-border);display:block;">`
           : '';
         const carouselImageMarkup = imageUrls.length > 1
-          ? `<div style="margin-top:8px;display:flex;gap:8px;overflow-x:auto;scroll-behavior:smooth;padding-bottom:4px;-ms-overflow-style:none;scrollbar-width:none;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;touch-action:pan-x;">${imageUrls
+          ? `<div class="lw-media-carousel" style="margin-top:8px;display:flex;gap:8px;overflow-x:auto;scroll-behavior:smooth;padding-bottom:4px;-ms-overflow-style:none;scrollbar-width:none;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;touch-action:pan-x;user-select:none;cursor:grab;">${imageUrls
             .map((url, idx) => `<img src="${escapeHtml(url)}" alt="${escapeHtml((m.imageAlt || 'Assistant image') + ` ${idx + 1}`)}" loading="lazy" style="height:150px;width:230px;flex:0 0 auto;scroll-snap-align:start;border-radius:12px;border:1px solid var(--lw-border);object-fit:cover;">`)
             .join('')}</div>`
           : '';
@@ -3353,7 +3365,7 @@
           ? `<video controls preload="metadata" playsinline style="margin-top:8px;width:100%;max-width:260px;border-radius:12px;border:1px solid var(--lw-border);display:block;background:rgba(2,6,23,0.82);"><source src="${escapeHtml(videoUrl)}"></video>`
           : '';
         const carouselVideoMarkup = videoUrls.length > 1
-          ? `<div style="margin-top:8px;display:flex;gap:8px;overflow-x:auto;scroll-behavior:smooth;padding-bottom:4px;-ms-overflow-style:none;scrollbar-width:none;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;touch-action:pan-x;">${videoUrls
+          ? `<div class="lw-media-carousel" style="margin-top:8px;display:flex;gap:8px;overflow-x:auto;scroll-behavior:smooth;padding-bottom:4px;-ms-overflow-style:none;scrollbar-width:none;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;touch-action:pan-x;user-select:none;cursor:grab;">${videoUrls
             .map((url) => `<video controls preload="metadata" playsinline style="height:150px;width:230px;flex:0 0 auto;scroll-snap-align:start;border-radius:12px;border:1px solid var(--lw-border);display:block;background:rgba(2,6,23,0.82);"><source src="${escapeHtml(url)}"></video>`)
             .join('')}</div>`
           : '';
@@ -3371,6 +3383,7 @@
       }
 
       messagesContainer.innerHTML = html;
+      initMediaCarousels(messagesContainer);
       messagesContainer.querySelectorAll('.lw-system-action-btn').forEach((btn) => {
         btn.addEventListener('click', () => {
           const url = String(btn.getAttribute('data-action-url') || '').trim();

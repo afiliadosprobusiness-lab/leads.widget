@@ -567,6 +567,7 @@ Comportamientos actuales que clientes ya consumen:
 - En plantilla `inmobiliaria`, Lead Chat y widget embebido pueden recibir directiva de catalogo para seleccionar multimedia de propiedades via comandos `[IMAGE: ...]` y `[VIDEO: ...]` usando URLs existentes del cliente.
 - En comandos multimedia (`[IMAGE: ...]`, `[VIDEO: ...]`), el parser soporta multiples URLs dentro del mismo comando (pipe/CSV/saltos de linea/JSON array) y renderiza carrusel cuando corresponde.
 - En plantilla `inmobiliaria`, cuando el texto del asistente identifica una propiedad del catalogo, el cliente puede completar media faltante de esa propiedad para mostrar carrusel completo aunque la IA haya enviado solo una URL.
+- Los carruseles multimedia renderizados por cliente soportan desplazamiento horizontal por drag/touch y rueda del mouse para garantizar navegacion de multiples piezas de media.
 
 
 ## Extensiones Partner Program (2026-02-16)
@@ -743,3 +744,7 @@ Cambios de comportamiento relevantes:
 - Cambio: en plantilla `inmobiliaria`, Lead Chat/widget embebido completan automaticamente media faltante de la propiedad mencionada (imagenes/videos del catalogo) cuando la IA devuelve una parte del set.
 - Tipo: non-breaking
 - Impacto: asegura carrusel completo por propiedad en respuestas inmobiliarias sin cambiar shape de payload.
+- Fecha: 2026-02-24
+- Cambio: carruseles multimedia de Lead Chat/widget embebido agregan soporte de drag/touch y rueda para scroll horizontal de imagenes/videos.
+- Tipo: non-breaking
+- Impacto: mejora navegacion de media multiple en desktop/mobile sin cambios de contrato API.
