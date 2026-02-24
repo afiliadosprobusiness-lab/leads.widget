@@ -750,8 +750,8 @@ function buildDniValidationMessage(result, locale = "es") {
 function buildDniContinuationPrompt(locale = "es") {
   const isEnglish = String(locale || "").toLowerCase().startsWith("en");
   return isEnglish
-    ? "To continue pre-qualification, tell me your main goal and your approximate budget."
-    : "Para continuar con la precalificacion, cuentame tu objetivo principal y tu presupuesto aproximado.";
+    ? "Great. Now share your full name and your estimated budget for the down payment to continue pre-qualification."
+    : "Perfecto. Ahora comparte tu nombre completo y tu presupuesto estimado para la cuota inicial para continuar con la precalificacion.";
 }
 
 function replaceLegacyDniUnavailableMessage(responseText, locale = "es") {
