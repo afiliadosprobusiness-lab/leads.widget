@@ -488,9 +488,34 @@ function buildDniValidationMessage(result, locale = "es") {
     : "No pude conectar con la fuente publica de DNI en este momento. Podemos continuar la precalificacion y confirmar identidad manualmente antes del cierre.";
 }
 
+function replaceLegacyDniUnavailableMessage(responseText, locale = "es") {
+  const text = String(responseText || "");
+  if (!text) return text;
+  const legacyEs = "La validacion de DNI no esta disponible temporalmente. Intenta nuevamente en unos minutos.";
+  const legacyEn = "DNI validation is temporarily unavailable. Please try again in a moment.";
+  if (!text.includes(legacyEs) && !text.includes(legacyEn)) return text;
+
+  const fallback = buildDniValidationMessage({ status: "unavailable", valid: false }, locale);
+  return text.replace(legacyEs, fallback).replace(legacyEn, fallback);
+}
+
 async function applyDniValidationCommand(body, parsedPayload) {
   if (!parsedPayload || typeof parsedPayload !== "object" || typeof parsedPayload.response !== "string") {
     return { payload: parsedPayload, overrideFlags: null };
+  }
+
+  const locale = inferLocaleFromMessage(body);
+  const normalizedLegacy = replaceLegacyDniUnavailableMessage(parsedPayload.response, locale);
+  if (normalizedLegacy !== parsedPayload.response) {
+    return {
+      payload: {
+        ...parsedPayload,
+        response: normalizedLegacy,
+      },
+      overrideFlags: {
+        dni_validation: true,
+      },
+    };
   }
 
   const command = extractDniCommand(parsedPayload.response);
@@ -501,7 +526,6 @@ async function applyDniValidationCommand(body, parsedPayload) {
   const fallbackDni = extractDni(body?.message || "");
   const dni = command.dni || fallbackDni;
   const validation = await validateDniIdentity(dni);
-  const locale = inferLocaleFromMessage(body);
   const cleanText = stripDniCommands(parsedPayload.response);
   const validationMessage = buildDniValidationMessage(validation, locale);
   const shouldKeepOriginalText = Boolean(cleanText);
