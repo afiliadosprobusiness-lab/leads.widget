@@ -53,6 +53,21 @@ describe("chatCommands parser", () => {
     expect(parsed.images[0]?.url).toContain("/image/upload/f_auto,q_auto:good,c_limit,w_960/v1771596718/");
   });
 
+  it("parses multiple images and videos from a single command payload", () => {
+    const parsed = parseChatResponseCommands(
+      `Catalogo:
+      [IMAGE: https://cdn.example.com/dpto-1.jpg|Sala principal, https://cdn.example.com/dpto-2.jpg|Dormitorio]
+      [VIDEO: https://cdn.example.com/tour-1.mp4, https://cdn.example.com/tour-2.mp4]`,
+    );
+
+    expect(parsed.images).toHaveLength(2);
+    expect(parsed.images[0]?.url).toBe("https://cdn.example.com/dpto-1.jpg");
+    expect(parsed.images[1]?.url).toBe("https://cdn.example.com/dpto-2.jpg");
+    expect(parsed.videos).toHaveLength(2);
+    expect(parsed.videos[0]?.url).toBe("https://cdn.example.com/tour-1.mp4");
+    expect(parsed.videos[1]?.url).toBe("https://cdn.example.com/tour-2.mp4");
+  });
+
   it("removes validar_dni token in braces format from clean text", () => {
     const parsed = parseChatResponseCommands("Validando identidad... {validar_dni: 12345678}");
     expect(parsed.cleanText).toBe("Validando identidad...");

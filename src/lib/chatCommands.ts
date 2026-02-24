@@ -52,6 +52,42 @@ function stripQuotes(value: string) {
   return value.replace(/^["']|["']$/g, "").trim();
 }
 
+function splitMediaPayloadSegments(payload: string) {
+  return String(payload || "")
+    .split(/\r?\n+|,(?=\s*https?:\/\/)|;(?=\s*https?:\/\/)/gi)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function extractHttpUrlsFromText(
+  input: string,
+  sanitizer: (value: string) => string,
+) {
+  const text = String(input || "");
+  if (!text) return [] as string[];
+  const urlRegex = /https?:\/\/[^\s<>"'`)\]}]+/gi;
+  const urls: string[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = urlRegex.exec(text)) !== null) {
+    const rawCandidate = String(match[0] || "").replace(/[.,;!?]+$/g, "");
+    const safeUrl = sanitizer(rawCandidate);
+    if (safeUrl) urls.push(safeUrl);
+  }
+  return urls;
+}
+
+function dedupeByUrl<T extends { url: string }>(entries: T[]) {
+  const seen = new Set<string>();
+  const output: T[] = [];
+  for (const item of entries) {
+    const url = String(item?.url || "");
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    output.push(item);
+  }
+  return output;
+}
+
 export function optimizeImageDeliveryUrl(rawUrl: string) {
   const safeUrl = sanitizeHttpUrl(rawUrl);
   if (!safeUrl) return "";
@@ -80,39 +116,119 @@ export function optimizeImageDeliveryUrl(rawUrl: string) {
   }
 }
 
-function parseImagePayload(rawPayload: string) {
+function parseImagePayloads(rawPayload: string) {
   const payload = stripQuotes(rawPayload || "");
-  if (!payload) return { url: "", alt: "" };
+  if (!payload) return [] as Array<{ url: string; alt: string }>;
+  const parsedItems: Array<{ url: string; alt: string }> = [];
 
   try {
     const asJson = JSON.parse(payload);
-    if (asJson && typeof asJson === "object") {
-      const candidateUrl =
-        typeof (asJson as { url?: string }).url === "string"
-          ? (asJson as { url: string }).url
-          : typeof (asJson as { image?: string }).image === "string"
-            ? (asJson as { image: string }).image
-            : "";
-      const candidateAlt =
-        typeof (asJson as { alt?: string }).alt === "string"
-          ? (asJson as { alt: string }).alt
-          : typeof (asJson as { caption?: string }).caption === "string"
-            ? (asJson as { caption: string }).caption
-            : "";
-      return {
-        url: optimizeImageDeliveryUrl(candidateUrl),
+    const pushEntry = (candidateUrl: string, candidateAlt = "") => {
+      const safeUrl = optimizeImageDeliveryUrl(candidateUrl);
+      if (!safeUrl) return;
+      parsedItems.push({
+        url: safeUrl,
         alt: cleanText(candidateAlt),
-      };
+      });
+    };
+
+    const appendFromObject = (value: Record<string, unknown>) => {
+      pushEntry(
+        typeof value.url === "string"
+          ? value.url
+          : typeof value.image === "string"
+            ? value.image
+            : typeof value.src === "string"
+              ? value.src
+              : "",
+        typeof value.alt === "string"
+          ? value.alt
+          : typeof value.caption === "string"
+            ? value.caption
+            : typeof value.title === "string"
+              ? value.title
+              : "",
+      );
+
+      const listCandidates = [value.images, value.image_urls, value.urls, value.photos];
+      for (const candidate of listCandidates) {
+        if (!Array.isArray(candidate)) continue;
+        for (const item of candidate) {
+          if (typeof item === "string") {
+            pushEntry(item, "");
+            continue;
+          }
+          if (item && typeof item === "object") {
+            const obj = item as Record<string, unknown>;
+            pushEntry(
+              typeof obj.url === "string"
+                ? obj.url
+                : typeof obj.image === "string"
+                  ? obj.image
+                  : typeof obj.src === "string"
+                    ? obj.src
+                    : "",
+              typeof obj.alt === "string"
+                ? obj.alt
+                : typeof obj.caption === "string"
+                  ? obj.caption
+                  : typeof obj.title === "string"
+                    ? obj.title
+                    : "",
+            );
+          }
+        }
+      }
+    };
+
+    if (Array.isArray(asJson)) {
+      for (const item of asJson) {
+        if (typeof item === "string") {
+          pushEntry(item, "");
+          continue;
+        }
+        if (item && typeof item === "object") {
+          appendFromObject(item as Record<string, unknown>);
+        }
+      }
+      return dedupeByUrl(parsedItems);
+    }
+
+    if (asJson && typeof asJson === "object") {
+      appendFromObject(asJson as Record<string, unknown>);
+      return dedupeByUrl(parsedItems);
     }
   } catch {
     // noop
   }
 
-  const [rawUrl, ...altParts] = payload.split("|");
-  return {
-    url: optimizeImageDeliveryUrl(rawUrl || ""),
-    alt: cleanText(altParts.join("|")),
-  };
+  const segments = splitMediaPayloadSegments(payload);
+  for (const segment of segments) {
+    const [rawUrl, ...altParts] = segment.split("|");
+    const safeUrl = optimizeImageDeliveryUrl(rawUrl || "");
+    if (safeUrl) {
+      parsedItems.push({
+        url: safeUrl,
+        alt: cleanText(altParts.join("|")),
+      });
+      continue;
+    }
+    const extracted = extractHttpUrlsFromText(segment, optimizeImageDeliveryUrl);
+    for (const item of extracted) {
+      parsedItems.push({ url: item, alt: "" });
+    }
+  }
+
+  if (parsedItems.length > 0) {
+    return dedupeByUrl(parsedItems);
+  }
+
+  return dedupeByUrl(
+    extractHttpUrlsFromText(payload, optimizeImageDeliveryUrl).map((url) => ({
+      url,
+      alt: "",
+    })),
+  );
 }
 
 function parseAudioPayload(rawPayload: string) {
@@ -141,30 +257,93 @@ function parseAudioPayload(rawPayload: string) {
   };
 }
 
-function parseVideoPayload(rawPayload: string) {
+function parseVideoPayloads(rawPayload: string) {
   const payload = stripQuotes(rawPayload || "");
-  if (!payload) return { url: "" };
+  if (!payload) return [] as Array<{ url: string }>;
+  const parsedItems: Array<{ url: string }> = [];
 
   try {
     const asJson = JSON.parse(payload);
+    const pushEntry = (candidateUrl: string) => {
+      const safeUrl = sanitizeHttpUrl(candidateUrl);
+      if (!safeUrl) return;
+      parsedItems.push({ url: safeUrl });
+    };
+
+    const appendFromObject = (value: Record<string, unknown>) => {
+      pushEntry(
+        typeof value.url === "string"
+          ? value.url
+          : typeof value.video === "string"
+            ? value.video
+            : typeof value.src === "string"
+              ? value.src
+              : "",
+      );
+
+      const listCandidates = [value.videos, value.video_urls, value.urls, value.clips];
+      for (const candidate of listCandidates) {
+        if (!Array.isArray(candidate)) continue;
+        for (const item of candidate) {
+          if (typeof item === "string") {
+            pushEntry(item);
+            continue;
+          }
+          if (item && typeof item === "object") {
+            const obj = item as Record<string, unknown>;
+            pushEntry(
+              typeof obj.url === "string"
+                ? obj.url
+                : typeof obj.video === "string"
+                  ? obj.video
+                  : typeof obj.src === "string"
+                    ? obj.src
+                    : "",
+            );
+          }
+        }
+      }
+    };
+
+    if (Array.isArray(asJson)) {
+      for (const item of asJson) {
+        if (typeof item === "string") {
+          pushEntry(item);
+          continue;
+        }
+        if (item && typeof item === "object") {
+          appendFromObject(item as Record<string, unknown>);
+        }
+      }
+      return dedupeByUrl(parsedItems);
+    }
+
     if (asJson && typeof asJson === "object") {
-      const candidateUrl =
-        typeof (asJson as { url?: string }).url === "string"
-          ? (asJson as { url: string }).url
-          : typeof (asJson as { video?: string }).video === "string"
-            ? (asJson as { video: string }).video
-            : "";
-      return {
-        url: sanitizeHttpUrl(candidateUrl),
-      };
+      appendFromObject(asJson as Record<string, unknown>);
+      return dedupeByUrl(parsedItems);
     }
   } catch {
     // noop
   }
 
-  return {
-    url: sanitizeHttpUrl(payload),
-  };
+  const segments = splitMediaPayloadSegments(payload);
+  for (const segment of segments) {
+    const safeUrl = sanitizeHttpUrl(segment);
+    if (safeUrl) {
+      parsedItems.push({ url: safeUrl });
+      continue;
+    }
+    const extracted = extractHttpUrlsFromText(segment, sanitizeHttpUrl);
+    for (const item of extracted) {
+      parsedItems.push({ url: item });
+    }
+  }
+
+  if (parsedItems.length > 0) {
+    return dedupeByUrl(parsedItems);
+  }
+
+  return dedupeByUrl(extractHttpUrlsFromText(payload, sanitizeHttpUrl).map((url) => ({ url })));
 }
 
 export function sanitizeHttpUrl(value: string, maxLength = 500) {
@@ -254,14 +433,14 @@ export function parseChatResponseCommands(
 
   IMAGE_COMMAND_RE.lastIndex = 0;
   while ((match = IMAGE_COMMAND_RE.exec(raw)) !== null) {
-    const parsedImage = parseImagePayload(match[1] || "");
-    if (parsedImage.url) {
+    const parsedImages = parseImagePayloads(match[1] || "");
+    parsedImages.forEach((parsedImage, localIndex) => {
       output.images.push({
         url: parsedImage.url,
         alt: parsedImage.alt,
-        index: match.index,
+        index: match.index + localIndex / 1000,
       });
-    }
+    });
   }
 
   MARKDOWN_IMAGE_RE.lastIndex = 0;
@@ -289,13 +468,13 @@ export function parseChatResponseCommands(
 
   VIDEO_COMMAND_RE.lastIndex = 0;
   while ((match = VIDEO_COMMAND_RE.exec(raw)) !== null) {
-    const parsedVideo = parseVideoPayload(match[1] || "");
-    if (parsedVideo.url) {
+    const parsedVideos = parseVideoPayloads(match[1] || "");
+    parsedVideos.forEach((parsedVideo, localIndex) => {
       output.videos.push({
         url: parsedVideo.url,
-        index: match.index,
+        index: match.index + localIndex / 1000,
       });
-    }
+    });
   }
 
   output.images.sort((a, b) => a.index - b.index);

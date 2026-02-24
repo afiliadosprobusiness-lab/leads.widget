@@ -447,6 +447,39 @@
     return String(value || '').trim().replace(/^["']|["']$/g, '').trim();
   }
 
+  function splitMediaPayloadSegments(payload) {
+    return String(payload || '')
+      .split(/\r?\n+|,(?=\s*https?:\/\/)|;(?=\s*https?:\/\/)/ig)
+      .map((item) => String(item || '').trim())
+      .filter(Boolean);
+  }
+
+  function extractHttpUrlsFromText(input, sanitizer) {
+    const text = String(input || '');
+    if (!text) return [];
+    const urlRegex = /https?:\/\/[^\s<>"'`)\]}]+/ig;
+    const urls = [];
+    let match;
+    while ((match = urlRegex.exec(text)) !== null) {
+      const rawCandidate = String(match[0] || '').replace(/[.,;!?]+$/g, '');
+      const safeUrl = sanitizer(rawCandidate);
+      if (safeUrl) urls.push(safeUrl);
+    }
+    return urls;
+  }
+
+  function dedupeByUrl(items) {
+    const seen = new Set();
+    const output = [];
+    (Array.isArray(items) ? items : []).forEach((entry) => {
+      const safeUrl = String(entry && entry.url ? entry.url : '');
+      if (!safeUrl || seen.has(safeUrl)) return;
+      seen.add(safeUrl);
+      output.push(entry);
+    });
+    return output;
+  }
+
   function buildWhatsAppRedirectUrl(destination, message) {
     const cleanDestination = String(destination || '').replace(/\D/g, '');
     if (!cleanDestination) return '';
@@ -571,33 +604,103 @@
     }
   }
 
-  function parseImagePayload(rawPayload) {
+  function parseImagePayloads(rawPayload) {
     const payload = stripCommandQuotes(rawPayload || '');
-    if (!payload) return { url: '', alt: '' };
+    if (!payload) return [];
+    const parsedItems = [];
 
     try {
       const asJson = JSON.parse(payload);
-      if (asJson && typeof asJson === 'object') {
-        const candidateUrl = typeof asJson.url === 'string'
-          ? asJson.url
-          : (typeof asJson.image === 'string' ? asJson.image : '');
-        const candidateAlt = typeof asJson.alt === 'string'
-          ? asJson.alt
-          : (typeof asJson.caption === 'string' ? asJson.caption : '');
-        return {
-          url: optimizeCloudinaryImageUrl(candidateUrl),
+      const pushEntry = (candidateUrl, candidateAlt = '') => {
+        const safeUrl = optimizeCloudinaryImageUrl(candidateUrl);
+        if (!safeUrl) return;
+        parsedItems.push({
+          url: safeUrl,
           alt: String(candidateAlt || '').trim()
-        };
+        });
+      };
+
+      const appendFromObject = (value) => {
+        if (!value || typeof value !== 'object') return;
+        pushEntry(
+          typeof value.url === 'string'
+            ? value.url
+            : (typeof value.image === 'string'
+              ? value.image
+              : (typeof value.src === 'string' ? value.src : '')),
+          typeof value.alt === 'string'
+            ? value.alt
+            : (typeof value.caption === 'string'
+              ? value.caption
+              : (typeof value.title === 'string' ? value.title : ''))
+        );
+
+        [value.images, value.image_urls, value.urls, value.photos].forEach((listCandidate) => {
+          if (!Array.isArray(listCandidate)) return;
+          listCandidate.forEach((item) => {
+            if (typeof item === 'string') {
+              pushEntry(item, '');
+              return;
+            }
+            if (item && typeof item === 'object') {
+              pushEntry(
+                typeof item.url === 'string'
+                  ? item.url
+                  : (typeof item.image === 'string'
+                    ? item.image
+                    : (typeof item.src === 'string' ? item.src : '')),
+                typeof item.alt === 'string'
+                  ? item.alt
+                  : (typeof item.caption === 'string'
+                    ? item.caption
+                    : (typeof item.title === 'string' ? item.title : ''))
+              );
+            }
+          });
+        });
+      };
+
+      if (Array.isArray(asJson)) {
+        asJson.forEach((item) => {
+          if (typeof item === 'string') {
+            pushEntry(item, '');
+            return;
+          }
+          if (item && typeof item === 'object') {
+            appendFromObject(item);
+          }
+        });
+        return dedupeByUrl(parsedItems);
+      }
+
+      if (asJson && typeof asJson === 'object') {
+        appendFromObject(asJson);
+        return dedupeByUrl(parsedItems);
       }
     } catch (_) {
       // noop
     }
 
-    const [rawUrl, ...altParts] = payload.split('|');
-    return {
-      url: optimizeCloudinaryImageUrl(rawUrl || ''),
-      alt: altParts.join('|').trim()
-    };
+    const segments = splitMediaPayloadSegments(payload);
+    segments.forEach((segment) => {
+      const [rawUrl, ...altParts] = String(segment || '').split('|');
+      const safeUrl = optimizeCloudinaryImageUrl(rawUrl || '');
+      if (safeUrl) {
+        parsedItems.push({
+          url: safeUrl,
+          alt: altParts.join('|').trim()
+        });
+        return;
+      }
+      extractHttpUrlsFromText(segment, optimizeCloudinaryImageUrl).forEach((url) => {
+        parsedItems.push({ url, alt: '' });
+      });
+    });
+
+    if (parsedItems.length > 0) return dedupeByUrl(parsedItems);
+    return dedupeByUrl(
+      extractHttpUrlsFromText(payload, optimizeCloudinaryImageUrl).map((url) => ({ url, alt: '' }))
+    );
   }
 
   function parseAudioPayload(rawPayload) {
@@ -623,27 +726,84 @@
     };
   }
 
-  function parseVideoPayload(rawPayload) {
+  function parseVideoPayloads(rawPayload) {
     const payload = stripCommandQuotes(rawPayload || '');
-    if (!payload) return { url: '' };
+    if (!payload) return [];
+    const parsedItems = [];
 
     try {
       const asJson = JSON.parse(payload);
+      const pushEntry = (candidateUrl) => {
+        const safeUrl = sanitizeHttpUrl(candidateUrl);
+        if (!safeUrl) return;
+        parsedItems.push({ url: safeUrl });
+      };
+
+      const appendFromObject = (value) => {
+        if (!value || typeof value !== 'object') return;
+        pushEntry(
+          typeof value.url === 'string'
+            ? value.url
+            : (typeof value.video === 'string'
+              ? value.video
+              : (typeof value.src === 'string' ? value.src : ''))
+        );
+
+        [value.videos, value.video_urls, value.urls, value.clips].forEach((listCandidate) => {
+          if (!Array.isArray(listCandidate)) return;
+          listCandidate.forEach((item) => {
+            if (typeof item === 'string') {
+              pushEntry(item);
+              return;
+            }
+            if (item && typeof item === 'object') {
+              pushEntry(
+                typeof item.url === 'string'
+                  ? item.url
+                  : (typeof item.video === 'string'
+                    ? item.video
+                    : (typeof item.src === 'string' ? item.src : ''))
+              );
+            }
+          });
+        });
+      };
+
+      if (Array.isArray(asJson)) {
+        asJson.forEach((item) => {
+          if (typeof item === 'string') {
+            pushEntry(item);
+            return;
+          }
+          if (item && typeof item === 'object') {
+            appendFromObject(item);
+          }
+        });
+        return dedupeByUrl(parsedItems);
+      }
+
       if (asJson && typeof asJson === 'object') {
-        const candidateUrl = typeof asJson.url === 'string'
-          ? asJson.url
-          : (typeof asJson.video === 'string' ? asJson.video : '');
-        return {
-          url: sanitizeHttpUrl(candidateUrl)
-        };
+        appendFromObject(asJson);
+        return dedupeByUrl(parsedItems);
       }
     } catch (_) {
       // noop
     }
 
-    return {
-      url: sanitizeHttpUrl(payload)
-    };
+    const segments = splitMediaPayloadSegments(payload);
+    segments.forEach((segment) => {
+      const safeUrl = sanitizeHttpUrl(segment);
+      if (safeUrl) {
+        parsedItems.push({ url: safeUrl });
+        return;
+      }
+      extractHttpUrlsFromText(segment, sanitizeHttpUrl).forEach((url) => {
+        parsedItems.push({ url });
+      });
+    });
+
+    if (parsedItems.length > 0) return dedupeByUrl(parsedItems);
+    return dedupeByUrl(extractHttpUrlsFromText(payload, sanitizeHttpUrl).map((url) => ({ url })));
   }
 
   function parseChatCommands(responseText) {
@@ -692,14 +852,14 @@
     }
 
     while ((match = imageCommandRe.exec(raw)) !== null) {
-      const parsedImage = parseImagePayload(match[1] || '');
-      if (parsedImage.url) {
+      const parsedImages = parseImagePayloads(match[1] || '');
+      parsedImages.forEach((parsedImage, localIndex) => {
         parsed.images.push({
           url: parsedImage.url,
           alt: parsedImage.alt,
-          index: match.index
+          index: match.index + (localIndex / 1000)
         });
-      }
+      });
     }
 
     while ((match = markdownImageRe.exec(raw)) !== null) {
@@ -724,13 +884,13 @@
     }
 
     while ((match = videoCommandRe.exec(raw)) !== null) {
-      const parsedVideo = parseVideoPayload(match[1] || '');
-      if (parsedVideo.url) {
+      const parsedVideos = parseVideoPayloads(match[1] || '');
+      parsedVideos.forEach((parsedVideo, localIndex) => {
         parsed.videos.push({
           url: parsedVideo.url,
-          index: match.index
+          index: match.index + (localIndex / 1000)
         });
-      }
+      });
     }
 
     parsed.images.sort((a, b) => a.index - b.index);

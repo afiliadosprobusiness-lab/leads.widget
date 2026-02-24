@@ -565,6 +565,7 @@ Comportamientos actuales que clientes ya consumen:
 - CORS acepta `GET,POST,OPTIONS` y header `Authorization`.
 - En Plan PLUS, `branding_link` permite redireccion configurable del texto de marca; si falta o es invalido se usa `/crear-ahora?ref=<clientId>`.
 - En plantilla `inmobiliaria`, Lead Chat y widget embebido pueden recibir directiva de catalogo para seleccionar multimedia de propiedades via comandos `[IMAGE: ...]` y `[VIDEO: ...]` usando URLs existentes del cliente.
+- En comandos multimedia (`[IMAGE: ...]`, `[VIDEO: ...]`), el parser soporta multiples URLs dentro del mismo comando (pipe/CSV/saltos de linea/JSON array) y renderiza carrusel cuando corresponde.
 
 
 ## Extensiones Partner Program (2026-02-16)
@@ -733,3 +734,7 @@ Cambios de comportamiento relevantes:
 - Cambio: en `POST /api/chat`, cuando `VALIDAR_DNI` llega sin texto adicional del asistente, el proxy consulta internamente al asistente y agrega el siguiente paso de precalificacion segun el prompt configurado.
 - Tipo: non-breaking
 - Impacto: evita que la conversacion se estanque tras capturar un DNI valido y mantiene alineado el flujo con la secuencia definida en prompts del cliente.
+- Fecha: 2026-02-24
+- Cambio: parser multimedia en Lead Chat/widget embebido/SalesWidget acepta multiples URLs de imagen/video dentro de un mismo comando y mantiene render en carrusel.
+- Tipo: non-breaking
+- Impacto: evita perdida de media cuando la IA responde varias URLs en un solo bloque `[IMAGE]` o `[VIDEO]`.
