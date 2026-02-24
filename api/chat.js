@@ -233,9 +233,14 @@ function parseReniecIdentity(payload, inputDni) {
   );
   const fullName = trimText(
     root.nombreCompleto ||
+      root.nombre_completo ||
       root.fullName ||
       root.full_name ||
-      [root.nombres || root.names || "", root.apellidoPaterno || root.firstLastName || "", root.apellidoMaterno || root.secondLastName || ""]
+      [
+        root.nombres || root.names || "",
+        root.apellidoPaterno || root.apellido_paterno || root.firstLastName || root.first_last_name || "",
+        root.apellidoMaterno || root.apellido_materno || root.secondLastName || root.second_last_name || "",
+      ]
         .join(" ")
         .replace(/\s+/g, " ")
         .trim(),
