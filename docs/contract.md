@@ -273,7 +273,7 @@ Base detectada:
   - `200`: `{ response: "<texto>" }`
   - `200`: `{ response: "<texto>", blocked: true }` (cierres de seguridad)
   - `200`: mensajes de estado negocio (trial vencido, AI deshabilitada, falta API key, error tecnico)
-  - `200`: cuando el asistente emite comando de identidad (`[VALIDAR_DNI: ...]` o `{validar_dni: ...}`), el proxy local valida DNI server-side usando ELDNI y responde al usuario con el resultado de validacion (mismo shape `{ response: "<texto>" }`).
+  - `200`: cuando el asistente emite comando de identidad (`[VALIDAR_DNI: ...]` o `{validar_dni: ...}`), el proxy local valida DNI server-side (API externa y/o ELDNI segun configuracion) y responde al usuario con el resultado de validacion (mismo shape `{ response: "<texto>" }`).
   - `400`: `{ error: "Message and widgetId are required" }`
   - `403`: `{ response: "<texto>", blocked: true }` (filtros/blocked IP)
   - `404`: `{ error: "Widget not found" }`
@@ -423,7 +423,7 @@ Asuncion:
 - En produccion, las funciones locales en `api/*.js` se resuelven primero; rutas `/api/*` sin archivo local caen al backend externo via fallback.
 - CRM v2 vive en funciones locales `api/crm/*` y no depende del backend externo para operaciones de deals/tasks/timeline/dedupe.
 - El proxy local de `POST /api/chat` ademas persiste trazas resumidas de cada intercambio en `ai_chat_logs` para consola de debugging en Dashboard (sin cambiar el contrato de respuesta hacia el cliente).
-- El proxy local de `POST /api/chat` ejecuta validacion de identidad para comando `VALIDAR_DNI` usando solo ELDNI (`ELDNI_FORM_URL`, `ELDNI_TIMEOUT_MS`); `DNI_VALIDATION_PROVIDER` se mantiene por compatibilidad pero runtime fuerza fuente ELDNI.
+- El proxy local de `POST /api/chat` ejecuta validacion de identidad para comando `VALIDAR_DNI` con estrategia configurable (`DNI_VALIDATION_PROVIDER=auto|api|eldni`), soportando API externa (`DNI_API_*`) y fallback por formulario publico ELDNI (`ELDNI_FORM_URL`, `ELDNI_TIMEOUT_MS`).
 - `POST /api/analyze-conversation` requiere `Authorization: Bearer <Firebase ID token>` del usuario dashboard; usa `profiles.ai_api_key` (o fallback `widget_configs.ai_api_key` del mismo owner) para ejecutar analisis OpenAI. Si no hay key configurada, responde analisis heuristico (`provider: heuristic_no_client_key`).
 - `POST /api/generate-prompt` requiere `Authorization: Bearer <Firebase ID token>` del usuario dashboard; usa `profiles.ai_api_key` (o fallback `widget_configs.ai_api_key`) para generar texto de prompt via OpenAI y devuelve `creditsConsumed: true`.
 - `GET|PUT /api/meta-capi-config` requiere `Authorization: Bearer <Firebase ID token>`; persiste IDs de Meta y token cifrado en `meta_capi_configs` (no en `widget_configs` publico).
@@ -720,3 +720,7 @@ Cambios de comportamiento relevantes:
 - Cambio: en `POST /api/chat`, cuando la validacion DNI por ELDNI no esta disponible, la respuesta pasa a modo continuidad (no bloqueante) en lugar de error temporal duro.
 - Tipo: non-breaking
 - Impacto: evita friccion en cierre comercial cuando la fuente publica de DNI presenta intermitencia.
+- Fecha: 2026-02-24
+- Cambio: `POST /api/chat` incorpora soporte de validacion DNI por API externa (`DNI_API_*`) con prioridad en modo `auto`, manteniendo fallback ELDNI y reintentos robustos.
+- Tipo: non-breaking
+- Impacto: mejora confiabilidad de validacion DNI en produccion sin cambiar el shape de respuesta del chat.

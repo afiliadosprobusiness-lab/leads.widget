@@ -108,8 +108,11 @@ function inferLocaleFromMessage(body) {
 }
 
 function resolveDniValidationProvider() {
-  // Runtime policy: DNI validation is intentionally pinned to ELDNI only.
-  return "eldni";
+  const normalized = trimText(process.env.DNI_VALIDATION_PROVIDER || "", 40).toLowerCase();
+  if (normalized === "api") return "api";
+  if (normalized === "eldni") return "eldni";
+  if (normalized === "reniec") return "reniec";
+  return "auto";
 }
 
 function decodeHtmlText(value) {
@@ -249,6 +252,147 @@ function parseReniecIdentity(payload, inputDni) {
     return { valid: true, dni: inputDni, fullName };
   }
   return { valid: false, dni: inputDni, fullName: "" };
+}
+
+function buildDniApiRequestUrl(dni) {
+  const base = trimText(process.env.DNI_API_URL || "", 500);
+  if (!base || !dni) return "";
+  if (base.includes("{dni}")) {
+    return base.replace(/\{dni\}/gi, encodeURIComponent(dni));
+  }
+  try {
+    const parsed = new URL(base);
+    const queryParam = trimText(process.env.DNI_API_DNI_QUERY_PARAM || "dni", 60) || "dni";
+    if (!parsed.searchParams.has(queryParam)) {
+      parsed.searchParams.set(queryParam, dni);
+    }
+    return parsed.toString();
+  } catch {
+    return "";
+  }
+}
+
+function buildDniApiHeaders() {
+  const headers = { Accept: "application/json" };
+  const token = trimText(process.env.DNI_API_TOKEN || process.env.DNI_API_KEY || "", 500);
+  if (!token) return headers;
+
+  const authHeader = trimText(process.env.DNI_API_TOKEN_HEADER || "Authorization", 60) || "Authorization";
+  const rawPrefix = String(process.env.DNI_API_TOKEN_PREFIX || "Bearer").trim();
+  const prefix = rawPrefix ? `${rawPrefix} ` : "";
+  headers[authHeader] = `${prefix}${token}`.trim();
+  return headers;
+}
+
+function getObjectByPath(root, pathSpec) {
+  const source = root && typeof root === "object" ? root : null;
+  const rawPath = trimText(pathSpec || "", 120);
+  if (!source || !rawPath) return source;
+  const parts = rawPath.split(".").map((item) => item.trim()).filter(Boolean);
+  if (parts.length === 0) return source;
+
+  let current = source;
+  for (const key of parts) {
+    if (!current || typeof current !== "object") return null;
+    if (!(key in current)) return null;
+    current = current[key];
+  }
+  return current;
+}
+
+function hasDniApiNotFoundSignal(payload) {
+  if (!payload || typeof payload !== "object") return false;
+  const raw = trimText(JSON.stringify(payload), 1000).toLowerCase();
+  if (!raw) return false;
+  return [
+    "not_found",
+    "no encontrado",
+    "no se encontro",
+    "no existe",
+    "documento no encontrado",
+    "dni no encontrado",
+  ].some((signal) => raw.includes(signal));
+}
+
+async function validateDniWithApi(dni) {
+  if (!/^\d{8}$/.test(String(dni || ""))) {
+    return { status: "invalid_format", valid: false, dni: "", fullName: "" };
+  }
+  const requestUrl = buildDniApiRequestUrl(dni);
+  if (!requestUrl) {
+    return { status: "not_configured", valid: false, dni, fullName: "", provider: "dni_api" };
+  }
+
+  const timeoutMsRaw = Number(process.env.DNI_API_TIMEOUT_MS || process.env.ELDNI_TIMEOUT_MS || 9000);
+  const timeoutMs = Number.isFinite(timeoutMsRaw) && timeoutMsRaw > 0 ? Math.min(Math.round(timeoutMsRaw), 20000) : 9000;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const method = String(process.env.DNI_API_METHOD || "GET").trim().toUpperCase() === "POST" ? "POST" : "GET";
+    const headers = buildDniApiHeaders();
+    const requestInit =
+      method === "POST"
+        ? {
+            method,
+            headers: { ...headers, "Content-Type": "application/json" },
+            body: JSON.stringify({ [trimText(process.env.DNI_API_DNI_BODY_FIELD || "dni", 60) || "dni"]: dni }),
+            signal: controller.signal,
+          }
+        : {
+            method,
+            headers,
+            signal: controller.signal,
+          };
+
+    const upstream = await fetch(requestUrl, requestInit);
+    const raw = await upstream.text();
+    if (!upstream.ok) {
+      if (upstream.status === 404 || upstream.status === 422) {
+        return { status: "not_found", valid: false, dni, fullName: "", provider: "dni_api" };
+      }
+      return {
+        status: "unavailable",
+        valid: false,
+        dni,
+        fullName: "",
+        provider: "dni_api",
+        details: trimText(`status_${upstream.status}:${raw}`, 180),
+      };
+    }
+
+    let payload = null;
+    try {
+      payload = JSON.parse(raw);
+    } catch {
+      payload = null;
+    }
+    if (!payload || typeof payload !== "object") {
+      return { status: "unavailable", valid: false, dni, fullName: "", provider: "dni_api", details: "invalid_json" };
+    }
+
+    const payloadPath = trimText(process.env.DNI_API_RESPONSE_PATH || "", 120);
+    const scopedPayload = getObjectByPath(payload, payloadPath) || payload;
+    const identity = parseReniecIdentity(scopedPayload, dni);
+    if (identity.valid) {
+      return { status: "valid", valid: true, dni: identity.dni || dni, fullName: identity.fullName || "", provider: "dni_api" };
+    }
+    if (hasDniApiNotFoundSignal(scopedPayload) || hasDniApiNotFoundSignal(payload)) {
+      return { status: "not_found", valid: false, dni, fullName: "", provider: "dni_api" };
+    }
+    return { status: "not_found", valid: false, dni, fullName: "", provider: "dni_api" };
+  } catch (error) {
+    return {
+      status: "unavailable",
+      valid: false,
+      dni,
+      fullName: "",
+      provider: "dni_api",
+      details: trimText(error?.name === "AbortError" ? "timeout" : error?.message || "", 180),
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function validateDniWithReniec(dni) {
@@ -516,23 +660,22 @@ async function validateDniIdentity(dni) {
   }
 
   const provider = resolveDniValidationProvider();
-  if (provider === "reniec") {
-    return validateDniWithReniec(dni);
-  }
+  if (provider === "api") return validateDniWithApi(dni);
   if (provider === "eldni") {
     return validateDniWithEldni(dni);
   }
+  if (provider === "reniec") return validateDniWithReniec(dni);
 
-  const reniecResult = await validateDniWithReniec(dni);
-  if (reniecResult?.valid === true) return reniecResult;
-
-  if (reniecResult?.status === "not_found") return reniecResult;
-  if (reniecResult?.status === "invalid_format") return reniecResult;
+  const apiResult = await validateDniWithApi(dni);
+  if (apiResult?.valid === true) return apiResult;
+  if (apiResult?.status === "not_found" || apiResult?.status === "invalid_format") return apiResult;
 
   const eldniResult = await validateDniWithEldni(dni);
   if (eldniResult?.valid === true) return eldniResult;
-  if (eldniResult?.status === "not_found") return eldniResult;
-  return reniecResult?.status && reniecResult.status !== "not_configured" ? reniecResult : eldniResult;
+  if (eldniResult?.status === "not_found" || eldniResult?.status === "invalid_format") return eldniResult;
+
+  if (apiResult?.status && apiResult.status !== "not_configured") return apiResult;
+  return eldniResult;
 }
 
 function buildDniValidationMessage(result, locale = "es") {
@@ -541,7 +684,8 @@ function buildDniValidationMessage(result, locale = "es") {
   const provider = String(result?.provider || "eldni_public");
 
   if (result?.status === "valid" && result?.valid) {
-    const sourceLabel = provider === "eldni_public" ? (isEnglish ? "public source" : "fuente publica") : "RENIEC";
+    const sourceLabel =
+      provider === "eldni_public" ? (isEnglish ? "public source" : "fuente publica") : provider === "dni_api" ? "API" : "RENIEC";
     if (isEnglish) {
       return fullName
         ? `Identity verified with ${sourceLabel} for DNI ${result.dni}: ${fullName}. Continue qualification.`
