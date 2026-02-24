@@ -568,6 +568,7 @@ Comportamientos actuales que clientes ya consumen:
 - En comandos multimedia (`[IMAGE: ...]`, `[VIDEO: ...]`), el parser soporta multiples URLs dentro del mismo comando (pipe/CSV/saltos de linea/JSON array) y renderiza carrusel cuando corresponde.
 - En plantilla `inmobiliaria`, cuando el texto del asistente identifica una propiedad del catalogo, el cliente puede completar media faltante de esa propiedad para mostrar carrusel completo aunque la IA haya enviado solo una URL.
 - Los carruseles multimedia renderizados por cliente soportan desplazamiento horizontal por drag/touch y rueda del mouse para garantizar navegacion de multiples piezas de media.
+- `POST /api/chat-event` persiste `ai_chat_events` y, para `whatsapp_open`/`iacallcloser_open`, hace upsert idempotente en `crm_contacts` usando `conversation_id + event_type` para mantener visible el lead en CRM aunque no exista escritura directa desde cliente publico.
 
 
 ## Extensiones Partner Program (2026-02-16)
@@ -748,3 +749,7 @@ Cambios de comportamiento relevantes:
 - Cambio: carruseles multimedia de Lead Chat/widget embebido agregan soporte de drag/touch y rueda para scroll horizontal de imagenes/videos.
 - Tipo: non-breaking
 - Impacto: mejora navegacion de media multiple en desktop/mobile sin cambios de contrato API.
+- Fecha: 2026-02-24
+- Cambio: `POST /api/chat-event` agrega upsert server-side en `crm_contacts` para eventos `whatsapp_open`/`iacallcloser_open` (idempotente por conversacion + evento).
+- Tipo: non-breaking
+- Impacto: asegura que conversiones de chat a WhatsApp/IACloser aparezcan en `Listado de contactos` sin depender de escrituras publicas desde navegador.
