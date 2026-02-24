@@ -4,7 +4,10 @@ const BACKEND_URL = (process.env.BACKEND_URL || "https://leads-widget-backend-31
 const OWNER_CACHE_TTL_MS = 10 * 60 * 1000;
 const widgetOwnerCache = new Map();
 const RENIEC_API_DEFAULT_URL = "https://api.apis.net.pe/v2/reniec/dni";
-const ELDNI_FORM_URL_DEFAULT = "https://eldni.com/pe/buscar-datos-por-dni";
+const ELDNI_FORM_URL_DEFAULT = "https://eldni.com/pe/buscar-por-dni";
+const ELDNI_FORM_POST_FALLBACK_URL = "https://eldni.com/pe/buscar-datos-por-dni";
+const ELDNI_USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36";
 const DNI_COMMAND_RE = /\[\s*VALIDAR_DNI(?:\s*:\s*([\s\S]*?))?\s*\]|\{\s*validar_dni(?:\s*:\s*([\s\S]*?))?\s*\}/gi;
 const DNI_NUMBER_RE = /\b\d{8}\b/;
 
@@ -306,43 +309,71 @@ async function validateDniWithReniec(dni) {
   }
 }
 
-async function validateDniWithEldni(dni) {
-  if (!/^\d{8}$/.test(String(dni || ""))) {
-    return { status: "invalid_format", valid: false, dni: "", fullName: "", provider: "eldni_public" };
-  }
+function isEldniBotProtectionHtml(html) {
+  return /captcha|cloudflare|attention required|just a moment/i.test(String(html || ""));
+}
 
-  const configuredFormUrl = trimText(process.env.ELDNI_FORM_URL || "", 500);
-  const formUrl = configuredFormUrl || ELDNI_FORM_URL_DEFAULT;
-  if (!formUrl) {
-    return { status: "not_configured", valid: false, dni, fullName: "", provider: "eldni_public" };
-  }
-  let formOrigin = "";
+function extractEldniToken(html) {
+  return (
+    trimText(
+      String(html || "").match(/<input[^>]*name=["']_token["'][^>]*value=["']([^"']+)["'][^>]*>/i)?.[1] ||
+        String(html || "").match(/<input[^>]*value=["']([^"']+)["'][^>]*name=["']_token["'][^>]*>/i)?.[1] ||
+        String(html || "").match(/name=["']_token["']\s+value=["']([^"']+)["']/i)?.[1] ||
+        "",
+      180,
+    ) || ""
+  );
+}
+
+function resolveEldniPostUrl(pageHtml, pageUrl) {
+  const actionRaw = trimText(String(pageHtml || "").match(/<form[^>]*action=["']([^"']+)["']/i)?.[1] || "", 500);
+  const baseUrl = actionRaw || ELDNI_FORM_POST_FALLBACK_URL;
   try {
-    const parsedForm = new URL(formUrl);
-    formOrigin = `${parsedForm.protocol}//${parsedForm.host}`;
+    return new URL(baseUrl, pageUrl).toString();
   } catch {
-    return { status: "not_configured", valid: false, dni, fullName: "", provider: "eldni_public", details: "invalid_form_url" };
+    return ELDNI_FORM_POST_FALLBACK_URL;
   }
+}
 
-  const timeoutMsRaw = Number(process.env.ELDNI_TIMEOUT_MS || process.env.RENIEC_API_TIMEOUT_MS || 9000);
-  const timeoutMs = Number.isFinite(timeoutMsRaw) && timeoutMsRaw > 0 ? Math.min(Math.round(timeoutMsRaw), 15000) : 9000;
+function shouldRetryEldni(result) {
+  if (!result || result.status !== "unavailable") return false;
+  const details = String(result.details || "").toLowerCase();
+  if (!details) return true;
+  return [
+    "timeout",
+    "abort",
+    "rate_limited",
+    "csrf",
+    "cookie",
+    "bot_protection",
+    "status_429",
+    "status_503",
+    "fetch failed",
+    "econn",
+    "etimedout",
+  ].some((key) => details.includes(key));
+}
+
+async function validateDniWithEldniAttempt({ dni, pageUrl, timeoutMs }) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const page = await fetch(formUrl, {
+    const page = await fetch(pageUrl, {
       method: "GET",
       headers: {
         Accept: "text/html,application/xhtml+xml",
         "Accept-Language": "es-PE,es;q=0.9,en;q=0.8",
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36",
-        Referer: formUrl,
+        "User-Agent": ELDNI_USER_AGENT,
+        Referer: pageUrl,
       },
       signal: controller.signal,
       redirect: "follow",
     });
     const pageHtml = await page.text();
+    if (isEldniBotProtectionHtml(pageHtml)) {
+      return { status: "unavailable", valid: false, dni, fullName: "", provider: "eldni_public", details: "bot_protection_get" };
+    }
     if (!page.ok) {
       return {
         status: "unavailable",
@@ -350,35 +381,33 @@ async function validateDniWithEldni(dni) {
         dni,
         fullName: "",
         provider: "eldni_public",
-        details: trimText(pageHtml, 180),
+        details: `page_status_${page.status}`,
       };
     }
 
-    const token =
-      trimText(
-        pageHtml.match(/<input[^>]*name=["']_token["'][^>]*value=["']([^"']+)["'][^>]*>/i)?.[1] ||
-          pageHtml.match(/<input[^>]*value=["']([^"']+)["'][^>]*name=["']_token["'][^>]*>/i)?.[1] ||
-          pageHtml.match(/name=["']_token["']\s+value=["']([^"']+)["']/i)?.[1] ||
-          "",
-        180,
-      ) || "";
+    const token = extractEldniToken(pageHtml);
     if (!token) {
       return { status: "unavailable", valid: false, dni, fullName: "", provider: "eldni_public", details: "csrf_missing" };
     }
 
     const cookieHeader = parseSetCookieHeader(page);
+    if (!cookieHeader) {
+      return { status: "unavailable", valid: false, dni, fullName: "", provider: "eldni_public", details: "cookie_missing" };
+    }
+
+    const postUrl = resolveEldniPostUrl(pageHtml, page.url || pageUrl);
+    const postOrigin = new URL(postUrl).origin;
     const postBody = new URLSearchParams({ _token: token, dni }).toString();
-    const post = await fetch(formUrl, {
+    const post = await fetch(postUrl, {
       method: "POST",
       headers: {
         Accept: "text/html,application/xhtml+xml",
         "Content-Type": "application/x-www-form-urlencoded",
         "Accept-Language": "es-PE,es;q=0.9,en;q=0.8",
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36",
-        Referer: formUrl,
-        Origin: formOrigin,
-        ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+        "User-Agent": ELDNI_USER_AGENT,
+        Referer: page.url || pageUrl,
+        Origin: postOrigin,
+        Cookie: cookieHeader,
       },
       body: postBody,
       signal: controller.signal,
@@ -386,12 +415,18 @@ async function validateDniWithEldni(dni) {
     });
 
     const html = await post.text();
-    if (/captcha|cloudflare|attention required|just a moment/i.test(html)) {
-      return { status: "unavailable", valid: false, dni, fullName: "", provider: "eldni_public", details: "bot_protection" };
+    if (isEldniBotProtectionHtml(html)) {
+      return { status: "unavailable", valid: false, dni, fullName: "", provider: "eldni_public", details: "bot_protection_post" };
     }
     if (!post.ok) {
       if (post.status === 404 || post.status === 422) {
         return { status: "not_found", valid: false, dni, fullName: "", provider: "eldni_public" };
+      }
+      if (post.status === 429) {
+        return { status: "unavailable", valid: false, dni, fullName: "", provider: "eldni_public", details: "rate_limited" };
+      }
+      if (post.status === 419) {
+        return { status: "unavailable", valid: false, dni, fullName: "", provider: "eldni_public", details: "csrf_failed" };
       }
       return {
         status: "unavailable",
@@ -399,7 +434,7 @@ async function validateDniWithEldni(dni) {
         dni,
         fullName: "",
         provider: "eldni_public",
-        details: trimText(html, 180),
+        details: `post_status_${post.status}`,
       };
     }
 
@@ -422,11 +457,57 @@ async function validateDniWithEldni(dni) {
       dni,
       fullName: "",
       provider: "eldni_public",
-      details: trimText(error?.message || "", 180),
+      details: trimText(error?.name === "AbortError" ? "timeout" : error?.message || "", 180),
     };
   } finally {
     clearTimeout(timeout);
   }
+}
+
+async function validateDniWithEldni(dni) {
+  if (!/^\d{8}$/.test(String(dni || ""))) {
+    return { status: "invalid_format", valid: false, dni: "", fullName: "", provider: "eldni_public" };
+  }
+
+  const configuredFormUrl = trimText(process.env.ELDNI_FORM_URL || "", 500);
+  const timeoutMsRaw = Number(process.env.ELDNI_TIMEOUT_MS || process.env.RENIEC_API_TIMEOUT_MS || 12000);
+  const timeoutMs = Number.isFinite(timeoutMsRaw) && timeoutMsRaw > 0 ? Math.min(Math.round(timeoutMsRaw), 20000) : 12000;
+
+  const candidates = [];
+  const pushCandidate = (value) => {
+    const raw = trimText(value || "", 500);
+    if (!raw) return;
+    try {
+      const parsed = new URL(raw);
+      const normalized = parsed.toString();
+      if (!candidates.includes(normalized)) candidates.push(normalized);
+    } catch {
+      // Ignore malformed URL candidates.
+    }
+  };
+
+  pushCandidate(configuredFormUrl);
+  pushCandidate(ELDNI_FORM_URL_DEFAULT);
+  pushCandidate(ELDNI_FORM_POST_FALLBACK_URL);
+  if (candidates.length === 0) {
+    return { status: "not_configured", valid: false, dni, fullName: "", provider: "eldni_public", details: "invalid_form_url" };
+  }
+
+  let lastUnavailable = null;
+  for (const candidateUrl of candidates) {
+    const attempt = await validateDniWithEldniAttempt({ dni, pageUrl: candidateUrl, timeoutMs });
+    if (attempt.valid || attempt.status === "not_found" || attempt.status === "invalid_format") return attempt;
+    if (attempt.status === "unavailable") lastUnavailable = attempt;
+
+    if (shouldRetryEldni(attempt)) {
+      await new Promise((resolve) => setTimeout(resolve, 180));
+      const retry = await validateDniWithEldniAttempt({ dni, pageUrl: candidateUrl, timeoutMs });
+      if (retry.valid || retry.status === "not_found" || retry.status === "invalid_format") return retry;
+      if (retry.status === "unavailable") lastUnavailable = retry;
+    }
+  }
+
+  return lastUnavailable || { status: "unavailable", valid: false, dni, fullName: "", provider: "eldni_public" };
 }
 
 async function validateDniIdentity(dni) {
