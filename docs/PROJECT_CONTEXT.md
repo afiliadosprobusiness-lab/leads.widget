@@ -208,7 +208,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - El proxy `POST /api/chat` ahora registra cada intercambio en `ai_chat_logs` (por `client_id/widget_id/conversation_id`) para auditoria y mejora continua del cierre.
 - En `POST /api/chat`, cuando la IA emite `[VALIDAR_DNI: ...]` o `{validar_dni: ...}`, el proxy local resuelve DNI segun configuracion (API externa, ELDNI o modo `capture`), reemplaza el token por mensaje operacional y marca `command_flags.dni_validation`.
 - Si la validacion externa no esta disponible, el chat sigue no bloqueante y responde `DNI recibido` para continuar la precalificacion.
-- Si la respuesta del asistente trae solo el comando de DNI (sin texto adicional), el proxy agrega una pregunta de continuidad para que la conversacion no se detenga.
+- Si la respuesta del asistente trae solo el comando de DNI (sin texto adicional), el proxy hace una consulta interna y agrega el siguiente paso de precalificacion segun el flujo definido en el prompt del cliente.
 - En Dashboard > Analiticas, la consola IA ahora clasifica conversaciones en `No completados`, `Lead completado` y `Riesgo/Hack`, con filtro adicional por estado tecnico (`ok/bloqueado/limite/error`).
 - En Dashboard > Analiticas, la consola IA incluye una `Guia rapida` visible en la UI para que el equipo comercial interprete cada estado (`No completados`, `Lead completado`, `Riesgo/Hack`) sin depender de capacitacion externa.
 - En Dashboard > Analiticas, la consola IA agrega la categoria `Interesado no cerrado` (subset de no completados) para identificar conversaciones con senales de interes comercial o consumo de multimedia, sin cierre final.

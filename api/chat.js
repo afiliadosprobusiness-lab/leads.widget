@@ -754,6 +754,55 @@ function buildDniContinuationPrompt(locale = "es") {
     : "Perfecto. Ahora comparte tu nombre completo y tu presupuesto estimado para la cuota inicial para continuar con la precalificacion.";
 }
 
+async function requestPromptDrivenDniContinuation({ body, locale, authHeader, validationMessage }) {
+  if (!body || typeof body !== "object") return "";
+  if (body.__dniContinuation === true) return "";
+
+  const isEnglish = String(locale || "").toLowerCase().startsWith("en");
+  const continuationInstruction = isEnglish
+    ? "DNI already captured with valid 8 digits. Continue with the next pre-qualification step defined in your configured flow. Do not ask for DNI again."
+    : "DNI ya capturado con 8 digitos validos. Continua con el siguiente paso de precalificacion definido en tu flujo configurado. No vuelvas a pedir DNI.";
+
+  const history = Array.isArray(body.history) ? body.history.slice(-12) : [];
+  if (validationMessage) {
+    history.push({ role: "assistant", content: trimText(validationMessage, 350) });
+  }
+
+  const upstreamBody = {
+    ...body,
+    history,
+    message: continuationInstruction,
+    __dniContinuation: true,
+  };
+
+  try {
+    const upstream = await fetch(`${BACKEND_URL}/api/chat`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(authHeader ? { Authorization: authHeader } : {}),
+      },
+      body: JSON.stringify(upstreamBody),
+    });
+    const raw = await upstream.text();
+    let parsed = null;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      parsed = null;
+    }
+
+    if (parsed && typeof parsed.response === "string") {
+      const cleaned = stripDniCommands(parsed.response);
+      return trimText(cleaned || parsed.response, 1200);
+    }
+    return trimText(raw, 1200);
+  } catch (error) {
+    console.warn("chat-command: prompt-driven dni continuation failed", error?.message || error);
+    return "";
+  }
+}
+
 function replaceLegacyDniUnavailableMessage(responseText, locale = "es") {
   const text = String(responseText || "");
   if (!text) return text;
@@ -765,7 +814,7 @@ function replaceLegacyDniUnavailableMessage(responseText, locale = "es") {
   return text.replace(legacyEs, fallback).replace(legacyEn, fallback);
 }
 
-async function applyDniValidationCommand(body, parsedPayload) {
+async function applyDniValidationCommand(body, parsedPayload, authHeader = "") {
   if (!parsedPayload || typeof parsedPayload !== "object" || typeof parsedPayload.response !== "string") {
     return { payload: parsedPayload, overrideFlags: null };
   }
@@ -795,8 +844,18 @@ async function applyDniValidationCommand(body, parsedPayload) {
   const cleanText = stripDniCommands(parsedPayload.response);
   const validationMessage = buildDniValidationMessage(validation, locale);
   const shouldKeepOriginalText = Boolean(cleanText);
-  const shouldAppendContinuationPrompt = !shouldKeepOriginalText && validation?.valid === true;
-  const continuationPrompt = shouldAppendContinuationPrompt ? buildDniContinuationPrompt(locale) : "";
+  let continuationPrompt = "";
+  if (!shouldKeepOriginalText && validation?.valid === true) {
+    continuationPrompt = await requestPromptDrivenDniContinuation({
+      body,
+      locale,
+      authHeader,
+      validationMessage,
+    });
+    if (!continuationPrompt) {
+      continuationPrompt = buildDniContinuationPrompt(locale);
+    }
+  }
   const response = shouldKeepOriginalText
     ? `${cleanText}\n\n${validationMessage}`
     : continuationPrompt
@@ -937,7 +996,7 @@ export default async function handler(req, res) {
     let payloadForClient = parsedPayload;
     let commandFlagsOverride = null;
     try {
-      const transformed = await applyDniValidationCommand(req.body || {}, parsedPayload);
+      const transformed = await applyDniValidationCommand(req.body || {}, parsedPayload, req.headers.authorization || "");
       payloadForClient = transformed.payload;
       commandFlagsOverride = transformed.overrideFlags;
     } catch (commandError) {
