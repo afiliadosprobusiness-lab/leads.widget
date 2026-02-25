@@ -574,7 +574,6 @@ type PromptEditorField =
   | 'context_prompt'
   | 'ai_improvements_prompt'
   | 'system_prompt'
-  | 'ai_system_prompt'
   | 'ai_security_prompt';
 
 function inferClosingModeFromPrompt(prompt: string | undefined): AiClosingMode {
@@ -1705,14 +1704,6 @@ export default function Dashboard() {
             : 'Edita reglas, logica de calificacion y comportamiento de cierre.',
           readOnly: false,
         };
-      case 'ai_system_prompt':
-        return {
-          title: dashboardIsEnglish ? 'Compiled runtime prompt' : 'Prompt compilado de runtime',
-          description: dashboardIsEnglish
-            ? 'Read-only preview of the final prompt used in production.'
-            : 'Vista de solo lectura del prompt final usado en produccion.',
-          readOnly: true,
-        };
       case 'ai_security_prompt':
       default:
         return {
@@ -1826,19 +1817,6 @@ export default function Dashboard() {
     return ensureClosingCommandSection(blocks.join('\n').replace(/\n{3,}/g, '\n\n').trim(), mode);
   };
 
-  const aiCompiledPromptPreview = useMemo(() => composeAiSystemPrompt({
-    contextPrompt: aiConfig.context_prompt,
-    improvementsPrompt: aiConfig.ai_improvements_prompt,
-    systemPrompt: aiConfig.system_prompt,
-    securityPrompt: aiConfig.ai_security_prompt,
-    closingMode: promptCommandMode,
-  }), [
-    aiConfig.context_prompt,
-    aiConfig.ai_improvements_prompt,
-    aiConfig.system_prompt,
-    aiConfig.ai_security_prompt,
-    promptCommandMode,
-  ]);
   const promptEditorMeta = getPromptEditorConfig(promptEditorField);
 
   useEffect(() => {
@@ -6710,26 +6688,6 @@ export default function Dashboard() {
                   />
                   <p className="text-xs text-muted-foreground">
                     {t('dashboard.ai_config.system_prompt_sub')}
-                  </p>
-                </div>
-
-                <div className="space-y-2 rounded-lg border border-emerald-400/30 bg-emerald-500/5 p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <Label>{dashboardIsEnglish ? 'Final compiled prompt (runtime)' : 'Prompt final compilado (runtime)'}</Label>
-                    <Button type="button" size="sm" variant="ghost" onClick={() => openPromptEditor('ai_system_prompt')}>
-                      {dashboardIsEnglish ? 'Open editor' : 'Abrir editor'}
-                    </Button>
-                  </div>
-                  <textarea
-                    value={aiCompiledPromptPreview}
-                    readOnly
-                    rows={6}
-                    className="w-full p-3 text-xs border rounded-lg resize-none bg-slate-100 text-slate-800 placeholder:text-slate-500 dark:bg-slate-900/40 dark:text-slate-200"
-                  />
-                  <p className="text-[11px] text-emerald-800/90 dark:text-emerald-300/90">
-                    {dashboardIsEnglish
-                      ? 'This final block includes DNI validation command plus the correct closing command for the selected channel.'
-                      : 'Este bloque final incluye el comando de validacion DNI y el comando de cierre correcto segun el canal seleccionado.'}
                   </p>
                 </div>
 
