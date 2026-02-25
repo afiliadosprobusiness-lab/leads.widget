@@ -570,6 +570,12 @@ const AI_WHATSAPP_COMMAND_SNIPPET = [
   "Do not rename or omit the WHATSAPP_REDIRECT token once the lead is qualified.",
 ].join('\n');
 type AiClosingMode = 'icallcloser' | 'whatsapp';
+type PromptEditorField =
+  | 'context_prompt'
+  | 'ai_improvements_prompt'
+  | 'system_prompt'
+  | 'ai_system_prompt'
+  | 'ai_security_prompt';
 
 function inferClosingModeFromPrompt(prompt: string | undefined): AiClosingMode {
   const normalized = String(prompt || '').toLowerCase();
@@ -1669,6 +1675,74 @@ export default function Dashboard() {
     fallbackFlow: '',
     forceWhatsappCountdown: true,
   });
+  const [promptEditorOpen, setPromptEditorOpen] = useState(false);
+  const [promptEditorField, setPromptEditorField] = useState<PromptEditorField>('context_prompt');
+  const [promptEditorDraft, setPromptEditorDraft] = useState('');
+
+  const getPromptEditorConfig = (field: PromptEditorField) => {
+    switch (field) {
+      case 'context_prompt':
+        return {
+          title: dashboardIsEnglish ? 'Context prompt editor' : 'Editor de prompt de contexto',
+          description: dashboardIsEnglish
+            ? 'Edit your business context with a larger editor.'
+            : 'Edita el contexto del negocio en un editor mas grande.',
+          readOnly: false,
+        };
+      case 'ai_improvements_prompt':
+        return {
+          title: dashboardIsEnglish ? 'AI improvements editor' : 'Editor de mejoras IA',
+          description: dashboardIsEnglish
+            ? 'This block is auto-generated from conversation analysis.'
+            : 'Este bloque se completa automaticamente desde el analisis de conversaciones.',
+          readOnly: true,
+        };
+      case 'system_prompt':
+        return {
+          title: dashboardIsEnglish ? 'System prompt editor' : 'Editor de prompt del sistema',
+          description: dashboardIsEnglish
+            ? 'Edit rules, qualification logic, and closing behavior.'
+            : 'Edita reglas, logica de calificacion y comportamiento de cierre.',
+          readOnly: false,
+        };
+      case 'ai_system_prompt':
+        return {
+          title: dashboardIsEnglish ? 'Compiled runtime prompt' : 'Prompt compilado de runtime',
+          description: dashboardIsEnglish
+            ? 'Read-only preview of the final prompt used in production.'
+            : 'Vista de solo lectura del prompt final usado en produccion.',
+          readOnly: true,
+        };
+      case 'ai_security_prompt':
+      default:
+        return {
+          title: dashboardIsEnglish ? 'Security prompt editor' : 'Editor de prompt de seguridad',
+          description: dashboardIsEnglish
+            ? 'Define safety rules to prevent prompt leaks and abuse.'
+            : 'Define reglas de seguridad para evitar filtraciones y abuso del prompt.',
+          readOnly: false,
+        };
+    }
+  };
+
+  const openPromptEditor = (field: PromptEditorField) => {
+    setPromptEditorField(field);
+    setPromptEditorDraft(String(aiConfig[field] || ''));
+    setPromptEditorOpen(true);
+  };
+
+  const savePromptEditor = () => {
+    const meta = getPromptEditorConfig(promptEditorField);
+    if (meta.readOnly) {
+      setPromptEditorOpen(false);
+      return;
+    }
+    setAiConfig((prev) => ({
+      ...prev,
+      [promptEditorField]: promptEditorDraft,
+    }));
+    setPromptEditorOpen(false);
+  };
 
   const getDefaultMainGoalByMode = (mode: AiClosingMode) => (
     mode === 'whatsapp'
@@ -1765,6 +1839,7 @@ export default function Dashboard() {
     aiConfig.ai_security_prompt,
     promptCommandMode,
   ]);
+  const promptEditorMeta = getPromptEditorConfig(promptEditorField);
 
   useEffect(() => {
     setAiConfig((prev) => {
@@ -6568,9 +6643,14 @@ export default function Dashboard() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
                     <Label>{dashboardIsEnglish ? 'Context prompt' : 'Prompt de contexto'}</Label>
-                    <Button type="button" size="sm" variant="outline" onClick={openContextBuilder}>
-                      {dashboardIsEnglish ? 'Create prompt' : 'Crear prompt'}
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button type="button" size="sm" variant="ghost" onClick={() => openPromptEditor('context_prompt')}>
+                        {dashboardIsEnglish ? 'Open editor' : 'Abrir editor'}
+                      </Button>
+                      <Button type="button" size="sm" variant="outline" onClick={openContextBuilder}>
+                        {dashboardIsEnglish ? 'Create prompt' : 'Crear prompt'}
+                      </Button>
+                    </div>
                   </div>
                   <textarea
                     value={aiConfig.context_prompt}
@@ -6588,7 +6668,12 @@ export default function Dashboard() {
 
                 {/* AI Improvements */}
                 <div className="space-y-2">
-                  <Label>{dashboardIsEnglish ? 'AI improvements (auto)' : 'Mejoras IA (automatico)'}</Label>
+                  <div className="flex items-center justify-between gap-2">
+                    <Label>{dashboardIsEnglish ? 'AI improvements (auto)' : 'Mejoras IA (automatico)'}</Label>
+                    <Button type="button" size="sm" variant="ghost" onClick={() => openPromptEditor('ai_improvements_prompt')}>
+                      {dashboardIsEnglish ? 'Open editor' : 'Abrir editor'}
+                    </Button>
+                  </div>
                   <textarea
                     value={aiConfig.ai_improvements_prompt}
                     readOnly
@@ -6607,9 +6692,14 @@ export default function Dashboard() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
                     <Label>{t('dashboard.ai_config.system_prompt')}</Label>
-                    <Button type="button" size="sm" variant="outline" onClick={openSystemBuilder}>
-                      {dashboardIsEnglish ? 'Create prompt' : 'Crear prompt'}
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button type="button" size="sm" variant="ghost" onClick={() => openPromptEditor('system_prompt')}>
+                        {dashboardIsEnglish ? 'Open editor' : 'Abrir editor'}
+                      </Button>
+                      <Button type="button" size="sm" variant="outline" onClick={openSystemBuilder}>
+                        {dashboardIsEnglish ? 'Create prompt' : 'Crear prompt'}
+                      </Button>
+                    </div>
                   </div>
                   <textarea
                     value={aiConfig.system_prompt}
@@ -6624,7 +6714,12 @@ export default function Dashboard() {
                 </div>
 
                 <div className="space-y-2 rounded-lg border border-emerald-400/30 bg-emerald-500/5 p-3">
-                  <Label>{dashboardIsEnglish ? 'Final compiled prompt (runtime)' : 'Prompt final compilado (runtime)'}</Label>
+                  <div className="flex items-center justify-between gap-2">
+                    <Label>{dashboardIsEnglish ? 'Final compiled prompt (runtime)' : 'Prompt final compilado (runtime)'}</Label>
+                    <Button type="button" size="sm" variant="ghost" onClick={() => openPromptEditor('ai_system_prompt')}>
+                      {dashboardIsEnglish ? 'Open editor' : 'Abrir editor'}
+                    </Button>
+                  </div>
                   <textarea
                     value={aiCompiledPromptPreview}
                     readOnly
@@ -6640,9 +6735,19 @@ export default function Dashboard() {
 
                 {/* Security Prompt */}
                 <div className="space-y-2 border-t pt-6">
-                  <Label className="flex items-center gap-2 text-red-600 dark:text-red-400">
-                    <ShieldAlert className="w-4 h-4" /> {t('dashboard.ai_config.security_prompt')}
-                  </Label>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <Label className="flex items-center gap-2 text-red-600 dark:text-red-400">
+                      <ShieldAlert className="w-4 h-4" /> {t('dashboard.ai_config.security_prompt')}
+                    </Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openPromptEditor('ai_security_prompt')}
+                    >
+                      {dashboardIsEnglish ? 'Open editor' : 'Abrir editor'}
+                    </Button>
+                  </div>
                   <div className="flex justify-end">
                     <Button
                       type="button"
@@ -8934,6 +9039,35 @@ export default function Dashboard() {
           )}
         </Tabs>
       </div>
+
+      <Dialog open={promptEditorOpen} onOpenChange={setPromptEditorOpen}>
+        <DialogContent className="sm:max-w-5xl max-h-[92vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>{promptEditorMeta.title}</DialogTitle>
+            <DialogDescription>{promptEditorMeta.description}</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            <textarea
+              value={promptEditorDraft}
+              onChange={(e) => setPromptEditorDraft(e.target.value)}
+              readOnly={promptEditorMeta.readOnly}
+              className="h-[62vh] min-h-[420px] w-full resize-none rounded-lg border bg-background px-3 py-3 font-mono text-sm leading-relaxed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-1">
+            <Button type="button" variant="outline" onClick={() => setPromptEditorOpen(false)}>
+              {dashboardIsEnglish ? 'Close' : 'Cerrar'}
+            </Button>
+            {promptEditorMeta.readOnly ? null : (
+              <Button type="button" onClick={savePromptEditor}>
+                {dashboardIsEnglish ? 'Save changes' : 'Guardar cambios'}
+              </Button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={contextBuilderOpen} onOpenChange={setContextBuilderOpen}>
         <DialogContent className="sm:max-w-2xl max-h-[88vh] overflow-y-auto">

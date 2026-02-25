@@ -182,6 +182,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - En Dashboard > IA, la configuracion de prompt se separa en 3 bloques: `Prompt de contexto`, `Mejoras IA` (solo lectura auto), y `Prompt del sistema`.
 - En Dashboard > IA, el CTA `Guardar configuracion de IA` ahora se muestra en una barra sticky superior del tab (igual que Configuracion Widget) para mantenerlo visible durante todo el scroll.
 - En Dashboard > IA, `Prompt de contexto` y `Prompt del sistema` tienen boton `Crear prompt` con modal guiado para generar texto estructurado por formulario (negocio/nicho/reglas/comercial).
+- En Dashboard > IA, los bloques de prompt (`Prompt de contexto`, `Mejoras IA`, `Prompt del sistema`, `Prompt final compilado` y `Prompt de seguridad`) incluyen accion `Abrir editor` que abre un modal amplio para leer/editar texto largo con mejor visibilidad.
 - En Dashboard > IA, el prompt compilado inyecta siempre un bloque de identidad con comando `[VALIDAR_DNI: {dni}]` para exigir validacion de DNI antes de compartir data detallada.
 - En Dashboard > IA, el canal de cierre (`ICallCloser` o `WhatsApp`) se selecciona desde el modal `Crear prompt` del sistema; el comando se inserta automaticamente al compilar/guardar el prompt.
 - En Dashboard > IA, al cambiar el canal de cierre (`ICallCloser`/`WhatsApp`) el bloque de comando se sincroniza al canal activo y el dashboard muestra una vista `Prompt final compilado (runtime)` para verificar el comando exacto que usara produccion.
