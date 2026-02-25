@@ -85,6 +85,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Landing principal `/` ahora muestra copy comercial de entrada: `Desde 150 soles al mes` (EN: `From S/ 150 per month`), manteniendo el bloque de implementacion unica en la tarjeta de precio.
 - Landing principal `/` fue redisenada con estilo visual premium tipo Apple (glass + gradientes suaves), narrativa simplificada orientada a conversion, preview del widget embebido en hero y secciones actualizadas de capacidades/casos/testimonios/precio.
 - Landing principal `/` incluye toggle claro/oscuro visible en navbar (desktop/mobile) y copy reforzado a precalificacion de leads + handoff a WhatsApp (sin narrativa de llamadas outbound).
+- Landing principal `/` ahora redirige los CTAs secundarios `Ver demo del widget` (hero) y `Probar demo` (CTA final) a WhatsApp soporte (`+51 924 464 410`) con mensaje precargado de solicitud de demo rapida.
 - Landing principal `/` ahora prioriza prueba social arriba del fold: la seccion de testimonios se muestra inmediatamente debajo del hero.
 - Testimonios de landing principal usan scroll horizontal con autoavance (desktop/mobile), controles prev/next y avatar por caso para reforzar prueba social.
 - Testimonios de landing principal, widget embebido y Lead Chat usan efecto visual tipo Instagram (anillo degradado + glow de transicion) para enfatizar prueba social sin bloquear lectura.

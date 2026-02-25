@@ -256,6 +256,12 @@ export default function Landing() {
     window.dispatchEvent(new Event("open-lead-widget"));
   };
 
+  const openWhatsAppDemo = () => {
+    const message = "Hola, estuve viendo tu landing y me gusto el sistema precalificador, puedes enviarme una demo rapida?";
+    const whatsappUrl = `https://wa.me/51924464410?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+  };
+
   const scrollTestimonials = (direction: "prev" | "next") => {
     const container = testimonialsRef.current;
     if (!container) return;
@@ -395,7 +401,7 @@ export default function Landing() {
 
             <div className="flex flex-col gap-3 sm:flex-row">
               <Link to="/register"><Button size="xl" className="w-full rounded-full px-8 text-white sm:w-auto">{copy.ctaPrimary}</Button></Link>
-              <Button size="xl" variant="outline" className={`w-full rounded-full px-8 sm:w-auto ${isLandingDark ? "border-slate-700 text-slate-100 hover:bg-slate-800" : "border-slate-300 text-slate-800 hover:bg-slate-100"}`} onClick={openDemoWidget}>
+              <Button size="xl" variant="outline" className={`w-full rounded-full px-8 sm:w-auto ${isLandingDark ? "border-slate-700 text-slate-100 hover:bg-slate-800" : "border-slate-300 text-slate-800 hover:bg-slate-100"}`} onClick={openWhatsAppDemo}>
                 <Play className="mr-2 h-4 w-4" />{copy.ctaSecondary}
               </Button>
             </div>
@@ -556,7 +562,7 @@ export default function Landing() {
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link to="/register"><Button size="xl" className="rounded-full px-8 text-white">{copy.navRegister}</Button></Link>
-            <Button size="xl" variant="outline" className="rounded-full border-white/30 bg-white/10 px-8 text-white hover:bg-white/15" onClick={openDemoWidget}>{copy.navTry}</Button>
+            <Button size="xl" variant="outline" className="rounded-full border-white/30 bg-white/10 px-8 text-white hover:bg-white/15" onClick={openWhatsAppDemo}>{copy.navTry}</Button>
           </div>
         </div>
       </section>
