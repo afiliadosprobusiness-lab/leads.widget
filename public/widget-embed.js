@@ -3264,15 +3264,15 @@
     function getRedirectCountdownText(seconds) {
       const safeSeconds = Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds)) : 0;
       if (safeSeconds <= 0) {
-        return activeLanguage === 'es' ? 'Redireccionando...' : 'Redirecting...';
+        return activeLanguage === 'es' ? 'Redireccionando a WhatsApp...' : 'Redirecting to WhatsApp...';
       }
       if (safeSeconds === 3) {
-        return activeLanguage === 'es' ? 'Redireccionando 3..2..1..' : 'Redirecting 3..2..1..';
+        return activeLanguage === 'es' ? 'Redireccionando a WhatsApp en 3..2..1..' : 'Redirecting to WhatsApp in 3..2..1..';
       }
       if (safeSeconds === 2) {
-        return activeLanguage === 'es' ? 'Redireccionando 2..1..' : 'Redirecting 2..1..';
+        return activeLanguage === 'es' ? 'Redireccionando a WhatsApp en 2..1..' : 'Redirecting to WhatsApp in 2..1..';
       }
-      return activeLanguage === 'es' ? 'Redireccionando 1..' : 'Redirecting 1..';
+      return activeLanguage === 'es' ? 'Redireccionando a WhatsApp en 1..' : 'Redirecting to WhatsApp in 1..';
     }
 
     function clearRedirectCountdown() {

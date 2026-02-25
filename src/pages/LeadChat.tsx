@@ -1289,10 +1289,10 @@ async function fetchLeadChatTestimonialsFromFirestore(identity: string) {
 }
 
 function getRedirectCountdownText(locale: ChatLocale, seconds: number) {
-  if (seconds <= 0) return locale === "es" ? "Redireccionando..." : "Redirecting...";
-  if (seconds === 3) return locale === "es" ? "Redireccionando 3..2..1.." : "Redirecting 3..2..1..";
-  if (seconds === 2) return locale === "es" ? "Redireccionando 2..1.." : "Redirecting 2..1..";
-  return locale === "es" ? "Redireccionando 1.." : "Redirecting 1..";
+  if (seconds <= 0) return locale === "es" ? "Redireccionando a WhatsApp..." : "Redirecting to WhatsApp...";
+  if (seconds === 3) return locale === "es" ? "Redireccionando a WhatsApp en 3..2..1.." : "Redirecting to WhatsApp in 3..2..1..";
+  if (seconds === 2) return locale === "es" ? "Redireccionando a WhatsApp en 2..1.." : "Redirecting to WhatsApp in 2..1..";
+  return locale === "es" ? "Redireccionando a WhatsApp en 1.." : "Redirecting to WhatsApp in 1..";
 }
 
 export default function LeadChat() {
