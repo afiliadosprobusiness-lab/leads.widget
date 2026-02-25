@@ -139,6 +139,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - El `SalesWidget` de landing replica la experiencia visual del embebido (header con acciones, barra de testimonios, composer con emoji/voz) y agrega selector de color con contraste automatico para mantener legibilidad.
 - En `SalesWidget` de landing, el header mantiene selector de idioma + paleta de color + cierre (sin toggle de tema en header) para reducir ruido visual.
 - En `SalesWidget` de landing, los textos EN/ES priorizan precalificacion inmobiliaria y derivacion de leads serios a WhatsApp (sin guion comercial de llamada guiada).
+- En `SalesWidget` de landing, el asistente se muestra como `Asistente Leads Widget` y aplica flujo obligatorio de precalificacion B2B antes de derivar: nombre, negocio, validacion manual/automatizado (con pregunta de desempeno si ya automatiza), confirmacion de ads activos y presupuesto ads `>= S/500`; si cumple filtros emite `WHATSAPP_REDIRECT` y UI muestra cuenta regresiva `Redireccionando a WhatsApp en 3..2..1..`.
 - Dashboard partner incluye secciones:
   - Ventas/Atribucion
   - Clientes

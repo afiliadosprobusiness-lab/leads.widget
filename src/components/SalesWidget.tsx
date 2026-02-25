@@ -83,13 +83,13 @@ const WIDGET_COPY: Record<
   }
 > = {
   es: {
-    businessName: "Agencia Demo",
+    businessName: "Asistente Leads Widget",
     subtitle: "Instant replies",
     welcome:
-      "Hola, soy tu asistente de pre-calificacion. Te ayudo a filtrar por zona, presupuesto y plazo para pasar solo leads serios a WhatsApp.",
+      "Hola, soy Asistente Leads Widget. Te ayudo a validar rapido si calificas para una demo segun tu operacion comercial. Para empezar, cual es tu nombre?",
     placeholder: "Escribe tu mensaje...",
     blockedPlaceholder: "Chat bloqueado por seguridad",
-    quickReplies: ["Como funciona?", "Ver propiedades", "Ver precios"],
+    quickReplies: ["Soy broker inmobiliario", "Lo hago manual", "Si corro ads"],
     teaserMessages: ["Podemos ayudarte ahora mismo", "Filtra leads por presupuesto en minutos", "Pasa solo leads serios a WhatsApp"],
     testimonialLabel: "Testimonios",
     testimonials: [
@@ -119,13 +119,13 @@ const WIDGET_COPY: Record<
     colorAria: "Cambiar color principal",
   },
   en: {
-    businessName: "Demo Agency",
+    businessName: "Asistente Leads Widget",
     subtitle: "Instant replies",
     welcome:
-      "Hi, I am your qualification assistant. I can filter by zone, budget and timeline so only serious leads go to WhatsApp.",
+      "Hi, I am Asistente Leads Widget. I can quickly validate if you qualify for a demo based on your sales operation. To start, what is your name?",
     placeholder: "Type your message...",
     blockedPlaceholder: "Chat blocked for security",
-    quickReplies: ["How it works?", "Show properties", "See pricing"],
+    quickReplies: ["I am a real estate broker", "We do it manually", "Yes, we run ads"],
     teaserMessages: ["We can help you right now", "Filter leads by budget in minutes", "Send only serious leads to WhatsApp"],
     testimonialLabel: "Testimonials",
     testimonials: [
@@ -236,16 +236,52 @@ function getCostControlDirective(locale: WidgetLocale) {
   return "Be concise and conversion-focused. Max 90 words, use at most 1 emoji, avoid repeating images/audio/video. Use [AUDIO] only for opening or final CTA (max 1 dynamic audio per conversation). For [IMAGE], prefer Cloudinary medium quality URLs (q_auto:good, w<=960).";
 }
 
+function getSalesWidgetQualificationDirective(locale: WidgetLocale) {
+  if (locale === "es") {
+    return [
+      "Rol: asistente comercial de Leads Widget para calificar demos.",
+      "Caracteristicas del sistema que puedes mencionar segun contexto: widget embebido, Lead Chat publico sin web, calificacion por chat, handoff automatico a WhatsApp, CRM con pipeline/tareas y soporte multimedia.",
+      "Flujo obligatorio y en orden (1 pregunta por turno):",
+      "1) Pedir nombre.",
+      "2) Pedir nombre de negocio.",
+      "3) Preguntar si automatiza la precalificacion o si lo hace manual.",
+      "4) Si responde que ya automatiza, preguntar en que parte le esta fallando su sistema actual antes de continuar.",
+      "5) Preguntar si corre ads actualmente.",
+      "6) Si NO corre ads: no califica. Explicar breve y NO emitir WHATSAPP_REDIRECT.",
+      "7) Si SI corre ads, preguntar cuanto invierte al mes en ads en soles.",
+      "8) Si invierte menos de 500 soles al mes: no califica. Explicar breve y NO emitir WHATSAPP_REDIRECT.",
+      "9) Si pasa filtros (ads activos y >= 500 PEN): califica y debes emitir al final EXACTAMENTE un comando [WHATSAPP_REDIRECT: ...] con resumen del lead.",
+      "No inventes datos faltantes. Si falta algun dato obligatorio, sigue preguntando y no cierres.",
+    ].join("\n");
+  }
+
+  return [
+    "Role: Leads Widget sales assistant to qualify demo requests.",
+    "System capabilities you can mention when relevant: embedded widget, public Lead Chat without a website, chat qualification, automatic WhatsApp handoff, CRM pipeline/tasks, and multimedia support.",
+    "Mandatory flow in order (1 question per turn):",
+    "1) Ask for first name.",
+    "2) Ask for business name.",
+    "3) Ask whether lead qualification is manual or automated.",
+    "4) If automated, ask how their current system is performing before moving on.",
+    "5) Ask if they are currently running ads.",
+    "6) If not running ads: disqualify politely and DO NOT emit WHATSAPP_REDIRECT.",
+    "7) If running ads, ask monthly ad spend in PEN.",
+    "8) If spend is below 500 PEN/month: disqualify politely and DO NOT emit WHATSAPP_REDIRECT.",
+    "9) If lead passes filters (running ads and >= 500 PEN): qualify and emit EXACTLY one [WHATSAPP_REDIRECT: ...] command with lead summary.",
+    "Do not invent missing data. Keep qualifying until required fields are complete.",
+  ].join("\n");
+}
+
 function buildWhatsAppStars(value: number) {
   const total = Math.max(1, Math.min(5, Number(value || 5)));
   return Array.from({ length: total }, () => "\u2B50").join("");
 }
 
 function getRedirectCountdownText(locale: WidgetLocale, seconds: number) {
-  if (seconds <= 0) return locale === "es" ? "Redireccionando..." : "Redirecting...";
-  if (seconds === 3) return locale === "es" ? "Redireccionando 3..2..1.." : "Redirecting 3..2..1..";
-  if (seconds === 2) return locale === "es" ? "Redireccionando 2..1.." : "Redirecting 2..1..";
-  return locale === "es" ? "Redireccionando 1.." : "Redirecting 1..";
+  if (seconds <= 0) return locale === "es" ? "Redireccionando a WhatsApp..." : "Redirecting to WhatsApp...";
+  if (seconds === 3) return locale === "es" ? "Redireccionando a WhatsApp en 3..2..1.." : "Redirecting to WhatsApp in 3..2..1..";
+  if (seconds === 2) return locale === "es" ? "Redireccionando a WhatsApp en 2..1.." : "Redirecting to WhatsApp in 2..1..";
+  return locale === "es" ? "Redireccionando a WhatsApp en 1.." : "Redirecting to WhatsApp in 1..";
 }
 
 export function SalesWidget() {
@@ -583,6 +619,7 @@ export function SalesWidget() {
       ].slice(-12);
       const history = [
         { role: "system", content: languageDirective },
+        { role: "system", content: getSalesWidgetQualificationDirective(responseLocale) },
         { role: "system", content: getCostControlDirective(responseLocale) },
         ...compactHistory,
       ];
