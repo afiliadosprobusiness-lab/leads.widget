@@ -96,6 +96,13 @@ type CrmEntityType = 'contact' | 'deal';
 type CrmFocusFilter = 'all' | 'hot' | 'no_task' | 'inactive_48h';
 type BillingPlanType = 'crm' | 'pro';
 type CrmTemplateType = 'general' | 'real_estate';
+type DashboardGuideTab = 'config' | 'ai' | 'crm' | 'analytics' | 'security' | 'billing' | 'account' | 'affiliates';
+
+interface DashboardGuideCard {
+  title: string;
+  description: string;
+  steps: [string, string, string];
+}
 
 interface CrmContact {
   id: string;
@@ -960,6 +967,7 @@ const AI_DEFAULT_SECURITY_PROMPT = [
 
 const SHOW_AFFILIATES_UI = false;
 const CRM_ALLOWED_DASHBOARD_TABS = new Set(['crm', 'billing', 'account']);
+const DASHBOARD_GUIDE_STORAGE_PREFIX = 'leadwidget_dashboard_guide_v1';
 
 export default function Dashboard() {
   const { t, i18n } = useTranslation();
@@ -973,6 +981,8 @@ export default function Dashboard() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [widgetConfig, setWidgetConfig] = useState<WidgetConfig | null>(null);
   const [activeTab, setActiveTab] = useState("config");
+  const [dashboardOnboardingOpen, setDashboardOnboardingOpen] = useState(false);
+  const [dismissedGuidesByTab, setDismissedGuidesByTab] = useState<Record<string, boolean>>({});
   const [leads, setLeads] = useState<any[]>([]);
   const [crmContacts, setCrmContacts] = useState<CrmContact[]>([]);
   const [crmSearch, setCrmSearch] = useState('');
@@ -1077,6 +1087,15 @@ export default function Dashboard() {
     const supportMessage = 'Hola equipo de soporte de Lead Widget, necesito ayuda con mi cuenta.';
     return `https://wa.me/${supportPhoneDigits}?text=${encodeURIComponent(supportMessage)}`;
   };
+  const buildDashboardGuideStorageKey = (suffix: 'onboarding_seen' | 'dismissed_by_tab') => {
+    const uid = String(user?.uid || '').trim();
+    if (!uid) return '';
+    return `${DASHBOARD_GUIDE_STORAGE_PREFIX}:${uid}:${suffix}`;
+  };
+  const dismissGuideForTab = (tab: string) => {
+    if (!tab) return;
+    setDismissedGuidesByTab((prev) => ({ ...prev, [tab]: true }));
+  };
   const buildCrmContactWhatsappLink = (contact: CrmContact) => {
     const digits = String(contact.phone || '').replace(/\D/g, '');
     if (!digits) return '';
@@ -1147,6 +1166,106 @@ export default function Dashboard() {
 
   const dashboardIsEnglish = String(i18n.language || '').toLowerCase().startsWith('en');
   const dashboardLocale = dashboardIsEnglish ? 'en-US' : 'es-PE';
+  const dashboardGuideByTab = useMemo<Record<DashboardGuideTab, DashboardGuideCard>>(
+    () => ({
+      config: {
+        title: dashboardIsEnglish ? 'Step 1: Configure your capture in 2 minutes' : 'Paso 1: Configura tu captacion en 2 minutos',
+        description: dashboardIsEnglish
+          ? 'Define business info, language, and WhatsApp destination. Then click Save.'
+          : 'Define datos del negocio, idioma y WhatsApp destino. Luego haz clic en Guardar.',
+        steps: dashboardIsEnglish
+          ? ['Select industry template and language.', 'Confirm WhatsApp destination number.', 'Click "Save Changes" at the top.']
+          : ['Selecciona plantilla de industria e idioma.', 'Confirma el numero de WhatsApp destino.', 'Haz clic en "Guardar Cambios" en la parte superior.'],
+      },
+      ai: {
+        title: dashboardIsEnglish ? 'Step 2: Tune your assistant' : 'Paso 2: Ajusta tu asistente',
+        description: dashboardIsEnglish
+          ? 'Set context and system prompt so responses qualify serious prospects only.'
+          : 'Configura contexto y prompt del sistema para calificar solo prospectos serios.',
+        steps: dashboardIsEnglish
+          ? ['Complete business context fields.', 'Pick close channel (WhatsApp or ICallCloser).', 'Save AI settings before leaving this tab.']
+          : ['Completa el contexto del negocio.', 'Elige canal de cierre (WhatsApp o ICallCloser).', 'Guarda la configuracion de IA antes de salir de esta pestana.'],
+      },
+      crm: {
+        title: dashboardIsEnglish ? 'Step 3: Work your pipeline daily' : 'Paso 3: Trabaja tu pipeline todos los dias',
+        description: dashboardIsEnglish
+          ? 'Focus on hot opportunities, create tasks, and move stages only with evidence.'
+          : 'Enfocate en oportunidades calientes, crea tareas y mueve etapas solo con evidencia.',
+        steps: dashboardIsEnglish
+          ? ['Use focus filters: Hot, No task, Inactive +48h.', 'Open contact and create suggested task in 1 click.', 'Update stage after each real interaction.']
+          : ['Usa filtros de foco: Calientes, Sin tarea, Inactivos +48h.', 'Abre contacto y crea tarea sugerida en 1 clic.', 'Actualiza etapa despues de cada interaccion real.'],
+      },
+      analytics: {
+        title: dashboardIsEnglish ? 'Read performance without complexity' : 'Lee resultados sin complejidad',
+        description: dashboardIsEnglish
+          ? 'Review traffic, leads and AI conversations to detect where conversion drops.'
+          : 'Revisa trafico, leads y conversaciones IA para detectar donde cae la conversion.',
+        steps: dashboardIsEnglish
+          ? ['Check lead trend and conversion buckets.', 'Review "Not completed" conversations first.', 'Apply prompt improvements and track next 7 days.']
+          : ['Revisa tendencia de leads y buckets de conversion.', 'Analiza primero conversaciones "No completadas".', 'Aplica mejoras de prompt y mide los siguientes 7 dias.'],
+      },
+      security: {
+        title: dashboardIsEnglish ? 'Protect your account quickly' : 'Protege tu cuenta rapido',
+        description: dashboardIsEnglish
+          ? 'Watch blocked IPs and abnormal behavior to keep campaigns safe.'
+          : 'Monitorea IPs bloqueadas y comportamiento anomalo para proteger campanas.',
+        steps: dashboardIsEnglish
+          ? ['Review blocked list weekly.', 'Unblock only known safe traffic.', 'Keep AI security prompt active.']
+          : ['Revisa la lista de bloqueados cada semana.', 'Desbloquea solo trafico que conozcas.', 'Manten activo el prompt de seguridad IA.'],
+      },
+      billing: {
+        title: dashboardIsEnglish ? 'Keep billing under control' : 'Mantén pagos bajo control',
+        description: dashboardIsEnglish
+          ? 'Use this tab for renewals and plan changes with clear monthly pricing.'
+          : 'Usa esta pestana para renovaciones y cambios de plan con precio mensual claro.',
+        steps: dashboardIsEnglish
+          ? ['Verify current plan and next charge date.', 'Use upgrade/downgrade buttons carefully.', 'Report payments with transaction reference.']
+          : ['Verifica plan actual y fecha del siguiente cobro.', 'Usa botones de mejorar/bajar plan con cuidado.', 'Reporta pagos con referencia de transaccion.'],
+      },
+      account: {
+        title: dashboardIsEnglish ? 'Keep account data updated' : 'Mantén tu cuenta actualizada',
+        description: dashboardIsEnglish
+          ? 'Update your profile, credentials and contact data for daily operation.'
+          : 'Actualiza perfil, credenciales y datos de contacto para la operacion diaria.',
+        steps: dashboardIsEnglish
+          ? ['Confirm display name and email.', 'Change password if team rotation happened.', 'Use Support button if access issues appear.']
+          : ['Confirma nombre visible y correo.', 'Cambia clave si hubo rotacion del equipo.', 'Usa boton Soporte si aparece algun problema de acceso.'],
+      },
+      affiliates: {
+        title: dashboardIsEnglish ? 'Affiliates quick guide' : 'Guia rapida de afiliados',
+        description: dashboardIsEnglish
+          ? 'Track your network and expected commissions in one view.'
+          : 'Controla tu red y comisiones esperadas en una sola vista.',
+        steps: dashboardIsEnglish
+          ? ['Review active referrals.', 'Validate payout method data.', 'Request payout only after reconciliation.']
+          : ['Revisa referidos activos.', 'Valida datos del metodo de pago.', 'Solicita retiro solo despues de conciliacion.'],
+      },
+    }),
+    [dashboardIsEnglish],
+  );
+  const activeGuideTab = useMemo<DashboardGuideTab | null>(() => {
+    const tab = String(activeTab || '') as DashboardGuideTab;
+    if (tab in dashboardGuideByTab) return tab;
+    return null;
+  }, [activeTab, dashboardGuideByTab]);
+  const activeGuideCard = activeGuideTab ? dashboardGuideByTab[activeGuideTab] : null;
+  const activeGuideNextTab = useMemo<DashboardGuideTab | null>(() => {
+    if (activeGuideTab === 'config' || activeGuideTab === 'ai') return 'crm';
+    if (activeGuideTab === 'crm') return 'billing';
+    if (activeGuideTab === 'analytics') return 'ai';
+    if (activeGuideTab === 'billing') return 'account';
+    return null;
+  }, [activeGuideTab]);
+  const getDashboardTabLabel = (tab: DashboardGuideTab) => {
+    if (tab === 'config') return t('dashboard.config');
+    if (tab === 'ai') return t('dashboard.tabs.ai');
+    if (tab === 'crm') return t('dashboard.tabs.crm', { defaultValue: 'CRM' });
+    if (tab === 'analytics') return t('dashboard.analytics');
+    if (tab === 'security') return t('dashboard.security');
+    if (tab === 'billing') return t('dashboard.billing');
+    if (tab === 'account') return t('dashboard.tabs.account');
+    return 'Afiliados';
+  };
   const crmTemplateConfig = buildCrmTemplateConfig(crmTemplate, dashboardIsEnglish);
   const crmStageLabels = crmTemplateConfig.stageLabels as Record<CrmStage, string>;
   const plusMonthlyPricePen = resolvePlusMonthlyPricePen(profile?.plus_monthly_price_pen, globalPlusMonthlyPricePen);
@@ -1185,6 +1304,45 @@ export default function Dashboard() {
     }
     setActiveTab(nextTab);
   };
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const key = buildDashboardGuideStorageKey('dismissed_by_tab');
+    if (!key) {
+      setDismissedGuidesByTab({});
+      return;
+    }
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (!raw) {
+        setDismissedGuidesByTab({});
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        setDismissedGuidesByTab(parsed as Record<string, boolean>);
+        return;
+      }
+      setDismissedGuidesByTab({});
+    } catch {
+      setDismissedGuidesByTab({});
+    }
+  }, [user?.uid]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const key = buildDashboardGuideStorageKey('dismissed_by_tab');
+    if (!key) return;
+    window.localStorage.setItem(key, JSON.stringify(dismissedGuidesByTab));
+  }, [dismissedGuidesByTab, user?.uid]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!user?.uid || authLoading) return;
+    const key = buildDashboardGuideStorageKey('onboarding_seen');
+    if (!key) return;
+    const alreadySeen = window.localStorage.getItem(key) === '1';
+    if (alreadySeen) return;
+    window.localStorage.setItem(key, '1');
+    setDashboardOnboardingOpen(true);
+  }, [user?.uid, authLoading]);
   useEffect(() => {
     if (!isTabLockedForPlan(activeTab)) return;
     setActiveTab('crm');
@@ -5551,6 +5709,108 @@ export default function Dashboard() {
               </TabsTrigger>
             )}
           </TabsList>
+
+          {activeGuideCard && activeGuideTab && !dismissedGuidesByTab[activeGuideTab] ? (
+            <Card className="animate-in fade-in slide-in-from-top-2 border-primary/30 bg-primary/5">
+              <CardContent className="space-y-3 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-foreground">{activeGuideCard.title}</p>
+                    <p className="text-xs text-muted-foreground">{activeGuideCard.description}</p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-[11px]"
+                    onClick={() => dismissGuideForTab(activeGuideTab)}
+                  >
+                    {dashboardIsEnglish ? 'Hide guide' : 'Ocultar guia'}
+                  </Button>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-3">
+                  {activeGuideCard.steps.map((step, index) => (
+                    <div key={`${activeGuideTab}-step-${index + 1}`} className="rounded-lg border border-border/70 bg-background/80 p-2">
+                      <p className="text-[11px] font-semibold text-primary">{dashboardIsEnglish ? `Step ${index + 1}` : `Paso ${index + 1}`}</p>
+                      <p className="text-xs text-muted-foreground">{step}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button type="button" size="sm" className="h-8" onClick={() => setDashboardOnboardingOpen(true)}>
+                    <Info className="mr-1.5 h-3.5 w-3.5" />
+                    {dashboardIsEnglish ? 'Open quick onboarding' : 'Abrir onboarding rapido'}
+                  </Button>
+                  {activeGuideNextTab && activeGuideNextTab !== activeGuideTab ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-8"
+                      onClick={() => handleTabChange(activeGuideNextTab)}
+                    >
+                      <ChevronRight className="mr-1.5 h-3.5 w-3.5" />
+                      {dashboardIsEnglish ? 'Next:' : 'Siguiente:'} {getDashboardTabLabel(activeGuideNextTab)}
+                    </Button>
+                  ) : null}
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
+
+          <Dialog open={dashboardOnboardingOpen} onOpenChange={setDashboardOnboardingOpen}>
+            <DialogContent className="w-[calc(100%-1rem)] max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>{dashboardIsEnglish ? 'Welcome: quick dashboard tour' : 'Bienvenido: recorrido rapido del dashboard'}</DialogTitle>
+                <DialogDescription>
+                  {dashboardIsEnglish
+                    ? 'You can operate everything in 3 simple moves. No tutorials needed.'
+                    : 'Puedes operar todo en 3 movimientos simples. Sin tutoriales.'}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-2 sm:grid-cols-3">
+                <button
+                  type="button"
+                  className="rounded-lg border border-border/70 bg-background p-3 text-left transition-colors hover:bg-muted/40"
+                  onClick={() => {
+                    handleTabChange('config');
+                    setDashboardOnboardingOpen(false);
+                  }}
+                >
+                  <p className="text-xs font-semibold text-primary">{dashboardIsEnglish ? '1) Configure' : '1) Configura'}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {dashboardIsEnglish ? 'Business data + WhatsApp destination + Save.' : 'Datos de negocio + WhatsApp destino + Guardar.'}
+                  </p>
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg border border-border/70 bg-background p-3 text-left transition-colors hover:bg-muted/40"
+                  onClick={() => {
+                    handleTabChange('crm');
+                    setDashboardOnboardingOpen(false);
+                  }}
+                >
+                  <p className="text-xs font-semibold text-primary">{dashboardIsEnglish ? '2) Execute in CRM' : '2) Ejecuta en CRM'}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {dashboardIsEnglish ? 'Filter hot leads, create tasks, move stages.' : 'Filtra leads calientes, crea tareas y mueve etapas.'}
+                  </p>
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg border border-border/70 bg-background p-3 text-left transition-colors hover:bg-muted/40"
+                  onClick={() => {
+                    handleTabChange('billing');
+                    setDashboardOnboardingOpen(false);
+                  }}
+                >
+                  <p className="text-xs font-semibold text-primary">{dashboardIsEnglish ? '3) Keep billing healthy' : '3) Mantén pagos sanos'}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {dashboardIsEnglish ? 'Review plan and monthly charge dates.' : 'Revisa plan y fechas de cobro mensual.'}
+                  </p>
+                </button>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {/* Widget Config Tab */}
           <TabsContent value="config" className="mt-0 space-y-4 overflow-visible">
