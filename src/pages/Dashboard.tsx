@@ -94,6 +94,7 @@ type CrmTimelineFilter = 'all' | 'notes' | 'stage' | 'tasks';
 type CrmTasksWindow = 'today' | 'overdue' | 'upcoming' | 'completed' | 'all';
 type CrmEntityType = 'contact' | 'deal';
 type BillingPlanType = 'crm' | 'pro';
+type CrmTemplateType = 'general' | 'real_estate';
 
 interface CrmContact {
   id: string;
@@ -419,6 +420,7 @@ interface Profile {
   trial_ends_at?: string;
   next_renewal_at?: string;
   plan_type?: string;
+  crm_template?: string;
   pending_plan_type?: string;
   plus_monthly_price_pen?: number | null;
   ai_enabled: boolean;
@@ -681,6 +683,95 @@ const normalizeBillingPlanType = (value: unknown, fallback: BillingPlanType = 'c
   return fallback;
 };
 
+const normalizeCrmTemplate = (value: unknown, fallback: CrmTemplateType = 'general'): CrmTemplateType => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (['real_estate', 'inmobiliaria', 'bienes_raices', 'realestate'].includes(normalized)) return 'real_estate';
+  if (normalized === 'general') return 'general';
+  return fallback;
+};
+
+const buildCrmTemplateConfig = (template: CrmTemplateType, isEnglish: boolean) => {
+  if (template === 'real_estate') {
+    return {
+      id: 'real_estate' as const,
+      label: isEnglish ? 'Real Estate' : 'Bienes Raices',
+      description: isEnglish
+        ? 'Pipeline and capture fields focused on real estate sales.'
+        : 'Pipeline y captacion enfocados en venta inmobiliaria.',
+      stageLabels: isEnglish
+        ? {
+            new: 'New lead',
+            contacted: 'Contacted',
+            qualified: 'Visit scheduled',
+            won: 'Reserved/Closed',
+            lost: 'Discarded',
+          }
+        : {
+            new: 'Nuevo lead',
+            contacted: 'Contactado',
+            qualified: 'Visita agendada',
+            won: 'Separado/Cerrado',
+            lost: 'Descartado',
+          },
+      interestPlaceholder: isEnglish
+        ? 'Property type, zone, budget'
+        : 'Tipo de inmueble, zona, presupuesto',
+      notesPlaceholder: isEnglish
+        ? 'Financing status, timeline, objections, next step...'
+        : 'Estado de financiamiento, plazo, objeciones, siguiente paso...',
+      noteSnippets: isEnglish
+        ? [
+            'Needs 2-3 bedroom apartment in Miraflores.',
+            'Budget range: S/ 450,000 - 520,000.',
+            'Next action: send options and schedule visit.',
+          ]
+        : [
+            'Busca departamento 2-3 dorm en Miraflores.',
+            'Rango de presupuesto: S/ 450,000 - 520,000.',
+            'Siguiente accion: enviar opciones y agendar visita.',
+          ],
+    };
+  }
+
+  return {
+    id: 'general' as const,
+    label: isEnglish ? 'General' : 'General',
+    description: isEnglish
+      ? 'Default pipeline for any business that sells by WhatsApp.'
+      : 'Pipeline base para cualquier negocio que vende por WhatsApp.',
+    stageLabels: isEnglish
+      ? {
+          new: 'New',
+          contacted: 'Contacted',
+          qualified: 'Qualified',
+          won: 'Won',
+          lost: 'Lost',
+        }
+      : {
+          new: 'Nuevo',
+          contacted: 'Contactado',
+          qualified: 'Calificado',
+          won: 'Ganado',
+          lost: 'Perdido',
+        },
+    interestPlaceholder: isEnglish ? 'Service requested' : 'Servicio solicitado',
+    notesPlaceholder: isEnglish
+      ? 'Context, objections, follow-up notes...'
+      : 'Contexto, objeciones, notas de seguimiento...',
+    noteSnippets: isEnglish
+      ? [
+          'Main need detected in first contact.',
+          'Budget and timeline confirmed.',
+          'Next action: follow-up in 24h.',
+        ]
+      : [
+          'Necesidad principal detectada en primer contacto.',
+          'Presupuesto y plazo confirmados.',
+          'Siguiente accion: seguimiento en 24h.',
+        ],
+  };
+};
+
 function sanitizeMediaUrl(value: unknown) {
   const raw = String(value || '').trim();
   if (!raw || raw.length > 500) return '';
@@ -893,6 +984,8 @@ export default function Dashboard() {
   const [crmUpdatingId, setCrmUpdatingId] = useState('');
   const [crmView, setCrmView] = useState<CrmWorkspaceView>('contacts');
   const [crmGuideOpen, setCrmGuideOpen] = useState(false);
+  const [crmTemplate, setCrmTemplate] = useState<CrmTemplateType>('general');
+  const [crmTemplateSaving, setCrmTemplateSaving] = useState(false);
   const [crmDeals, setCrmDeals] = useState<CrmDeal[]>([]);
   const [crmDealsLoading, setCrmDealsLoading] = useState(false);
   const [crmTasks, setCrmTasks] = useState<CrmTask[]>([]);
@@ -982,6 +1075,20 @@ export default function Dashboard() {
     const supportMessage = 'Hola equipo de soporte de Lead Widget, necesito ayuda con mi cuenta.';
     return `https://wa.me/${supportPhoneDigits}?text=${encodeURIComponent(supportMessage)}`;
   };
+  const buildCrmContactWhatsappLink = (contact: CrmContact) => {
+    const digits = String(contact.phone || '').replace(/\D/g, '');
+    if (!digits) return '';
+    const name = String(contact.name || '').trim();
+    const interest = String(contact.interest || '').trim();
+    const intro = dashboardIsEnglish
+      ? name
+        ? `Hi ${name}, I'm following up on your request${interest ? ` about ${interest}` : ''}.`
+        : `Hi, I'm following up on your request${interest ? ` about ${interest}` : ''}.`
+      : name
+        ? `Hola ${name}, te escribo para dar seguimiento${interest ? ` sobre ${interest}` : ''}.`
+        : `Hola, te escribo para dar seguimiento${interest ? ` sobre ${interest}` : ''}.`;
+    return `https://wa.me/${digits}?text=${encodeURIComponent(intro.trim())}`;
+  };
 
   useEffect(() => {
     if (!SHOW_AFFILIATES_UI) return;
@@ -1038,21 +1145,8 @@ export default function Dashboard() {
 
   const dashboardIsEnglish = String(i18n.language || '').toLowerCase().startsWith('en');
   const dashboardLocale = dashboardIsEnglish ? 'en-US' : 'es-PE';
-  const crmStageLabels: Record<CrmStage, string> = dashboardIsEnglish
-    ? {
-      new: 'New',
-      contacted: 'Contacted',
-      qualified: 'Qualified',
-      won: 'Won',
-      lost: 'Lost',
-    }
-    : {
-      new: 'Nuevo',
-      contacted: 'Contactado',
-      qualified: 'Calificado',
-      won: 'Ganado',
-      lost: 'Perdido',
-    };
+  const crmTemplateConfig = buildCrmTemplateConfig(crmTemplate, dashboardIsEnglish);
+  const crmStageLabels = crmTemplateConfig.stageLabels as Record<CrmStage, string>;
   const plusMonthlyPricePen = resolvePlusMonthlyPricePen(profile?.plus_monthly_price_pen, globalPlusMonthlyPricePen);
   const profilePlanTypeRaw = String(profile?.plan_type || '').toLowerCase();
   const profilePlanType: 'trial' | BillingPlanType = profilePlanTypeRaw === 'pro' || profilePlanTypeRaw === 'plus'
@@ -1097,6 +1191,11 @@ export default function Dashboard() {
     if (profilePlanType === 'trial') return;
     setSelectedBillingPlan(pendingPlanType || profilePlanType);
   }, [profilePlanType, pendingPlanType]);
+  useEffect(() => {
+    if (profile?.crm_template) return;
+    const inferred = normalizeCrmTemplate(formConfig?.template, 'general');
+    setCrmTemplate(inferred);
+  }, [profile?.crm_template, formConfig?.template]);
   const handleUpgradeToPro = () => {
     setSelectedBillingPlan('pro');
     setTimeout(() => {
@@ -1145,6 +1244,44 @@ export default function Dashboard() {
     } finally {
       setPlanActionLoading(false);
     }
+  };
+  const handleApplyCrmTemplate = async () => {
+    if (!user?.uid) return;
+    setCrmTemplateSaving(true);
+    try {
+      await setDoc(
+        doc(db, 'profiles', user.uid),
+        {
+          crm_template: crmTemplate,
+          updated_at: new Date().toISOString(),
+        },
+        { merge: true },
+      );
+      setProfile((prev) => (prev ? { ...prev, crm_template: crmTemplate } : prev));
+      toast({
+        title: dashboardIsEnglish ? 'CRM template saved' : 'Plantilla CRM guardada',
+        description: dashboardIsEnglish
+          ? `${crmTemplateConfig.label} template is active.`
+          : `Plantilla ${crmTemplateConfig.label} activa.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: dashboardIsEnglish ? 'Could not save template' : 'No se pudo guardar la plantilla',
+        description: String(error?.message || 'Error'),
+        variant: 'destructive',
+      });
+    } finally {
+      setCrmTemplateSaving(false);
+    }
+  };
+  const applyCrmNoteSnippet = (snippet: string) => {
+    setCrmDraft((prev) => {
+      const current = String(prev.notes || '').trim();
+      return {
+        ...prev,
+        notes: current ? `${current}\n- ${snippet}` : `- ${snippet}`,
+      };
+    });
   };
   const crmMetrics = useMemo(() => {
     return crmContacts.reduce(
@@ -1220,6 +1357,83 @@ export default function Dashboard() {
       { total: 0, open: 0, overdue: 0, done: 0 },
     );
   }, [crmTasks]);
+  const crmPipelineMetrics = useMemo(() => {
+    const activeDeals = crmDeals.filter((deal) => deal.stage !== 'won' && deal.stage !== 'lost');
+    const activeValuePen = activeDeals.reduce((sum, deal) => {
+      const value = Number(deal.value || 0);
+      return Number.isFinite(value) && value > 0 ? sum + value : sum;
+    }, 0);
+    const weightedValuePen = activeDeals.reduce((sum, deal) => {
+      const value = Number(deal.value || 0);
+      const probability = Number(deal.probability || 0);
+      if (!Number.isFinite(value) || value <= 0) return sum;
+      if (!Number.isFinite(probability) || probability <= 0) return sum;
+      return sum + value * Math.min(100, Math.max(0, probability)) / 100;
+    }, 0);
+    return {
+      activeDeals: activeDeals.length,
+      activeValuePen,
+      weightedValuePen,
+    };
+  }, [crmDeals]);
+  const crmPriorityTasks = useMemo(() => {
+    const priorityRank: Record<'low' | 'med' | 'high', number> = { low: 1, med: 2, high: 3 };
+    return crmTasks
+      .filter((task) => task.status !== 'done')
+      .sort((left, right) => {
+        const leftOverdue = left.status === 'overdue' ? 1 : 0;
+        const rightOverdue = right.status === 'overdue' ? 1 : 0;
+        if (leftOverdue !== rightOverdue) return rightOverdue - leftOverdue;
+        const leftDue = parseDateToMs(left.due_at);
+        const rightDue = parseDateToMs(right.due_at);
+        if (leftDue !== rightDue) {
+          if (leftDue === 0) return 1;
+          if (rightDue === 0) return -1;
+          return leftDue - rightDue;
+        }
+        return (priorityRank[right.priority] || 0) - (priorityRank[left.priority] || 0);
+      })
+      .slice(0, 5);
+  }, [crmTasks]);
+  const crmPriorityContacts = useMemo(() => {
+    const openContactTasks = new Map<string, number>();
+    crmTasks.forEach((task) => {
+      if (task.entity_type !== 'contact') return;
+      if (task.status === 'done') return;
+      const current = openContactTasks.get(task.entity_id) || 0;
+      openContactTasks.set(task.entity_id, current + 1);
+    });
+    const dealsByContact = new Map<string, CrmDeal[]>();
+    crmDeals.forEach((deal) => {
+      const current = dealsByContact.get(deal.contact_id) || [];
+      current.push(deal);
+      dealsByContact.set(deal.contact_id, current);
+    });
+    const stageScore: Record<CrmStage, number> = {
+      new: 2,
+      contacted: 3,
+      qualified: 4,
+      won: 1,
+      lost: 0,
+    };
+    return crmContacts
+      .filter((contact) => contact.stage !== 'won' && contact.stage !== 'lost')
+      .map((contact) => {
+        let score = stageScore[contact.stage];
+        const relatedDeals = dealsByContact.get(contact.id) || [];
+        const hotDeal = relatedDeals.some((deal) => deal.stage === 'qualified' || deal.stage === 'contacted');
+        if (hotDeal) score += 2;
+        if ((openContactTasks.get(contact.id) || 0) === 0) score += 2;
+        const lastActivityMs = parseDateToMs(contact.last_activity_at || contact.updated_at || contact.created_at);
+        if (lastActivityMs > 0) {
+          const idleHours = (Date.now() - lastActivityMs) / (1000 * 60 * 60);
+          if (idleHours >= 48) score += 1;
+        }
+        return { contact, score };
+      })
+      .sort((left, right) => right.score - left.score)
+      .slice(0, 4);
+  }, [crmContacts, crmDeals, crmTasks]);
   const filteredAiChatLogs = useMemo(() => {
     if (aiChatStatusFilter === 'all') return aiChatLogs;
     return aiChatLogs.filter((item) => item.status === aiChatStatusFilter);
@@ -2896,6 +3110,15 @@ export default function Dashboard() {
       const profileSnap = await getDoc(doc(db, 'profiles', userId));
       const profileData = profileSnap.exists() ? { id: profileSnap.id, ...profileSnap.data() } as Profile : null;
       setProfile(profileData);
+      if (profileData) {
+        const profileRecord = profileData as any;
+        setCrmTemplate(
+          normalizeCrmTemplate(
+            profileRecord.crm_template,
+            normalizeCrmTemplate(profileRecord.template, 'general'),
+          ),
+        );
+      }
 
       // Load AI config from profile
       if (profileData) {
@@ -7048,6 +7271,128 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Card>
+                <CardHeader className="space-y-2">
+                  <CardTitle className="text-base">
+                    {dashboardIsEnglish ? 'CRM Template' : 'Plantilla CRM'}
+                  </CardTitle>
+                  <CardDescription>
+                    {dashboardIsEnglish
+                      ? 'Choose a workflow ready to run. Internal logic stays the same.'
+                      : 'Elige un flujo listo para operar. La logica interna no cambia.'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="crm-template">{dashboardIsEnglish ? 'Template' : 'Plantilla'}</Label>
+                    <Select value={crmTemplate} onValueChange={(value) => setCrmTemplate(value as CrmTemplateType)}>
+                      <SelectTrigger id="crm-template">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="general">{dashboardIsEnglish ? 'General' : 'General'}</SelectItem>
+                        <SelectItem value="real_estate">{dashboardIsEnglish ? 'Real Estate' : 'Bienes Raices'}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{crmTemplateConfig.description}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {CRM_STAGES.map((stage) => (
+                      <span key={stage} className="rounded-full border px-2 py-0.5 text-[11px] font-medium">
+                        {crmStageLabels[stage]}
+                      </span>
+                    ))}
+                  </div>
+                  <Button type="button" onClick={handleApplyCrmTemplate} disabled={crmTemplateSaving} className="w-full sm:w-auto">
+                    {crmTemplateSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    {dashboardIsEnglish ? 'Save template' : 'Guardar plantilla'}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="space-y-2">
+                  <CardTitle className="text-base">
+                    {dashboardIsEnglish ? 'Today priorities' : 'Prioridades de hoy'}
+                  </CardTitle>
+                  <CardDescription>
+                    {dashboardIsEnglish
+                      ? 'Focus on the actions that move revenue this week.'
+                      : 'Enfocate en las acciones que mueven ingresos esta semana.'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                    <div className="rounded-xl border bg-muted/20 p-2.5">
+                      <p className="text-[11px] text-muted-foreground">{dashboardIsEnglish ? 'Active deals' : 'Deals activos'}</p>
+                      <p className="text-lg font-black">{crmPipelineMetrics.activeDeals}</p>
+                    </div>
+                    <div className="rounded-xl border bg-muted/20 p-2.5">
+                      <p className="text-[11px] text-muted-foreground">{dashboardIsEnglish ? 'Pipeline value' : 'Valor pipeline'}</p>
+                      <p className="text-lg font-black">S/ {crmPipelineMetrics.activeValuePen.toFixed(0)}</p>
+                    </div>
+                    <div className="rounded-xl border bg-muted/20 p-2.5">
+                      <p className="text-[11px] text-muted-foreground">{dashboardIsEnglish ? 'Weighted' : 'Valor probable'}</p>
+                      <p className="text-lg font-black">S/ {crmPipelineMetrics.weightedValuePen.toFixed(0)}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-foreground">
+                      {dashboardIsEnglish ? 'Next tasks' : 'Siguientes tareas'}
+                    </p>
+                    {crmPriorityTasks.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">
+                        {dashboardIsEnglish ? 'No pending tasks.' : 'No hay tareas pendientes.'}
+                      </p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {crmPriorityTasks.slice(0, 3).map((task) => (
+                          <div key={task.id} className="flex items-center justify-between gap-2 rounded-lg border px-2 py-1.5 text-xs">
+                            <span className="truncate">{task.title}</span>
+                            <span className="text-muted-foreground">{task.due_at ? formatDateLabel(task.due_at) : '-'}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-foreground">
+                      {dashboardIsEnglish ? 'Priority contacts' : 'Contactos prioritarios'}
+                    </p>
+                    {crmPriorityContacts.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">
+                        {dashboardIsEnglish ? 'No contacts yet.' : 'Aun no hay contactos.'}
+                      </p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {crmPriorityContacts.slice(0, 3).map(({ contact }) => (
+                          <div key={contact.id} className="flex items-center justify-between gap-2 rounded-lg border px-2 py-1.5 text-xs">
+                            <span className="truncate">{contact.name}</span>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2"
+                              disabled={!String(contact.phone || '').trim()}
+                              onClick={() => {
+                                const link = buildCrmContactWhatsappLink(contact);
+                                if (!link) return;
+                                window.open(link, '_blank', 'noopener,noreferrer');
+                              }}
+                            >
+                              <MessageCircle className="mr-1 h-3.5 w-3.5" />
+                              WhatsApp
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
             <div className="grid gap-2 sm:flex sm:flex-wrap">
               <Button
                 type="button"
@@ -7193,7 +7538,7 @@ export default function Dashboard() {
                       id="crm-interest"
                       value={crmDraft.interest}
                       onChange={(event) => setCrmDraft((prev) => ({ ...prev, interest: event.target.value }))}
-                      placeholder={dashboardIsEnglish ? 'Service requested' : 'Servicio solicitado'}
+                      placeholder={crmTemplateConfig.interestPlaceholder}
                     />
                   </div>
                 </div>
@@ -7205,8 +7550,22 @@ export default function Dashboard() {
                     onChange={(event) => setCrmDraft((prev) => ({ ...prev, notes: event.target.value }))}
                     rows={3}
                     className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    placeholder={dashboardIsEnglish ? 'Context, objections, follow-up notes...' : 'Contexto, objeciones, notas de seguimiento...'}
+                    placeholder={crmTemplateConfig.notesPlaceholder}
                   />
+                  <div className="flex flex-wrap gap-2">
+                    {crmTemplateConfig.noteSnippets.map((snippet) => (
+                      <Button
+                        key={snippet}
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-[11px]"
+                        onClick={() => applyCrmNoteSnippet(snippet)}
+                      >
+                        + {snippet}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
                 <input
                   ref={crmImportInputRef}
@@ -7463,6 +7822,21 @@ export default function Dashboard() {
                               </SelectContent>
                             </Select>
                             <div className="mt-2 flex flex-col gap-2">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="w-full"
+                                disabled={!String(contact.phone || '').trim()}
+                                onClick={() => {
+                                  const link = buildCrmContactWhatsappLink(contact);
+                                  if (!link) return;
+                                  window.open(link, '_blank', 'noopener,noreferrer');
+                                }}
+                              >
+                                <MessageCircle className="mr-2 h-3.5 w-3.5" />
+                                {dashboardIsEnglish ? 'Open WhatsApp' : 'Abrir WhatsApp'}
+                              </Button>
                               <Button
                                 type="button"
                                 size="sm"

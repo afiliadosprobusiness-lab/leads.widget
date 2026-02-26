@@ -29,6 +29,7 @@ Campos observados (pueden coexistir segun flujo):
 - `plus_monthly_price_pen: number | null` (opcional, override de facturacion mensual por cliente para plan PRO; mantiene nombre legacy para compatibilidad)
 - `trial_ends_at: string | null` (ISO date)
 - `pending_plan_type: "crm" | "pro" | string | null` (opcional; cambio de plan diferido para siguiente renovacion)
+- `crm_template: "general" | "real_estate" | string` (opcional; plantilla comercial del CRM para labels/pipeline en dashboard)
 - `ai_enabled: boolean`
 - `ai_provider: string`
 - `ai_api_key: string`
@@ -767,3 +768,7 @@ Cambios de comportamiento relevantes:
 - Cambio: Dashboard Billing agrega CTA dinamico por plan activo (`Mejorar Plan` para `crm`, `Bajar Plan` para `pro`) y soporte de downgrade diferido con `profiles.pending_plan_type`.
 - Tipo: non-breaking
 - Impacto: mantiene contratos de pago actuales y agrega control de cambio de plan para aplicar CRM en la siguiente renovacion sin desactivar PRO de inmediato.
+- Fecha: 2026-02-26
+- Cambio: Dashboard CRM agrega soporte de plantillas comerciales persistidas en `profiles.crm_template` (`general|real_estate`) para adaptar labels de pipeline, placeholders y snippets operativos sin cambiar APIs.
+- Tipo: non-breaking
+- Impacto: conserva shape de datos existente y solo extiende `profiles` con campo opcional de configuracion UI.
