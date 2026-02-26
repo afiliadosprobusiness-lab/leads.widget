@@ -549,6 +549,24 @@ export default function Landing() {
               <p className={`mt-3 text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
                 {isEn ? "Test the CRM flow with no card." : "Prueba el flujo CRM sin tarjeta."}
               </p>
+              <ul className={`mt-4 space-y-2 text-sm ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
+                {(isEn
+                  ? [
+                      "CRM access for 3 days",
+                      "No credit card required",
+                      "Basic setup included",
+                    ]
+                  : [
+                      "Acceso al CRM por 3 dias",
+                      "Sin tarjeta de credito",
+                      "Configuracion basica incluida",
+                    ]).map((item) => (
+                  <li key={item} className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
               <p className="mt-6 text-3xl font-black">{isEn ? "S/ 0" : "S/ 0"}</p>
               <p className={`text-xs ${isLandingDark ? "text-slate-400" : "text-slate-500"}`}>{isEn ? "for 3 days" : "por 3 dias"}</p>
             </article>
@@ -561,6 +579,24 @@ export default function Landing() {
               <p className={`mt-3 text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
                 {isEn ? "Pipeline, contacts, tasks and payments." : "Pipeline, contactos, tareas y pagos."}
               </p>
+              <ul className={`mt-4 space-y-2 text-sm ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
+                {(isEn
+                  ? [
+                      "CRM pipeline and contacts",
+                      "Follow-up tasks",
+                      "Billing and account control",
+                    ]
+                  : [
+                      "Pipeline CRM y contactos",
+                      "Tareas de seguimiento",
+                      "Control de pagos y cuenta",
+                    ]).map((item) => (
+                  <li key={item} className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-cyan-500" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
               <p className="mt-6 text-3xl font-black">S/ 30</p>
               <p className={`text-xs ${isLandingDark ? "text-slate-400" : "text-slate-500"}`}>{isEn ? "per month" : "por mes"}</p>
             </article>
@@ -573,6 +609,24 @@ export default function Landing() {
               <p className={`mt-3 text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
                 {isEn ? "CRM + Leads Widget + Lead Chat." : "CRM + Leads Widget + Lead Chat."}
               </p>
+              <ul className={`mt-4 space-y-2 text-sm ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
+                {(isEn
+                  ? [
+                      "Everything in CRM plan",
+                      "Leads Widget enabled",
+                      "Lead Chat enabled",
+                    ]
+                  : [
+                      "Todo lo del plan CRM",
+                      "Leads Widget activado",
+                      "Lead Chat activado",
+                    ]).map((item) => (
+                  <li key={item} className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
               <p className="mt-6 text-3xl font-black">S/ 99</p>
               <p className={`text-xs ${isLandingDark ? "text-slate-400" : "text-slate-500"}`}>{isEn ? "per month" : "por mes"}</p>
             </article>

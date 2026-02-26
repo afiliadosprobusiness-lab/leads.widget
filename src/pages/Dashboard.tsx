@@ -8427,8 +8427,12 @@ export default function Dashboard() {
                       <div className="mt-3 space-y-2">
                         <Button
                           type="button"
-                          variant={activePlanType === 'crm' ? 'default' : 'outline'}
-                          className="w-full"
+                          variant="outline"
+                          className={`w-full ${
+                            activePlanType === 'crm'
+                              ? 'border-emerald-600 bg-emerald-600 text-white shadow-md shadow-emerald-600/25 hover:bg-emerald-700 hover:border-emerald-700'
+                              : 'border-slate-200 bg-slate-100 text-slate-500 hover:bg-slate-100 hover:text-slate-500 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-400 dark:hover:bg-slate-800/70 dark:hover:text-slate-400'
+                          }`}
                           onClick={activePlanType === 'crm' ? handleUpgradeToPro : handleScheduleDowngradeToCrm}
                           disabled={planActionLoading}
                         >
@@ -8507,7 +8511,7 @@ export default function Dashboard() {
                     </div>
 
                     <Button
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                      className="w-full border-0 bg-gradient-to-r from-emerald-600 to-teal-500 text-white font-bold shadow-lg shadow-emerald-500/25 hover:from-emerald-700 hover:to-teal-600"
                       onClick={handleUpgradeToPro}
                     >
                       <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
