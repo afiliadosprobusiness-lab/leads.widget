@@ -419,6 +419,7 @@ interface Profile {
   trial_ends_at?: string;
   next_renewal_at?: string;
   plan_type?: string;
+  pending_plan_type?: string;
   plus_monthly_price_pen?: number | null;
   ai_enabled: boolean;
   ai_api_key?: string;
@@ -935,6 +936,7 @@ export default function Dashboard() {
   const [savingAI, setSavingAI] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [selectedBillingPlan, setSelectedBillingPlan] = useState<BillingPlanType>('crm');
+  const [planActionLoading, setPlanActionLoading] = useState(false);
   const [chartData, setChartData] = useState<any[]>([]);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [isTestimonialDialogOpen, setIsTestimonialDialogOpen] = useState(false);
@@ -1058,9 +1060,18 @@ export default function Dashboard() {
     : profilePlanTypeRaw === 'crm'
       ? 'crm'
       : 'trial';
+  const pendingPlanTypeRaw = String(profile?.pending_plan_type || '').toLowerCase();
+  const pendingPlanType: BillingPlanType | null = pendingPlanTypeRaw === 'pro' || pendingPlanTypeRaw === 'plus'
+    ? 'pro'
+    : pendingPlanTypeRaw === 'crm'
+      ? 'crm'
+      : null;
   const isSubscriptionActive = String(profile?.subscription_status || 'trial').toLowerCase() === 'active';
   const activePlanType: BillingPlanType = profilePlanType === 'pro' ? 'pro' : 'crm';
   const activeMonthlyChargePen = activePlanType === 'pro' ? plusMonthlyPricePen : PLAN_CRM_MONTHLY_PEN;
+  const nextPlanType: BillingPlanType = pendingPlanType || activePlanType;
+  const nextMonthlyChargePen = nextPlanType === 'pro' ? plusMonthlyPricePen : PLAN_CRM_MONTHLY_PEN;
+  const hasScheduledDowngrade = isSubscriptionActive && activePlanType === 'pro' && pendingPlanType === 'crm';
   const selectedPlanChargePen = selectedBillingPlan === 'pro' ? plusMonthlyPricePen : PLAN_CRM_MONTHLY_PEN;
   const selectedPlanChargeUsd = (selectedPlanChargePen / PEN_TO_USD_RATE).toFixed(2);
   const isCrmOnlyPlan = isSubscriptionActive && profilePlanType === 'crm';
@@ -1084,8 +1095,57 @@ export default function Dashboard() {
   }, [activeTab, isCrmOnlyPlan]);
   useEffect(() => {
     if (profilePlanType === 'trial') return;
-    setSelectedBillingPlan(profilePlanType);
-  }, [profilePlanType]);
+    setSelectedBillingPlan(pendingPlanType || profilePlanType);
+  }, [profilePlanType, pendingPlanType]);
+  const handleUpgradeToPro = () => {
+    setSelectedBillingPlan('pro');
+    setTimeout(() => {
+      const paymentSection = document.querySelector('[value="paypal"]');
+      paymentSection?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+    toast({
+      title: dashboardIsEnglish ? 'Upgrade to PRO' : 'Mejorar a PRO',
+      description: dashboardIsEnglish
+        ? `Pay S/ ${plusMonthlyPricePen.toFixed(2)} to activate PRO.`
+        : `Paga S/ ${plusMonthlyPricePen.toFixed(2)} para activar PRO.`,
+    });
+  };
+  const handleScheduleDowngradeToCrm = async () => {
+    if (!user?.uid) return;
+    if (!isSubscriptionActive || activePlanType !== 'pro') return;
+    if (hasScheduledDowngrade) {
+      toast({
+        title: dashboardIsEnglish ? 'Downgrade already scheduled' : 'Bajada ya programada',
+        description: dashboardIsEnglish
+          ? 'Your next renewal will use the CRM price.'
+          : 'Tu siguiente renovacion usara el precio CRM.',
+      });
+      return;
+    }
+    setPlanActionLoading(true);
+    try {
+      await updateDoc(doc(db, 'profiles', user.uid), {
+        pending_plan_type: 'crm',
+        updated_at: new Date().toISOString(),
+      });
+      setProfile((prev) => (prev ? { ...prev, pending_plan_type: 'crm' } : prev));
+      setSelectedBillingPlan('crm');
+      toast({
+        title: dashboardIsEnglish ? 'Downgrade scheduled' : 'Bajada programada',
+        description: dashboardIsEnglish
+          ? 'You keep PRO until renewal; next month you will pay CRM.'
+          : 'Mantienes PRO hasta renovar; el siguiente mes pagaras CRM.',
+      });
+    } catch (error: any) {
+      toast({
+        title: dashboardIsEnglish ? 'Could not schedule downgrade' : 'No se pudo programar la bajada',
+        description: String(error?.message || 'Error'),
+        variant: 'destructive',
+      });
+    } finally {
+      setPlanActionLoading(false);
+    }
+  };
   const crmMetrics = useMemo(() => {
     return crmContacts.reduce(
       (acc, contact) => {
@@ -4808,7 +4868,8 @@ export default function Dashboard() {
                     await updateDoc(doc(db, 'profiles', user.uid), {
                       subscription_status: 'active',
                       plan_type: selectedBillingPlan,
-                      trial_ends_at: null
+                      trial_ends_at: null,
+                      pending_plan_type: deleteField(),
                     });
                   }
 
@@ -6948,7 +7009,7 @@ export default function Dashboard() {
                       handleTabChange('billing');
                     }}
                   >
-                    {dashboardIsEnglish ? 'Upgrade to PRO' : 'Actualizar a PRO'}
+                    {dashboardIsEnglish ? 'Upgrade to PRO' : 'Mejorar Plan'}
                   </Button>
                 </CardContent>
               </Card>
@@ -8351,7 +8412,38 @@ export default function Dashboard() {
                         <span className="text-muted-foreground">{t('dashboard.billing_section.next_payment')}</span>
                         <span className="font-bold text-slate-900 dark:text-white">{getNextPaymentDateString()}</span>
                       </div>
+                      {isSubscriptionActive && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">{dashboardIsEnglish ? 'Next cycle:' : 'Siguiente ciclo:'}</span>
+                          <span className="font-bold text-slate-900 dark:text-white">
+                            {nextPlanType === 'pro'
+                              ? `PRO - S/ ${nextMonthlyChargePen.toFixed(2)}`
+                              : `CRM - S/ ${nextMonthlyChargePen.toFixed(2)}`}
+                          </span>
+                        </div>
+                      )}
                     </div>
+                    {isSubscriptionActive && (
+                      <div className="mt-3 space-y-2">
+                        <Button
+                          type="button"
+                          variant={activePlanType === 'crm' ? 'default' : 'outline'}
+                          className="w-full"
+                          onClick={activePlanType === 'crm' ? handleUpgradeToPro : handleScheduleDowngradeToCrm}
+                          disabled={planActionLoading}
+                        >
+                          {planActionLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                          {activePlanType === 'crm' ? 'Mejorar Plan' : 'Bajar Plan'}
+                        </Button>
+                        {hasScheduledDowngrade && (
+                          <p className="text-xs text-muted-foreground">
+                            {dashboardIsEnglish
+                              ? 'Downgrade to CRM is scheduled for your next renewal.'
+                              : 'La bajada a CRM esta programada para tu siguiente renovacion.'}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -8416,23 +8508,12 @@ export default function Dashboard() {
 
                     <Button
                       className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
-                      onClick={() => {
-                        setSelectedBillingPlan('pro');
-                        // Scroll to payment section
-                        setTimeout(() => {
-                          const paymentSection = document.querySelector('[value="paypal"]');
-                          paymentSection?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        }, 100);
-                        toast({
-                          title: "💎 Upgrade a Plan PRO",
-                          description: `Plan PRO: S/ ${plusMonthlyPricePen.toFixed(2)} / mes.`,
-                        });
-                      }}
+                      onClick={handleUpgradeToPro}
                     >
                       <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
                       </svg>
-                      Actualizar a PRO
+                      Mejorar Plan
                     </Button>
                   </CardContent>
                 </Card>
@@ -8545,6 +8626,17 @@ export default function Dashboard() {
                                   ? `${selectedPlanLabel} plan activated successfully.`
                                   : `Plan ${selectedPlanLabel} activado correctamente.`,
                               });
+
+                              if (user?.uid) {
+                                try {
+                                  await updateDoc(doc(db, 'profiles', user.uid), {
+                                    pending_plan_type: deleteField(),
+                                    updated_at: new Date().toISOString(),
+                                  });
+                                } catch (profileUpdateError) {
+                                  console.error('Non-critical: could not clear pending plan change', profileUpdateError);
+                                }
+                              }
 
                               // Reload to update UI
                               loadData();
@@ -9805,4 +9897,5 @@ export default function Dashboard() {
     </div >
   );
 }
+
 

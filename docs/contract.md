@@ -28,6 +28,7 @@ Campos observados (pueden coexistir segun flujo):
 - `plan_type: "trial" | "crm" | "pro" | string` (legacy `plus` puede existir)
 - `plus_monthly_price_pen: number | null` (opcional, override de facturacion mensual por cliente para plan PRO; mantiene nombre legacy para compatibilidad)
 - `trial_ends_at: string | null` (ISO date)
+- `pending_plan_type: "crm" | "pro" | string | null` (opcional; cambio de plan diferido para siguiente renovacion)
 - `ai_enabled: boolean`
 - `ai_provider: string`
 - `ai_api_key: string`
@@ -564,6 +565,7 @@ Comportamientos actuales que clientes ya consumen:
 - `POST /api/verify-payment` es idempotente por `orderID` (`paypal_order_id`).
 - CORS acepta `GET,POST,OPTIONS` y header `Authorization`.
 - En Plan PRO (compat legacy `plus`), `branding_link` permite redireccion configurable del texto de marca; si falta o es invalido se usa `/crear-ahora?ref=<clientId>`.
+- Dashboard puede programar downgrade diferido en `profiles.pending_plan_type` (ej. `crm`) manteniendo plan actual activo hasta la renovacion.
 - En plantilla `inmobiliaria`, Lead Chat y widget embebido pueden recibir directiva de catalogo para seleccionar multimedia de propiedades via comandos `[IMAGE: ...]` y `[VIDEO: ...]` usando URLs existentes del cliente.
 - En comandos multimedia (`[IMAGE: ...]`, `[VIDEO: ...]`), el parser soporta multiples URLs dentro del mismo comando (pipe/CSV/saltos de linea/JSON array) y renderiza carrusel cuando corresponde.
 - En plantilla `inmobiliaria`, cuando el texto del asistente identifica una propiedad del catalogo, el cliente puede completar media faltante de esa propiedad para mostrar carrusel completo aunque la IA haya enviado solo una URL.
@@ -761,3 +763,7 @@ Cambios de comportamiento relevantes:
 - Cambio: esquema comercial actualizado a 3 planes (`trial` 3 dias, `crm` S/30, `pro` S/99) en landing/dashboard/superadmin; se mantiene compatibilidad legacy `plus` en lectura de `plan_type` y en campos `plus_monthly_price_pen`.
 - Tipo: non-breaking
 - Impacto: no cambia rutas ni shape de payloads; solo actualiza pricing/copy y el dashboard restringe navegacion de plan CRM a pestanas `CRM`, `Pagos` y `Cuenta` (resto visible con candado).
+- Fecha: 2026-02-26
+- Cambio: Dashboard Billing agrega CTA dinamico por plan activo (`Mejorar Plan` para `crm`, `Bajar Plan` para `pro`) y soporte de downgrade diferido con `profiles.pending_plan_type`.
+- Tipo: non-breaking
+- Impacto: mantiene contratos de pago actuales y agrega control de cambio de plan para aplicar CRM en la siguiente renovacion sin desactivar PRO de inmediato.

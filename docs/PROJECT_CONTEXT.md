@@ -198,6 +198,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - En IA > Prompt del Sistema (plantillas por nicho), cuando el lead pregunta por precio/costo/inversion, el guion responde oferta dual: `CRM S/30 mensual` o `PRO S/99 mensual` (sin implementacion).
 - En Dashboard > Billing, el esquema comercial activo es: `trial` (3 dias gratis), `crm` (S/30 mensual) y `pro` (S/99 mensual), sin costo de implementacion.
 - En Dashboard, si el usuario activo tiene plan `crm`, solo quedan habilitadas las pestanas `CRM`, `Pagos` y `Cuenta`; las demas se mantienen visibles pero bloqueadas con candado. En `pro` se habilitan todas.
+- En Dashboard > Billing, usuarios `crm` activos pueden usar CTA `Mejorar Plan` (selecciona PRO para cobro inmediato); usuarios `pro` activos pueden usar CTA `Bajar Plan`, que programa `pending_plan_type=crm` para aplicar el precio CRM en la siguiente renovacion.
 - En SuperAdmin > Clientes, se puede definir `plus_monthly_price_pen` por usuario (opcional, precio PRO legacy). Si existe, Billing del dashboard usa ese monto; si no existe, usa base global `S/ 99`.
 - En SuperAdmin, existe configuracion global de precio base PRO en `system_settings/billing.plus_monthly_price_pen`; ese valor aplica a dashboard Billing cuando el usuario no tiene override personalizado.
 - `WHATSAPP_REDIRECT` se mantiene como opcion secundaria frente a `ICALLCLOSER_READY`; ya no se usa la guia manual de insercion, ahora el comando se agrega automaticamente segun el canal seleccionado.
