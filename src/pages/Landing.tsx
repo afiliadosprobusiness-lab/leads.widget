@@ -45,20 +45,20 @@ export default function Landing() {
   }, []);
 
   const copy = {
-    heroBadge: isEn ? "Lead qualification widget for real estate" : "Widget de precalificacion para inmobiliarias",
+    heroBadge: isEn ? "CRM for real estate teams" : "CRM para equipos inmobiliarios",
     heroTitle: isEn
-      ? "Pre-qualify leads and send only serious buyers to WhatsApp"
-      : "Precalifica leads y envia solo compradores serios a WhatsApp",
+      ? "Run your real estate sales with CRM and add automation when ready"
+      : "Gestiona tu venta inmobiliaria con CRM y activa automatizacion cuando quieras",
     heroSubtitle: isEn
-      ? "Lead Widget asks, filters by zone, budget and timeline, and sends your team only high-intent conversations with key data."
-      : "Lead Widget pregunta, filtra por zona, presupuesto y plazo, y pasa a tu equipo solo conversaciones de alta intencion con datos clave.",
+      ? "Start with CRM pipeline, follow-up tasks and timeline. Upgrade to PRO when you want Leads Widget + Lead Chat with automatic pre-qualification."
+      : "Empieza con pipeline CRM, tareas y timeline. Luego sube a PRO cuando quieras Leads Widget + Lead Chat con precalificacion automatica.",
     ctaPrimary: isEn ? "Start free" : "Empezar gratis",
     ctaSecondary: isEn ? "See widget demo" : "Ver demo del widget",
     modesTitle: isEn ? "One product, two deployment modes" : "Un producto, dos modos de uso",
     capabilitiesTitle: isEn ? "What helps your team close better" : "Lo que ayuda a tu equipo a cerrar mejor",
     useCasesTitle: isEn ? "Built for real estate teams" : "Pensado para equipos inmobiliarios",
     testimonialsTitle: isEn ? "Results from active clients" : "Resultados de clientes activos",
-    pricingTitle: isEn ? "One plan focused on qualified leads" : "Un plan enfocado en leads calificados",
+    pricingTitle: isEn ? "Choose your plan" : "Elige tu plan",
     finalTitle: isEn
       ? "Stop losing time with low-intent conversations"
       : "Deja de perder tiempo en conversaciones sin intencion real",
@@ -530,26 +530,57 @@ export default function Landing() {
       </section>
 
       <section className="relative z-10 px-4 py-16 sm:px-6 lg:py-20">
-        <div className={`mx-auto max-w-[820px] rounded-[30px] border p-8 text-center shadow-[0_34px_80px_-50px_rgba(2,132,199,0.45)] ${isLandingDark ? "border-slate-700 bg-slate-900/85" : "border-slate-200/90 bg-white/92"}`}>
-          <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">{copy.pricingTitle}</h2>
-          <div className="mt-7">
-            <span className="text-4xl font-semibold tracking-tight sm:text-5xl">
-              {isEn ? "From S/ 150 per month" : "Desde 150 soles al mes"}
-            </span>
+        <div className="mx-auto w-full max-w-[1160px]">
+          <div className="text-center">
+            <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">{copy.pricingTitle}</h2>
+            <p className={`mt-3 text-sm ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
+              {isEn
+                ? "Start with a 3-day trial. Then choose CRM or PRO without setup fees."
+                : "Empieza con trial de 3 dias. Luego elige CRM o PRO sin costo de implementacion."}
+            </p>
           </div>
-          <p className={`mt-2 text-sm font-medium ${isLandingDark ? "text-cyan-200" : "text-cyan-700"}`}>
-            {isEn ? "One-time setup: S/ 200" : "Implementacion unica: S/ 200"}
-          </p>
-          <div className="mx-auto mt-7 grid max-w-xl gap-3 text-left">
-            {[
-              isEn ? "Embedded widget + Public Lead Chat" : "Widget embebido + Lead Chat publico",
-              isEn ? "Property catalog with images and videos in chat" : "Catalogo de propiedades con imagenes y videos en chat",
-              isEn ? "Live activity + social proof strip in flow" : "Actividad en vivo + prueba social dentro del flujo",
-              isEn ? "Pre-qualification + automatic WhatsApp handoff" : "Precalificacion + redireccion automatica a WhatsApp",
-              isEn ? "CRM pipeline, tasks and follow-up context" : "Pipeline CRM, tareas y contexto para seguimiento",
-            ].map((item) => <p key={item} className={`flex items-start gap-3 rounded-xl border px-4 py-3 text-sm ${isLandingDark ? "border-slate-700 bg-slate-800/80 text-slate-200" : "border-slate-200 bg-slate-50/80 text-slate-700"}`}><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" /><span>{item}</span></p>)}
+
+          <div className="mt-10 grid gap-4 md:grid-cols-3">
+            <article className={`rounded-3xl border p-6 ${isLandingDark ? "border-slate-800 bg-slate-900/70" : "border-slate-200/80 bg-white/90"}`}>
+              <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${isLandingDark ? "bg-slate-800 text-slate-200" : "bg-slate-100 text-slate-700"}`}>
+                {isEn ? "Trial" : "Trial"}
+              </span>
+              <h3 className="mt-4 text-2xl font-semibold">{isEn ? "3 days free" : "3 dias gratis"}</h3>
+              <p className={`mt-3 text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
+                {isEn ? "Test the CRM flow with no card." : "Prueba el flujo CRM sin tarjeta."}
+              </p>
+              <p className="mt-6 text-3xl font-black">{isEn ? "S/ 0" : "S/ 0"}</p>
+              <p className={`text-xs ${isLandingDark ? "text-slate-400" : "text-slate-500"}`}>{isEn ? "for 3 days" : "por 3 dias"}</p>
+            </article>
+
+            <article className={`rounded-3xl border p-6 ${isLandingDark ? "border-cyan-700/70 bg-slate-900/75" : "border-cyan-200 bg-cyan-50/70"}`}>
+              <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${isLandingDark ? "bg-cyan-500/20 text-cyan-200" : "bg-cyan-100 text-cyan-700"}`}>
+                CRM
+              </span>
+              <h3 className="mt-4 text-2xl font-semibold">{isEn ? "CRM plan" : "Plan CRM"}</h3>
+              <p className={`mt-3 text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
+                {isEn ? "Pipeline, contacts, tasks and payments." : "Pipeline, contactos, tareas y pagos."}
+              </p>
+              <p className="mt-6 text-3xl font-black">S/ 30</p>
+              <p className={`text-xs ${isLandingDark ? "text-slate-400" : "text-slate-500"}`}>{isEn ? "per month" : "por mes"}</p>
+            </article>
+
+            <article className={`rounded-3xl border p-6 ${isLandingDark ? "border-emerald-700/70 bg-slate-900/75" : "border-emerald-200 bg-emerald-50/70"}`}>
+              <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${isLandingDark ? "bg-emerald-500/20 text-emerald-200" : "bg-emerald-100 text-emerald-700"}`}>
+                PRO
+              </span>
+              <h3 className="mt-4 text-2xl font-semibold">{isEn ? "PRO plan" : "Plan PRO"}</h3>
+              <p className={`mt-3 text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
+                {isEn ? "CRM + Leads Widget + Lead Chat." : "CRM + Leads Widget + Lead Chat."}
+              </p>
+              <p className="mt-6 text-3xl font-black">S/ 99</p>
+              <p className={`text-xs ${isLandingDark ? "text-slate-400" : "text-slate-500"}`}>{isEn ? "per month" : "por mes"}</p>
+            </article>
           </div>
-          <Link to="/register" className="mt-8 inline-block"><Button size="xl" className="rounded-full px-9 text-white">{copy.navRegister}</Button></Link>
+
+          <div className="mt-8 text-center">
+            <Link to="/register" className="inline-block"><Button size="xl" className="rounded-full px-9 text-white">{copy.navRegister}</Button></Link>
+          </div>
         </div>
       </section>
 
@@ -558,7 +589,7 @@ export default function Landing() {
           <h2 className="text-3xl font-semibold tracking-tight sm:text-5xl">{copy.finalTitle}</h2>
           <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-slate-300 sm:text-base">{copy.finalSubtitle}</p>
           <p className="mx-auto mt-2 max-w-2xl text-sm font-medium text-cyan-200">
-            {isEn ? "Current offer: from S/ 150 per month." : "Oferta actual: desde 150 soles al mes."}
+            {isEn ? "Current offer: Trial 3 days, then CRM S/30 or PRO S/99 monthly." : "Oferta actual: Trial 3 dias, luego CRM S/30 o PRO S/99 mensual."}
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link to="/register"><Button size="xl" className="rounded-full px-8 text-white">{copy.navRegister}</Button></Link>

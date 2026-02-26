@@ -93,6 +93,7 @@ type CrmWorkspaceView = 'contacts' | 'deals' | 'tasks';
 type CrmTimelineFilter = 'all' | 'notes' | 'stage' | 'tasks';
 type CrmTasksWindow = 'today' | 'overdue' | 'upcoming' | 'completed' | 'all';
 type CrmEntityType = 'contact' | 'deal';
+type BillingPlanType = 'crm' | 'pro';
 
 interface CrmContact {
   id: string;
@@ -503,7 +504,7 @@ interface AiConversationGroupItem {
   securityRisk: boolean;
   completedToWhatsapp: boolean;
   interestedNotClosed: boolean;
-  notCompleted: boolean;
+  notPROd: boolean;
 }
 
 const templates = [
@@ -648,8 +649,8 @@ const FIXED_IACLOSER_REDIRECT_URL = 'https://ai-call-closer.vercel.app/';
 const AI_MAX_TOKENS_DEFAULT = 500;
 const AI_MAX_TOKENS_MIN = 100;
 const AI_MAX_TOKENS_MAX = 4000;
-const PLAN_PLUS_MONTHLY_PEN = 150;
-const PLAN_PLUS_SETUP_PEN = 200;
+const PLAN_CRM_MONTHLY_PEN = 30;
+const PLAN_PLUS_MONTHLY_PEN = 99;
 const PEN_TO_USD_RATE = 3.75;
 const CLOUDINARY_CLOUD_NAME = String(import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '').trim();
 const CLOUDINARY_UPLOAD_PRESET = String(import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || '').trim();
@@ -670,6 +671,13 @@ const resolvePlusMonthlyPricePen = (value: unknown, fallback = PLAN_PLUS_MONTHLY
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
   return Math.round(parsed);
+};
+
+const normalizeBillingPlanType = (value: unknown, fallback: BillingPlanType = 'crm'): BillingPlanType => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'pro' || normalized === 'plus') return 'pro';
+  if (normalized === 'crm') return 'crm';
+  return fallback;
 };
 
 function sanitizeMediaUrl(value: unknown) {
@@ -858,6 +866,7 @@ const AI_DEFAULT_SECURITY_PROMPT = [
 ].join('\n');
 
 const SHOW_AFFILIATES_UI = false;
+const CRM_ALLOWED_DASHBOARD_TABS = new Set(['crm', 'billing', 'account']);
 
 export default function Dashboard() {
   const { t, i18n } = useTranslation();
@@ -925,13 +934,14 @@ export default function Dashboard() {
   const [uploading, setUploading] = useState(false);
   const [savingAI, setSavingAI] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
+  const [selectedBillingPlan, setSelectedBillingPlan] = useState<BillingPlanType>('crm');
   const [chartData, setChartData] = useState<any[]>([]);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [isTestimonialDialogOpen, setIsTestimonialDialogOpen] = useState(false);
   const [currency, setCurrency] = useState<'PEN' | 'USD'>('PEN');
   const [globalPlusMonthlyPricePen, setGlobalPlusMonthlyPricePen] = useState(PLAN_PLUS_MONTHLY_PEN);
   const [affiliateRefers, setAffiliateRefers] = useState(10); // Calculator state
-  const [affiliatePlanType, setAffiliatePlanType] = useState<'trial' | 'plus'>('plus'); // Calculator Plan Selector
+  const [affiliatePlanType, setAffiliatePlanType] = useState<'trial' | 'pro'>('pro'); // Calculator Plan Selector
 
   const [isPayoutModalOpen, setIsPayoutModalOpen] = useState(false);
   const [payoutMethod, setPayoutMethod] = useState('yape');
@@ -955,10 +965,11 @@ export default function Dashboard() {
   const [affiliateNetworkIncludeInactive, setAffiliateNetworkIncludeInactive] = useState(false);
   const supportPhoneDigits = '51924464410';
 
-  const planLabel = 'PLUS';
+  const getBillingPlanLabel = (planType: BillingPlanType) => (planType === 'pro' ? 'PRO' : 'CRM');
 
-  const buildWhatsappLink = (reference?: string) => {
+  const buildWhatsappLink = (reference?: string, planType: BillingPlanType = selectedBillingPlan) => {
     const referenceText = (reference || '').trim();
+    const planLabel = getBillingPlanLabel(planType);
     const message = referenceText
       ? `Hola lead widget, ya pague mi plan ${planLabel}. Codigo de transaccion: ${referenceText}. Adjunto captura`
       : `Hola lead widget, ya pague mi plan ${planLabel}, adjunto captura`;
@@ -1041,10 +1052,40 @@ export default function Dashboard() {
       lost: 'Perdido',
     };
   const plusMonthlyPricePen = resolvePlusMonthlyPricePen(profile?.plus_monthly_price_pen, globalPlusMonthlyPricePen);
-  const plusFirstPaymentPen = plusMonthlyPricePen + PLAN_PLUS_SETUP_PEN;
-  const isTrialPlan = String(profile?.subscription_status || 'trial').toLowerCase() !== 'active';
-  const plusCurrentChargePen = isTrialPlan ? plusFirstPaymentPen : plusMonthlyPricePen;
-  const plusCurrentChargeUsd = (plusCurrentChargePen / PEN_TO_USD_RATE).toFixed(2);
+  const profilePlanTypeRaw = String(profile?.plan_type || '').toLowerCase();
+  const profilePlanType: 'trial' | BillingPlanType = profilePlanTypeRaw === 'pro' || profilePlanTypeRaw === 'plus'
+    ? 'pro'
+    : profilePlanTypeRaw === 'crm'
+      ? 'crm'
+      : 'trial';
+  const isSubscriptionActive = String(profile?.subscription_status || 'trial').toLowerCase() === 'active';
+  const activePlanType: BillingPlanType = profilePlanType === 'pro' ? 'pro' : 'crm';
+  const activeMonthlyChargePen = activePlanType === 'pro' ? plusMonthlyPricePen : PLAN_CRM_MONTHLY_PEN;
+  const selectedPlanChargePen = selectedBillingPlan === 'pro' ? plusMonthlyPricePen : PLAN_CRM_MONTHLY_PEN;
+  const selectedPlanChargeUsd = (selectedPlanChargePen / PEN_TO_USD_RATE).toFixed(2);
+  const isCrmOnlyPlan = isSubscriptionActive && profilePlanType === 'crm';
+  const isTabLockedForPlan = (tab: string) => isCrmOnlyPlan && !CRM_ALLOWED_DASHBOARD_TABS.has(tab);
+  const handleTabChange = (nextTab: string) => {
+    if (isTabLockedForPlan(nextTab)) {
+      toast({
+        title: dashboardIsEnglish ? 'Feature locked in CRM plan' : 'Funcion bloqueada en plan CRM',
+        description: dashboardIsEnglish
+          ? 'Upgrade to PRO to use this section.'
+          : 'Sube a PRO para usar esta seccion.',
+      });
+      setActiveTab('crm');
+      return;
+    }
+    setActiveTab(nextTab);
+  };
+  useEffect(() => {
+    if (!isTabLockedForPlan(activeTab)) return;
+    setActiveTab('crm');
+  }, [activeTab, isCrmOnlyPlan]);
+  useEffect(() => {
+    if (profilePlanType === 'trial') return;
+    setSelectedBillingPlan(profilePlanType);
+  }, [profilePlanType]);
   const crmMetrics = useMemo(() => {
     return crmContacts.reduce(
       (acc, contact) => {
@@ -1135,7 +1176,7 @@ export default function Dashboard() {
       lastError: string;
       completedToWhatsapp: boolean;
       securityRisk: boolean;
-      notCompleted: boolean;
+      notPROd: boolean;
       interestedNotClosed: boolean;
       hasRecentActivity: boolean;
       eventTypes: AiChatEventType[];
@@ -1173,7 +1214,7 @@ export default function Dashboard() {
           lastError: log.error_message || '',
           completedToWhatsapp: false,
           securityRisk: false,
-          notCompleted: false,
+          notPROd: false,
           interestedNotClosed: false,
           hasRecentActivity: false,
           eventTypes: [],
@@ -1202,7 +1243,7 @@ export default function Dashboard() {
         logs: [...item.logs].sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()),
         completedToWhatsapp: false,
         securityRisk: false,
-        notCompleted: false,
+        notPROd: false,
         interestedNotClosed: false,
         hasRecentActivity: false,
         eventTypes: [] as AiChatEventType[],
@@ -1229,15 +1270,15 @@ export default function Dashboard() {
         );
         const lastAtMs = new Date(item.lastAt || 0).getTime();
         const hasRecentActivity = Number.isFinite(lastAtMs) && lastAtMs > 0 && (nowMs - lastAtMs) < inactiveThresholdMs;
-        const notCompleted = !completedToWhatsapp && !securityRisk && !hasRecentActivity;
-        const interestedNotClosed = notCompleted && (hasMediaEngagement || hasCommercialIntent);
+        const notPROd = !completedToWhatsapp && !securityRisk && !hasRecentActivity;
+        const interestedNotClosed = notPROd && (hasMediaEngagement || hasCommercialIntent);
         return {
           ...item,
           eventTypes,
           completedToWhatsapp,
           securityRisk,
           hasRecentActivity,
-          notCompleted,
+          notPROd,
           interestedNotClosed,
         };
       })
@@ -1246,19 +1287,19 @@ export default function Dashboard() {
 
   const filteredAiConversationGroups = useMemo(() => {
     if (aiConversationFilter === 'all') return aiConversationGroups;
-    if (aiConversationFilter === 'not_completed') return aiConversationGroups.filter((item) => item.notCompleted);
+    if (aiConversationFilter === 'not_completed') return aiConversationGroups.filter((item) => item.notPROd);
     if (aiConversationFilter === 'warm_not_closed') return aiConversationGroups.filter((item) => item.interestedNotClosed);
     if (aiConversationFilter === 'completed') return aiConversationGroups.filter((item) => item.completedToWhatsapp);
     if (aiConversationFilter === 'security') return aiConversationGroups.filter((item) => item.securityRisk);
     return aiConversationGroups;
   }, [aiConversationFilter, aiConversationGroups]);
 
-  const aiNotCompletedCount = useMemo(
-    () => aiConversationGroups.filter((item) => item.notCompleted).length,
+  const aiNotPROdCount = useMemo(
+    () => aiConversationGroups.filter((item) => item.notPROd).length,
     [aiConversationGroups],
   );
 
-  const aiCompletedCount = useMemo(
+  const aiPROdCount = useMemo(
     () => aiConversationGroups.filter((item) => item.completedToWhatsapp).length,
     [aiConversationGroups],
   );
@@ -1319,12 +1360,12 @@ export default function Dashboard() {
     securityRisk: boolean;
     completedToWhatsapp: boolean;
     interestedNotClosed: boolean;
-    notCompleted: boolean;
+    notPROd: boolean;
   }) => {
     if (conversation.securityRisk) return dashboardIsEnglish ? 'Risk/Hack' : 'Riesgo/Hack';
     if (conversation.completedToWhatsapp) return dashboardIsEnglish ? 'Lead completed' : 'Lead completado';
     if (conversation.interestedNotClosed) return dashboardIsEnglish ? 'Interested not closed' : 'Interesado no cerrado';
-    if (conversation.notCompleted) return dashboardIsEnglish ? 'Not completed' : 'No completado';
+    if (conversation.notPROd) return dashboardIsEnglish ? 'Not completed' : 'No completado';
     return dashboardIsEnglish ? 'In progress' : 'En curso';
   };
 
@@ -1332,12 +1373,12 @@ export default function Dashboard() {
     securityRisk: boolean;
     completedToWhatsapp: boolean;
     interestedNotClosed: boolean;
-    notCompleted: boolean;
+    notPROd: boolean;
   }) => {
     if (conversation.securityRisk) return 'border-rose-300/70 bg-rose-500/10 text-rose-700 dark:text-rose-300';
     if (conversation.completedToWhatsapp) return 'border-emerald-300/70 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300';
     if (conversation.interestedNotClosed) return 'border-amber-300/70 bg-amber-500/10 text-amber-700 dark:text-amber-300';
-    if (conversation.notCompleted) return 'border-sky-300/70 bg-sky-500/10 text-sky-700 dark:text-sky-300';
+    if (conversation.notPROd) return 'border-sky-300/70 bg-sky-500/10 text-sky-700 dark:text-sky-300';
     return 'border-slate-300/70 bg-slate-500/10 text-slate-700 dark:text-slate-300';
   };
 
@@ -4174,7 +4215,7 @@ export default function Dashboard() {
     const headers = ['name', 'phone', 'email', 'interest', 'stage', 'notes', 'source'];
     const sampleRows = [
       ['Juan Perez', '+51999999999', 'juan@empresa.com', 'Demo de servicio', 'new', 'Contacto de feria comercial', 'csv_import'],
-      ['Maria Lopez', '+51988888888', 'maria@empresa.com', 'Plan PLUS', 'qualified', 'Pidio llamada de cierre', 'campaign_meta_ads'],
+      ['Maria Lopez', '+51988888888', 'maria@empresa.com', 'Plan PRO', 'qualified', 'Pidio llamada de cierre', 'campaign_meta_ads'],
     ];
     const csv = [headers.join(','), ...sampleRows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))].join('\n');
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -4700,6 +4741,11 @@ export default function Dashboard() {
 
   // Superadmins should never be blocked by the trial paywall.
   const isTrialExpired = !isSuperAdmin && getTrialDaysLeft() <= 0 && profile?.subscription_status !== 'active';
+  const isConfigTabLocked = isTabLockedForPlan('config');
+  const isAiTabLocked = isTabLockedForPlan('ai');
+  const isAnalyticsTabLocked = isTabLockedForPlan('analytics');
+  const isSecurityTabLocked = isTabLockedForPlan('security');
+  const isAffiliatesTabLocked = isTabLockedForPlan('affiliates');
 
   // BLOCKING OVERLAY
   if (isTrialExpired) {
@@ -4712,23 +4758,46 @@ export default function Dashboard() {
             </div>
             <CardTitle className="text-2xl font-black text-slate-900 dark:text-white">¡Tu prueba ha terminado!</CardTitle>
             <CardDescription className="text-base mt-2 text-slate-600 dark:text-slate-300">
-              Para seguir capturando leads ilimitadamente, activa tu plan PLUS hoy.
+              Activa tu plan mensual: CRM (S/ 30) o PRO con Leads Widget + Lead Chat (S/ 99).
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 pt-6 animate-in fade-in slide-in-from-bottom-4">
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant={selectedBillingPlan === 'crm' ? 'default' : 'outline'}
+                onClick={() => setSelectedBillingPlan('crm')}
+                className="h-auto flex-col py-3"
+              >
+                <span className="text-xs uppercase tracking-wide">CRM</span>
+                <span className="text-lg font-black">S/ 30</span>
+              </Button>
+              <Button
+                type="button"
+                variant={selectedBillingPlan === 'pro' ? 'default' : 'outline'}
+                onClick={() => setSelectedBillingPlan('pro')}
+                className="h-auto flex-col py-3"
+              >
+                <span className="text-xs uppercase tracking-wide">PRO</span>
+                <span className="text-lg font-black">S/ {plusMonthlyPricePen}</span>
+              </Button>
+            </div>
             <PayPalPaymentButton
-              amount={(plusFirstPaymentPen / PEN_TO_USD_RATE).toFixed(2)}
+              amount={selectedPlanChargeUsd}
               currency="USD"
               onSuccess={async (details) => {
                 try {
+                  const selectedPlanLabel = getBillingPlanLabel(selectedBillingPlan);
                   await addDoc(collection(db, 'payments'), {
                     user_id: user?.uid,
-                    amount: plusFirstPaymentPen,
+                    amount: selectedPlanChargePen,
                     currency: 'USD',
                     payment_method: 'PayPal',
-                    description: 'Plan PLUS (Implementacion + primer mes)',
+                    description: selectedBillingPlan === 'pro'
+                      ? 'Plan PRO (CRM + Leads Widget + Lead Chat)'
+                      : 'Plan CRM (Mensual)',
                     status: 'completed',
-                    plan_type: 'plus',
+                    plan_type: selectedBillingPlan,
                     partner_id: profile?.partner_id || null,
                     paypal_order_id: details.id,
                     payer_email: details.payer.email_address,
@@ -4738,14 +4807,14 @@ export default function Dashboard() {
                   if (user?.uid) {
                     await updateDoc(doc(db, 'profiles', user.uid), {
                       subscription_status: 'active',
-                      plan_type: 'plus',
+                      plan_type: selectedBillingPlan,
                       trial_ends_at: null
                     });
                   }
 
                   toast({
                     title: "¡Suscripción Activada!",
-                    description: "Plan PLUS activado correctamente.",
+                    description: `Plan ${selectedPlanLabel} activado correctamente.`,
                   });
 
                   // Reload to update UI
@@ -4759,7 +4828,7 @@ export default function Dashboard() {
             <div className="rounded-xl border border-border bg-muted/30 p-4 text-left">
               <p className="text-sm font-bold text-slate-900 dark:text-white">Pago local (Yape / Plin)</p>
               <p className="text-xs text-muted-foreground mt-1">
-                Envía S/ {plusFirstPaymentPen.toFixed(2)} (implementacion + primer mes) y confirma por WhatsApp para activar tu plan.
+                Envía S/ {selectedPlanChargePen.toFixed(2)} y confirma por WhatsApp para activar tu plan.
               </p>
               <div className="mt-3 flex items-center justify-between gap-3">
                 <div className="min-w-0">
@@ -4773,19 +4842,22 @@ export default function Dashboard() {
                 </Button>
               </div>
               <p className="text-[11px] text-muted-foreground mt-2">
-                Mensaje sugerido: "Hola lead widget, ya pague mi plan PLUS (implementacion + primer mes) y adjunto captura."
+                Mensaje sugerido: {`"Hola lead widget, ya pague mi plan ${getBillingPlanLabel(selectedBillingPlan)} y adjunto captura."`}
               </p>
             </div>
             <p className="text-xs text-center text-muted-foreground">Pago seguro con PayPal</p>
           </CardContent>
           <CardContent className="space-y-6 pt-6">
             <div className="bg-muted/20 p-4 rounded-xl border border-border shadow-sm text-center">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold mb-1">Primer pago</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold mb-1">Pago mensual</p>
               <div className="flex items-center justify-center gap-1">
-                <span className="text-3xl font-black text-primary">S/ {plusFirstPaymentPen.toFixed(2)}</span>
+                <span className="text-3xl font-black text-primary">S/ {selectedPlanChargePen.toFixed(2)}</span>
               </div>
-              <p className="text-[11px] text-muted-foreground mt-1">Incluye S/ 200 de implementacion unica + S/ {plusMonthlyPricePen.toFixed(2)} del primer mes.</p>
-              <p className="text-[11px] text-muted-foreground">Renovacion posterior: S/ {plusMonthlyPricePen.toFixed(2)} / mes.</p>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                {selectedBillingPlan === 'pro'
+                  ? `Plan PRO (CRM + Leads Widget + Lead Chat): S/ ${plusMonthlyPricePen.toFixed(2)} / mes.`
+                  : 'Plan CRM: S/ 30.00 / mes.'}
+              </p>
             </div>
 
             {!showPayment ? (
@@ -4824,10 +4896,13 @@ export default function Dashboard() {
                       try {
                         await addDoc(collection(db, 'payments'), {
                           user_id: user?.uid,
-                          amount: plusFirstPaymentPen,
-                          description: 'Activacion PLUS (Implementacion + primer mes)',
+                          amount: selectedPlanChargePen,
+                          description: selectedBillingPlan === 'pro'
+                            ? 'Plan PRO (Pago manual)'
+                            : 'Plan CRM (Pago manual)',
                           operation_ref: refInput.value,
                           status: 'pending',
+                          plan_type: selectedBillingPlan,
                           created_at: new Date().toISOString()
                         });
                         toast({ title: "Pago reportado", description: "Espera la activación manual." });
@@ -4942,30 +5017,37 @@ export default function Dashboard() {
         {/* Affiliate Card */}
         <AffiliateCard dismissible={true} />
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-8">
           {/* Mobile Navigation (Segmented Control) */}
           <div className="sm:hidden grid grid-cols-5 gap-1 mb-6 bg-background/50 backdrop-blur-sm p-1 rounded-2xl sticky top-[73px] z-40 border border-border/50 shadow-sm">
             {/* 1. Widget */}
             <button
-              onClick={() => setActiveTab('config')}
-              className={`flex flex-col items-center justify-center gap-1 min-h-[56px] rounded-xl transition-all duration-300 active:scale-95 ${activeTab === 'config' ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-muted-foreground hover:bg-muted/50'}`}
+              type="button"
+              disabled={isConfigTabLocked}
+              onClick={() => handleTabChange('config')}
+              className={`flex flex-col items-center justify-center gap-1 min-h-[56px] rounded-xl transition-all duration-300 active:scale-95 ${activeTab === 'config' ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-muted-foreground hover:bg-muted/50'} ${isConfigTabLocked ? 'opacity-55 cursor-not-allowed hover:bg-transparent' : ''}`}
             >
               <Settings className={`w-5 h-5 ${activeTab === 'config' ? 'stroke-[2.5px]' : ''}`} />
               <span className="text-[10px] leading-none">{t('dashboard.tabs.config')}</span>
+              {isConfigTabLocked && <Lock className="w-3 h-3 text-amber-500" />}
             </button>
 
             {/* 2. IA */}
             <button
-              onClick={() => setActiveTab('ai')}
-              className={`flex flex-col items-center justify-center gap-1 min-h-[56px] rounded-xl transition-all duration-300 active:scale-95 ${activeTab === 'ai' ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-muted-foreground hover:bg-muted/50'}`}
+              type="button"
+              disabled={isAiTabLocked}
+              onClick={() => handleTabChange('ai')}
+              className={`flex flex-col items-center justify-center gap-1 min-h-[56px] rounded-xl transition-all duration-300 active:scale-95 ${activeTab === 'ai' ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-muted-foreground hover:bg-muted/50'} ${isAiTabLocked ? 'opacity-55 cursor-not-allowed hover:bg-transparent' : ''}`}
             >
               <Bot className={`w-5 h-5 ${activeTab === 'ai' ? 'stroke-[2.5px]' : ''}`} />
               <span className="text-[10px] leading-none">{t('dashboard.tabs.ai')}</span>
+              {isAiTabLocked && <Lock className="w-3 h-3 text-amber-500" />}
             </button>
 
             {/* 3. CRM */}
             <button
-              onClick={() => setActiveTab('crm')}
+              type="button"
+              onClick={() => handleTabChange('crm')}
               className={`flex flex-col items-center justify-center gap-1 min-h-[56px] rounded-xl transition-all duration-300 active:scale-95 ${activeTab === 'crm' ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-muted-foreground hover:bg-muted/50'}`}
             >
               <Target className={`w-5 h-5 ${activeTab === 'crm' ? 'stroke-[2.5px]' : ''}`} />
@@ -4974,11 +5056,14 @@ export default function Dashboard() {
 
             {/* 4. Data */}
             <button
-              onClick={() => setActiveTab('analytics')}
-              className={`flex flex-col items-center justify-center gap-1 min-h-[56px] rounded-xl transition-all duration-300 active:scale-95 ${activeTab === 'analytics' ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-muted-foreground hover:bg-muted/50'}`}
+              type="button"
+              disabled={isAnalyticsTabLocked}
+              onClick={() => handleTabChange('analytics')}
+              className={`flex flex-col items-center justify-center gap-1 min-h-[56px] rounded-xl transition-all duration-300 active:scale-95 ${activeTab === 'analytics' ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-muted-foreground hover:bg-muted/50'} ${isAnalyticsTabLocked ? 'opacity-55 cursor-not-allowed hover:bg-transparent' : ''}`}
             >
               <BarChart3 className={`w-5 h-5 ${activeTab === 'analytics' ? 'stroke-[2.5px]' : ''}`} />
               <span className="text-[10px] leading-none">{t('dashboard.tabs.data')}</span>
+              {isAnalyticsTabLocked && <Lock className="w-3 h-3 text-amber-500" />}
             </button>
 
             {/* 5. More (Dropdown) */}
@@ -4992,18 +5077,28 @@ export default function Dashboard() {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48 rounded-xl">
-                <DropdownMenuItem onClick={() => setActiveTab('security')} className="gap-2 h-10 cursor-pointer">
+                <DropdownMenuItem
+                  disabled={isSecurityTabLocked}
+                  onClick={() => handleTabChange('security')}
+                  className={`gap-2 h-10 ${isSecurityTabLocked ? 'opacity-55 cursor-not-allowed' : 'cursor-pointer'}`}
+                >
                   <ShieldCheck className="w-4 h-4" /> {t('dashboard.tabs.security')}
+                  {isSecurityTabLocked && <Lock className="w-3 h-3 text-amber-500 ml-auto" />}
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setActiveTab('billing')} className="gap-2 h-10 cursor-pointer">
+                <DropdownMenuItem onClick={() => handleTabChange('billing')} className="gap-2 h-10 cursor-pointer">
                   <CreditCard className="w-4 h-4" /> {t('dashboard.tabs.billing')}
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setActiveTab('account')} className="gap-2 h-10 cursor-pointer">
+                <DropdownMenuItem onClick={() => handleTabChange('account')} className="gap-2 h-10 cursor-pointer">
                   <User className="w-4 h-4" /> {t('dashboard.tabs.account')}
                 </DropdownMenuItem>
                 {SHOW_AFFILIATES_UI && (
-                  <DropdownMenuItem onClick={() => setActiveTab('affiliates')} className="gap-2 h-10 cursor-pointer text-emerald-600 font-bold bg-emerald-50">
+                  <DropdownMenuItem
+                    disabled={isAffiliatesTabLocked}
+                    onClick={() => handleTabChange('affiliates')}
+                    className={`gap-2 h-10 text-emerald-600 font-bold bg-emerald-50 ${isAffiliatesTabLocked ? 'opacity-55 cursor-not-allowed' : 'cursor-pointer'}`}
+                  >
                     <Banknote className="w-4 h-4" /> Afiliados
+                    {isAffiliatesTabLocked && <Lock className="w-3 h-3 text-amber-500 ml-auto" />}
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
@@ -5012,25 +5107,37 @@ export default function Dashboard() {
 
           {/* Desktop Navigation */}
           <TabsList className="hidden sm:flex sm:flex-wrap w-full no-scrollbar gap-1">
-            <TabsTrigger value="config" className="gap-2 flex-shrink-0 px-4">
+            <TabsTrigger value="config" disabled={isConfigTabLocked} className={`gap-2 flex-shrink-0 px-4 ${isConfigTabLocked ? 'opacity-55' : ''}`}>
               <Settings className="w-4 h-4" />
-              <span>{t('dashboard.config')}</span>
+              <span className="flex flex-col items-center leading-tight">
+                <span>{t('dashboard.config')}</span>
+                {isConfigTabLocked && <Lock className="w-3 h-3 text-amber-500" />}
+              </span>
             </TabsTrigger>
-            <TabsTrigger value="ai" className="gap-2 flex-shrink-0 px-4">
+            <TabsTrigger value="ai" disabled={isAiTabLocked} className={`gap-2 flex-shrink-0 px-4 ${isAiTabLocked ? 'opacity-55' : ''}`}>
               <Bot className="w-4 h-4" />
-              <span>{t('dashboard.tabs.ai')}</span>
+              <span className="flex flex-col items-center leading-tight">
+                <span>{t('dashboard.tabs.ai')}</span>
+                {isAiTabLocked && <Lock className="w-3 h-3 text-amber-500" />}
+              </span>
             </TabsTrigger>
             <TabsTrigger value="crm" className="gap-2 flex-shrink-0 px-4">
               <Target className="w-4 h-4" />
               <span>{t('dashboard.tabs.crm', { defaultValue: 'CRM' })}</span>
             </TabsTrigger>
-            <TabsTrigger value="analytics" className="gap-2 flex-shrink-0 px-4">
+            <TabsTrigger value="analytics" disabled={isAnalyticsTabLocked} className={`gap-2 flex-shrink-0 px-4 ${isAnalyticsTabLocked ? 'opacity-55' : ''}`}>
               <BarChart3 className="w-4 h-4" />
-              <span>{t('dashboard.analytics')}</span>
+              <span className="flex flex-col items-center leading-tight">
+                <span>{t('dashboard.analytics')}</span>
+                {isAnalyticsTabLocked && <Lock className="w-3 h-3 text-amber-500" />}
+              </span>
             </TabsTrigger>
-            <TabsTrigger value="security" className="gap-2 flex-shrink-0 px-4">
+            <TabsTrigger value="security" disabled={isSecurityTabLocked} className={`gap-2 flex-shrink-0 px-4 ${isSecurityTabLocked ? 'opacity-55' : ''}`}>
               <ShieldCheck className="w-4 h-4" />
-              <span>{t('dashboard.security')}</span>
+              <span className="flex flex-col items-center leading-tight">
+                <span>{t('dashboard.security')}</span>
+                {isSecurityTabLocked && <Lock className="w-3 h-3 text-amber-500" />}
+              </span>
             </TabsTrigger>
             <TabsTrigger value="billing" className="gap-2 flex-shrink-0 px-4">
               <CreditCard className="w-4 h-4" />
@@ -5041,9 +5148,12 @@ export default function Dashboard() {
               <span>{t('dashboard.tabs.account')}</span>
             </TabsTrigger>
             {SHOW_AFFILIATES_UI && (
-              <TabsTrigger value="affiliates" className="gap-2 flex-shrink-0 px-4 text-emerald-600 data-[state=active]:text-emerald-700 data-[state=active]:bg-emerald-50">
+              <TabsTrigger value="affiliates" disabled={isAffiliatesTabLocked} className={`gap-2 flex-shrink-0 px-4 text-emerald-600 data-[state=active]:text-emerald-700 data-[state=active]:bg-emerald-50 ${isAffiliatesTabLocked ? 'opacity-55' : ''}`}>
                 <Banknote className="w-4 h-4" />
-                <span>Afiliados</span>
+                <span className="flex flex-col items-center leading-tight">
+                  <span>Afiliados</span>
+                  {isAffiliatesTabLocked && <Lock className="w-3 h-3 text-amber-500" />}
+                </span>
               </TabsTrigger>
             )}
           </TabsList>
@@ -5925,7 +6035,7 @@ export default function Dashboard() {
                             }))
                           }
                           placeholder={metaCapiConfig.hasAccessToken ? 'Token guardado. Escribe uno nuevo solo si deseas reemplazarlo.' : 'Pega aqui el token de Meta'}
-                          autoComplete="new-password"
+                          autoPRO="new-password"
                         />
                         <Button
                           type="button"
@@ -6189,7 +6299,7 @@ export default function Dashboard() {
                       )}
                     </div>
 
-                    {/* PLUS Plan: Hide Branding */}
+                    {/* PRO Plan: Hide Branding */}
                     <div className="space-y-4 p-4 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl border-2 border-emerald-200">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1">
@@ -6205,19 +6315,19 @@ export default function Dashboard() {
                               </TooltipTrigger>
                               <TooltipContent className="max-w-xs text-xs leading-relaxed">
                                 La marca de agua se muestra en el pie del chat como "CREA TU WIDGET GRATIS AQUI".
-                                En Trial se mantiene para promocion automatica. En Plan PLUS puedes ocultarla o reemplazarla por tu texto de marca.
+                                En Trial se mantiene para promocion automatica. En Plan PRO puedes ocultarla o reemplazarla por tu texto de marca.
                               </TooltipContent>
                             </Tooltip>
-                            {profile?.plan_type === 'plus' && (
+                            {profilePlanType === 'pro' && (
                               <span className="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-bold">
-                                PLAN PLUS
+                                PLAN PRO
                               </span>
                             )}
                           </div>
                           <p className="text-xs text-emerald-700">
-                            {profile?.plan_type === 'plus'
+                            {profilePlanType === 'pro'
                               ? 'Activa esta opcion para remover la promo del pie del chat.'
-                              : `Actualiza al Plan PLUS (S/ ${plusMonthlyPricePen}/mes) para remover la marca de agua y tener un widget 100% tuyo.`
+                              : `Actualiza al Plan PRO (S/ ${plusMonthlyPricePen}/mes) para remover la marca de agua y tener un widget 100% tuyo.`
                             }
                           </p>
                         </div>
@@ -6225,11 +6335,11 @@ export default function Dashboard() {
                           id="hide-branding"
                           checked={formConfig.hide_branding || false}
                           onCheckedChange={(checked) => setFormConfig({ ...formConfig, hide_branding: checked })}
-                          disabled={profile?.plan_type !== 'plus'}
-                          className={profile?.plan_type !== 'plus' ? 'opacity-50' : ''}
+                          disabled={profilePlanType !== 'pro'}
+                          className={profilePlanType !== 'pro' ? 'opacity-50' : ''}
                         />
                       </div>
-                      {profile?.plan_type === 'plus' && !formConfig.hide_branding && (
+                      {profilePlanType === 'pro' && !formConfig.hide_branding && (
                         <div className="space-y-2">
                           <Label className="text-xs text-emerald-900">Texto de marca (opcional)</Label>
                           <Input
@@ -6249,14 +6359,14 @@ export default function Dashboard() {
                           </p>
                         </div>
                       )}
-                      {profile?.plan_type !== 'plus' && (
+                      {profilePlanType !== 'pro' && (
                         <Button
                           variant="outline"
                           size="sm"
                           className="w-full border-emerald-600 text-emerald-700 hover:bg-emerald-50"
-                          onClick={() => setActiveTab('billing')}
+                          onClick={() => handleTabChange('billing')}
                         >
-                          🚀 Actualizar a Plan PLUS
+                          🚀 Actualizar a Plan PRO
                         </Button>
                       )}
                     </div>
@@ -6817,6 +6927,32 @@ export default function Dashboard() {
 
           {/* CRM Tab */}
           <TabsContent value="crm" className="space-y-6">
+            {isCrmOnlyPlan ? (
+              <Card className="border-emerald-200 bg-emerald-50/70 dark:border-emerald-900/60 dark:bg-emerald-900/20">
+                <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-emerald-900 dark:text-emerald-200">
+                      {dashboardIsEnglish ? 'You are on CRM plan' : 'Estas en plan CRM'}
+                    </p>
+                    <p className="text-xs text-emerald-800/90 dark:text-emerald-300/90">
+                      {dashboardIsEnglish
+                        ? `Upgrade to PRO (S/ ${plusMonthlyPricePen.toFixed(2)}/mo) to enable Leads Widget + Lead Chat.`
+                        : `Sube a PRO (S/ ${plusMonthlyPricePen.toFixed(2)}/mes) para activar Leads Widget + Lead Chat.`}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    className="sm:w-auto"
+                    onClick={() => {
+                      setSelectedBillingPlan('pro');
+                      handleTabChange('billing');
+                    }}
+                  >
+                    {dashboardIsEnglish ? 'Upgrade to PRO' : 'Actualizar a PRO'}
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : null}
             <Card className="overflow-hidden border-primary/20">
               <CardHeader className="border-b border-border/70 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent">
                 <CardTitle className="flex items-center gap-2">
@@ -7602,7 +7738,7 @@ export default function Dashboard() {
                         {windowFilter === 'today' ? (dashboardIsEnglish ? 'Today' : 'Hoy') : null}
                         {windowFilter === 'overdue' ? (dashboardIsEnglish ? 'Overdue' : 'Vencidas') : null}
                         {windowFilter === 'upcoming' ? (dashboardIsEnglish ? 'Upcoming' : 'Proximas') : null}
-                        {windowFilter === 'completed' ? (dashboardIsEnglish ? 'Completed' : 'Completadas') : null}
+                        {windowFilter === 'completed' ? (dashboardIsEnglish ? 'PROd' : 'Completadas') : null}
                       </Button>
                     ))}
                   </div>
@@ -7791,7 +7927,7 @@ export default function Dashboard() {
                   </div>
                   <div className="rounded-xl border border-sky-300/70 bg-sky-500/10 p-3 shadow-sm dark:border-sky-900/70 dark:bg-sky-900/20">
                     <p className="text-[11px] uppercase tracking-wider text-sky-700/90 dark:text-sky-200/90">{dashboardIsEnglish ? 'Not completed' : 'No completados'}</p>
-                    <p className="mt-1 text-2xl font-bold text-sky-700 dark:text-sky-200">{aiNotCompletedCount}</p>
+                    <p className="mt-1 text-2xl font-bold text-sky-700 dark:text-sky-200">{aiNotPROdCount}</p>
                   </div>
                   <div className="rounded-xl border border-amber-300/70 bg-amber-500/10 p-3 shadow-sm dark:border-amber-900/70 dark:bg-amber-900/20">
                     <p className="text-[11px] uppercase tracking-wider text-amber-700/90 dark:text-amber-200/90">{dashboardIsEnglish ? 'Interested not closed' : 'Interesado no cerrado'}</p>
@@ -7799,7 +7935,7 @@ export default function Dashboard() {
                   </div>
                   <div className="rounded-xl border border-emerald-300/70 bg-emerald-500/10 p-3 shadow-sm dark:border-emerald-900/70 dark:bg-emerald-900/20">
                     <p className="text-[11px] uppercase tracking-wider text-emerald-700/90 dark:text-emerald-200/90">{dashboardIsEnglish ? 'Lead completed' : 'Lead completado'}</p>
-                    <p className="mt-1 text-2xl font-bold text-emerald-700 dark:text-emerald-200">{aiCompletedCount}</p>
+                    <p className="mt-1 text-2xl font-bold text-emerald-700 dark:text-emerald-200">{aiPROdCount}</p>
                   </div>
                   <div className="rounded-xl border border-rose-300/70 bg-rose-500/10 p-3 shadow-sm dark:border-rose-900/70 dark:bg-rose-900/20">
                     <p className="text-[11px] uppercase tracking-wider text-rose-700/90 dark:text-rose-200/90">{dashboardIsEnglish ? 'Risk/Hack' : 'Riesgo/Hack'}</p>
@@ -7975,7 +8111,7 @@ export default function Dashboard() {
                               </div>
                             ) : null}
 
-                            {conversation.notCompleted ? (
+                            {conversation.notPROd ? (
                               <div className="rounded-xl border border-sky-300/70 bg-sky-500/10 p-3">
                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                   <p className="text-xs text-sky-800 dark:text-sky-200">
@@ -8193,7 +8329,11 @@ export default function Dashboard() {
                     <div className="flex justify-between items-start mb-4">
                       <div>
                         <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold mb-1">{t('dashboard.billing_section.current_plan')}</p>
-                        <p className="text-2xl font-black text-primary capitalize">{profile?.plan_type || 'Trial'}</p>
+                        <p className="text-2xl font-black text-primary capitalize">
+                          {isSubscriptionActive
+                            ? (activePlanType === 'pro' ? 'PRO' : 'CRM')
+                            : 'Trial'}
+                        </p>
                       </div>
                       {getStatusBadge(profile?.subscription_status || 'trial')}
                     </div>
@@ -8203,8 +8343,8 @@ export default function Dashboard() {
                         <span className="text-muted-foreground">{t('dashboard.billing_section.table_amount')}:</span>
                         <span className="font-bold text-slate-900 dark:text-white">
                           {profile?.subscription_status === 'active'
-                            ? `S/ ${plusMonthlyPricePen.toFixed(2)} / mes`
-                            : `S/ ${plusFirstPaymentPen.toFixed(2)} (S/ 200 implementacion + S/ ${plusMonthlyPricePen.toFixed(2)} primer mes)`}
+                            ? `S/ ${activeMonthlyChargePen.toFixed(2)} / mes`
+                            : `Elige plan: CRM S/ ${PLAN_CRM_MONTHLY_PEN.toFixed(2)} o PRO S/ ${plusMonthlyPricePen.toFixed(2)} / mes`}
                         </span>
                       </div>
                       <div className="flex justify-between text-sm">
@@ -8216,8 +8356,8 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
 
-              {/* Upgrade to PLUS - Only show if not already PLUS */}
-              {profile?.plan_type !== 'plus' && (
+              {/* Upgrade to PRO - Only show if not already PRO */}
+              {profilePlanType !== 'pro' && (
                 <Card className="lg:col-span-1 border-2 border-emerald-500 bg-gradient-to-br from-emerald-50 to-cyan-50 dark:from-emerald-950/30 dark:to-cyan-950/30">
                   <CardHeader>
                     <div className="flex items-center gap-2">
@@ -8227,8 +8367,8 @@ export default function Dashboard() {
                         </svg>
                       </div>
                       <div>
-                        <CardTitle className="text-emerald-900 dark:text-emerald-100">Plan PLUS</CardTitle>
-                        <p className="text-xs text-emerald-700 dark:text-emerald-300">Widget 100% Personalizable</p>
+                        <CardTitle className="text-emerald-900 dark:text-emerald-100">Plan PRO</CardTitle>
+                        <p className="text-xs text-emerald-700 dark:text-emerald-300">CRM + Leads Widget + Lead Chat</p>
                       </div>
                     </div>
                   </CardHeader>
@@ -8241,7 +8381,7 @@ export default function Dashboard() {
                         <span className="text-sm text-emerald-700 dark:text-emerald-300">/mes</span>
                       </div>
                       <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                        Implementacion unica: S/ 200 (solo primer pago)
+                        Plan PRO mensual sin costo de implementacion
                       </p>
                     </div>
 
@@ -8262,7 +8402,7 @@ export default function Dashboard() {
                       </div>
                       <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-200">
                         <Check className="w-4 h-4 text-emerald-600" />
-                        <span>Widget 100% tuyo</span>
+                        <span>Leads Widget + Lead Chat</span>
                       </div>
                       <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-200">
                         <Check className="w-4 h-4 text-emerald-600" />
@@ -8277,21 +8417,22 @@ export default function Dashboard() {
                     <Button
                       className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
                       onClick={() => {
+                        setSelectedBillingPlan('pro');
                         // Scroll to payment section
                         setTimeout(() => {
                           const paymentSection = document.querySelector('[value="paypal"]');
                           paymentSection?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                         }, 100);
                         toast({
-                          title: "💎 Upgrade a Plan PLUS",
-                          description: `Primer pago: S/ ${plusFirstPaymentPen.toFixed(2)} (implementacion + primer mes).`,
+                          title: "💎 Upgrade a Plan PRO",
+                          description: `Plan PRO: S/ ${plusMonthlyPricePen.toFixed(2)} / mes.`,
                         });
                       }}
                     >
                       <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
                       </svg>
-                      Actualizar a PLUS
+                      Actualizar a PRO
                     </Button>
                   </CardContent>
                 </Card>
@@ -8305,32 +8446,45 @@ export default function Dashboard() {
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-900/50 p-6 rounded-2xl border-2 border-slate-200 dark:border-slate-700">
-                    <h3 className="font-bold text-lg mb-4 text-center">Plan disponible: PLUS</h3>
-                    <div className="rounded-xl border-2 border-emerald-400 bg-white dark:bg-slate-900 p-5">
-                      <div className="text-center">
-                        <div className="text-xs text-emerald-600 mb-1">Plan</div>
-                        <div className="font-bold text-2xl mb-2">PLUS</div>
-                        <div className="text-3xl font-black text-emerald-600">S/ {plusMonthlyPricePen}</div>
-                        <div className="text-[11px] text-emerald-700 mt-1">/ mes</div>
-                        <div className="mt-3 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                          Implementacion unica: S/ 200 (solo primer pago)
-                        </div>
-                      </div>
+                    <h3 className="font-bold text-lg mb-4 text-center">{dashboardIsEnglish ? 'Available plans' : 'Planes disponibles'}</h3>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedBillingPlan('crm')}
+                        className={`rounded-xl border p-4 text-left transition ${selectedBillingPlan === 'crm'
+                          ? 'border-primary bg-primary/10 shadow-sm'
+                          : 'border-slate-200 bg-white hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900/60'}`}
+                      >
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">CRM</p>
+                        <p className="mt-1 text-2xl font-black">S/ {PLAN_CRM_MONTHLY_PEN.toFixed(2)}</p>
+                        <p className="text-xs text-muted-foreground">{dashboardIsEnglish ? 'Monthly' : 'Mensual'}</p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedBillingPlan('pro')}
+                        className={`rounded-xl border p-4 text-left transition ${selectedBillingPlan === 'pro'
+                          ? 'border-emerald-500 bg-emerald-500/10 shadow-sm'
+                          : 'border-slate-200 bg-white hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900/60'}`}
+                      >
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">{dashboardIsEnglish ? 'PRO' : 'PRO'}</p>
+                        <p className="mt-1 text-2xl font-black">S/ {plusMonthlyPricePen.toFixed(2)}</p>
+                        <p className="text-xs text-muted-foreground">{dashboardIsEnglish ? 'CRM + Leads Widget + Lead Chat' : 'CRM + Leads Widget + Lead Chat'}</p>
+                      </button>
                     </div>
 
                     <div className="mt-4 p-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2">
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-600 dark:text-slate-400">Plan seleccionado:</span>
-                        <span className="font-bold">PLUS</span>
+                        <span className="text-slate-600 dark:text-slate-400">{dashboardIsEnglish ? 'Selected plan:' : 'Plan seleccionado:'}</span>
+                        <span className="font-bold">{selectedBillingPlan === 'pro' ? (dashboardIsEnglish ? 'PRO' : 'PRO') : 'CRM'}</span>
                       </div>
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-600 dark:text-slate-400">Pago de hoy:</span>
-                        <span className="text-xl font-black text-primary">S/ {plusCurrentChargePen.toFixed(2)}</span>
+                        <span className="text-slate-600 dark:text-slate-400">{dashboardIsEnglish ? 'Charge today:' : 'Pago de hoy:'}</span>
+                        <span className="text-xl font-black text-primary">S/ {selectedPlanChargePen.toFixed(2)}</span>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {isTrialPlan
-                          ? `Incluye implementacion unica (S/ 200) + primer mes (S/ ${plusMonthlyPricePen.toFixed(2)}).`
-                          : `Renovacion mensual de S/ ${plusMonthlyPricePen.toFixed(2)}.`}
+                        {selectedBillingPlan === 'pro'
+                          ? `Plan PRO: S/ ${plusMonthlyPricePen.toFixed(2)} mensual.`
+                          : `Plan CRM: S/ ${PLAN_CRM_MONTHLY_PEN.toFixed(2)} mensual.`}
                       </p>
                     </div>
                   </div>
@@ -8357,7 +8511,7 @@ export default function Dashboard() {
                     <TabsContent value="paypal" className="space-y-4">
                       <div className="max-w-md mx-auto py-4">
                         <PayPalPaymentButton
-                          amount={plusCurrentChargeUsd}
+                          amount={selectedPlanChargeUsd}
                           currency="USD"
                           onSuccess={async (details) => {
                             try {
@@ -8372,7 +8526,7 @@ export default function Dashboard() {
                                 body: JSON.stringify({
                                   orderID: details.id,
                                   user_id: user?.uid,
-                                  plan_type: 'plus',
+                                  plan_type: selectedBillingPlan,
                                 })
                               });
 
@@ -8381,10 +8535,15 @@ export default function Dashboard() {
                               if (!verifyResponse.ok) {
                                 throw new Error(verifyData.error || 'Verification Failed');
                               }
+                              const selectedPlanLabel = selectedBillingPlan === 'pro'
+                                ? (dashboardIsEnglish ? 'PRO' : 'PRO')
+                                : 'CRM';
 
                               toast({
-                                title: t('dashboard.billing_section.success_title'),
-                                description: t('dashboard.billing_section.success_desc'),
+                                title: dashboardIsEnglish ? 'Plan activated' : 'Plan activado',
+                                description: dashboardIsEnglish
+                                  ? `${selectedPlanLabel} plan activated successfully.`
+                                  : `Plan ${selectedPlanLabel} activado correctamente.`,
                               });
 
                               // Reload to update UI
@@ -8393,10 +8552,12 @@ export default function Dashboard() {
                               // Show Beautiful Success Confirmation
                               const Swal = (await import('sweetalert2')).default;
                               Swal.fire({
-                                title: t('dashboard.billing_section.alert_title_success'),
-                                text: t('dashboard.billing_section.alert_text_success'),
+                                title: dashboardIsEnglish ? 'Payment verified' : 'Pago verificado',
+                                text: dashboardIsEnglish
+                                  ? `${selectedPlanLabel} plan is active now.`
+                                  : `Tu plan ${selectedPlanLabel} ya esta activo.`,
                                 icon: 'success',
-                                confirmButtonText: t('dashboard.billing_section.alert_btn_success'),
+                                confirmButtonText: dashboardIsEnglish ? 'Continue' : 'Continuar',
                                 confirmButtonColor: '#00C185',
                                 background: document.documentElement.classList.contains('dark') ? '#1e293b' : '#fff',
                                 color: document.documentElement.classList.contains('dark') ? '#fff' : '#000'
@@ -8496,14 +8657,14 @@ export default function Dashboard() {
                                 try {
                                   await addDoc(collection(db, 'payments'), {
                                     user_id: user?.uid,
-                                  amount: plusCurrentChargePen,
+                                  amount: selectedPlanChargePen,
                                   payment_method: 'Yape/Plin',
-                                  description: isTrialPlan
-                                    ? 'Plan PLUS (Implementacion + primer mes)'
-                                    : 'Plan PLUS (Mensual)',
+                                  description: selectedBillingPlan === 'pro'
+                                    ? 'Plan PRO (Pago manual)'
+                                    : 'Plan CRM (Pago manual)',
                                   operation_ref: reference,
                                   status: 'pending',
-                                  plan_type: 'plus',
+                                  plan_type: selectedBillingPlan,
                                   partner_id: profile?.partner_id || null,
                                   created_at: new Date().toISOString()
                                 });
@@ -8877,10 +9038,10 @@ export default function Dashboard() {
                           Plan Trial (S/ 0)
                         </button>
                         <button
-                          onClick={() => setAffiliatePlanType('plus')}
-                          className={`py-2 px-3 text-xs font-bold rounded-md transition-all ${affiliatePlanType === 'plus' ? 'bg-white dark:bg-slate-700 shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                          onClick={() => setAffiliatePlanType('pro')}
+                          className={`py-2 px-3 text-xs font-bold rounded-md transition-all ${affiliatePlanType === 'pro' ? 'bg-white dark:bg-slate-700 shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
                         >
-                          Plan Plus ({currency === 'USD' ? `$${(PLAN_PLUS_MONTHLY_PEN / PEN_TO_USD_RATE).toFixed(2)}` : `S/ ${PLAN_PLUS_MONTHLY_PEN}`})
+                          Plan PRO ({currency === 'USD' ? `$${(PLAN_PLUS_MONTHLY_PEN / PEN_TO_USD_RATE).toFixed(2)}` : `S/ ${PLAN_PLUS_MONTHLY_PEN}`})
                         </button>
                       </div>
                     </div>
@@ -8921,7 +9082,7 @@ export default function Dashboard() {
                         })()}
                       </div>
                       <p className="text-xs text-emerald-700/60 dark:text-emerald-400/60">
-                        Basado en el precio del Plan {affiliatePlanType === 'trial' ? 'Trial' : 'Plus'}
+                        Basado en el precio del Plan {affiliatePlanType === 'trial' ? 'Trial' : 'PRO'}
                       </p>
                     </div>
 
@@ -8947,7 +9108,7 @@ export default function Dashboard() {
                               {' '}y tu link de afiliado mostrará precios en dólares automáticamente.
                             </p>
                             <p className="text-[10px] text-blue-600/70 dark:text-blue-400/70">
-                              <strong>Ejemplo:</strong> 10 ventas del Plan Plus = <strong>${(10 * (PLAN_PLUS_MONTHLY_PEN / PEN_TO_USD_RATE) * 0.20).toFixed(2)} USD</strong> vs S/{(10 * PLAN_PLUS_MONTHLY_PEN * 0.20).toFixed(2)} PEN
+                              <strong>Ejemplo:</strong> 10 ventas del Plan PRO = <strong>${(10 * (PLAN_PLUS_MONTHLY_PEN / PEN_TO_USD_RATE) * 0.20).toFixed(2)} USD</strong> vs S/{(10 * PLAN_PLUS_MONTHLY_PEN * 0.20).toFixed(2)} PEN
                             </p>
                           </div>
                         </div>
@@ -9078,7 +9239,7 @@ export default function Dashboard() {
                     variant="outline"
                     onClick={() => {
                       setContextBuilderOpen(false);
-                      setActiveTab('config');
+                      handleTabChange('config');
                     }}
                   >
                     {dashboardIsEnglish ? 'Go to catalog' : 'Ir al catalogo'}
@@ -9644,3 +9805,4 @@ export default function Dashboard() {
     </div >
   );
 }
+

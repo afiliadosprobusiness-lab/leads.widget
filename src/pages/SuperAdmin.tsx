@@ -108,12 +108,20 @@ const PROTECTED_SUPERADMINS = new Set([
   'superadmin2@leadwidget.pe',
 ]);
 
-const DEFAULT_PLUS_MONTHLY_PRICE_PEN = 150;
+const PLAN_CRM_MONTHLY_PEN = 30;
+const DEFAULT_PLUS_MONTHLY_PRICE_PEN = 99;
 
 const resolvePlusMonthlyPricePen = (value: unknown, fallback = DEFAULT_PLUS_MONTHLY_PRICE_PEN) => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
   return Math.round(parsed);
+};
+
+const normalizePlanType = (value: unknown): 'trial' | 'crm' | 'pro' => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'crm') return 'crm';
+  if (normalized === 'pro' || normalized === 'plus') return 'pro';
+  return 'trial';
 };
 
 export default function SuperAdmin() {
@@ -551,8 +559,13 @@ export default function SuperAdmin() {
     const suspendedCount = clients.filter(c => c.subscription_status === 'suspended').length;
     const pendingPaymentsCount = payments.filter(p => p.status === 'pending').length;
     const estimatedMrr = clients
-      .filter((c) => c.subscription_status === 'active' && String(c.plan_type || '').toLowerCase() === 'plus')
-      .reduce((sum, client) => sum + resolvePlusMonthlyPricePen(client.plus_monthly_price_pen, globalPlusMonthlyPricePen), 0);
+      .filter((c) => c.subscription_status === 'active')
+      .reduce((sum, client) => {
+        const planType = normalizePlanType(client.plan_type);
+        if (planType === 'crm') return sum + PLAN_CRM_MONTHLY_PEN;
+        if (planType === 'pro') return sum + resolvePlusMonthlyPricePen(client.plus_monthly_price_pen, globalPlusMonthlyPricePen);
+        return sum;
+      }, 0);
 
     setStats(prev => ({
       ...prev,
@@ -638,7 +651,7 @@ export default function SuperAdmin() {
     }
   };
 
-  const updateClientPlan = async (clientId: string, planType: 'plus') => {
+  const updateClientPlan = async (clientId: string, planType: 'crm' | 'pro') => {
     setUpdatingClient(clientId);
     try {
       const currentClient = clients.find((c) => c.id === clientId);
@@ -658,7 +671,7 @@ export default function SuperAdmin() {
     }
   };
 
-  const activateClientWithPlan = async (clientId: string, planType: 'plus') => {
+  const activateClientWithPlan = async (clientId: string, planType: 'crm' | 'pro') => {
     setUpdatingClient(clientId);
     try {
       await updateDoc(doc(db, 'profiles', clientId), {
@@ -725,10 +738,10 @@ export default function SuperAdmin() {
     try {
       const rawPrice = String(editForm.plus_monthly_price_pen || '').trim();
       const parsedPrice = rawPrice ? Number(rawPrice) : null;
-      if (rawPrice && (!Number.isFinite(parsedPrice) || Number(parsedPrice) < 50 || Number(parsedPrice) > 5000)) {
+      if (rawPrice && (!Number.isFinite(parsedPrice) || Number(parsedPrice) < 30 || Number(parsedPrice) > 5000)) {
         toast({
           title: 'Precio invalido',
-          description: 'Ingresa un precio mensual entre S/ 50 y S/ 5000.',
+          description: 'Ingresa un precio mensual entre S/ 30 y S/ 5000.',
           variant: 'destructive',
         });
         setLoading(false);
@@ -757,10 +770,10 @@ export default function SuperAdmin() {
   const handleSaveGlobalPlusPrice = async () => {
     const rawPrice = String(globalPlusPriceInput || '').trim();
     const parsedPrice = Number(rawPrice);
-    if (!rawPrice || !Number.isFinite(parsedPrice) || parsedPrice < 50 || parsedPrice > 5000) {
+    if (!rawPrice || !Number.isFinite(parsedPrice) || parsedPrice < 30 || parsedPrice > 5000) {
       toast({
         title: 'Precio global invalido',
-        description: 'Ingresa un precio mensual entre S/ 50 y S/ 5000.',
+          description: 'Ingresa un precio mensual entre S/ 30 y S/ 5000.',
         variant: 'destructive',
       });
       return;
@@ -781,7 +794,7 @@ export default function SuperAdmin() {
       setGlobalPlusPriceInput(String(normalizedPrice));
       toast({
         title: 'Precio global actualizado',
-        description: `Nuevo precio base PLUS: S/ ${normalizedPrice}`,
+        description: `Nuevo precio base PRO: S/ ${normalizedPrice}`,
       });
     } catch (error: any) {
       toast({
@@ -808,6 +821,23 @@ export default function SuperAdmin() {
     client.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
     client.business_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+  const potentialCommissionsPen = clients
+    .filter((c) => c.referred_by && String(c.subscription_status || '').toLowerCase() === 'active')
+    .reduce((sum, client) => {
+      const plan = normalizePlanType(client.plan_type);
+      const basePrice = plan === 'pro'
+        ? resolvePlusMonthlyPricePen(client.plus_monthly_price_pen, globalPlusMonthlyPricePen)
+        : plan === 'crm'
+          ? PLAN_CRM_MONTHLY_PEN
+          : 0;
+      return sum + basePrice * 0.2;
+    }, 0);
+  const getReadablePlanLabel = (value: unknown) => {
+    const normalized = normalizePlanType(value);
+    if (normalized === 'pro') return 'PRO';
+    if (normalized === 'crm') return 'CRM';
+    return 'TRIAL';
+  };
 
 
 
@@ -964,7 +994,7 @@ export default function SuperAdmin() {
 
         <Card className="mb-8">
           <CardHeader>
-            <CardTitle>Facturacion base PLUS</CardTitle>
+            <CardTitle>Facturacion base PRO</CardTitle>
             <CardDescription>
               Este precio aplica como base global. Si un cliente tiene precio personalizado, ese valor tiene prioridad solo para ese cliente.
             </CardDescription>
@@ -972,11 +1002,11 @@ export default function SuperAdmin() {
           <CardContent>
             <div className="grid gap-4 md:grid-cols-[220px_1fr_auto] md:items-end">
               <div className="space-y-2">
-                <Label htmlFor="global-plus-price">Precio global mensual (S/)</Label>
+                <Label htmlFor="global-plus-price">Precio global PRO mensual (S/)</Label>
                 <Input
                   id="global-plus-price"
                   type="number"
-                  min={50}
+                  min={30}
                   max={5000}
                   step={1}
                   value={globalPlusPriceInput}
@@ -1100,7 +1130,7 @@ export default function SuperAdmin() {
                         <th className="text-left py-3 px-4 font-medium">Estado</th>
                         <th className="text-left py-3 px-4 font-medium">Leads</th>
                         <th className="text-left py-3 px-4 font-medium">Trial Expira</th>
-                        <th className="text-left py-3 px-4 font-medium">Precio PLUS</th>
+                        <th className="text-left py-3 px-4 font-medium">Precio PRO</th>
                         <th className="text-left py-3 px-4 font-medium">Acciones</th>
                       </tr>
                     </thead>
@@ -1171,22 +1201,41 @@ export default function SuperAdmin() {
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-72">
                                   <DropdownMenuItem
-                                    onClick={() => activateClientWithPlan(client.id, 'plus')}
+                                    onClick={() => activateClientWithPlan(client.id, 'pro')}
                                     className="cursor-pointer"
                                   >
                                     <Check className="w-4 h-4 mr-3 text-blue-600 shrink-0" />
                                     <div className="flex flex-col">
-                                      <span className="font-semibold">Activar plan PLUS</span>
-                                      <span className="text-xs text-muted-foreground">Pasa el estado a Activo y asigna PLUS (S/ {globalPlusMonthlyPricePen}/mes base).</span>
+                                      <span className="font-semibold">Activar plan PRO</span>
+                                      <span className="text-xs text-muted-foreground">Pasa el estado a Activo y asigna PRO (S/ {globalPlusMonthlyPricePen}/mes base).</span>
+                                    </div>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => activateClientWithPlan(client.id, 'crm')}
+                                    className="cursor-pointer"
+                                  >
+                                    <Check className="w-4 h-4 mr-3 text-emerald-600 shrink-0" />
+                                    <div className="flex flex-col">
+                                      <span className="font-semibold">Activar plan CRM</span>
+                                      <span className="text-xs text-muted-foreground">Pasa el estado a Activo y asigna CRM (S/ {PLAN_CRM_MONTHLY_PEN}/mes).</span>
                                     </div>
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem
-                                    onClick={() => updateClientPlan(client.id, 'plus')}
+                                    onClick={() => updateClientPlan(client.id, 'pro')}
                                     className="cursor-pointer"
                                   >
                                     <div className="flex flex-col">
-                                      <span className="font-semibold">Asignar plan PLUS</span>
+                                      <span className="font-semibold">Asignar plan PRO</span>
+                                      <span className="text-xs text-muted-foreground">Solo cambia el plan. No cambia Trial/Activo/Suspendido.</span>
+                                    </div>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => updateClientPlan(client.id, 'crm')}
+                                    className="cursor-pointer"
+                                  >
+                                    <div className="flex flex-col">
+                                      <span className="font-semibold">Asignar plan CRM</span>
                                       <span className="text-xs text-muted-foreground">Solo cambia el plan. No cambia Trial/Activo/Suspendido.</span>
                                     </div>
                                   </DropdownMenuItem>
@@ -1523,7 +1572,7 @@ export default function SuperAdmin() {
                       <CardContent className="pt-4">
                         <p className="text-sm text-purple-700 font-medium">Comisiones Potenciales</p>
                         <p className="text-2xl font-bold text-purple-900">
-                          S/ {(clients.filter(c => c.referred_by && c.subscription_status === 'active').length * 100 * 0.2).toFixed(2)}
+                          S/ {potentialCommissionsPen.toFixed(2)}
                         </p>
                         <p className="text-xs text-purple-600">20% por mes</p>
                       </CardContent>
@@ -1548,10 +1597,12 @@ export default function SuperAdmin() {
                           .map((client) => {
                             const referrer = clients.find(c => c.id === client.referred_by);
                             const isActive = client.subscription_status === 'active';
-                            const plan = String(client.plan_type || 'trial').toLowerCase() === 'plus' ? 'plus' : 'trial';
-                            const basePrice = plan === 'plus'
+                            const plan = normalizePlanType(client.plan_type);
+                            const basePrice = plan === 'pro'
                               ? resolvePlusMonthlyPricePen(client.plus_monthly_price_pen, globalPlusMonthlyPricePen)
-                              : 0;
+                              : plan === 'crm'
+                                ? PLAN_CRM_MONTHLY_PEN
+                                : 0;
                             const commission = isActive ? (basePrice * 0.2).toFixed(2) : '0.00';
 
                             return (
@@ -1577,11 +1628,13 @@ export default function SuperAdmin() {
                                   )}
                                 </td>
                                 <td className="px-4 py-3">
-                                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${plan === 'plus'
+                                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${plan === 'pro'
                                     ? 'bg-purple-100 text-purple-700'
-                                    : 'bg-amber-100 text-amber-700'
+                                    : plan === 'crm'
+                                      ? 'bg-blue-100 text-blue-700'
+                                      : 'bg-amber-100 text-amber-700'
                                     }`}>
-                                    {plan === 'plus' ? 'PLUS' : 'TRIAL'}
+                                    {plan === 'pro' ? 'PRO' : plan === 'crm' ? 'CRM' : 'TRIAL'}
                                   </span>
                                 </td>
                                 <td className="px-4 py-3">
@@ -1623,7 +1676,8 @@ export default function SuperAdmin() {
                             <li>Cada cliente activo genera un 20% de comision mensual para su afiliado.</li>
                             <li>Alternativamente, puede otorgarse 1 mes gratis por referido activo.</li>
                             <li>Plan Trial = no genera comision hasta activacion.</li>
-                            <li>Plan PLUS base (S/ {globalPlusMonthlyPricePen}) = S/ {(globalPlusMonthlyPricePen * 0.2).toFixed(2)} de comision al mes.</li>
+                            <li>Plan CRM (S/ {PLAN_CRM_MONTHLY_PEN}) = S/ {(PLAN_CRM_MONTHLY_PEN * 0.2).toFixed(2)} de comision al mes.</li>
+                            <li>Plan PRO base (S/ {globalPlusMonthlyPricePen}) = S/ {(globalPlusMonthlyPricePen * 0.2).toFixed(2)} de comision al mes.</li>
                             <li>Si un cliente tiene precio personalizado, la comision se calcula sobre ese monto.</li>
                             <li>El tracking es automatico via parametro `?ref=USER_ID`.</li>
                           </ul>
@@ -1746,7 +1800,7 @@ export default function SuperAdmin() {
                                 <p className="font-medium">{client.business_name || client.email || client.id}</p>
                                 <p className="text-xs text-muted-foreground">{client.email || '-'}</p>
                               </td>
-                              <td className="py-2 px-3 uppercase">{client.plan_type || 'trial'}</td>
+                              <td className="py-2 px-3 uppercase">{getReadablePlanLabel(client.plan_type)}</td>
                               <td className="py-2 px-3">{client.subscription_status || 'trial'}</td>
                               <td className="py-2 px-3">{client.created_at ? new Date(client.created_at).toLocaleDateString('es-PE') : '-'}</td>
                             </tr>
@@ -1783,10 +1837,10 @@ export default function SuperAdmin() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Precio mensual PLUS (S/)</Label>
+                <Label>Precio mensual PRO (S/)</Label>
                 <Input
                   type="number"
-                  min={50}
+                  min={30}
                   max={5000}
                   step={1}
                   value={editForm.plus_monthly_price_pen}
@@ -1809,4 +1863,3 @@ export default function SuperAdmin() {
     </div >
   );
 }
-

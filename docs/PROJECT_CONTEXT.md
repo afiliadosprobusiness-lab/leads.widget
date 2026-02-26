@@ -82,7 +82,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Estados de carga/error/vacio en dashboards.
 - Landing `/partners` con bloques de confianza (testimonios en carrusel horizontal) y FAQ en acordeon accesible.
 - Landing principal `/` ahora comunica dos modos de producto: widget embebible y Lead Chat como pagina publica sin web.
-- Landing principal `/` ahora muestra copy comercial de entrada: `Desde 150 soles al mes` (EN: `From S/ 150 per month`), manteniendo el bloque de implementacion unica en la tarjeta de precio.
+- Landing principal `/` ahora comunica esquema de 3 planes: `Trial 3 dias`, `Plan CRM S/30` y `Plan PRO S/99` (EN: `Trial 3 days`, `CRM S/30`, `PRO S/99`), sin costo de implementacion.
 - Landing principal `/` fue redisenada con estilo visual premium tipo Apple (glass + gradientes suaves), narrativa simplificada orientada a conversion, preview del widget embebido en hero y secciones actualizadas de capacidades/casos/testimonios/precio.
 - Landing principal `/` incluye toggle claro/oscuro visible en navbar (desktop/mobile) y copy reforzado a precalificacion de leads + handoff a WhatsApp (sin narrativa de llamadas outbound).
 - Landing principal `/` ahora redirige los CTAs secundarios `Ver demo del widget` (hero) y `Probar demo` (CTA final) a WhatsApp soporte (`+51 924 464 410`) con mensaje precargado de solicitud de demo rapida.
@@ -146,7 +146,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
   - Branding
   - Comisiones
 - En Partners/Clientes, `Prox. renovacion` usa `next_renewal_at` y contempla fallback derivado desde backend para cuentas activas sin dato historico.
-- En Partners/Branding se edita solo `texto de marca` y `enlace de marca` (flujo simplificado); esos valores alimentan el fallback de branding para clientes PLUS.
+- En Partners/Branding se edita solo `texto de marca` y `enlace de marca` (flujo simplificado); esos valores alimentan el fallback de branding para clientes PRO (compat legacy `plus`).
 - Dashboard partner prioriza un flujo simple (sin soporte/tickets ni gestion de usuarios internos en UI).
 
 ## Configuracion relevante
@@ -168,7 +168,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Superadmin incorpora fallback de compatibilidad a Firestore para modulo de agencias cuando el backend aun no expone `/api/admin/partners*` en el entorno desplegado.
 - Eliminacion de usuario desde superadmin usa borrado completo (Firebase Auth + datos principales), no solo soft delete.
 - En Superadmin/Agencias, la accion de payout es contextual: muestra `Aprobar payout` o `Marcar pagado` segun existan payouts pendientes.
-- Plan PLUS: branding del widget admite `branding_text` y `branding_link` para personalizar texto y URL del footer (fallback seguro a `/crear-ahora?ref=<clientId>`).
+- Plan PRO (legacy `plus`): branding del widget admite `branding_text` y `branding_link` para personalizar texto y URL del footer (fallback seguro a `/crear-ahora?ref=<clientId>`).
 - En `experience_mode=lead_chat`, el dashboard prioriza compartir enlace publico del chat; no depende de instalar script en una web.
 - El dashboard expone controles Lead Chat-only (eyebrow del header, headline/subheadline, badge superior y mensajes de actividad/testimonios) con aviso de alcance exclusivo para la pagina Lead Chat; la oferta inline se controla por estrategia conversacional desde Prompt IA.
 - En Dashboard, acciones primarias de guardado (configuracion de widget y cuenta) usan barra sticky para mantener CTA visible durante scroll largo.
@@ -195,10 +195,11 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - En modales `Crear prompt` (contexto/sistema), existe accion `Generar con IA` que consume creditos de la API key OpenAI del cliente y muestra aviso explicito de costo; tambien se mantiene fallback `Generar rapido (sin IA)` local.
 - En `Prompt de contexto` generado con IA, el dashboard valida que no falten campos clave de negocio y anexa snapshot estructurado cuando detecta omisiones.
 - En IA > Prompt del Sistema, el dashboard mantiene boton de plantilla por `Industria / Nicho` (`general`, `inmobiliaria`, `clinica`, `taller`, `delivery`; en `personalizado` usa base general), con enfoque de conversion y soporte de bloque `IMAGE`.
-- En IA > Prompt del Sistema (plantillas por nicho), cuando el lead pregunta por precio/costo/inversion, el guion responde la oferta exacta: `S/ 150 mensual + S/ 200 implementacion unica`.
-- En Dashboard > Billing, el esquema comercial activo es: `trial` (3 dias gratis) y `PLUS` (S/ 150 mensual base); en activacion inicial se muestra `S/ 200` de implementacion unica + primer mes.
-- En SuperAdmin > Clientes, se puede definir `plus_monthly_price_pen` por usuario (opcional). Si existe, Billing del dashboard usa ese monto; si no existe, usa base global `S/ 150`.
-- En SuperAdmin, existe configuracion global de precio base `PLUS` en `system_settings/billing.plus_monthly_price_pen`; ese valor aplica a dashboard Billing cuando el usuario no tiene override personalizado.
+- En IA > Prompt del Sistema (plantillas por nicho), cuando el lead pregunta por precio/costo/inversion, el guion responde oferta dual: `CRM S/30 mensual` o `PRO S/99 mensual` (sin implementacion).
+- En Dashboard > Billing, el esquema comercial activo es: `trial` (3 dias gratis), `crm` (S/30 mensual) y `pro` (S/99 mensual), sin costo de implementacion.
+- En Dashboard, si el usuario activo tiene plan `crm`, solo quedan habilitadas las pestanas `CRM`, `Pagos` y `Cuenta`; las demas se mantienen visibles pero bloqueadas con candado. En `pro` se habilitan todas.
+- En SuperAdmin > Clientes, se puede definir `plus_monthly_price_pen` por usuario (opcional, precio PRO legacy). Si existe, Billing del dashboard usa ese monto; si no existe, usa base global `S/ 99`.
+- En SuperAdmin, existe configuracion global de precio base PRO en `system_settings/billing.plus_monthly_price_pen`; ese valor aplica a dashboard Billing cuando el usuario no tiene override personalizado.
 - `WHATSAPP_REDIRECT` se mantiene como opcion secundaria frente a `ICALLCLOSER_READY`; ya no se usa la guia manual de insercion, ahora el comando se agrega automaticamente segun el canal seleccionado.
 - Upload de bienvenida en dashboard (imagen/audio/video) usa Cloudinary cuando existen `VITE_CLOUDINARY_CLOUD_NAME` + `VITE_CLOUDINARY_UPLOAD_PRESET`; si no existen, usa fallback a Firebase Storage.
 - En Dashboard > Configuracion del widget > Audio de bienvenida, ademas de subir archivo/URL ahora se puede grabar audio en el momento (microfono del navegador) y se sube por el mismo pipeline Cloudinary/Firebase.

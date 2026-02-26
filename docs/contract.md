@@ -25,8 +25,8 @@ Campos observados (pueden coexistir segun flujo):
 - `business_name: string`
 - `whatsapp_number: string`
 - `subscription_status: "trial" | "active" | "pro" | "verified" | "suspended" | string`
-- `plan_type: "trial" | "plus" | string` (legacy `pro` puede existir)
-- `plus_monthly_price_pen: number | null` (opcional, override de facturacion mensual por cliente para plan PLUS; tiene prioridad sobre el precio global)
+- `plan_type: "trial" | "crm" | "pro" | string` (legacy `plus` puede existir)
+- `plus_monthly_price_pen: number | null` (opcional, override de facturacion mensual por cliente para plan PRO; mantiene nombre legacy para compatibilidad)
 - `trial_ends_at: string | null` (ISO date)
 - `ai_enabled: boolean`
 - `ai_provider: string`
@@ -55,7 +55,7 @@ Campos observados (pueden coexistir segun flujo):
 Configuracion global editable por superadmin.
 
 `billing`:
-- `plus_monthly_price_pen: number` (precio base global del plan PLUS)
+- `plus_monthly_price_pen: number` (precio base global del plan PRO; nombre legacy conservado)
 - `updated_at: string` (ISO date, opcional)
 
 ### `widget_configs` (doc id auto, publico para lectura)
@@ -563,7 +563,7 @@ Comportamientos actuales que clientes ya consumen:
 - Cuando `facebook_pixel_id` esta configurado, Lead Chat y widget embebido disparan browser events de Meta Pixel: `PageView` al cargar y `Lead` en aperturas de WhatsApp/IACloser.
 - `POST /api/verify-payment` es idempotente por `orderID` (`paypal_order_id`).
 - CORS acepta `GET,POST,OPTIONS` y header `Authorization`.
-- En Plan PLUS, `branding_link` permite redireccion configurable del texto de marca; si falta o es invalido se usa `/crear-ahora?ref=<clientId>`.
+- En Plan PRO (compat legacy `plus`), `branding_link` permite redireccion configurable del texto de marca; si falta o es invalido se usa `/crear-ahora?ref=<clientId>`.
 - En plantilla `inmobiliaria`, Lead Chat y widget embebido pueden recibir directiva de catalogo para seleccionar multimedia de propiedades via comandos `[IMAGE: ...]` y `[VIDEO: ...]` usando URLs existentes del cliente.
 - En comandos multimedia (`[IMAGE: ...]`, `[VIDEO: ...]`), el parser soporta multiples URLs dentro del mismo comando (pipe/CSV/saltos de linea/JSON array) y renderiza carrusel cuando corresponde.
 - En plantilla `inmobiliaria`, cuando el texto del asistente identifica una propiedad del catalogo, el cliente puede completar media faltante de esa propiedad para mostrar carrusel completo aunque la IA haya enviado solo una URL.
@@ -612,8 +612,8 @@ Cambios de comportamiento relevantes:
 - `POST /api/verify-payment` ahora considera `ALLOW_INSECURE_VERIFY_PAYMENT=false` como default recomendado.
 - `POST /api/verify-payment` y verificacion manual admin generan `commission_ledger` cuando existe `partner_id`.
 - Politica de comisiones implementada: primer pago 50%, pagos siguientes 30%; no se reinicia por cancelacion/reactivacion.
-- White-label reforzado server-side: solo `plan_type=plus` permite ocultar o personalizar branding.
-- `GET /api/partners/overview` y `GET /api/partners/commissions` pueden materializar filas `pending` en `commission_ledger` para clientes `plus` activos sin pago registrado del periodo (cobro manual externo).
+- White-label reforzado server-side: solo `plan_type=pro` (o `plus` legacy) permite ocultar o personalizar branding.
+- `GET /api/partners/overview` y `GET /api/partners/commissions` pueden materializar filas `pending` en `commission_ledger` para clientes `pro` activos (`plus` legacy compatible) sin pago registrado del periodo (cobro manual externo).
 - `PUT /api/partners/branding` acepta `branding_text` y `branding_link` (manteniendo compatibilidad con `agency_name`/`cta_url`).
 
 ### Changelog del Contrato
@@ -753,3 +753,11 @@ Cambios de comportamiento relevantes:
 - Cambio: `POST /api/chat-event` agrega upsert server-side en `crm_contacts` para eventos `whatsapp_open`/`iacallcloser_open` (idempotente por conversacion + evento).
 - Tipo: non-breaking
 - Impacto: asegura que conversiones de chat a WhatsApp/IACloser aparezcan en `Listado de contactos` sin depender de escrituras publicas desde navegador.
+- Fecha: 2026-02-26
+- Cambio: esquema comercial actualizado a 2 planes mensuales sin costo de implementacion: `crm` (S/59) y `plus/completo` (S/150). Dashboard Billing envia `plan_type` dinamico (`crm|plus`) en PayPal y reportes manuales.
+- Tipo: non-breaking
+- Impacto: mantiene rutas y payloads existentes (`plan_type` ya era extensible), pero cambia pricing/copy y habilita cobro mensual directo sin setup.
+- Fecha: 2026-02-26
+- Cambio: esquema comercial actualizado a 3 planes (`trial` 3 dias, `crm` S/30, `pro` S/99) en landing/dashboard/superadmin; se mantiene compatibilidad legacy `plus` en lectura de `plan_type` y en campos `plus_monthly_price_pen`.
+- Tipo: non-breaking
+- Impacto: no cambia rutas ni shape de payloads; solo actualiza pricing/copy y el dashboard restringe navegacion de plan CRM a pestanas `CRM`, `Pagos` y `Cuenta` (resto visible con candado).

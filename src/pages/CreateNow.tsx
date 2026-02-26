@@ -67,11 +67,11 @@ export default function CreateNow() {
                         </div>
                         <div className="flex items-center gap-3 text-slate-300 justify-center">
                             <CheckCircle className="w-5 h-5 text-emerald-400" />
-                            <span>Precio: <b>{currency === 'USD' ? '$26.67 USD' : 'S/ 100'} al mes</b></span>
+                            <span>Planes: <b>{currency === 'USD' ? 'CRM $8.00 o PRO $26.40 / mes' : 'CRM S/ 30 o PRO S/ 99 / mes'}</b></span>
                         </div>
                         <div className="flex items-center gap-3 text-slate-300 justify-center">
                             <CheckCircle className="w-5 h-5 text-emerald-400" />
-                            <span>ImplementaciÃ³n Ãºnica: <b>S/ 200</b></span>
+                            <span>Sin implementacion: tu equipo sube su informacion directamente.</span>
                         </div>
                     </div>
 
