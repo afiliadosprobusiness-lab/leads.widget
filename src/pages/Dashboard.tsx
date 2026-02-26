@@ -1195,9 +1195,9 @@ export default function Dashboard() {
   }, [profilePlanType, pendingPlanType]);
   useEffect(() => {
     if (profile?.crm_template) return;
-    const inferred = normalizeCrmTemplate(formConfig?.template, 'general');
+    const inferred = normalizeCrmTemplate(widgetConfig?.template, 'general');
     setCrmTemplate(inferred);
-  }, [profile?.crm_template, formConfig?.template]);
+  }, [profile?.crm_template, widgetConfig?.template]);
   const handleUpgradeToPro = () => {
     setSelectedBillingPlan('pro');
     setTimeout(() => {
