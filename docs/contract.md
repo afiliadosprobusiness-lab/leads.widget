@@ -412,6 +412,7 @@ Codigo observado:
 - `GET|PUT|OPTIONS /api/meta-capi-config` (configuracion privada de credenciales Meta CAPI por cliente autenticado)
 - `POST|OPTIONS /api/meta-capi-dispatch` (dispatch autenticado de eventos Meta CAPI para cambios de etapa CRM)
 - `POST|OPTIONS /api/crm/contacts-merge` (upsert/merge idempotente de contactos con regla phone->email)
+- `PATCH|OPTIONS /api/crm/contacts` (actualizacion atomica de etapa de contacto + evento timeline + dispatch Meta CAPI por etapa)
 - `GET|POST|PATCH|OPTIONS /api/crm/deals` (CRUD operativo de deals + pipeline por etapa)
 - `GET|POST|PATCH|OPTIONS /api/crm/tasks` (CRUD operativo de tareas + filtros Hoy/Vencidas/Proximas/Completadas)
 - `GET|POST|OPTIONS /api/crm/timeline` (eventos de actividad + notas manuales)
@@ -424,14 +425,14 @@ Codigo observado:
 Asuncion:
 
 - En produccion, las funciones locales en `api/*.js` se resuelven primero; rutas `/api/*` sin archivo local caen al backend externo via fallback.
-- CRM v2 vive en funciones locales `api/crm/*` y no depende del backend externo para operaciones de deals/tasks/timeline/dedupe.
+- CRM v2 vive en funciones locales `api/crm/*` y no depende del backend externo para operaciones de contactos/deals/tasks/timeline/dedupe.
 - El proxy local de `POST /api/chat` ademas persiste trazas resumidas de cada intercambio en `ai_chat_logs` para consola de debugging en Dashboard (sin cambiar el contrato de respuesta hacia el cliente).
 - El proxy local de `POST /api/chat` ejecuta resolucion de identidad para comando `VALIDAR_DNI` con estrategia configurable (`DNI_VALIDATION_PROVIDER=auto|api|eldni|capture`), soportando API externa (`DNI_API_*`), fallback por formulario publico ELDNI (`ELDNI_FORM_URL`, `ELDNI_TIMEOUT_MS`) y modo `capture` sin consulta externa.
 - `POST /api/analyze-conversation` requiere `Authorization: Bearer <Firebase ID token>` del usuario dashboard; usa `profiles.ai_api_key` (o fallback `widget_configs.ai_api_key` del mismo owner) para ejecutar analisis OpenAI. Si no hay key configurada, responde analisis heuristico (`provider: heuristic_no_client_key`).
 - `POST /api/generate-prompt` requiere `Authorization: Bearer <Firebase ID token>` del usuario dashboard; usa `profiles.ai_api_key` (o fallback `widget_configs.ai_api_key`) para generar texto de prompt via OpenAI y devuelve `creditsConsumed: true`.
 - `GET|PUT /api/meta-capi-config` requiere `Authorization: Bearer <Firebase ID token>`; persiste IDs de Meta y token cifrado en `meta_capi_configs` (no en `widget_configs` publico).
 - `POST /api/meta-capi-dispatch` requiere `Authorization: Bearer <Firebase ID token>`; mapea etapa CRM -> evento Meta y envia via Conversions API usando credenciales cifradas del owner.
-- `POST /api/crm/contacts-merge` y `PATCH /api/crm/deals` ejecutan dispatch server-side a Meta CAPI cuando corresponde (`Lead`, `Appointment`, `QualifiedLead`, `Sale`).
+- `POST /api/crm/contacts-merge`, `PATCH /api/crm/contacts` y `PATCH /api/crm/deals` ejecutan dispatch server-side a Meta CAPI cuando corresponde (`Lead`, `Appointment`, `QualifiedLead`, `Sale`).
 
 #### `POST /api/generate-prompt`
 
@@ -508,6 +509,16 @@ Asuncion:
   - `401`: `{ error: "Unauthorized" }`
   - `500`: `{ error: "<runtime>" }`
 
+#### `PATCH /api/crm/contacts`
+
+- `PATCH`: actualiza etapa de contacto (`id`, `stage`) en una operacion transaccional.
+- Comportamiento:
+  - Guarda `crm_contacts.stage` + `updated_at/last_activity_at` y registra `activity_events.contact_stage_changed` en la misma transaccion.
+  - Si la etapa cambia a `contacted|qualified|won`, intenta dispatch Meta CAPI server-side con mapeo estandar.
+- Respuestas:
+  - `200`: `{ success: true, stage_changed: boolean, contact }`
+  - `400|401|403|404|500`: `{ error: string }`
+
 #### `GET|POST|PATCH /api/crm/deals`
 
 - `GET`: lista deals del cliente (`?pipeline=1` opcional, `?contactId=` opcional)
@@ -520,11 +531,12 @@ Asuncion:
 
 #### `GET|POST|PATCH /api/crm/tasks`
 
-- `GET`: lista tareas por filtro (`window=today|overdue|upcoming|completed|all`, `contactId`, `dealId`)
+- `GET`: lista tareas por filtro (`window=today|overdue|upcoming|completed|all`, `contactId`, `dealId`, `timeZone` opcional IANA)
 - `POST`: crea tarea (`entity_type`, `entity_id`, `title`, `due_at`, `priority`)
 - `PATCH`: actualiza tarea (`status/title/due_at/priority`)
 - Comportamiento:
   - Marca `overdue` automaticamente cuando `due_at < now` y `status=open`.
+  - Filtros `today/upcoming` respetan la zona horaria enviada por cliente (`timeZone`), fallback `America/Lima`.
 - Respuestas:
   - `200`: `{ tasks, totals }` en GET; `{ success: true, task }` en PATCH
   - `201`: `{ success: true, task }` en POST
@@ -772,3 +784,15 @@ Cambios de comportamiento relevantes:
 - Cambio: Dashboard CRM agrega soporte de plantillas comerciales persistidas en `profiles.crm_template` (`general|real_estate`) para adaptar labels de pipeline, placeholders y snippets operativos sin cambiar APIs.
 - Tipo: non-breaking
 - Impacto: conserva shape de datos existente y solo extiende `profiles` con campo opcional de configuracion UI.
+- Fecha: 2026-02-26
+- Cambio: CRM agrega `PATCH /api/crm/contacts` para actualizar etapa de contacto de forma transaccional (contacto + evento timeline) y centralizar dispatch Meta CAPI por etapa en backend.
+- Tipo: non-breaking
+- Impacto: evita inconsistencias entre cambio de etapa y timeline en dashboard sin cambiar payloads existentes de contactos/deals/tasks.
+- Fecha: 2026-02-26
+- Cambio: `GET /api/crm/tasks` acepta `timeZone` opcional (IANA) y aplica esa zona para filtros `today/upcoming`; fallback `America/Lima`.
+- Tipo: non-breaking
+- Impacto: mejora precision de filtros de tareas por dia para usuarios fuera de UTC, manteniendo compatibilidad con consumidores actuales.
+- Fecha: 2026-02-26
+- Cambio: fallback de dedupe en `POST /api/crm/contacts-merge` amplia ventana de busqueda legacy de 800 a 5000 contactos por cliente.
+- Tipo: non-breaking
+- Impacto: reduce riesgo de duplicados en cuentas con historico amplio sin modificar request/response del endpoint.

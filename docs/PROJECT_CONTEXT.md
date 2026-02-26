@@ -47,10 +47,13 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
   - Importacion CSV ahora usa vista previa obligatoria (filas listas/omitidas + motivo) y requiere confirmacion explicita antes de guardar en Firestore.
   - Permite importar base de clientes por archivo CSV desde el tab CRM con mapeo flexible de columnas (`name/nombre`, `phone/telefono`, `email`, `interest/interes`, `stage/etapa`, `notes/notas`, `source/origen`).
   - Sync/import/create de contactos usan merge idempotente server-side (`/api/crm/contacts-merge`) con regla unica de dedupe: `phone` principal, fallback `email`.
+  - El fallback de dedupe en `contacts-merge` amplia la ventana de escaneo legacy para reducir duplicados en cuentas con historico amplio.
   - El merge conserva datos no vacios y, cuando aplica merge entre contactos, migra referencias de `deals`, `tasks` y `activity_events`.
   - Pipeline CRM maneja etapas `new`, `contacted`, `qualified`, `won`, `lost` con actualizacion en tiempo real en Firestore.
+  - Cambio de etapa de contacto ahora se procesa por endpoint local `PATCH /api/crm/contacts` en modo transaccional (etapa + timeline), evitando desalineaciones.
   - Deals se modelan como entidad separada (`deals`) con defaults inteligentes: titulo `Venta - {Nombre}`, etapa `new`, cierre estimado `+7 dias`.
   - Tareas de follow-up se gestionan en `tasks` con estados `open/done/overdue`; el estado `overdue` se actualiza automaticamente desde API.
+  - Filtros `Hoy` y `Proximas` de tareas CRM usan la zona horaria del navegador del usuario para clasificacion diaria consistente.
   - Timeline de actividad usa `activity_events` y registra al menos: creacion/merge de contacto, cambios de etapa, notas, eventos de tarea y eventos de deal.
   - CRM incorpora selector de plantilla operativa (`general` y `bienes raices`) persistida en `profiles.crm_template`; ajusta labels de etapas, placeholders y snippets de notas sin tocar modelos core.
   - CRM muestra panel `Prioridades de hoy` con metricas accionables (deals activos, valor pipeline, valor ponderado, tareas prioritarias y contactos prioritarios con CTA directo a WhatsApp).

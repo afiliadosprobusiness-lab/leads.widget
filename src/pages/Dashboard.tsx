@@ -3956,7 +3956,7 @@ export default function Dashboard() {
     return 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-300';
   };
 
-  const buildCrmApiUrl = (resource: 'contacts-merge' | 'deals' | 'tasks' | 'timeline', query?: Record<string, string | number | null | undefined>) => {
+  const buildCrmApiUrl = (resource: 'contacts-merge' | 'contacts' | 'deals' | 'tasks' | 'timeline', query?: Record<string, string | number | null | undefined>) => {
     const params = new URLSearchParams({ resource });
     Object.entries(query || {}).forEach(([key, value]) => {
       if (value === null || value === undefined || String(value).length === 0) return;
@@ -3988,35 +3988,6 @@ export default function Dashboard() {
       throw new Error(String(payload?.error || payload?.details || `HTTP ${response.status}`));
     }
     return payload;
-  };
-
-  const dispatchMetaCapiStageEvent = async (payload: {
-    previousStage: CrmStage;
-    nextStage: CrmStage;
-    contact: CrmContact;
-  }) => {
-    if (!user?.uid || !payload?.contact?.id) return;
-    const headers = await getCrmAuthHeaders();
-    const response = await fetch('/api/meta-capi-dispatch', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        source: 'crm_contact_stage',
-        previousStage: payload.previousStage,
-        contact: {
-          id: payload.contact.id,
-          name: payload.contact.name,
-          phone: payload.contact.phone,
-          email: payload.contact.email,
-          source: payload.contact.source,
-          stage: payload.nextStage,
-        },
-      }),
-    });
-    if (!response.ok) {
-      const failedPayload = await response.json().catch(() => ({}));
-      throw new Error(String(failedPayload?.error || failedPayload?.details || `HTTP ${response.status}`));
-    }
   };
 
   const mergeContactsInState = (contacts: CrmContact[]) => {
@@ -4111,11 +4082,16 @@ export default function Dashboard() {
     if (!user?.uid) return;
     setCrmTasksLoading(true);
     try {
+      const timeZone = (() => {
+        if (typeof Intl === 'undefined' || typeof Intl.DateTimeFormat !== 'function') return 'UTC';
+        return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+      })();
       const payload = await callCrmApi(
         buildCrmApiUrl('tasks', {
           window: windowFilter,
           contactId: target?.contactId,
           dealId: target?.dealId,
+          timeZone,
         }),
         { method: 'GET' },
       );
@@ -4733,56 +4709,34 @@ export default function Dashboard() {
   };
 
   const handleUpdateCrmStage = async (contactId: string, stage: CrmStage) => {
-    const nowIso = new Date().toISOString();
     const previous = crmContacts.find((contact) => contact.id === contactId);
+    if (previous && previous.stage === stage) return;
     setCrmUpdatingId(contactId);
     try {
-      await updateDoc(doc(db, 'crm_contacts', contactId), {
-        stage,
-        updated_at: nowIso,
-        last_activity_at: nowIso,
+      const payload = await callCrmApi(buildCrmApiUrl('contacts'), {
+        method: 'PATCH',
+        body: JSON.stringify({
+          id: contactId,
+          stage,
+        }),
       });
+      const updatedContact = payload?.contact as Partial<CrmContact> | undefined;
+      const updatedAt = String(updatedContact?.updated_at || new Date().toISOString());
+      const lastActivityAt = String(updatedContact?.last_activity_at || updatedAt);
       setCrmContacts((prev) =>
         sortCrmContacts(
           prev.map((contact) =>
             contact.id === contactId
               ? {
                 ...contact,
-                stage,
-                updated_at: nowIso,
-                last_activity_at: nowIso,
+                stage: normalizeCrmStageFromText(String(updatedContact?.stage || stage)),
+                updated_at: updatedAt,
+                last_activity_at: lastActivityAt,
               }
               : contact,
           ),
         ),
       );
-
-      if (previous && previous.stage !== stage) {
-        await callCrmApi(buildCrmApiUrl('timeline'), {
-          method: 'POST',
-          body: JSON.stringify({
-            entity_type: 'contact',
-            entity_id: contactId,
-            type: 'contact_stage_changed',
-            payload: {
-              from_stage: previous.stage,
-              to_stage: stage,
-            },
-          }),
-        });
-        await dispatchMetaCapiStageEvent({
-          previousStage: previous.stage,
-          nextStage: stage,
-          contact: {
-            ...previous,
-            stage,
-            updated_at: nowIso,
-            last_activity_at: nowIso,
-          },
-        }).catch((metaError) => {
-          console.warn('Meta CAPI stage dispatch warning:', metaError);
-        });
-      }
 
       if (crmSelectedContactId === contactId && crmDetailTab === 'timeline') {
         await fetchCrmTimeline(contactId, crmTimelineFilter);

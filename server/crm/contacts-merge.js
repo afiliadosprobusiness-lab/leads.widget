@@ -40,7 +40,9 @@ async function findContactByDedupeTx(tx, clientId, dedupePhone, dedupeEmail) {
     }
   }
 
-  const fallbackQ = db.collection("crm_contacts").where("client_id", "==", clientId).limit(800);
+  // Legacy fallback: scan a wider window to avoid duplicates in older accounts
+  // where dedupe fields might be missing/inconsistent.
+  const fallbackQ = db.collection("crm_contacts").where("client_id", "==", clientId).limit(5000);
   const fallbackSnap = await tx.get(fallbackQ);
   for (const docSnap of fallbackSnap.docs) {
     const row = docSnap.data() || {};

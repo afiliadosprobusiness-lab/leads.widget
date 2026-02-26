@@ -1,4 +1,5 @@
 import contactsMergeHandler from "../server/crm/contacts-merge.js";
+import contactsHandler from "../server/crm/contacts.js";
 import dealsHandler from "../server/crm/deals.js";
 import tasksHandler from "../server/crm/tasks.js";
 import timelineHandler from "../server/crm/timeline.js";
@@ -11,6 +12,7 @@ export default async function handler(req, res) {
   const resource = normalizeResource(req.query?.resource);
 
   if (resource === "contacts-merge") return contactsMergeHandler(req, res);
+  if (resource === "contacts") return contactsHandler(req, res);
   if (resource === "deals") return dealsHandler(req, res);
   if (resource === "tasks") return tasksHandler(req, res);
   if (resource === "timeline") return timelineHandler(req, res);

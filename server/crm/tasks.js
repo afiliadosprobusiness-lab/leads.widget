@@ -13,6 +13,8 @@ import {
 } from "./_common.js";
 import { db } from "../../api/_firebase.js";
 
+const DEFAULT_TIME_ZONE = "America/Lima";
+
 function normalizeEntityType(value) {
   const candidate = trimText(value || "", 40).toLowerCase();
   return candidate === "deal" ? "deal" : "contact";
@@ -37,15 +39,42 @@ function normalizeTaskDoc(docSnap) {
   };
 }
 
-function isDateSameDay(left, right) {
-  const l = new Date(left);
-  const r = new Date(right);
-  if (Number.isNaN(l.getTime()) || Number.isNaN(r.getTime())) return false;
-  return (
-    l.getUTCFullYear() === r.getUTCFullYear()
-    && l.getUTCMonth() === r.getUTCMonth()
-    && l.getUTCDate() === r.getUTCDate()
-  );
+function normalizeTimeZone(value) {
+  const candidate = trimText(value || "", 80);
+  if (!candidate) return DEFAULT_TIME_ZONE;
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: candidate }).format(new Date());
+    return candidate;
+  } catch {
+    return DEFAULT_TIME_ZONE;
+  }
+}
+
+function toTimeZoneDayKey(value, timeZone) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const byType = {};
+  parts.forEach((part) => {
+    if (part.type) byType[part.type] = part.value;
+  });
+  const year = byType.year || "";
+  const month = byType.month || "";
+  const day = byType.day || "";
+  if (!year || !month || !day) return "";
+  return `${year}-${month}-${day}`;
+}
+
+function isDateSameDay(left, right, timeZone) {
+  const leftKey = toTimeZoneDayKey(left, timeZone);
+  const rightKey = toTimeZoneDayKey(right, timeZone);
+  if (!leftKey || !rightKey) return false;
+  return leftKey === rightKey;
 }
 
 function isOverdueTask(task, nowIso) {
@@ -127,8 +156,9 @@ async function markOverdueTasks(uid, tasks, nowIso) {
   );
 }
 
-function applyTasksFilters(tasks, { uid, windowFilter, contactId, dealId }) {
+function applyTasksFilters(tasks, { uid, windowFilter, contactId, dealId, timeZone }) {
   let output = [...tasks];
+  const now = new Date();
   if (contactId) {
     output = output.filter((task) => task.entity_type === "contact" && task.entity_id === contactId);
   }
@@ -140,15 +170,14 @@ function applyTasksFilters(tasks, { uid, windowFilter, contactId, dealId }) {
   } else if (windowFilter === "overdue") {
     output = output.filter((task) => task.status === "overdue");
   } else if (windowFilter === "today") {
-    output = output.filter((task) => task.status !== "done" && task.due_at && isDateSameDay(task.due_at, new Date()));
+    output = output.filter((task) => task.status !== "done" && task.due_at && isDateSameDay(task.due_at, now, timeZone));
   } else if (windowFilter === "upcoming") {
     output = output.filter((task) => {
       if (task.status === "done") return false;
       if (!task.due_at) return false;
       const due = new Date(task.due_at);
-      const now = new Date();
       if (Number.isNaN(due.getTime())) return false;
-      return due.getTime() >= now.getTime() && !isDateSameDay(due, now);
+      return due.getTime() >= now.getTime() && !isDateSameDay(due, now, timeZone);
     });
   }
 
@@ -169,6 +198,7 @@ export default async function handler(req, res) {
   try {
     if (req.method === "GET") {
       const windowFilter = getWindowFilter(req.query?.window || req.query?.filter || "today");
+      const timeZone = normalizeTimeZone(req.query?.timeZone || req.query?.tz || "");
       const contactId = trimText(req.query?.contactId || "", 140);
       const dealId = trimText(req.query?.dealId || "", 140);
       const nowIso = new Date().toISOString();
@@ -176,7 +206,7 @@ export default async function handler(req, res) {
       const snap = await db.collection("tasks").where("client_id", "==", uid).get();
       const tasks = snap.docs.map(normalizeTaskDoc);
       const updatedTasks = await markOverdueTasks(uid, tasks, nowIso);
-      const filtered = applyTasksFilters(updatedTasks, { uid, windowFilter, contactId, dealId });
+      const filtered = applyTasksFilters(updatedTasks, { uid, windowFilter, contactId, dealId, timeZone });
 
       return res.status(200).json({
         tasks: filtered,
