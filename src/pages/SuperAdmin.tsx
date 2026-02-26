@@ -110,6 +110,7 @@ const PROTECTED_SUPERADMINS = new Set([
 
 const PLAN_CRM_MONTHLY_PEN = 30;
 const DEFAULT_PLUS_MONTHLY_PRICE_PEN = 99;
+const TRIAL_DAYS = 2;
 
 const resolvePlusMonthlyPricePen = (value: unknown, fallback = DEFAULT_PLUS_MONTHLY_PRICE_PEN) => {
   const parsed = Number(value);
@@ -637,7 +638,7 @@ export default function SuperAdmin() {
       };
       if (newStatus === 'trial') {
         payload.plan_type = 'trial';
-        payload.trial_ends_at = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
+        payload.trial_ends_at = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000).toISOString();
       }
       await updateDoc(doc(db, 'profiles', clientId), payload);
       toast({
@@ -1156,7 +1157,7 @@ export default function SuperAdmin() {
                             {(() => {
                               const created = new Date(client.created_at);
                               const trialEnd = new Date(created);
-                              trialEnd.setDate(created.getDate() + 3);
+                              trialEnd.setDate(created.getDate() + TRIAL_DAYS);
                               return trialEnd.toLocaleDateString('es-PE');
                             })()}
                           </td>
@@ -1246,7 +1247,7 @@ export default function SuperAdmin() {
                                   >
                                     <div className="flex flex-col">
                                       <span className="font-semibold">Marcar como Trial</span>
-                                      <span className="text-xs text-muted-foreground">Cambia el estado a Trial y reinicia la prueba de 3 dias.</span>
+                                      <span className="text-xs text-muted-foreground">Cambia el estado a Trial y reinicia la prueba de 2 dias.</span>
                                     </div>
                                   </DropdownMenuItem>
                                   <DropdownMenuItem

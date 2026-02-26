@@ -85,7 +85,7 @@ export default function CreateNow() {
                             <ArrowRight className="ml-2 w-5 h-5" />
                         </Button>
                         <p className="text-xs text-slate-500 mt-4">
-                            ✅ Prueba gratis 3 días • Sin tarjeta de crédito
+                            ✅ Prueba gratis 2 días • Sin tarjeta de crédito
                         </p>
                     </div>
                 </div>

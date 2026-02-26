@@ -50,7 +50,7 @@ export function WidgetPreview({
   vibrationIntensity = 'soft',
   exitIntentEnabled = true,
   exitIntentTitle = '¡Espera!',
-  exitIntentDescription = 'Prueba LeadWidget gratis por 3 días y aumenta tus ventas.',
+  exitIntentDescription = 'Prueba LeadWidget gratis por 2 días y aumenta tus ventas.',
   exitIntentCTA = 'Probar Demo Ahora',
   language = 'es'
 }: WidgetPreviewProps) {

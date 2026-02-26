@@ -306,7 +306,7 @@
                 "try_other": "try with another email"
             },
             "left_panel": {
-                "title": "3 days free trial",
+                "title": "2 days free trial",
                 "desc": "No credit card required. Cancel anytime. Full access to all premium features.",
                 "benefits": [
                     "Unlimited proactive widget",
@@ -334,7 +334,7 @@
         "lang_en": "English 🇺🇸",
         "trial_alert": {
             "title": "You are in trial period",
-            "subtitle": "Your 3-day trial ends on {{date}}",
+            "subtitle": "Your 2-day trial ends on {{date}}",
             "days_left": "{{count}} days",
             "remaining": "Remaining"
         },

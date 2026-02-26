@@ -91,7 +91,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Estados de carga/error/vacio en dashboards.
 - Landing `/partners` con bloques de confianza (testimonios en carrusel horizontal) y FAQ en acordeon accesible.
 - Landing principal `/` ahora comunica dos modos de producto: widget embebible y Lead Chat como pagina publica sin web.
-- Landing principal `/` ahora comunica esquema de 3 planes: `Trial 3 dias`, `Plan CRM S/30` y `Plan PRO S/99` (EN: `Trial 3 days`, `CRM S/30`, `PRO S/99`), sin costo de implementacion.
+- Landing principal `/` ahora comunica esquema de 3 planes: `Trial 2 dias`, `Plan CRM S/30` y `Plan PRO S/99` (EN: `Trial 2 days`, `CRM S/30`, `PRO S/99`), sin costo de implementacion.
 - Landing principal `/` fue redisenada con estilo visual premium tipo Apple (glass + gradientes suaves), narrativa simplificada orientada a conversion, preview del widget embebido en hero y secciones actualizadas de capacidades/casos/testimonios/precio.
 - Landing principal `/` incluye toggle claro/oscuro visible en navbar (desktop/mobile) y copy reforzado a precalificacion de leads + handoff a WhatsApp (sin narrativa de llamadas outbound).
 - Landing principal `/` ahora redirige los CTAs secundarios `Ver demo del widget` (hero) y `Probar demo` (CTA final) a WhatsApp soporte (`+51 924 464 410`) con mensaje precargado de solicitud de demo rapida.
@@ -205,7 +205,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - En `Prompt de contexto` generado con IA, el dashboard valida que no falten campos clave de negocio y anexa snapshot estructurado cuando detecta omisiones.
 - En IA > Prompt del Sistema, el dashboard mantiene boton de plantilla por `Industria / Nicho` (`general`, `inmobiliaria`, `clinica`, `taller`, `delivery`; en `personalizado` usa base general), con enfoque de conversion y soporte de bloque `IMAGE`.
 - En IA > Prompt del Sistema (plantillas por nicho), cuando el lead pregunta por precio/costo/inversion, el guion responde oferta dual: `CRM S/30 mensual` o `PRO S/99 mensual` (sin implementacion).
-- En Dashboard > Billing, el esquema comercial activo es: `trial` (3 dias gratis), `crm` (S/30 mensual) y `pro` (S/99 mensual), sin costo de implementacion.
+- En Dashboard > Billing, el esquema comercial activo es: `trial` (2 dias gratis), `crm` (S/30 mensual) y `pro` (S/99 mensual), sin costo de implementacion.
 - En Dashboard, si el usuario activo tiene plan `crm`, solo quedan habilitadas las pestanas `CRM`, `Pagos` y `Cuenta`; las demas se mantienen visibles pero bloqueadas con candado. En `pro` se habilitan todas.
 - En Dashboard > Billing, usuarios `crm` activos pueden usar CTA `Mejorar Plan` (selecciona PRO para cobro inmediato); usuarios `pro` activos pueden usar CTA `Bajar Plan`, que programa `pending_plan_type=crm` para aplicar el precio CRM en la siguiente renovacion.
 - En SuperAdmin > Clientes, se puede definir `plus_monthly_price_pen` por usuario (opcional, precio PRO legacy). Si existe, Billing del dashboard usa ese monto; si no existe, usa base global `S/ 99`.

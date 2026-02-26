@@ -306,7 +306,7 @@
                 "try_other": "intenta con otro correo"
             },
             "left_panel": {
-                "title": "3 días de prueba gratis",
+                "title": "2 días de prueba gratis",
                 "desc": "Sin tarjeta de crédito. Cancela cuando quieras. Acceso total a todas las funciones premium.",
                 "benefits": [
                     "Widget proactivo ilimitado",
@@ -334,7 +334,7 @@
         "lang_en": "Inglés",
         "trial_alert": {
             "title": "Estás en periodo de prueba",
-            "subtitle": "Tu trial de 3 días finaliza el {{date}}",
+            "subtitle": "Tu trial de 2 días finaliza el {{date}}",
             "days_left": "{{count}} días",
             "remaining": "Restantes"
         },

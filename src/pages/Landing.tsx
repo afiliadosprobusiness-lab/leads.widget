@@ -535,8 +535,8 @@ export default function Landing() {
             <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">{copy.pricingTitle}</h2>
             <p className={`mt-3 text-sm ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
               {isEn
-                ? "Start with a 3-day trial. Then choose CRM or PRO without setup fees."
-                : "Empieza con trial de 3 dias. Luego elige CRM o PRO sin costo de implementacion."}
+                ? "Start with a 2-day trial. Then choose CRM or PRO without setup fees."
+                : "Empieza con trial de 2 dias. Luego elige CRM o PRO sin costo de implementacion."}
             </p>
           </div>
 
@@ -545,19 +545,19 @@ export default function Landing() {
               <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${isLandingDark ? "bg-slate-800 text-slate-200" : "bg-slate-100 text-slate-700"}`}>
                 {isEn ? "Trial" : "Trial"}
               </span>
-              <h3 className="mt-4 text-2xl font-semibold">{isEn ? "3 days free" : "3 dias gratis"}</h3>
+              <h3 className="mt-4 text-2xl font-semibold">{isEn ? "2 days free" : "2 dias gratis"}</h3>
               <p className={`mt-3 text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
                 {isEn ? "Test the CRM flow with no card." : "Prueba el flujo CRM sin tarjeta."}
               </p>
               <ul className={`mt-4 space-y-2 text-sm ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
                 {(isEn
                   ? [
-                      "CRM access for 3 days",
+                      "CRM access for 2 days",
                       "No credit card required",
                       "Basic setup included",
                     ]
                   : [
-                      "Acceso al CRM por 3 dias",
+                      "Acceso al CRM por 2 dias",
                       "Sin tarjeta de credito",
                       "Configuracion basica incluida",
                     ]).map((item) => (
@@ -568,7 +568,7 @@ export default function Landing() {
                 ))}
               </ul>
               <p className="mt-6 text-3xl font-black">{isEn ? "S/ 0" : "S/ 0"}</p>
-              <p className={`text-xs ${isLandingDark ? "text-slate-400" : "text-slate-500"}`}>{isEn ? "for 3 days" : "por 3 dias"}</p>
+              <p className={`text-xs ${isLandingDark ? "text-slate-400" : "text-slate-500"}`}>{isEn ? "for 2 days" : "por 2 dias"}</p>
             </article>
 
             <article className={`rounded-3xl border p-6 ${isLandingDark ? "border-cyan-700/70 bg-slate-900/75" : "border-cyan-200 bg-cyan-50/70"}`}>
@@ -643,7 +643,7 @@ export default function Landing() {
           <h2 className="text-3xl font-semibold tracking-tight sm:text-5xl">{copy.finalTitle}</h2>
           <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-slate-300 sm:text-base">{copy.finalSubtitle}</p>
           <p className="mx-auto mt-2 max-w-2xl text-sm font-medium text-cyan-200">
-            {isEn ? "Current offer: Trial 3 days, then CRM S/30 or PRO S/99 monthly." : "Oferta actual: Trial 3 dias, luego CRM S/30 o PRO S/99 mensual."}
+            {isEn ? "Current offer: Trial 2 days, then CRM S/30 or PRO S/99 monthly." : "Oferta actual: Trial 2 dias, luego CRM S/30 o PRO S/99 mensual."}
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link to="/register"><Button size="xl" className="rounded-full px-8 text-white">{copy.navRegister}</Button></Link>

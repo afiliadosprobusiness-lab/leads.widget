@@ -671,6 +671,7 @@ const AI_MAX_TOKENS_MAX = 4000;
 const PLAN_CRM_MONTHLY_PEN = 30;
 const PLAN_PLUS_MONTHLY_PEN = 99;
 const PEN_TO_USD_RATE = 3.75;
+const TRIAL_DAYS = 2;
 const CLOUDINARY_CLOUD_NAME = String(import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '').trim();
 const CLOUDINARY_UPLOAD_PRESET = String(import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || '').trim();
 type WelcomeMediaKind = 'image' | 'audio' | 'video';
@@ -2961,7 +2962,7 @@ export default function Dashboard() {
     vibration_intensity: 'soft',
     exit_intent_enabled: true,
     exit_intent_title: '¡Espera!',
-    exit_intent_description: 'Prueba Lead Widget gratis por 3 días y aumenta tus ventas.',
+    exit_intent_description: 'Prueba Lead Widget gratis por 2 días y aumenta tus ventas.',
     exit_intent_cta: 'Probar Demo Ahora',
     teaser_messages: '¿Cómo podemos ayudarte? 👋\n¿Tienes alguna duda sobre el servicio? ✨\n¡Hola! Estamos en línea para atenderte 🚀',
     // Quick Replies
@@ -3661,7 +3662,7 @@ export default function Dashboard() {
           vibration_intensity: 'soft',
           trigger_exit_intent: true,
           exit_intent_title: '¡Espera!',
-          exit_intent_description: 'Prueba Lead Widget gratis por 3 días y aumenta tus ventas.',
+          exit_intent_description: 'Prueba Lead Widget gratis por 2 días y aumenta tus ventas.',
           exit_intent_cta: 'Probar Demo Ahora',
           teaser_messages: [
             '¿Cómo podemos ayudarte? 👋',
@@ -3725,7 +3726,7 @@ export default function Dashboard() {
           vibration_intensity: configData.vibration_intensity || 'soft',
           exit_intent_enabled: configData.trigger_exit_intent ?? true,
           exit_intent_title: configData.exit_intent_title || '¡Espera!',
-          exit_intent_description: configData.exit_intent_description || 'Prueba Lead Widget gratis por 3 días y aumenta tus ventas.',
+          exit_intent_description: configData.exit_intent_description || 'Prueba Lead Widget gratis por 2 días y aumenta tus ventas.',
           exit_intent_cta: configData.exit_intent_cta || 'Probar Demo Ahora',
           teaser_messages: Array.isArray(configData.teaser_messages)
             ? configData.teaser_messages.join('\n')
@@ -5291,7 +5292,7 @@ export default function Dashboard() {
     } else if (profile?.created_at) {
       const created = new Date(profile.created_at);
       endDate = new Date(created);
-      endDate.setDate(created.getDate() + 3);
+      endDate.setDate(created.getDate() + TRIAL_DAYS);
     } else {
       return 0; // Fallback
     }
@@ -5307,7 +5308,7 @@ export default function Dashboard() {
     if (profile?.created_at) {
       const created = new Date(profile.created_at);
       const end = new Date(created);
-      end.setDate(created.getDate() + 3);
+      end.setDate(created.getDate() + TRIAL_DAYS);
       return end.toLocaleDateString('es-PE');
     }
     return '...';

@@ -796,3 +796,7 @@ Cambios de comportamiento relevantes:
 - Cambio: fallback de dedupe en `POST /api/crm/contacts-merge` amplia ventana de busqueda legacy de 800 a 5000 contactos por cliente.
 - Tipo: non-breaking
 - Impacto: reduce riesgo de duplicados en cuentas con historico amplio sin modificar request/response del endpoint.
+- Fecha: 2026-02-26
+- Cambio: duracion de trial comercial ajustada de 3 a 2 dias en landing, dashboard y superadmin (incluye calculo de expiracion y textos UI).
+- Tipo: non-breaking
+- Impacto: no cambia shape de APIs ni modelos; reduce ventana de prueba para nuevas activaciones y reinicios manuales de trial.
