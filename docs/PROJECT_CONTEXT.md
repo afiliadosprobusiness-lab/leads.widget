@@ -60,7 +60,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
   - En `Listado de contactos`, CRM agrega filtros inteligentes de foco comercial (`Oportunidades calientes`, `Sin tarea activa`, `Inactivos +48h`) para priorizar cartera en 1 clic.
   - Cada contacto incorpora CTA `Crear tarea sugerida` (1 clic) con playbook por etapa y plantilla activa (`general` o `bienes raices`), manteniendo opcion de tareas personalizadas.
   - CRM agrega bloque `Pulso semanal de conversion` con KPIs de cohort 7 dias (contactados, calificados, cierres, valor ganado) y alertas de disciplina comercial (activos sin tarea e inactivos +48h).
-  - Dashboard incorpora onboarding guiado de primer ingreso (persistente por usuario) y guias contextuales por pestana para reducir dependencia de tutoriales externos.
+  - Dashboard incorpora onboarding guiado de primer ingreso (persistente por usuario) en modo asistente paso a paso (`Paso X de Y`, `Anterior`, `Siguiente`, `Omitir guia`) y guias contextuales por pestana; el recorrido se adapta al plan activo (en `crm` solo pasos de `CRM/Pagos/Cuenta`, en `pro` incluye el flujo completo).
 
 ## Objetivo activo Lead Chat + IACloser (2026-02-19)
 - Nuevo objetivo comercial del canal chat:

@@ -104,6 +104,14 @@ interface DashboardGuideCard {
   steps: [string, string, string];
 }
 
+interface DashboardWalkthroughStep {
+  id: string;
+  tab: DashboardGuideTab;
+  title: string;
+  description: string;
+  checklist: [string, string, string];
+}
+
 interface CrmContact {
   id: string;
   client_id: string;
@@ -982,6 +990,7 @@ export default function Dashboard() {
   const [widgetConfig, setWidgetConfig] = useState<WidgetConfig | null>(null);
   const [activeTab, setActiveTab] = useState("config");
   const [dashboardOnboardingOpen, setDashboardOnboardingOpen] = useState(false);
+  const [dashboardWalkthroughStepIndex, setDashboardWalkthroughStepIndex] = useState(0);
   const [dismissedGuidesByTab, setDismissedGuidesByTab] = useState<Record<string, boolean>>({});
   const [leads, setLeads] = useState<any[]>([]);
   const [crmContacts, setCrmContacts] = useState<CrmContact[]>([]);
@@ -1291,6 +1300,109 @@ export default function Dashboard() {
   const selectedPlanChargeUsd = (selectedPlanChargePen / PEN_TO_USD_RATE).toFixed(2);
   const isCrmOnlyPlan = isSubscriptionActive && profilePlanType === 'crm';
   const isTabLockedForPlan = (tab: string) => isCrmOnlyPlan && !CRM_ALLOWED_DASHBOARD_TABS.has(tab);
+  const dashboardWalkthroughSteps = useMemo<DashboardWalkthroughStep[]>(
+    () => {
+      const steps: DashboardWalkthroughStep[] = dashboardIsEnglish
+        ? [
+            {
+              id: 'config',
+              tab: 'config',
+              title: 'Step 1: Set up your business profile',
+              description: 'Fill your business data and save. This only takes one minute.',
+              checklist: ['Business name', 'WhatsApp destination', 'Click "Save Changes"'],
+            },
+            {
+              id: 'ai',
+              tab: 'ai',
+              title: 'Step 2: Adjust your assistant',
+              description: 'Set clear answers so your team only receives serious leads.',
+              checklist: ['Business context', 'Closing channel', 'Save AI settings'],
+            },
+            {
+              id: 'crm',
+              tab: 'crm',
+              title: 'Step 3: Work from CRM every day',
+              description: 'Create contacts, move stages, and schedule follow-up tasks.',
+              checklist: ['Create or sync contacts', 'Use focus filters', 'Move stage after each action'],
+            },
+            {
+              id: 'analytics',
+              tab: 'analytics',
+              title: 'Step 4: Read results quickly',
+              description: 'Review leads and conversations to detect where sales stop.',
+              checklist: ['Check trend', 'Review not completed chats', 'Apply one prompt improvement'],
+            },
+            {
+              id: 'billing',
+              tab: 'billing',
+              title: 'Step 5: Keep your plan healthy',
+              description: 'Control monthly billing and adjust plan when needed.',
+              checklist: ['Verify current plan', 'Check next charge date', 'Use plan button only if needed'],
+            },
+            {
+              id: 'account',
+              tab: 'account',
+              title: 'Step 6: Keep account data updated',
+              description: 'Update user profile and password to keep access secure.',
+              checklist: ['Name and email', 'Password check', 'Use support if blocked'],
+            },
+          ]
+        : [
+            {
+              id: 'config',
+              tab: 'config',
+              title: 'Paso 1: Configura tu negocio',
+              description: 'Completa los datos de tu negocio y guarda. Toma menos de 1 minuto.',
+              checklist: ['Nombre del negocio', 'WhatsApp destino', 'Clic en "Guardar Cambios"'],
+            },
+            {
+              id: 'ai',
+              tab: 'ai',
+              title: 'Paso 2: Ajusta tu asistente',
+              description: 'Define respuestas claras para recibir solo prospectos serios.',
+              checklist: ['Contexto del negocio', 'Canal de cierre', 'Guardar IA'],
+            },
+            {
+              id: 'crm',
+              tab: 'crm',
+              title: 'Paso 3: Trabaja en CRM todos los dias',
+              description: 'Crea contactos, mueve etapas y agenda seguimientos.',
+              checklist: ['Crear o sincronizar contactos', 'Usar filtros de foco', 'Mover etapa despues de cada accion'],
+            },
+            {
+              id: 'analytics',
+              tab: 'analytics',
+              title: 'Paso 4: Revisa resultados rapido',
+              description: 'Mira leads y conversaciones para detectar donde se cae la venta.',
+              checklist: ['Revisar tendencia', 'Ver chats no completados', 'Aplicar una mejora al prompt'],
+            },
+            {
+              id: 'billing',
+              tab: 'billing',
+              title: 'Paso 5: Controla tus pagos',
+              description: 'Valida cobros mensuales y cambia plan solo cuando sea necesario.',
+              checklist: ['Ver plan actual', 'Confirmar proximo cobro', 'Usar boton de plan con cuidado'],
+            },
+            {
+              id: 'account',
+              tab: 'account',
+              title: 'Paso 6: Mantener cuenta al dia',
+              description: 'Actualiza perfil y clave para no perder acceso.',
+              checklist: ['Nombre y correo', 'Revision de clave', 'Usar soporte si hay bloqueo'],
+            },
+          ];
+      return steps.filter((step) => !isTabLockedForPlan(step.tab));
+    },
+    [dashboardIsEnglish, isCrmOnlyPlan],
+  );
+  const dashboardWalkthroughTotalSteps = dashboardWalkthroughSteps.length;
+  const dashboardWalkthroughSafeIndex = dashboardWalkthroughTotalSteps > 0
+    ? Math.min(Math.max(dashboardWalkthroughStepIndex, 0), dashboardWalkthroughTotalSteps - 1)
+    : 0;
+  const dashboardWalkthroughCurrentStep = dashboardWalkthroughSteps[dashboardWalkthroughSafeIndex] || null;
+  const dashboardWalkthroughProgress = dashboardWalkthroughTotalSteps > 0
+    ? Math.round(((dashboardWalkthroughSafeIndex + 1) / dashboardWalkthroughTotalSteps) * 100)
+    : 0;
   const handleTabChange = (nextTab: string) => {
     if (isTabLockedForPlan(nextTab)) {
       toast({
@@ -1303,6 +1415,49 @@ export default function Dashboard() {
       return;
     }
     setActiveTab(nextTab);
+  };
+  const moveDashboardWalkthroughTo = (index: number) => {
+    if (!dashboardWalkthroughTotalSteps) return;
+    const nextIndex = Math.min(Math.max(index, 0), dashboardWalkthroughTotalSteps - 1);
+    setDashboardWalkthroughStepIndex(nextIndex);
+    const nextStep = dashboardWalkthroughSteps[nextIndex];
+    if (nextStep && activeTab !== nextStep.tab) {
+      handleTabChange(nextStep.tab);
+    }
+  };
+  const openDashboardWalkthrough = (preferredTab?: DashboardGuideTab | null) => {
+    if (!dashboardWalkthroughTotalSteps) return;
+    if (preferredTab) {
+      const tabIndex = dashboardWalkthroughSteps.findIndex((step) => step.tab === preferredTab);
+      if (tabIndex >= 0) {
+        moveDashboardWalkthroughTo(tabIndex);
+        setDashboardOnboardingOpen(true);
+        return;
+      }
+    }
+    moveDashboardWalkthroughTo(0);
+    setDashboardOnboardingOpen(true);
+  };
+  const closeDashboardWalkthrough = () => {
+    setDashboardOnboardingOpen(false);
+  };
+  const handleDashboardWalkthroughNext = () => {
+    if (!dashboardWalkthroughTotalSteps) return;
+    const isLastStep = dashboardWalkthroughSafeIndex >= dashboardWalkthroughTotalSteps - 1;
+    if (isLastStep) {
+      closeDashboardWalkthrough();
+      toast({
+        title: dashboardIsEnglish ? 'Guide completed' : 'Guia completada',
+        description: dashboardIsEnglish
+          ? 'You can reopen it anytime from the dashboard.'
+          : 'Puedes abrirla de nuevo cuando quieras.',
+      });
+      return;
+    }
+    moveDashboardWalkthroughTo(dashboardWalkthroughSafeIndex + 1);
+  };
+  const handleDashboardWalkthroughPrev = () => {
+    moveDashboardWalkthroughTo(dashboardWalkthroughSafeIndex - 1);
   };
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1341,8 +1496,25 @@ export default function Dashboard() {
     const alreadySeen = window.localStorage.getItem(key) === '1';
     if (alreadySeen) return;
     window.localStorage.setItem(key, '1');
+    setDashboardWalkthroughStepIndex(0);
     setDashboardOnboardingOpen(true);
   }, [user?.uid, authLoading]);
+  useEffect(() => {
+    if (!dashboardWalkthroughTotalSteps) {
+      setDashboardOnboardingOpen(false);
+      setDashboardWalkthroughStepIndex(0);
+      return;
+    }
+    if (dashboardWalkthroughStepIndex >= dashboardWalkthroughTotalSteps) {
+      setDashboardWalkthroughStepIndex(dashboardWalkthroughTotalSteps - 1);
+    }
+  }, [dashboardWalkthroughStepIndex, dashboardWalkthroughTotalSteps]);
+  useEffect(() => {
+    if (!dashboardOnboardingOpen) return;
+    if (!dashboardWalkthroughCurrentStep) return;
+    if (activeTab === dashboardWalkthroughCurrentStep.tab) return;
+    handleTabChange(dashboardWalkthroughCurrentStep.tab);
+  }, [dashboardOnboardingOpen, dashboardWalkthroughCurrentStep, activeTab]);
   useEffect(() => {
     if (!isTabLockedForPlan(activeTab)) return;
     setActiveTab('crm');
@@ -5737,9 +5909,9 @@ export default function Dashboard() {
                   ))}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Button type="button" size="sm" className="h-8" onClick={() => setDashboardOnboardingOpen(true)}>
+                  <Button type="button" size="sm" className="h-8" onClick={() => openDashboardWalkthrough(activeGuideTab)}>
                     <Info className="mr-1.5 h-3.5 w-3.5" />
-                    {dashboardIsEnglish ? 'Open quick onboarding' : 'Abrir onboarding rapido'}
+                    {dashboardIsEnglish ? 'Start step-by-step guide' : 'Iniciar guia paso a paso'}
                   </Button>
                   {activeGuideNextTab && activeGuideNextTab !== activeGuideTab ? (
                     <Button
@@ -5758,57 +5930,101 @@ export default function Dashboard() {
             </Card>
           ) : null}
 
-          <Dialog open={dashboardOnboardingOpen} onOpenChange={setDashboardOnboardingOpen}>
+          <Dialog
+            open={dashboardOnboardingOpen}
+            onOpenChange={(open) => {
+              if (!open) {
+                closeDashboardWalkthrough();
+                return;
+              }
+              openDashboardWalkthrough(activeGuideTab);
+            }}
+          >
             <DialogContent className="w-[calc(100%-1rem)] max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>{dashboardIsEnglish ? 'Welcome: quick dashboard tour' : 'Bienvenido: recorrido rapido del dashboard'}</DialogTitle>
-                <DialogDescription>
-                  {dashboardIsEnglish
-                    ? 'You can operate everything in 3 simple moves. No tutorials needed.'
-                    : 'Puedes operar todo en 3 movimientos simples. Sin tutoriales.'}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-2 sm:grid-cols-3">
-                <button
-                  type="button"
-                  className="rounded-lg border border-border/70 bg-background p-3 text-left transition-colors hover:bg-muted/40"
-                  onClick={() => {
-                    handleTabChange('config');
-                    setDashboardOnboardingOpen(false);
-                  }}
-                >
-                  <p className="text-xs font-semibold text-primary">{dashboardIsEnglish ? '1) Configure' : '1) Configura'}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {dashboardIsEnglish ? 'Business data + WhatsApp destination + Save.' : 'Datos de negocio + WhatsApp destino + Guardar.'}
+              {dashboardWalkthroughCurrentStep ? (
+                <div className="space-y-4">
+                  <DialogHeader className="space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="rounded-full border border-primary/30 bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary">
+                        {dashboardIsEnglish
+                          ? `Step ${dashboardWalkthroughSafeIndex + 1} of ${dashboardWalkthroughTotalSteps}`
+                          : `Paso ${dashboardWalkthroughSafeIndex + 1} de ${dashboardWalkthroughTotalSteps}`}
+                      </div>
+                      <p className="text-[11px] font-medium text-muted-foreground">{dashboardWalkthroughProgress}%</p>
+                    </div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-primary transition-all duration-300 ease-out"
+                        style={{ width: `${dashboardWalkthroughProgress}%` }}
+                      />
+                    </div>
+                    <DialogTitle>{dashboardWalkthroughCurrentStep.title}</DialogTitle>
+                    <DialogDescription>{dashboardWalkthroughCurrentStep.description}</DialogDescription>
+                  </DialogHeader>
+
+                  <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+                    <p className="mb-2 text-xs font-semibold text-primary">
+                      {dashboardIsEnglish ? 'Do this now (simple checklist):' : 'Haz esto ahora (lista simple):'}
+                    </p>
+                    <div className="space-y-2">
+                      {dashboardWalkthroughCurrentStep.checklist.map((item, index) => (
+                        <div
+                          key={`${dashboardWalkthroughCurrentStep.id}-check-${index + 1}`}
+                          className="flex items-start gap-2 rounded-md border border-border/60 bg-background/90 p-2"
+                        >
+                          <CircleCheckBig className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                          <p className="text-sm text-foreground">{item}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-muted-foreground">
+                    {dashboardIsEnglish
+                      ? `The dashboard is now focused on: ${getDashboardTabLabel(dashboardWalkthroughCurrentStep.tab)}`
+                      : `El dashboard ahora esta enfocado en: ${getDashboardTabLabel(dashboardWalkthroughCurrentStep.tab)}`}
                   </p>
-                </button>
-                <button
-                  type="button"
-                  className="rounded-lg border border-border/70 bg-background p-3 text-left transition-colors hover:bg-muted/40"
-                  onClick={() => {
-                    handleTabChange('crm');
-                    setDashboardOnboardingOpen(false);
-                  }}
-                >
-                  <p className="text-xs font-semibold text-primary">{dashboardIsEnglish ? '2) Execute in CRM' : '2) Ejecuta en CRM'}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {dashboardIsEnglish ? 'Filter hot leads, create tasks, move stages.' : 'Filtra leads calientes, crea tareas y mueve etapas.'}
-                  </p>
-                </button>
-                <button
-                  type="button"
-                  className="rounded-lg border border-border/70 bg-background p-3 text-left transition-colors hover:bg-muted/40"
-                  onClick={() => {
-                    handleTabChange('billing');
-                    setDashboardOnboardingOpen(false);
-                  }}
-                >
-                  <p className="text-xs font-semibold text-primary">{dashboardIsEnglish ? '3) Keep billing healthy' : '3) Mantén pagos sanos'}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {dashboardIsEnglish ? 'Review plan and monthly charge dates.' : 'Revisa plan y fechas de cobro mensual.'}
-                  </p>
-                </button>
-              </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <Button type="button" size="sm" variant="ghost" onClick={closeDashboardWalkthrough}>
+                      {dashboardIsEnglish ? 'Skip guide' : 'Omitir guia'}
+                    </Button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={dashboardWalkthroughSafeIndex === 0}
+                        onClick={handleDashboardWalkthroughPrev}
+                      >
+                        {dashboardIsEnglish ? 'Back' : 'Atras'}
+                      </Button>
+                      <Button type="button" size="sm" onClick={handleDashboardWalkthroughNext}>
+                        {dashboardWalkthroughSafeIndex >= dashboardWalkthroughTotalSteps - 1
+                          ? (dashboardIsEnglish ? 'Finish guide' : 'Finalizar guia')
+                          : (dashboardIsEnglish ? 'Next step' : 'Siguiente paso')}
+                        <ChevronRight className="ml-1.5 h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <DialogHeader>
+                    <DialogTitle>{dashboardIsEnglish ? 'Guide unavailable' : 'Guia no disponible'}</DialogTitle>
+                    <DialogDescription>
+                      {dashboardIsEnglish
+                        ? 'No guided steps are available for your current plan.'
+                        : 'No hay pasos de guia disponibles para tu plan actual.'}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="flex justify-end">
+                    <Button type="button" size="sm" onClick={closeDashboardWalkthrough}>
+                      {dashboardIsEnglish ? 'Close' : 'Cerrar'}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </DialogContent>
           </Dialog>
 
@@ -10770,5 +10986,6 @@ export default function Dashboard() {
     </div >
   );
 }
+
 
 
