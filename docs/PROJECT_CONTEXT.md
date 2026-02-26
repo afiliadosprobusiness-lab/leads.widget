@@ -57,6 +57,9 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
   - Timeline de actividad usa `activity_events` y registra al menos: creacion/merge de contacto, cambios de etapa, notas, eventos de tarea y eventos de deal.
   - CRM incorpora selector de plantilla operativa (`general` y `bienes raices`) persistida en `profiles.crm_template`; ajusta labels de etapas, placeholders y snippets de notas sin tocar modelos core.
   - CRM muestra panel `Prioridades de hoy` con metricas accionables (deals activos, valor pipeline, valor ponderado, tareas prioritarias y contactos prioritarios con CTA directo a WhatsApp).
+  - En `Listado de contactos`, CRM agrega filtros inteligentes de foco comercial (`Oportunidades calientes`, `Sin tarea activa`, `Inactivos +48h`) para priorizar cartera en 1 clic.
+  - Cada contacto incorpora CTA `Crear tarea sugerida` (1 clic) con playbook por etapa y plantilla activa (`general` o `bienes raices`), manteniendo opcion de tareas personalizadas.
+  - CRM agrega bloque `Pulso semanal de conversion` con KPIs de cohort 7 dias (contactados, calificados, cierres, valor ganado) y alertas de disciplina comercial (activos sin tarea e inactivos +48h).
 
 ## Objetivo activo Lead Chat + IACloser (2026-02-19)
 - Nuevo objetivo comercial del canal chat:

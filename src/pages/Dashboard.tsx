@@ -93,6 +93,7 @@ type CrmWorkspaceView = 'contacts' | 'deals' | 'tasks';
 type CrmTimelineFilter = 'all' | 'notes' | 'stage' | 'tasks';
 type CrmTasksWindow = 'today' | 'overdue' | 'upcoming' | 'completed' | 'all';
 type CrmEntityType = 'contact' | 'deal';
+type CrmFocusFilter = 'all' | 'hot' | 'no_task' | 'inactive_48h';
 type BillingPlanType = 'crm' | 'pro';
 type CrmTemplateType = 'general' | 'real_estate';
 
@@ -976,6 +977,7 @@ export default function Dashboard() {
   const [crmContacts, setCrmContacts] = useState<CrmContact[]>([]);
   const [crmSearch, setCrmSearch] = useState('');
   const [crmStageFilter, setCrmStageFilter] = useState<CrmStageFilter>('all');
+  const [crmFocusFilter, setCrmFocusFilter] = useState<CrmFocusFilter>('all');
   const [crmCreating, setCrmCreating] = useState(false);
   const [crmSyncing, setCrmSyncing] = useState(false);
   const [crmImporting, setCrmImporting] = useState(false);
@@ -1283,6 +1285,64 @@ export default function Dashboard() {
       };
     });
   };
+  const buildCrmDueLocalValue = (daysAhead = 1, hour = 10) => {
+    const base = new Date();
+    base.setDate(base.getDate() + daysAhead);
+    base.setHours(hour, 0, 0, 0);
+    return new Date(base.getTime() - base.getTimezoneOffset() * 60 * 1000).toISOString().slice(0, 16);
+  };
+  const getSuggestedCrmTaskForContact = (contact: CrmContact) => {
+    if (crmTemplate === 'real_estate') {
+      if (contact.stage === 'new') {
+        return {
+          title: dashboardIsEnglish ? 'Validate budget, zone and property type' : 'Validar presupuesto, zona y tipo de inmueble',
+          priority: 'med' as const,
+          due_at: buildCrmDueLocalValue(1, 10),
+        };
+      }
+      if (contact.stage === 'contacted') {
+        return {
+          title: dashboardIsEnglish ? 'Schedule property visit this week' : 'Agendar visita a inmueble esta semana',
+          priority: 'high' as const,
+          due_at: buildCrmDueLocalValue(1, 11),
+        };
+      }
+      if (contact.stage === 'qualified') {
+        return {
+          title: dashboardIsEnglish ? 'Send proposal and define close date' : 'Enviar propuesta y definir fecha de cierre',
+          priority: 'high' as const,
+          due_at: buildCrmDueLocalValue(1, 9),
+        };
+      }
+    }
+
+    if (contact.stage === 'new') {
+      return {
+        title: dashboardIsEnglish ? 'First follow-up and qualification call' : 'Primer seguimiento y llamada de calificacion',
+        priority: 'med' as const,
+        due_at: buildCrmDueLocalValue(1, 10),
+      };
+    }
+    if (contact.stage === 'contacted') {
+      return {
+        title: dashboardIsEnglish ? 'Confirm proposal and next step' : 'Confirmar propuesta y siguiente paso',
+        priority: 'high' as const,
+        due_at: buildCrmDueLocalValue(1, 11),
+      };
+    }
+    if (contact.stage === 'qualified') {
+      return {
+        title: dashboardIsEnglish ? 'Close attempt with decision maker' : 'Intento de cierre con tomador de decision',
+        priority: 'high' as const,
+        due_at: buildCrmDueLocalValue(1, 9),
+      };
+    }
+    return {
+      title: dashboardIsEnglish ? 'Re-activation follow-up' : 'Seguimiento de reactivacion',
+      priority: 'low' as const,
+      due_at: buildCrmDueLocalValue(2, 10),
+    };
+  };
   const crmMetrics = useMemo(() => {
     return crmContacts.reduce(
       (acc, contact) => {
@@ -1300,11 +1360,61 @@ export default function Dashboard() {
       } as Record<CrmStage | 'total', number>,
     );
   }, [crmContacts]);
+  const crmOpenTasksByContact = useMemo(() => {
+    const index = new Map<string, number>();
+    crmTasks.forEach((task) => {
+      if (task.entity_type !== 'contact') return;
+      if (task.status === 'done') return;
+      const current = index.get(task.entity_id) || 0;
+      index.set(task.entity_id, current + 1);
+    });
+    return index;
+  }, [crmTasks]);
+  const crmHotDealsByContact = useMemo(() => {
+    const index = new Map<string, number>();
+    crmDeals.forEach((deal) => {
+      if (deal.stage !== 'contacted' && deal.stage !== 'qualified') return;
+      const current = index.get(deal.contact_id) || 0;
+      index.set(deal.contact_id, current + 1);
+    });
+    return index;
+  }, [crmDeals]);
+  const crmContactSignals = useMemo(() => {
+    const index = new Map<string, { openTasks: number; idleHours: number; inactive48h: boolean; hotLead: boolean }>();
+    crmContacts.forEach((contact) => {
+      const openTasks = crmOpenTasksByContact.get(contact.id) || 0;
+      const lastActivityMs = parseDateToMs(contact.last_activity_at || contact.updated_at || contact.created_at);
+      const idleHours = lastActivityMs > 0 ? (Date.now() - lastActivityMs) / (1000 * 60 * 60) : 0;
+      const inactive48h = idleHours >= 48;
+      const hotLead = contact.stage === 'contacted' || contact.stage === 'qualified' || (crmHotDealsByContact.get(contact.id) || 0) > 0;
+      index.set(contact.id, { openTasks, idleHours, inactive48h, hotLead });
+    });
+    return index;
+  }, [crmContacts, crmOpenTasksByContact, crmHotDealsByContact]);
+  const crmFocusCounts = useMemo(() => {
+    return crmContacts.reduce(
+      (acc, contact) => {
+        const signal = crmContactSignals.get(contact.id) || { openTasks: 0, idleHours: 0, inactive48h: false, hotLead: false };
+        const isOpenLead = contact.stage !== 'won' && contact.stage !== 'lost';
+        acc.all += 1;
+        if (isOpenLead && signal.hotLead) acc.hot += 1;
+        if (isOpenLead && signal.openTasks === 0) acc.no_task += 1;
+        if (isOpenLead && signal.inactive48h) acc.inactive_48h += 1;
+        return acc;
+      },
+      { all: 0, hot: 0, no_task: 0, inactive_48h: 0 } as Record<CrmFocusFilter, number>,
+    );
+  }, [crmContacts, crmContactSignals]);
   const filteredCrmContacts = useMemo(() => {
     const queryText = normalizeTextForFingerprint(crmSearch);
     return sortCrmContacts(
       crmContacts.filter((contact) => {
         if (crmStageFilter !== 'all' && contact.stage !== crmStageFilter) return false;
+        const signal = crmContactSignals.get(contact.id) || { openTasks: 0, idleHours: 0, inactive48h: false, hotLead: false };
+        const isOpenLead = contact.stage !== 'won' && contact.stage !== 'lost';
+        if (crmFocusFilter === 'hot' && (!isOpenLead || !signal.hotLead)) return false;
+        if (crmFocusFilter === 'no_task' && (!isOpenLead || signal.openTasks > 0)) return false;
+        if (crmFocusFilter === 'inactive_48h' && (!isOpenLead || !signal.inactive48h)) return false;
         if (!queryText) return true;
         const haystack = [
           contact.name,
@@ -1319,7 +1429,7 @@ export default function Dashboard() {
         return haystack.includes(queryText);
       }),
     );
-  }, [crmContacts, crmSearch, crmStageFilter]);
+  }, [crmContacts, crmSearch, crmStageFilter, crmFocusFilter, crmContactSignals]);
   const crmSelectedContact = useMemo(
     () => crmContacts.find((contact) => contact.id === crmSelectedContactId) || null,
     [crmContacts, crmSelectedContactId],
@@ -1357,6 +1467,36 @@ export default function Dashboard() {
       { total: 0, open: 0, overdue: 0, done: 0 },
     );
   }, [crmTasks]);
+  const crmWeeklyKpis = useMemo(() => {
+    const weekAgoMs = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const cohort = crmContacts.filter((contact) => parseDateToMs(contact.created_at) >= weekAgoMs);
+    const cohortSize = cohort.length;
+    const contacted = cohort.filter((contact) => contact.stage === 'contacted' || contact.stage === 'qualified' || contact.stage === 'won').length;
+    const qualified = cohort.filter((contact) => contact.stage === 'qualified' || contact.stage === 'won').length;
+    const won = cohort.filter((contact) => contact.stage === 'won').length;
+    const activeLeads = crmContacts.filter((contact) => contact.stage !== 'won' && contact.stage !== 'lost');
+    const staleActive = activeLeads.filter((contact) => (crmContactSignals.get(contact.id)?.inactive48h || false)).length;
+    const noTaskActive = activeLeads.filter((contact) => (crmContactSignals.get(contact.id)?.openTasks || 0) === 0).length;
+    const wonValue7d = crmDeals
+      .filter((deal) => deal.stage === 'won' && parseDateToMs(deal.updated_at || deal.created_at) >= weekAgoMs)
+      .reduce((sum, deal) => {
+        const value = Number(deal.value || 0);
+        return Number.isFinite(value) && value > 0 ? sum + value : sum;
+      }, 0);
+    const toRate = (value: number) => (cohortSize > 0 ? Math.round((value / cohortSize) * 100) : 0);
+    return {
+      cohortSize,
+      contacted,
+      qualified,
+      won,
+      contactRate: toRate(contacted),
+      qualifiedRate: toRate(qualified),
+      wonRate: toRate(won),
+      staleActive,
+      noTaskActive,
+      wonValue7d,
+    };
+  }, [crmContacts, crmDeals, crmContactSignals]);
   const crmPipelineMetrics = useMemo(() => {
     const activeDeals = crmDeals.filter((deal) => deal.stage !== 'won' && deal.stage !== 'lost');
     const activeValuePen = activeDeals.reduce((sum, deal) => {
@@ -4422,6 +4562,22 @@ export default function Dashboard() {
     }
   };
 
+  const handleCreateSuggestedTaskForContact = async (contact: CrmContact) => {
+    if (!contact?.id) return;
+    const openTasks = crmOpenTasksByContact.get(contact.id) || 0;
+    if (openTasks > 0) {
+      toast({
+        title: dashboardIsEnglish ? 'Contact already has pending tasks' : 'El contacto ya tiene tareas pendientes',
+        description: dashboardIsEnglish
+          ? 'Finish current tasks first, or create a custom task in contact detail.'
+          : 'Termina las tareas actuales o crea una tarea personalizada en el detalle del contacto.',
+      });
+      return;
+    }
+    const suggestion = getSuggestedCrmTaskForContact(contact);
+    await handleCreateTask('contact', contact.id, suggestion);
+  };
+
   const handleSyncLeadsToCrm = async () => {
     if (!user?.uid) return;
 
@@ -7347,6 +7503,57 @@ export default function Dashboard() {
               </Card>
             </div>
 
+            <Card>
+              <CardHeader className="space-y-2">
+                <CardTitle className="text-base">
+                  {dashboardIsEnglish ? 'Weekly conversion pulse' : 'Pulso semanal de conversion'}
+                </CardTitle>
+                <CardDescription>
+                  {dashboardIsEnglish
+                    ? 'Simple scorecard for this week: conversion, follow-up discipline, and revenue closed.'
+                    : 'Score simple de esta semana: conversion, disciplina de seguimiento y cierre de ingresos.'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="rounded-xl border bg-muted/20 p-3">
+                    <p className="text-[11px] text-muted-foreground">{dashboardIsEnglish ? 'New leads (7d)' : 'Leads nuevos (7d)'}</p>
+                    <p className="text-xl font-black">{crmWeeklyKpis.cohortSize}</p>
+                    <p className="text-[11px] text-muted-foreground">{dashboardIsEnglish ? 'Cohort base' : 'Base del cohort'}</p>
+                  </div>
+                  <div className="rounded-xl border bg-muted/20 p-3">
+                    <p className="text-[11px] text-muted-foreground">{dashboardIsEnglish ? 'Contacted rate' : 'Tasa contactados'}</p>
+                    <p className="text-xl font-black">{crmWeeklyKpis.contactRate}%</p>
+                    <p className="text-[11px] text-muted-foreground">{crmWeeklyKpis.contacted} / {crmWeeklyKpis.cohortSize || 0}</p>
+                  </div>
+                  <div className="rounded-xl border bg-muted/20 p-3">
+                    <p className="text-[11px] text-muted-foreground">{dashboardIsEnglish ? 'Qualified rate' : 'Tasa calificados'}</p>
+                    <p className="text-xl font-black">{crmWeeklyKpis.qualifiedRate}%</p>
+                    <p className="text-[11px] text-muted-foreground">{crmWeeklyKpis.qualified} / {crmWeeklyKpis.cohortSize || 0}</p>
+                  </div>
+                  <div className="rounded-xl border bg-muted/20 p-3">
+                    <p className="text-[11px] text-muted-foreground">{dashboardIsEnglish ? 'Won rate' : 'Tasa cierres'}</p>
+                    <p className="text-xl font-black">{crmWeeklyKpis.wonRate}%</p>
+                    <p className="text-[11px] text-muted-foreground">{crmWeeklyKpis.won} / {crmWeeklyKpis.cohortSize || 0}</p>
+                  </div>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-3">
+                  <div className="rounded-xl border border-amber-300/40 bg-amber-500/5 p-2.5">
+                    <p className="text-[11px] text-amber-700 dark:text-amber-300">{dashboardIsEnglish ? 'Active leads without task' : 'Leads activos sin tarea'}</p>
+                    <p className="text-lg font-black">{crmWeeklyKpis.noTaskActive}</p>
+                  </div>
+                  <div className="rounded-xl border border-rose-300/40 bg-rose-500/5 p-2.5">
+                    <p className="text-[11px] text-rose-700 dark:text-rose-300">{dashboardIsEnglish ? 'Inactive +48h' : 'Inactivos +48h'}</p>
+                    <p className="text-lg font-black">{crmWeeklyKpis.staleActive}</p>
+                  </div>
+                  <div className="rounded-xl border border-emerald-300/40 bg-emerald-500/5 p-2.5">
+                    <p className="text-[11px] text-emerald-700 dark:text-emerald-300">{dashboardIsEnglish ? 'Won value (7d)' : 'Valor ganado (7d)'}</p>
+                    <p className="text-lg font-black">S/ {crmWeeklyKpis.wonValue7d.toFixed(0)}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             <div className="grid gap-2 sm:flex sm:flex-wrap">
               <Button
                 type="button"
@@ -7698,6 +7905,44 @@ export default function Dashboard() {
                     </Select>
                   </div>
                 </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={crmFocusFilter === 'all' ? 'default' : 'outline'}
+                    className="h-8 rounded-full px-3 text-[11px]"
+                    onClick={() => setCrmFocusFilter('all')}
+                  >
+                    {dashboardIsEnglish ? 'All' : 'Todos'} ({crmFocusCounts.all})
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={crmFocusFilter === 'hot' ? 'default' : 'outline'}
+                    className="h-8 rounded-full px-3 text-[11px]"
+                    onClick={() => setCrmFocusFilter('hot')}
+                  >
+                    {dashboardIsEnglish ? 'Hot opportunities' : 'Oportunidades calientes'} ({crmFocusCounts.hot})
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={crmFocusFilter === 'no_task' ? 'default' : 'outline'}
+                    className="h-8 rounded-full px-3 text-[11px]"
+                    onClick={() => setCrmFocusFilter('no_task')}
+                  >
+                    {dashboardIsEnglish ? 'No open task' : 'Sin tarea activa'} ({crmFocusCounts.no_task})
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={crmFocusFilter === 'inactive_48h' ? 'default' : 'outline'}
+                    className="h-8 rounded-full px-3 text-[11px]"
+                    onClick={() => setCrmFocusFilter('inactive_48h')}
+                  >
+                    {dashboardIsEnglish ? 'Inactive +48h' : 'Inactivos +48h'} ({crmFocusCounts.inactive_48h})
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 {filteredCrmContacts.length === 0 ? (
@@ -7714,114 +7959,150 @@ export default function Dashboard() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {filteredCrmContacts.map((contact) => (
-                      <article
-                        key={contact.id}
-                        className="rounded-xl border border-border/70 bg-white/70 p-3 transition-colors hover:bg-muted/30 dark:bg-slate-900/40"
-                      >
-                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                          <div className="min-w-0 space-y-2">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <p className="truncate text-sm font-semibold sm:text-base">{contact.name || '-'}</p>
-                              <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${getCrmStageClass(contact.stage)}`}>
-                                {crmStageLabels[contact.stage]}
-                              </span>
-                            </div>
-                            <div className="grid gap-1 text-xs text-muted-foreground sm:text-sm">
-                              <p className="break-words">
-                                <span className="font-medium text-foreground">{dashboardIsEnglish ? 'Phone:' : 'Telefono:'}</span>{' '}
-                                {contact.phone || '-'}
-                              </p>
-                              <p className="break-words">
-                                <span className="font-medium text-foreground">Email:</span>{' '}
-                                {contact.email || '-'}
-                              </p>
-                              <p className="break-words">
-                                <span className="font-medium text-foreground">{dashboardIsEnglish ? 'Interest:' : 'Interes:'}</span>{' '}
-                                {contact.interest || '-'}
-                              </p>
-                              <p className="break-words">
-                                <span className="font-medium text-foreground">{dashboardIsEnglish ? 'Source:' : 'Origen:'}</span>{' '}
-                                {contact.source || '-'}
-                              </p>
-                              {contact.notes ? (
+                    {filteredCrmContacts.map((contact) => {
+                      const signal = crmContactSignals.get(contact.id) || { openTasks: 0, idleHours: 0, inactive48h: false, hotLead: false };
+                      const isOpenLead = contact.stage !== 'won' && contact.stage !== 'lost';
+                      const suggestedTask = getSuggestedCrmTaskForContact(contact);
+                      return (
+                        <article
+                          key={contact.id}
+                          className="rounded-xl border border-border/70 bg-white/70 p-3 transition-colors hover:bg-muted/30 dark:bg-slate-900/40"
+                        >
+                          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                            <div className="min-w-0 space-y-2">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="truncate text-sm font-semibold sm:text-base">{contact.name || '-'}</p>
+                                <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${getCrmStageClass(contact.stage)}`}>
+                                  {crmStageLabels[contact.stage]}
+                                </span>
+                                {isOpenLead && signal.hotLead ? (
+                                  <span className="rounded-full border border-amber-300/70 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-300">
+                                    {dashboardIsEnglish ? 'Hot' : 'Caliente'}
+                                  </span>
+                                ) : null}
+                                {isOpenLead && signal.openTasks === 0 ? (
+                                  <span className="rounded-full border border-blue-300/70 bg-blue-500/10 px-2 py-0.5 text-[11px] font-medium text-blue-700 dark:text-blue-300">
+                                    {dashboardIsEnglish ? 'No task' : 'Sin tarea'}
+                                  </span>
+                                ) : null}
+                                {isOpenLead && signal.inactive48h ? (
+                                  <span className="rounded-full border border-rose-300/70 bg-rose-500/10 px-2 py-0.5 text-[11px] font-medium text-rose-700 dark:text-rose-300">
+                                    {dashboardIsEnglish ? 'Inactive +48h' : 'Inactivo +48h'}
+                                  </span>
+                                ) : null}
+                              </div>
+                              <div className="grid gap-1 text-xs text-muted-foreground sm:text-sm">
                                 <p className="break-words">
-                                  <span className="font-medium text-foreground">{dashboardIsEnglish ? 'Notes:' : 'Notas:'}</span>{' '}
-                                  {contact.notes}
+                                  <span className="font-medium text-foreground">{dashboardIsEnglish ? 'Phone:' : 'Telefono:'}</span>{' '}
+                                  {contact.phone || '-'}
                                 </p>
-                              ) : null}
-                              <p className="text-[11px]">
-                                {dashboardIsEnglish ? 'Updated:' : 'Actualizado:'} {formatDateLabel(contact.updated_at)}
-                              </p>
+                                <p className="break-words">
+                                  <span className="font-medium text-foreground">Email:</span>{' '}
+                                  {contact.email || '-'}
+                                </p>
+                                <p className="break-words">
+                                  <span className="font-medium text-foreground">{dashboardIsEnglish ? 'Interest:' : 'Interes:'}</span>{' '}
+                                  {contact.interest || '-'}
+                                </p>
+                                <p className="break-words">
+                                  <span className="font-medium text-foreground">{dashboardIsEnglish ? 'Source:' : 'Origen:'}</span>{' '}
+                                  {contact.source || '-'}
+                                </p>
+                                {contact.notes ? (
+                                  <p className="break-words">
+                                    <span className="font-medium text-foreground">{dashboardIsEnglish ? 'Notes:' : 'Notas:'}</span>{' '}
+                                    {contact.notes}
+                                  </p>
+                                ) : null}
+                                <p className="text-[11px]">
+                                  {dashboardIsEnglish ? 'Updated:' : 'Actualizado:'} {formatDateLabel(contact.updated_at)} - {dashboardIsEnglish ? 'Open tasks:' : 'Tareas abiertas:'} {signal.openTasks}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="w-full max-w-full lg:w-56">
+                              <Label htmlFor={`crm-stage-${contact.id}`} className="text-xs text-muted-foreground">
+                                {dashboardIsEnglish ? 'Move stage' : 'Mover etapa'}
+                              </Label>
+                              <Select
+                                value={contact.stage}
+                                onValueChange={(nextStage) => handleUpdateCrmStage(contact.id, nextStage as CrmStage)}
+                                disabled={crmUpdatingId === contact.id}
+                              >
+                                <SelectTrigger id={`crm-stage-${contact.id}`} className="mt-1 w-full">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {CRM_STAGES.map((stage) => (
+                                    <SelectItem key={stage} value={stage}>
+                                      {crmStageLabels[stage]}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <div className="mt-2 flex flex-col gap-2">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant={signal.openTasks === 0 ? 'default' : 'outline'}
+                                  className="w-full"
+                                  onClick={() => void handleCreateSuggestedTaskForContact(contact)}
+                                  disabled={signal.openTasks > 0}
+                                >
+                                  <Rocket className="mr-2 h-3.5 w-3.5" />
+                                  {signal.openTasks > 0
+                                    ? (dashboardIsEnglish ? 'Has open task' : 'Ya tiene tarea')
+                                    : (dashboardIsEnglish ? 'Create suggested task' : 'Crear tarea sugerida')}
+                                </Button>
+                                <p className="text-[10px] text-muted-foreground">
+                                  {dashboardIsEnglish ? 'Next:' : 'Siguiente:'} {suggestedTask.title}
+                                </p>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  className="w-full"
+                                  disabled={!String(contact.phone || '').trim()}
+                                  onClick={() => {
+                                    const link = buildCrmContactWhatsappLink(contact);
+                                    if (!link) return;
+                                    window.open(link, '_blank', 'noopener,noreferrer');
+                                  }}
+                                >
+                                  <MessageCircle className="mr-2 h-3.5 w-3.5" />
+                                  {dashboardIsEnglish ? 'Open WhatsApp' : 'Abrir WhatsApp'}
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => void openCrmContactDetail(contact.id)}
+                                  disabled={crmOpeningDetailContactId === contact.id}
+                                  className="w-full"
+                                >
+                                  {crmOpeningDetailContactId === contact.id
+                                    ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                                    : <NotebookPen className="mr-2 h-3.5 w-3.5" />}
+                                  {dashboardIsEnglish ? 'Open detail' : 'Abrir detalle'}
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant={crmDealsByContactCount.get(contact.id) ? 'outline' : 'secondary'}
+                                  onClick={() => void handleCreateDeal(contact)}
+                                  disabled={crmCreatingDealContactId === contact.id}
+                                  className="w-full"
+                                >
+                                  {crmCreatingDealContactId === contact.id ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <KanbanSquare className="mr-2 h-3.5 w-3.5" />}
+                                  {dashboardIsEnglish
+                                    ? (crmDealsByContactCount.get(contact.id) ? 'Create deal' : 'Suggested: create deal')
+                                    : (crmDealsByContactCount.get(contact.id) ? 'Crear deal' : 'Sugerido: crear deal')}
+                                </Button>
+                              </div>
                             </div>
                           </div>
-                          <div className="w-full max-w-full lg:w-56">
-                            <Label htmlFor={`crm-stage-${contact.id}`} className="text-xs text-muted-foreground">
-                              {dashboardIsEnglish ? 'Move stage' : 'Mover etapa'}
-                            </Label>
-                            <Select
-                              value={contact.stage}
-                              onValueChange={(nextStage) => handleUpdateCrmStage(contact.id, nextStage as CrmStage)}
-                              disabled={crmUpdatingId === contact.id}
-                            >
-                              <SelectTrigger id={`crm-stage-${contact.id}`} className="mt-1 w-full">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {CRM_STAGES.map((stage) => (
-                                  <SelectItem key={stage} value={stage}>
-                                    {crmStageLabels[stage]}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <div className="mt-2 flex flex-col gap-2">
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                className="w-full"
-                                disabled={!String(contact.phone || '').trim()}
-                                onClick={() => {
-                                  const link = buildCrmContactWhatsappLink(contact);
-                                  if (!link) return;
-                                  window.open(link, '_blank', 'noopener,noreferrer');
-                                }}
-                              >
-                                <MessageCircle className="mr-2 h-3.5 w-3.5" />
-                                {dashboardIsEnglish ? 'Open WhatsApp' : 'Abrir WhatsApp'}
-                              </Button>
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                onClick={() => void openCrmContactDetail(contact.id)}
-                                disabled={crmOpeningDetailContactId === contact.id}
-                                className="w-full"
-                              >
-                                {crmOpeningDetailContactId === contact.id
-                                  ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                                  : <NotebookPen className="mr-2 h-3.5 w-3.5" />}
-                                {dashboardIsEnglish ? 'Open detail' : 'Abrir detalle'}
-                              </Button>
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant={crmDealsByContactCount.get(contact.id) ? 'outline' : 'secondary'}
-                                onClick={() => void handleCreateDeal(contact)}
-                                disabled={crmCreatingDealContactId === contact.id}
-                                className="w-full"
-                              >
-                                {crmCreatingDealContactId === contact.id ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <KanbanSquare className="mr-2 h-3.5 w-3.5" />}
-                                {dashboardIsEnglish
-                                  ? (crmDealsByContactCount.get(contact.id) ? 'Create deal' : 'Suggested: create deal')
-                                  : (crmDealsByContactCount.get(contact.id) ? 'Crear deal' : 'Sugerido: crear deal')}
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      </article>
-                    ))}
+                        </article>
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
