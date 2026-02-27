@@ -12,12 +12,9 @@ import {
   CheckCircle2,
   Menu,
   MessageCircle,
-  Mic,
   Moon,
   Play,
-  Send,
   ShieldCheck,
-  Smile,
   Sparkles,
   Star,
   Sun,
@@ -50,8 +47,8 @@ export default function Landing() {
       ? "Run your real estate sales with CRM and add automation when ready"
       : "Gestiona tu venta inmobiliaria con CRM y activa automatizacion cuando quieras",
     heroSubtitle: isEn
-      ? "Start with CRM pipeline, follow-up tasks and timeline. Upgrade to PRO when you want Leads Widget + Lead Chat with automatic pre-qualification."
-      : "Empieza con pipeline CRM, tareas y timeline. Luego sube a PRO cuando quieras Leads Widget + Lead Chat con precalificacion automatica.",
+      ? "Use WhatsApp Web as your CRM: stages, tags and follow-up in one panel. Start with CRM WhatsApp (S/50) or go PRO (S/99) with Leads Widget + Lead Chat."
+      : "Usa WhatsApp Web como CRM: etapas, etiquetas y seguimiento en un solo panel. Empieza con CRM WhatsApp (S/50) o sube a PRO (S/99) con Leads Widget + Lead Chat.",
     ctaPrimary: isEn ? "Start free" : "Empezar gratis",
     ctaSecondary: isEn ? "See widget demo" : "Ver demo del widget",
     modesTitle: isEn ? "One product, two deployment modes" : "Un producto, dos modos de uso",
@@ -137,8 +134,8 @@ export default function Landing() {
       ];
 
   const conversionBullets = isEn
-    ? ["No setup fees", "Only qualified leads go to WhatsApp", "Launch in under 5 minutes"]
-    : ["Sin costo de setup", "Solo leads calificados pasan a WhatsApp", "Activa en menos de 5 minutos"];
+    ? ["CRM WhatsApp from S/50", "Only qualified leads go to WhatsApp", "Launch in under 5 minutes"]
+    : ["CRM WhatsApp desde S/50", "Solo leads calificados pasan a WhatsApp", "Activa en menos de 5 minutos"];
 
   const testimonials = useMemo<LandingTestimonial[]>(
     () =>
@@ -330,6 +327,40 @@ export default function Landing() {
           background: linear-gradient(110deg, transparent, rgba(255,255,255,0.22), transparent);
           animation: igShineSweep 6s ease-in-out infinite;
         }
+        .crm-wa-preview {
+          position: relative;
+          display: grid;
+          grid-template-columns: 56px minmax(220px, 34%) minmax(380px, 1fr);
+          min-height: 438px;
+          background: #0b1118;
+        }
+        .crm-wa-pixel-mask {
+          position: absolute;
+          border-radius: 12px;
+          backdrop-filter: blur(7px);
+          background:
+            linear-gradient(135deg, rgba(6, 8, 12, 0.55), rgba(6, 8, 12, 0.62)),
+            repeating-linear-gradient(
+              0deg,
+              rgba(133, 146, 167, 0.18) 0px,
+              rgba(133, 146, 167, 0.18) 8px,
+              rgba(32, 41, 55, 0.22) 8px,
+              rgba(32, 41, 55, 0.22) 16px
+            );
+          box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.12);
+        }
+        @media (max-width: 1024px) {
+          .crm-wa-preview {
+            grid-template-columns: 44px minmax(170px, 38%) minmax(250px, 1fr);
+            min-height: 390px;
+          }
+        }
+        @media (max-width: 768px) {
+          .crm-wa-preview {
+            grid-template-columns: 38px minmax(140px, 38%) minmax(220px, 1fr);
+            min-height: 360px;
+          }
+        }
       `}</style>
 
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
@@ -425,37 +456,73 @@ export default function Landing() {
           <div className="relative">
             <div className={`pointer-events-none absolute inset-0 rounded-[34px] bg-gradient-to-br blur-2xl ${isLandingDark ? "from-cyan-500/20 via-indigo-500/15 to-emerald-500/20" : "from-cyan-300/30 via-indigo-300/20 to-emerald-300/25"}`} />
             <div className={`relative rounded-[32px] border p-3 shadow-[0_35px_90px_-45px_rgba(14,116,144,0.45)] backdrop-blur-xl ${isLandingDark ? "border-slate-700/80 bg-slate-900/70" : "border-white/70 bg-white/80"}`}>
-              <div className={`overflow-hidden rounded-[26px] border text-slate-100 ${isLandingDark ? "border-slate-700 bg-[#061326]" : "border-slate-200/70 bg-[#061326]"}`}>
-                <div className="flex items-center justify-between bg-gradient-to-r from-emerald-600 to-emerald-500 px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <span className="grid h-8 w-8 place-items-center rounded-full bg-white/20"><Bot className="h-4 w-4" /></span>
-                    <div><p className="text-sm font-semibold leading-none">Inmobiliaria Demo</p><p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-emerald-50/90">instant replies</p></div>
-                  </div>
-                </div>
-
-                <div className="mx-3 mt-3 rounded-xl border border-cyan-300/30 bg-slate-950/80 px-3 py-2 text-xs">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-200">Testimonios</p>
-                  <p className="mt-1 truncate">"Nos mostro propiedades y filtro compradores reales"</p>
-                  <p className="mt-1 text-[11px] text-slate-300">Andrea Ruiz - *****</p>
-                </div>
-
-                <div className="space-y-3 px-3 pb-3 pt-3">
-                  <div className="max-w-[86%] rounded-2xl rounded-bl-md border border-white/10 bg-white/[0.05] px-3 py-2 text-sm">Hola. Te ayudo a encontrar propiedad y, si calificas, te paso por WhatsApp con un asesor.</div>
-                  <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                    {[(isEn ? "How it works?" : "Como funciona?"), (isEn ? "Show properties" : "Ver propiedades"), (isEn ? "See pricing" : "Ver precios")].map((item) => (
-                      <span key={item} className="shrink-0 rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs text-slate-200">{item}</span>
+              <div className={`overflow-hidden rounded-[26px] border ${isLandingDark ? "border-slate-700 bg-[#061326]" : "border-slate-200/70 bg-[#061326]"}`}>
+                <div className="crm-wa-preview">
+                  <aside className="flex flex-col items-center gap-4 border-r border-slate-800/80 bg-slate-950/80 pt-4">
+                    {[MessageCircle, Bot, Sparkles, ShieldCheck].map((Icon, idx) => (
+                      <span
+                        key={`rail-${idx}`}
+                        className="grid h-8 w-8 place-items-center rounded-lg border border-slate-700/80 bg-slate-900/80 text-slate-300"
+                      >
+                        <Icon className="h-4 w-4" />
+                      </span>
                     ))}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-[14px] border border-cyan-500/35 bg-[#0a1627]/92 px-2.5">
-                      <span className="grid h-7 w-7 place-items-center rounded-full border border-white/20 bg-white/5 text-slate-300"><Smile className="h-3.5 w-3.5" /></span>
-                      <span className="grid h-7 w-7 place-items-center rounded-full border border-white/20 bg-white/5 text-slate-300"><Mic className="h-3.5 w-3.5" /></span>
-                      <span className="text-sm text-slate-400">Type your message...</span>
+                  </aside>
+
+                  <aside className="relative border-r border-slate-800/80 bg-[#0f1722] p-3 text-slate-200">
+                    <div className="rounded-xl border border-slate-700/80 bg-slate-900/70 px-3 py-2 text-xs text-slate-300">
+                      {isEn ? "Search chat..." : "Buscar chat..."}
                     </div>
-                    <button type="button" className="grid h-11 w-11 place-items-center rounded-[14px] text-white" style={{ background: "linear-gradient(140deg,#00C185 0%,#00a36d 100%)", boxShadow: "0 8px 16px rgba(0,193,133,0.2)" }}>
-                      <Send className="h-4 w-4" />
-                    </button>
-                  </div>
+                    <div className="mt-3 space-y-2">
+                      {[1, 2, 3, 4, 5, 6].map((row) => (
+                        <div key={`chat-row-${row}`} className="rounded-xl border border-slate-800/80 bg-slate-900/55 p-2.5">
+                          <div className="h-2.5 w-24 rounded bg-slate-600/70" />
+                          <div className="mt-1.5 h-2 w-32 rounded bg-slate-700/70" />
+                        </div>
+                      ))}
+                    </div>
+                    <div className="crm-wa-pixel-mask inset-x-2 bottom-4 top-[82px]" />
+                  </aside>
+
+                  <section className="relative overflow-hidden bg-[#0a121b]">
+                    <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between border-b border-slate-800/80 bg-slate-950/80 px-4 py-2.5 text-slate-100">
+                      <div>
+                        <p className="text-sm font-semibold leading-none">+51 934 664 490</p>
+                        <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-slate-400">Cuenta de empresa</p>
+                      </div>
+                      <MessageCircle className="h-4 w-4 text-slate-400" />
+                    </div>
+
+                    <div className="space-y-3 px-4 pb-4 pt-16 text-sm text-slate-100">
+                      <div className="ml-auto max-w-[72%] rounded-2xl rounded-br-md bg-emerald-700/90 px-3 py-2">
+                        Hola 👋, revisamos tu anuncio de inmueble.
+                      </div>
+                      <div className="ml-auto max-w-[72%] rounded-2xl rounded-br-md bg-emerald-700/90 px-3 py-2">
+                        Te muestro el CRM en WhatsApp en 2 minutos?
+                      </div>
+                    </div>
+
+                    <div className="crm-wa-pixel-mask left-4 top-20 h-28 w-[52%]" />
+
+                    <aside className="absolute bottom-4 right-4 z-20 w-[300px] max-w-[62%] rounded-2xl border border-slate-200/80 bg-slate-100/95 p-3 text-slate-800 shadow-2xl">
+                      <div className="flex items-center justify-between rounded-xl bg-gradient-to-r from-emerald-700 to-cyan-700 px-3 py-2 text-xs font-semibold text-white">
+                        <span>CRM WhatsApp 0.4.1</span>
+                        <span>{isEn ? "Live" : "Activo"}</span>
+                      </div>
+                      <div className="mt-3 space-y-2">
+                        <div className="grid grid-cols-2 gap-2 text-[11px]">
+                          <span className="rounded-lg bg-white px-2 py-1.5">Lead</span>
+                          <span className="rounded-lg bg-white px-2 py-1.5">Etapa: qualified</span>
+                        </div>
+                        <div className="rounded-lg bg-white px-2 py-1.5 text-[11px]">Tags: comprador, urgente, surco</div>
+                        <div className="grid grid-cols-3 gap-2 text-[10px] font-semibold">
+                          <span className="rounded-lg bg-emerald-600 px-2 py-1 text-center text-white">Guardar</span>
+                          <span className="rounded-lg bg-slate-200 px-2 py-1 text-center">Atajo</span>
+                          <span className="rounded-lg bg-cyan-700 px-2 py-1 text-center text-white">Seguimiento</span>
+                        </div>
+                      </div>
+                    </aside>
+                  </section>
                 </div>
               </div>
             </div>
@@ -535,61 +602,31 @@ export default function Landing() {
             <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">{copy.pricingTitle}</h2>
             <p className={`mt-3 text-sm ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
               {isEn
-                ? "Start with a 2-day trial. Then choose CRM or PRO without setup fees."
-                : "Empieza con trial de 2 dias. Luego elige CRM o PRO sin costo de implementacion."}
+                ? "Simple monthly pricing: CRM WhatsApp or full PRO bundle."
+                : "Precios mensuales simples: CRM WhatsApp o bundle PRO completo."}
             </p>
           </div>
 
-          <div className="mt-10 grid gap-4 md:grid-cols-3">
-            <article className={`rounded-3xl border p-6 ${isLandingDark ? "border-slate-800 bg-slate-900/70" : "border-slate-200/80 bg-white/90"}`}>
-              <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${isLandingDark ? "bg-slate-800 text-slate-200" : "bg-slate-100 text-slate-700"}`}>
-                {isEn ? "Trial" : "Trial"}
-              </span>
-              <h3 className="mt-4 text-2xl font-semibold">{isEn ? "2 days free" : "2 dias gratis"}</h3>
-              <p className={`mt-3 text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
-                {isEn ? "Test the CRM flow with no card." : "Prueba el flujo CRM sin tarjeta."}
-              </p>
-              <ul className={`mt-4 space-y-2 text-sm ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
-                {(isEn
-                  ? [
-                      "CRM access for 2 days",
-                      "No credit card required",
-                      "Basic setup included",
-                    ]
-                  : [
-                      "Acceso al CRM por 2 dias",
-                      "Sin tarjeta de credito",
-                      "Configuracion basica incluida",
-                    ]).map((item) => (
-                  <li key={item} className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-6 text-3xl font-black">{isEn ? "S/ 0" : "S/ 0"}</p>
-              <p className={`text-xs ${isLandingDark ? "text-slate-400" : "text-slate-500"}`}>{isEn ? "for 2 days" : "por 2 dias"}</p>
-            </article>
-
+          <div className="mt-10 grid gap-4 md:grid-cols-2">
             <article className={`rounded-3xl border p-6 ${isLandingDark ? "border-cyan-700/70 bg-slate-900/75" : "border-cyan-200 bg-cyan-50/70"}`}>
               <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${isLandingDark ? "bg-cyan-500/20 text-cyan-200" : "bg-cyan-100 text-cyan-700"}`}>
-                CRM
+                {isEn ? "CRM WhatsApp" : "CRM WhatsApp"}
               </span>
-              <h3 className="mt-4 text-2xl font-semibold">{isEn ? "CRM plan" : "Plan CRM"}</h3>
+              <h3 className="mt-4 text-2xl font-semibold">{isEn ? "CRM WhatsApp plan" : "Plan CRM WhatsApp"}</h3>
               <p className={`mt-3 text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
-                {isEn ? "Pipeline, contacts, tasks and payments." : "Pipeline, contactos, tareas y pagos."}
+                {isEn ? "Run your sales directly on WhatsApp Web with CRM panel and lead order." : "Gestiona tu venta directo en WhatsApp Web con panel CRM y orden de leads."}
               </p>
               <ul className={`mt-4 space-y-2 text-sm ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
                 {(isEn
                   ? [
-                      "CRM pipeline and contacts",
-                      "Follow-up tasks",
-                      "Billing and account control",
+                      "Pipeline by stages",
+                      "Tags, shortcuts and reminders",
+                      "Real estate lead profile",
                     ]
                   : [
-                      "Pipeline CRM y contactos",
-                      "Tareas de seguimiento",
-                      "Control de pagos y cuenta",
+                      "Pipeline por etapas",
+                      "Etiquetas, atajos y recordatorios",
+                      "Ficha de lead inmobiliario",
                     ]).map((item) => (
                   <li key={item} className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-cyan-500" />
@@ -597,7 +634,7 @@ export default function Landing() {
                   </li>
                 ))}
               </ul>
-              <p className="mt-6 text-3xl font-black">S/ 30</p>
+              <p className="mt-6 text-3xl font-black">S/ 50</p>
               <p className={`text-xs ${isLandingDark ? "text-slate-400" : "text-slate-500"}`}>{isEn ? "per month" : "por mes"}</p>
             </article>
 
@@ -605,19 +642,19 @@ export default function Landing() {
               <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${isLandingDark ? "bg-emerald-500/20 text-emerald-200" : "bg-emerald-100 text-emerald-700"}`}>
                 PRO
               </span>
-              <h3 className="mt-4 text-2xl font-semibold">{isEn ? "PRO plan" : "Plan PRO"}</h3>
+              <h3 className="mt-4 text-2xl font-semibold">{isEn ? "PRO bundle plan" : "Plan bundle PRO"}</h3>
               <p className={`mt-3 text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
-                {isEn ? "CRM + Leads Widget + Lead Chat." : "CRM + Leads Widget + Lead Chat."}
+                {isEn ? "CRM WhatsApp + Leads Widget + Lead Chat in one package." : "CRM WhatsApp + Leads Widget + Lead Chat en un solo paquete."}
               </p>
               <ul className={`mt-4 space-y-2 text-sm ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
                 {(isEn
                   ? [
-                      "Everything in CRM plan",
+                      "Everything in CRM WhatsApp",
                       "Leads Widget enabled",
                       "Lead Chat enabled",
                     ]
                   : [
-                      "Todo lo del plan CRM",
+                      "Todo lo del CRM WhatsApp",
                       "Leads Widget activado",
                       "Lead Chat activado",
                     ]).map((item) => (
@@ -643,7 +680,7 @@ export default function Landing() {
           <h2 className="text-3xl font-semibold tracking-tight sm:text-5xl">{copy.finalTitle}</h2>
           <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-slate-300 sm:text-base">{copy.finalSubtitle}</p>
           <p className="mx-auto mt-2 max-w-2xl text-sm font-medium text-cyan-200">
-            {isEn ? "Current offer: Trial 2 days, then CRM S/30 or PRO S/99 monthly." : "Oferta actual: Trial 2 dias, luego CRM S/30 o PRO S/99 mensual."}
+            {isEn ? "Current offer: CRM WhatsApp S/50 or PRO bundle S/99 monthly." : "Oferta actual: CRM WhatsApp S/50 o bundle PRO S/99 mensual."}
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link to="/register"><Button size="xl" className="rounded-full px-8 text-white">{copy.navRegister}</Button></Link>

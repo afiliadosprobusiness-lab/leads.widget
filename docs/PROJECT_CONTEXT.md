@@ -91,8 +91,9 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Estados de carga/error/vacio en dashboards.
 - Landing `/partners` con bloques de confianza (testimonios en carrusel horizontal) y FAQ en acordeon accesible.
 - Landing principal `/` ahora comunica dos modos de producto: widget embebible y Lead Chat como pagina publica sin web.
-- Landing principal `/` ahora comunica esquema de 3 planes: `Trial 2 dias`, `Plan CRM S/30` y `Plan PRO S/99` (EN: `Trial 2 days`, `CRM S/30`, `PRO S/99`), sin costo de implementacion.
+- Landing principal `/` ahora comunica esquema comercial de 2 planes: `CRM WhatsApp S/50` y `Plan PRO S/99` (EN: `WhatsApp CRM S/50`, `PRO S/99`), sin costo de implementacion.
 - Landing principal `/` fue redisenada con estilo visual premium tipo Apple (glass + gradientes suaves), narrativa simplificada orientada a conversion, preview del widget embebido en hero y secciones actualizadas de capacidades/casos/testimonios/precio.
+- Hero de landing principal `/` ahora muestra preview estilo WhatsApp Web con zonas de conversaciones pixeladas y panel CRM visible para demo comercial sin exponer conversaciones reales.
 - Landing principal `/` incluye toggle claro/oscuro visible en navbar (desktop/mobile) y copy reforzado a precalificacion de leads + handoff a WhatsApp (sin narrativa de llamadas outbound).
 - Landing principal `/` ahora redirige los CTAs secundarios `Ver demo del widget` (hero) y `Probar demo` (CTA final) a WhatsApp soporte (`+51 924 464 410`) con mensaje precargado de solicitud de demo rapida.
 - Landing principal `/` ahora prioriza prueba social arriba del fold: la seccion de testimonios se muestra inmediatamente debajo del hero.
