@@ -72,7 +72,7 @@ export default function Landing() {
       : "Usa WhatsApp Web como CRM: etapas, etiquetas y seguimiento en un solo panel. Empieza con CRM WhatsApp (S/50) o sube a PRO (S/99) con Leads Widget + Lead Chat.",
     ctaPrimary: isEn ? "Activate now" : "Activar ahora",
     ctaSecondary: isEn ? "Activate via WhatsApp" : "Activar por WhatsApp",
-    modesTitle: isEn ? "One product, two deployment modes" : "Un producto, dos modos de uso",
+    modesTitle: isEn ? "One product, three usage modes" : "Un producto, tres modos de uso",
     capabilitiesTitle: isEn ? "What helps your team close better" : "Lo que ayuda a tu equipo a cerrar mejor",
     useCasesTitle: isEn ? "Built for real estate teams" : "Pensado para equipos inmobiliarios",
     testimonialsTitle: isEn ? "Results from active clients" : "Resultados de clientes activos",
@@ -316,37 +316,37 @@ export default function Landing() {
     ? [
         {
           title: "Pre-qualification before handoff",
-          body: "Ask one focused question per turn and filter by property type, zone, budget and move-in timeline.",
+          body: "Before assigning a human advisor, the flow validates budget, area, property type and decision timeline.",
         },
         {
           title: "Property catalog with media",
-          body: "Show property images and short videos directly in chat to speed up decision-making.",
+          body: "Show photos and short videos inside chat so the lead compares options faster and arrives with clear intent.",
         },
         {
           title: "Automatic WhatsApp handoff",
-          body: "When the lead qualifies, the chat shows a short countdown and opens WhatsApp with preloaded details.",
+          body: "When a lead qualifies, WhatsApp opens with context already summarized to speed up first response quality.",
         },
         {
           title: "CRM follow-up ready",
-          body: "Qualified conversations go into your operation with cleaner context for pipeline, tasks and next actions.",
+          body: "Each conversation is saved with stage, tags and next task so your team follows up with discipline.",
         },
       ]
     : [
         {
           title: "Precalificacion antes del handoff",
-          body: "Hace una pregunta puntual por turno y filtra por tipo de inmueble, zona, presupuesto y plazo de mudanza.",
+          body: "Antes de pasar al asesor, valida presupuesto, zona, tipo de propiedad y plazo de compra.",
         },
         {
           title: "Catalogo de propiedades con multimedia",
-          body: "Muestra fotos y videos cortos de propiedades dentro del chat para acelerar decision.",
+          body: "Muestra fotos y videos dentro del chat para que el lead compare opciones rapido y llegue con intencion clara.",
         },
         {
           title: "Handoff automatico a WhatsApp",
-          body: "Cuando el lead califica, el chat muestra cuenta regresiva y abre WhatsApp con datos precargados.",
+          body: "Cuando el lead califica, abre WhatsApp con resumen del caso para mejorar velocidad y calidad de respuesta.",
         },
         {
           title: "Seguimiento con CRM",
-          body: "Las conversaciones calificadas llegan con mejor contexto para pipeline, tareas y siguientes pasos.",
+          body: "Cada conversacion queda en CRM con etapa, etiquetas y proxima tarea para no perder oportunidades.",
         },
       ];
 
@@ -933,7 +933,12 @@ export default function Landing() {
       <section className={`relative z-10 border-y px-4 py-16 backdrop-blur sm:px-6 lg:py-20 ${isLandingDark ? "border-slate-800/70 bg-slate-900/60" : "border-slate-200/70 bg-white/70"}`}>
         <div className="mx-auto w-full max-w-[1160px]">
           <div className="mb-10 text-center"><h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">{copy.modesTitle}</h2></div>
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4 lg:grid-cols-3">
+            <article className={`rounded-3xl border p-6 ${isLandingDark ? "border-slate-800 bg-slate-900/70" : "border-slate-200/80 bg-white/85"}`}>
+              <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${isLandingDark ? "bg-teal-400/15 text-teal-200" : "bg-teal-50 text-teal-700"}`}>CRM WhatsApp</span>
+              <h3 className="mt-4 text-2xl font-semibold">{isEn ? "CRM on WhatsApp Web" : "CRM en WhatsApp Web"}</h3>
+              <p className={`mt-3 text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>{isEn ? "Sell directly on WhatsApp Web with stages, tags and follow-up tasks, without changing your daily workflow." : "Vende directo en WhatsApp Web con etapas, etiquetas y tareas de seguimiento sin cambiar tu rutina diaria."}</p>
+            </article>
             <article className={`rounded-3xl border p-6 ${isLandingDark ? "border-slate-800 bg-slate-900/70" : "border-slate-200/80 bg-white/85"}`}>
               <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${isLandingDark ? "bg-emerald-400/15 text-emerald-200" : "bg-emerald-50 text-emerald-700"}`}>Widget embebido</span>
               <h3 className="mt-4 text-2xl font-semibold">{isEn ? "Embedded widget" : "Widget embebido"}</h3>
