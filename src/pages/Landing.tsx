@@ -42,6 +42,9 @@ type DemoModule = {
   label: string;
   title: string;
   subtitle: string;
+  purpose: string;
+  idealFor: string;
+  result: string;
   chatTitle: string;
   panelTitle: string;
   steps: DemoStep[];
@@ -104,6 +107,9 @@ export default function Landing() {
               label: "CRM WhatsApp",
               title: "CRM WhatsApp simulation",
               subtitle: "Lead arrives in WhatsApp Web and your team runs follow-up inside the CRM panel.",
+              purpose: "Turn WhatsApp conversations into an ordered pipeline with tags, stages, and tasks.",
+              idealFor: "Teams already receiving many WhatsApp chats and losing control of follow-up.",
+              result: "Faster response and fewer lost leads in daily operation.",
               chatTitle: "WhatsApp conversation",
               panelTitle: "CRM panel output",
               steps: [
@@ -135,6 +141,9 @@ export default function Landing() {
               label: "Leads Widget",
               title: "Leads Widget simulation",
               subtitle: "A visitor interacts with your website widget and only qualified intent reaches your team.",
+              purpose: "Pre-qualify website visitors before they reach your sales advisors.",
+              idealFor: "Businesses with traffic on their website and paid ads.",
+              result: "Less noise in WhatsApp and more qualified opportunities.",
               chatTitle: "Website widget chat",
               panelTitle: "Qualified lead output",
               steps: [
@@ -166,6 +175,9 @@ export default function Landing() {
               label: "Lead Chat",
               title: "Lead Chat simulation",
               subtitle: "You share one public link and collect qualified conversations even without a website.",
+              purpose: "Capture and qualify leads from one public chat link.",
+              idealFor: "Businesses without website or teams that sell from social media and ads.",
+              result: "You launch quickly and collect qualified conversations from day one.",
               chatTitle: "Public Lead Chat flow",
               panelTitle: "Conversation conversion output",
               steps: [
@@ -199,6 +211,9 @@ export default function Landing() {
               label: "CRM WhatsApp",
               title: "Demo CRM WhatsApp",
               subtitle: "El lead llega por WhatsApp Web y tu equipo ejecuta seguimiento desde el panel CRM.",
+              purpose: "Convertir conversaciones de WhatsApp en pipeline ordenado con etiquetas, etapas y tareas.",
+              idealFor: "Equipos que ya reciben muchos chats por WhatsApp y pierden seguimiento.",
+              result: "Mas velocidad de respuesta y menos leads perdidos en la operacion diaria.",
               chatTitle: "Conversacion en WhatsApp",
               panelTitle: "Resultado en panel CRM",
               steps: [
@@ -230,6 +245,9 @@ export default function Landing() {
               label: "Leads Widget",
               title: "Demo Leads Widget",
               subtitle: "Un visitante conversa desde tu web y solo la intencion real llega al equipo comercial.",
+              purpose: "Precalificar visitantes de tu web antes de que entren al equipo comercial.",
+              idealFor: "Negocios con trafico web y anuncios pagados.",
+              result: "Menos ruido en WhatsApp y mas oportunidades calificadas.",
               chatTitle: "Chat del widget web",
               panelTitle: "Resultado de lead calificado",
               steps: [
@@ -261,6 +279,9 @@ export default function Landing() {
               label: "Lead Chat",
               title: "Demo Lead Chat",
               subtitle: "Compartes un enlace publico y capturas conversaciones calificadas aunque no tengas web.",
+              purpose: "Capturar y calificar leads desde un solo enlace de chat publico.",
+              idealFor: "Negocios sin web o equipos que venden por redes y anuncios.",
+              result: "Empiezas rapido y capturas conversaciones calificadas desde el primer dia.",
               chatTitle: "Flujo Lead Chat publico",
               panelTitle: "Resultado de conversion de conversacion",
               steps: [
@@ -808,6 +829,22 @@ export default function Landing() {
             <p className={`mt-2 text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
               {currentDemoModule?.subtitle}
             </p>
+            <div className={`mt-4 rounded-2xl border p-4 ${isLandingDark ? "border-slate-700 bg-slate-900/80" : "border-slate-200 bg-white"}`}>
+              <div className="grid gap-2 text-sm">
+                <p className={isLandingDark ? "text-slate-200" : "text-slate-800"}>
+                  <span className="font-semibold">{isEn ? "Serves for:" : "Sirve para:"}</span>{" "}
+                  {currentDemoModule?.purpose}
+                </p>
+                <p className={isLandingDark ? "text-slate-300" : "text-slate-700"}>
+                  <span className="font-semibold">{isEn ? "Ideal if:" : "Ideal si:"}</span>{" "}
+                  {currentDemoModule?.idealFor}
+                </p>
+                <p className={isLandingDark ? "text-cyan-200" : "text-cyan-800"}>
+                  <span className="font-semibold">{isEn ? "Result:" : "Resultado:"}</span>{" "}
+                  {currentDemoModule?.result}
+                </p>
+              </div>
+            </div>
 
             <div className="mt-4 grid gap-2">
               {currentDemoModule?.steps.map((step, index) => (

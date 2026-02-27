@@ -95,6 +95,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Landing principal `/` fue redisenada con estilo visual premium tipo Apple (glass + gradientes suaves), narrativa simplificada orientada a conversion, preview del widget embebido en hero y secciones actualizadas de capacidades/casos/testimonios/precio.
 - Hero de landing principal `/` ahora muestra preview estilo WhatsApp Web con zonas de conversaciones pixeladas y panel CRM visible para demo comercial sin exponer conversaciones reales.
 - Landing principal `/` incluye bloque `Demos simuladas` interactivo con 3 escenarios (`CRM WhatsApp`, `Leads Widget`, `Lead Chat`) y pasos guiados para mostrar experiencia operativa sin usar datos reales.
+- En `Demos simuladas`, cada escenario ahora incluye explicacion comercial explicita (`Sirve para`, `Ideal si`, `Resultado`) para reducir confusion y mejorar conversion de compra.
 - Landing principal `/` incluye toggle claro/oscuro visible en navbar (desktop/mobile) y copy reforzado a precalificacion de leads + handoff a WhatsApp (sin narrativa de llamadas outbound).
 - Landing principal `/` ahora usa CTA unificado `Activar ahora`: botones de conversion en hero/precio/cierre/popup abren WhatsApp soporte (`+51 924 464 410`) con mensaje precargado para activacion de CRM.
 - Landing principal `/` ahora prioriza prueba social arriba del fold: la seccion de testimonios se muestra inmediatamente debajo del hero.
