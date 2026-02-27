@@ -409,6 +409,7 @@ Codigo observado:
 - `POST|OPTIONS /api/chat-event` (persistencia local de eventos por conversacion)
 - `POST|OPTIONS /api/analyze-conversation` (diagnostico IA/heuristico de conversaciones no completadas)
 - `POST|OPTIONS /api/generate-prompt` (generacion de bloque prompt contexto/sistema usando OpenAI del cliente autenticado)
+- `POST|OPTIONS /api/admin/create-client` (creacion de cuenta cliente desde superadmin; crea Firebase Auth + `profiles` trial + `user_roles`)
 - `GET|PUT|OPTIONS /api/meta-capi-config` (configuracion privada de credenciales Meta CAPI por cliente autenticado)
 - `POST|OPTIONS /api/meta-capi-dispatch` (dispatch autenticado de eventos Meta CAPI para cambios de etapa CRM)
 - `POST|OPTIONS /api/crm/contacts-merge` (upsert/merge idempotente de contactos con regla phone->email)
@@ -430,6 +431,7 @@ Asuncion:
 - El proxy local de `POST /api/chat` ejecuta resolucion de identidad para comando `VALIDAR_DNI` con estrategia configurable (`DNI_VALIDATION_PROVIDER=auto|api|eldni|capture`), soportando API externa (`DNI_API_*`), fallback por formulario publico ELDNI (`ELDNI_FORM_URL`, `ELDNI_TIMEOUT_MS`) y modo `capture` sin consulta externa.
 - `POST /api/analyze-conversation` requiere `Authorization: Bearer <Firebase ID token>` del usuario dashboard; usa `profiles.ai_api_key` (o fallback `widget_configs.ai_api_key` del mismo owner) para ejecutar analisis OpenAI. Si no hay key configurada, responde analisis heuristico (`provider: heuristic_no_client_key`).
 - `POST /api/generate-prompt` requiere `Authorization: Bearer <Firebase ID token>` del usuario dashboard; usa `profiles.ai_api_key` (o fallback `widget_configs.ai_api_key`) para generar texto de prompt via OpenAI y devuelve `creditsConsumed: true`.
+- `POST /api/admin/create-client` requiere `Authorization: Bearer <Firebase ID token>` de superadmin; crea usuario por email/password y persiste perfil `trial` inicial.
 - `GET|PUT /api/meta-capi-config` requiere `Authorization: Bearer <Firebase ID token>`; persiste IDs de Meta y token cifrado en `meta_capi_configs` (no en `widget_configs` publico).
 - `POST /api/meta-capi-dispatch` requiere `Authorization: Bearer <Firebase ID token>`; mapea etapa CRM -> evento Meta y envia via Conversions API usando credenciales cifradas del owner.
 - `POST /api/crm/contacts-merge`, `PATCH /api/crm/contacts` y `PATCH /api/crm/deals` ejecutan dispatch server-side a Meta CAPI cuando corresponde (`Lead`, `Appointment`, `QualifiedLead`, `Sale`).
@@ -451,6 +453,27 @@ Asuncion:
   - `400`: `{ error: "No OpenAI API key configured in IA settings." }`
   - `401`: `{ error: "Unauthorized" }`
   - `500`: `{ error: "Could not generate prompt", details?: string }`
+
+#### `POST /api/admin/create-client`
+
+- Headers:
+  - `Authorization: Bearer <Firebase ID token>` (requerido, caller superadmin)
+- Body JSON:
+  - `businessName` (requerido, `2..120` chars)
+  - `email` (requerido, email valido)
+  - `password` (requerido, `6..72` chars)
+- Comportamiento:
+  - Crea cuenta en Firebase Auth.
+  - Persiste `profiles/{uid}` con valores iniciales de cliente `trial` (`subscription_status=trial`, `plan_type=trial`, `trial_ends_at`).
+  - Persiste `user_roles/{uid}` con `role=client`.
+  - Si falla la escritura en Firestore tras crear Auth, elimina el usuario recien creado para evitar huella parcial.
+- Respuestas:
+  - `200`: `{ success: true, userId, email, businessName }`
+  - `400`: `{ error: "businessName must be between 2 and 120 characters" | "email is invalid" | "password must be between 6 and 72 characters" | "<firebase validation>" }`
+  - `401`: `{ error: "Unauthorized" }`
+  - `403`: `{ error: "Forbidden" }`
+  - `405`: `{ error: "Method not allowed" }`
+  - `500`: `{ error: "No se pudo crear la cuenta." }`
 
 #### `GET|PUT /api/meta-capi-config`
 
@@ -800,3 +823,7 @@ Cambios de comportamiento relevantes:
 - Cambio: duracion de trial comercial ajustada de 3 a 2 dias en landing, dashboard y superadmin (incluye calculo de expiracion y textos UI).
 - Tipo: non-breaking
 - Impacto: no cambia shape de APIs ni modelos; reduce ventana de prueba para nuevas activaciones y reinicios manuales de trial.
+- Fecha: 2026-02-27
+- Cambio: Superadmin reemplaza el flujo de invitacion por creacion directa de cliente via nuevo endpoint local `POST /api/admin/create-client` (email/password + perfil trial inicial).
+- Tipo: non-breaking
+- Impacto: mantiene contrato existente y agrega alta administrativa directa de cuentas cliente sin depender del enlace `/register`.

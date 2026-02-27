@@ -176,6 +176,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Firestore rules incluyen coleccion `crm_contacts` (lectura/escritura solo owner `client_id` o superadmin) para el nuevo tab CRM.
 - Superadmin incorpora fallback de compatibilidad a Firestore para modulo de agencias cuando el backend aun no expone `/api/admin/partners*` en el entorno desplegado.
 - Eliminacion de usuario desde superadmin usa borrado completo (Firebase Auth + datos principales), no solo soft delete.
+- En Superadmin > Clientes, el CTA `Nuevo Cliente` abre modal de alta directa (nombre negocio, correo, contrasena) y usa endpoint local `POST /api/admin/create-client` para crear Firebase Auth + perfil `trial` sin pasar por enlace de invitacion.
 - En Superadmin/Agencias, la accion de payout es contextual: muestra `Aprobar payout` o `Marcar pagado` segun existan payouts pendientes.
 - Plan PRO (legacy `plus`): branding del widget admite `branding_text` y `branding_link` para personalizar texto y URL del footer (fallback seguro a `/crear-ahora?ref=<clientId>`).
 - En `experience_mode=lead_chat`, el dashboard prioriza compartir enlace publico del chat; no depende de instalar script en una web.

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import type { FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, getDocs, getDoc, doc, updateDoc, setDoc, where, limit, onSnapshot, deleteDoc, deleteField } from 'firebase/firestore';
@@ -28,7 +29,6 @@ import {
   Settings,
   Plus,
   Pencil,
-  Copy,
   ExternalLink,
   Trash2,
   Gift,
@@ -140,6 +140,12 @@ export default function SuperAdmin() {
 
   // New States for Management
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isCreatingClient, setIsCreatingClient] = useState(false);
+  const [createClientForm, setCreateClientForm] = useState({
+    business_name: '',
+    email: '',
+    password: '',
+  });
   const [editingClient, setEditingClient] = useState<Profile | null>(null);
   const [editForm, setEditForm] = useState({ business_name: '', phone: '', email: '', plus_monthly_price_pen: '' });
   const [blockedDemoIps, setBlockedDemoIps] = useState<any[]>([]);
@@ -808,14 +814,76 @@ export default function SuperAdmin() {
     }
   };
 
-  const copyInviteLink = () => {
-    const link = `${window.location.origin}/register`;
-    navigator.clipboard.writeText(link);
-    toast({
-      title: "Link copiado",
-      description: "Envia este link al cliente para que se registre",
+  const resetCreateClientForm = () => {
+    setCreateClientForm({
+      business_name: '',
+      email: '',
+      password: '',
     });
-    setIsCreateOpen(false);
+    setIsCreatingClient(false);
+  };
+
+  const handleCreateClient = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (isCreatingClient) return;
+
+    const businessName = createClientForm.business_name.trim();
+    const email = createClientForm.email.trim().toLowerCase();
+    const password = createClientForm.password;
+
+    if (businessName.length < 2) {
+      toast({
+        title: 'Nombre invalido',
+        description: 'Ingresa un nombre de negocio con al menos 2 caracteres.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (!email || !email.includes('@')) {
+      toast({
+        title: 'Correo invalido',
+        description: 'Ingresa un correo valido para la cuenta.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (password.length < 6) {
+      toast({
+        title: 'Contrasena invalida',
+        description: 'La contrasena debe tener al menos 6 caracteres.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsCreatingClient(true);
+    try {
+      const payload = await adminApi('/api/admin/create-client', {
+        method: 'POST',
+        body: JSON.stringify({
+          businessName,
+          email,
+          password,
+        }),
+      });
+
+      toast({
+        title: 'Cliente creado',
+        description: payload?.userId
+          ? `Cuenta creada correctamente (${email}).`
+          : 'Cuenta creada correctamente.',
+      });
+      setIsCreateOpen(false);
+      resetCreateClientForm();
+    } catch (error: any) {
+      toast({
+        title: 'No se pudo crear el cliente',
+        description: error.message || 'Error inesperado',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsCreatingClient(false);
+    }
   };
 
   const filteredClients = clients.filter(client =>
@@ -1092,7 +1160,13 @@ export default function SuperAdmin() {
                       />
                     </div>
 
-                    <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+                    <Dialog
+                      open={isCreateOpen}
+                      onOpenChange={(open) => {
+                        setIsCreateOpen(open);
+                        if (!open) resetCreateClientForm();
+                      }}
+                    >
                       <DialogTrigger asChild>
                         <Button className="gap-2">
                           <Plus className="w-4 h-4" /> Nuevo Cliente
@@ -1100,22 +1174,88 @@ export default function SuperAdmin() {
                       </DialogTrigger>
                       <DialogContent>
                         <DialogHeader>
-                          <DialogTitle>Invitar Nuevo Cliente</DialogTitle>
+                          <DialogTitle>Crear Nuevo Cliente</DialogTitle>
                           <DialogDescription>
-                            Comparte este enlace unico para que el cliente se registre.
+                            Crea la cuenta del cliente con sus datos clave.
                           </DialogDescription>
                         </DialogHeader>
-                        <div className="py-4">
-                          <div className="flex items-center gap-2 p-2 border rounded bg-muted">
-                            <code className="text-sm flex-1 truncate">{window.location.origin}/register</code>
-                            <Button size="icon" variant="ghost" onClick={copyInviteLink}>
-                              <Copy className="w-4 h-4" />
-                            </Button>
+                        <form onSubmit={handleCreateClient} className="space-y-4 py-2">
+                          <div className="space-y-2">
+                            <Label htmlFor="create-client-business">Nombre del negocio</Label>
+                            <Input
+                              id="create-client-business"
+                              value={createClientForm.business_name}
+                              onChange={(event) => setCreateClientForm((prev) => ({
+                                ...prev,
+                                business_name: event.target.value,
+                              }))}
+                              placeholder="Ej: Inmobiliaria Atlas"
+                              autoComplete="organization"
+                              required
+                              minLength={2}
+                              maxLength={120}
+                              disabled={isCreatingClient}
+                            />
                           </div>
-                        </div>
-                        <DialogFooter>
-                          <Button onClick={copyInviteLink}>Copiar Link</Button>
-                        </DialogFooter>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="create-client-email">Correo</Label>
+                            <Input
+                              id="create-client-email"
+                              type="email"
+                              value={createClientForm.email}
+                              onChange={(event) => setCreateClientForm((prev) => ({
+                                ...prev,
+                                email: event.target.value,
+                              }))}
+                              placeholder="cliente@empresa.com"
+                              autoComplete="email"
+                              required
+                              maxLength={160}
+                              disabled={isCreatingClient}
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="create-client-password">Contrasena</Label>
+                            <Input
+                              id="create-client-password"
+                              type="password"
+                              value={createClientForm.password}
+                              onChange={(event) => setCreateClientForm((prev) => ({
+                                ...prev,
+                                password: event.target.value,
+                              }))}
+                              placeholder="Minimo 6 caracteres"
+                              autoComplete="new-password"
+                              required
+                              minLength={6}
+                              maxLength={72}
+                              disabled={isCreatingClient}
+                            />
+                          </div>
+
+                          <DialogFooter className="gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => setIsCreateOpen(false)}
+                              disabled={isCreatingClient}
+                            >
+                              Cancelar
+                            </Button>
+                            <Button type="submit" disabled={isCreatingClient}>
+                              {isCreatingClient ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  Creando...
+                                </>
+                              ) : (
+                                'Crear cuenta'
+                              )}
+                            </Button>
+                          </DialogFooter>
+                        </form>
                       </DialogContent>
                     </Dialog>
                   </div>
