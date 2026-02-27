@@ -718,6 +718,7 @@ export default function SuperAdmin() {
     try {
       const nowIso = new Date().toISOString();
       const currentClient = clients.find((client) => client.id === clientId);
+      const syncEmail = String(currentClient?.email || '').trim().toLowerCase();
 
       await updateDoc(doc(db, 'profiles', clientId), {
         whatsapp_crm_is_extension_client: true,
@@ -735,11 +736,39 @@ export default function SuperAdmin() {
         updated_at: nowIso,
       });
 
+      let syncMessage =
+        'Estado sincronizado con el backend de CRM WhatsApp.';
+      if (!syncEmail) {
+        syncMessage =
+          'Guardado localmente, pero este cliente no tiene email para sincronizar CRM Extension.';
+      } else {
+        try {
+          await adminApi('/api/admin/whatsapp-crm-sync', {
+            method: 'POST',
+            body: JSON.stringify({
+              email: syncEmail,
+              enabled,
+              months: 1,
+            }),
+          });
+        } catch (syncError: any) {
+          if (Number(syncError?.status || 0) === 404) {
+            syncMessage =
+              'Guardado localmente, pero ese email no existe aun en la base del CRM Extension.';
+          } else if (Number(syncError?.status || 0) === 503) {
+            syncMessage =
+              'Guardado localmente, pero falta configurar WHATSAPP_CRM_SYNC_KEY en el servidor.';
+          } else {
+            syncMessage = `Guardado localmente, pero fallo la sincronizacion remota: ${String(syncError?.message || 'error inesperado')}`;
+          }
+        }
+      }
+
       toast({
         title: enabled ? 'CRM WhatsApp activado' : 'CRM WhatsApp desactivado',
-        description: enabled
+        description: `${enabled
           ? 'El cliente ya puede usar el modulo CRM WhatsApp.'
-          : 'El acceso al modulo CRM WhatsApp fue bloqueado.',
+          : 'El acceso al modulo CRM WhatsApp fue bloqueado.'} ${syncMessage}`,
       });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });

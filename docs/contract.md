@@ -413,6 +413,7 @@ Codigo observado:
 - `POST|OPTIONS /api/analyze-conversation` (diagnostico IA/heuristico de conversaciones no completadas)
 - `POST|OPTIONS /api/generate-prompt` (generacion de bloque prompt contexto/sistema usando OpenAI del cliente autenticado)
 - `POST|OPTIONS /api/admin/create-client` (creacion de cuenta cliente desde superadmin; crea Firebase Auth + `profiles` trial + `user_roles`)
+- `POST|OPTIONS /api/admin/whatsapp-crm-sync` (sincroniza activacion/desactivacion de CRM Extension por email via server-to-server)
 - `GET|PUT|OPTIONS /api/meta-capi-config` (configuracion privada de credenciales Meta CAPI por cliente autenticado)
 - `POST|OPTIONS /api/meta-capi-dispatch` (dispatch autenticado de eventos Meta CAPI para cambios de etapa CRM)
 - `POST|OPTIONS /api/crm/contacts-merge` (upsert/merge idempotente de contactos con regla phone->email)
@@ -435,6 +436,7 @@ Asuncion:
 - `POST /api/analyze-conversation` requiere `Authorization: Bearer <Firebase ID token>` del usuario dashboard; usa `profiles.ai_api_key` (o fallback `widget_configs.ai_api_key` del mismo owner) para ejecutar analisis OpenAI. Si no hay key configurada, responde analisis heuristico (`provider: heuristic_no_client_key`).
 - `POST /api/generate-prompt` requiere `Authorization: Bearer <Firebase ID token>` del usuario dashboard; usa `profiles.ai_api_key` (o fallback `widget_configs.ai_api_key`) para generar texto de prompt via OpenAI y devuelve `creditsConsumed: true`.
 - `POST /api/admin/create-client` requiere `Authorization: Bearer <Firebase ID token>` de superadmin; crea usuario por email/password y persiste perfil `trial` inicial.
+- `POST /api/admin/whatsapp-crm-sync` requiere `Authorization: Bearer <Firebase ID token>` de superadmin; reenvia `email/enabled/months` al backend `whatsapp-crm-compliant` usando secreto server-side.
 - `GET|PUT /api/meta-capi-config` requiere `Authorization: Bearer <Firebase ID token>`; persiste IDs de Meta y token cifrado en `meta_capi_configs` (no en `widget_configs` publico).
 - `POST /api/meta-capi-dispatch` requiere `Authorization: Bearer <Firebase ID token>`; mapea etapa CRM -> evento Meta y envia via Conversions API usando credenciales cifradas del owner.
 - `POST /api/crm/contacts-merge`, `PATCH /api/crm/contacts` y `PATCH /api/crm/deals` ejecutan dispatch server-side a Meta CAPI cuando corresponde (`Lead`, `Appointment`, `QualifiedLead`, `Sale`).
@@ -477,6 +479,29 @@ Asuncion:
   - `403`: `{ error: "Forbidden" }`
   - `405`: `{ error: "Method not allowed" }`
   - `500`: `{ error: "No se pudo crear la cuenta." }`
+
+#### `POST /api/admin/whatsapp-crm-sync`
+
+- Headers:
+  - `Authorization: Bearer <Firebase ID token>` (requerido, caller superadmin)
+- Body JSON:
+  - `email` (requerido, email valido)
+  - `enabled` (requerido, boolean)
+  - `months` (opcional, `1..12`, default `1`)
+- Comportamiento:
+  - Valida superadmin en Firebase Auth + `user_roles`.
+  - Reenvia payload al backend `whatsapp-crm-compliant` (`POST /api/v1/admin/sync-subscription`) usando:
+    - `WHATSAPP_CRM_SYNC_URL` (opcional, default productivo)
+    - `WHATSAPP_CRM_SYNC_KEY` (requerido)
+  - Si el email no existe en CRM Extension, retorna `404` para que superadmin identifique falta de vinculacion real.
+- Respuestas:
+  - `200`: `{ success: true, sync: { ok: true, email, userId, workspaceId, subscription } }`
+  - `400`: `{ error: "email is invalid" | "enabled must be boolean" | "months must be between 1 and 12" }`
+  - `401`: `{ error: "Unauthorized" }`
+  - `403`: `{ error: "Forbidden" }`
+  - `404`: `{ error: "Usuario CRM Extension no encontrado para ese email", upstream?: object }`
+  - `503`: `{ error: "WHATSAPP_CRM_SYNC_KEY is missing" }`
+  - `500`: `{ error: "Failed to sync WhatsApp CRM subscription", details?: string }`
 
 #### `GET|PUT /api/meta-capi-config`
 
@@ -834,3 +859,7 @@ Cambios de comportamiento relevantes:
 - Cambio: Superadmin separa gestion de productos `Leads Widget` y `CRM Extension` con vinculacion explicita de clientes extension (`whatsapp_crm_is_extension_client`) y campos operativos `leads_widget_enabled/leads_widget_status`.
 - Tipo: non-breaking
 - Impacto: evita mezcla visual/operativa entre clientes de productos distintos y mantiene activacion/desactivacion independiente por modulo sin romper endpoints.
+- Fecha: 2026-02-27
+- Cambio: nuevo endpoint local `POST /api/admin/whatsapp-crm-sync` para reflejar en CRM Extension el toggle de activacion/desactivacion desde Superadmin.
+- Tipo: non-breaking
+- Impacto: evita desalineacion entre estado en `profiles` (Leads Widget) y suscripcion real consultada por la extension.
