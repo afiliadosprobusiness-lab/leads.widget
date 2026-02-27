@@ -58,6 +58,13 @@ interface Profile {
   email: string;
   business_name: string;
   whatsapp_number?: string;
+  whatsapp_crm_enabled?: boolean;
+  whatsapp_crm_status?: 'active' | 'inactive';
+  whatsapp_crm_workspace_id?: string;
+  whatsapp_crm_monthly_price_pen?: number | null;
+  whatsapp_crm_activated_at?: string | null;
+  whatsapp_crm_deactivated_at?: string | null;
+  whatsapp_crm_updated_at?: string | null;
   plus_monthly_price_pen?: number | null;
   subscription_status?: string;
   created_at: string;
@@ -109,6 +116,7 @@ const PROTECTED_SUPERADMINS = new Set([
 ]);
 
 const PLAN_CRM_MONTHLY_PEN = 30;
+const WHATSAPP_CRM_MONTHLY_PEN = 50;
 const DEFAULT_PLUS_MONTHLY_PRICE_PEN = 99;
 const TRIAL_DAYS = 2;
 
@@ -696,6 +704,40 @@ export default function SuperAdmin() {
     }
   };
 
+  const updateWhatsAppCrmStatus = async (clientId: string, enabled: boolean) => {
+    setUpdatingClient(clientId);
+    try {
+      const nowIso = new Date().toISOString();
+      const currentClient = clients.find((client) => client.id === clientId);
+
+      await updateDoc(doc(db, 'profiles', clientId), {
+        whatsapp_crm_enabled: enabled,
+        whatsapp_crm_status: enabled ? 'active' : 'inactive',
+        whatsapp_crm_monthly_price_pen:
+          Number(currentClient?.whatsapp_crm_monthly_price_pen || 0) > 0
+            ? Number(currentClient?.whatsapp_crm_monthly_price_pen)
+            : WHATSAPP_CRM_MONTHLY_PEN,
+        whatsapp_crm_activated_at: enabled
+          ? nowIso
+          : currentClient?.whatsapp_crm_activated_at || null,
+        whatsapp_crm_deactivated_at: enabled ? null : nowIso,
+        whatsapp_crm_updated_at: nowIso,
+        updated_at: nowIso,
+      });
+
+      toast({
+        title: enabled ? 'CRM WhatsApp activado' : 'CRM WhatsApp desactivado',
+        description: enabled
+          ? 'El cliente ya puede usar el modulo CRM WhatsApp.'
+          : 'El acceso al modulo CRM WhatsApp fue bloqueado.',
+      });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setUpdatingClient(null);
+    }
+  };
+
   const verifyPayment = async (paymentId: string, status: 'verified' | 'rejected') => {
     setVerifyingPayment(paymentId);
     try {
@@ -890,6 +932,8 @@ export default function SuperAdmin() {
     client.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
     client.business_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+  const whatsappCrmEnabledCount = clients.filter((client) => Boolean(client.whatsapp_crm_enabled)).length;
+  const whatsappCrmInactiveCount = Math.max(0, clients.length - whatsappCrmEnabledCount);
   const potentialCommissionsPen = clients
     .filter((c) => c.referred_by && String(c.subscription_status || '').toLowerCase() === 'active')
     .reduce((sum, client) => {
@@ -931,6 +975,22 @@ export default function SuperAdmin() {
       default:
         return <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">Desconocido</span>;
     }
+  };
+
+  const getWhatsAppCrmBadge = (client: Profile) => {
+    if (client.whatsapp_crm_enabled) {
+      return (
+        <span className="px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 border border-emerald-200">
+          Activo
+        </span>
+      );
+    }
+
+    return (
+      <span className="px-2 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
+        Inactivo
+      </span>
+    );
   };
 
 
@@ -1102,6 +1162,13 @@ export default function SuperAdmin() {
             >
               <Users className="w-4 h-4 stroke-[2.5px]" />
               <span className="text-[9px] font-medium">Clientes</span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="whatsapp-crm"
+              className="flex flex-col gap-1 px-3 py-2 h-auto data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-500 data-[state=active]:shadow-none rounded-xl transition-all"
+            >
+              <MessageCircle className="w-4 h-4 stroke-[2.5px]" />
+              <span className="text-[9px] font-medium">CRM WhatsApp</span>
             </TabsTrigger>
             <TabsTrigger
               value="payments"
@@ -1417,6 +1484,117 @@ export default function SuperAdmin() {
                           </td>
                         </tr>
                       ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* WhatsApp CRM Tab */}
+          <TabsContent value="whatsapp-crm">
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <CardTitle>CRM WhatsApp por cliente</CardTitle>
+                    <CardDescription>
+                      Activa o desactiva el modulo CRM WhatsApp sin tocar el plan principal del cliente.
+                    </CardDescription>
+                  </div>
+                  <div className="relative w-full md:w-72">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar por email o empresa..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Card className="bg-emerald-50 border-emerald-200">
+                    <CardContent className="pt-4">
+                      <p className="text-sm text-emerald-700 font-medium">CRM WhatsApp activos</p>
+                      <p className="text-3xl font-bold text-emerald-900">{whatsappCrmEnabledCount}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-slate-50 border-slate-200">
+                    <CardContent className="pt-4">
+                      <p className="text-sm text-slate-700 font-medium">CRM WhatsApp inactivos</p>
+                      <p className="text-3xl font-bold text-slate-900">{whatsappCrmInactiveCount}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-cyan-50 border-cyan-200">
+                    <CardContent className="pt-4">
+                      <p className="text-sm text-cyan-700 font-medium">Precio mensual sugerido</p>
+                      <p className="text-3xl font-bold text-cyan-900">S/ {WHATSAPP_CRM_MONTHLY_PEN}</p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-left">
+                        <th className="py-2 px-3">Cliente</th>
+                        <th className="py-2 px-3">Estado CRM WhatsApp</th>
+                        <th className="py-2 px-3">Workspace ID</th>
+                        <th className="py-2 px-3">Ultimo cambio</th>
+                        <th className="py-2 px-3">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredClients.map((client) => (
+                        <tr key={client.id} className="border-b">
+                          <td className="py-2 px-3">
+                            <p className="font-semibold">{client.business_name || 'Sin nombre'}</p>
+                            <p className="text-xs text-muted-foreground">{client.email}</p>
+                          </td>
+                          <td className="py-2 px-3">{getWhatsAppCrmBadge(client)}</td>
+                          <td className="py-2 px-3">
+                            <span className="font-mono text-xs text-muted-foreground">
+                              {client.whatsapp_crm_workspace_id || '-'}
+                            </span>
+                          </td>
+                          <td className="py-2 px-3 text-xs text-muted-foreground">
+                            {(() => {
+                              const dateRef = client.whatsapp_crm_enabled
+                                ? client.whatsapp_crm_activated_at
+                                : client.whatsapp_crm_deactivated_at;
+                              return dateRef ? new Date(dateRef).toLocaleString('es-PE') : '-';
+                            })()}
+                          </td>
+                          <td className="py-2 px-3">
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => updateWhatsAppCrmStatus(client.id, true)}
+                                disabled={updatingClient === client.id || Boolean(client.whatsapp_crm_enabled)}
+                              >
+                                Activar
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => updateWhatsAppCrmStatus(client.id, false)}
+                                disabled={updatingClient === client.id || !client.whatsapp_crm_enabled}
+                              >
+                                Desactivar
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {filteredClients.length === 0 && (
+                        <tr>
+                          <td colSpan={5} className="py-8 px-3 text-center text-muted-foreground">
+                            No se encontraron clientes para gestionar CRM WhatsApp.
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
