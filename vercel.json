@@ -8,6 +8,10 @@
       "dest": "/api/crm?resource=$1"
     },
     {
+      "src": "/api/admin/create-client",
+      "dest": "/api/debug?adminAction=create-client"
+    },
+    {
       "src": "/api/(.*)",
       "dest": "https://leads-widget-backend-319905500449.us-central1.run.app/api/$1"
     },
