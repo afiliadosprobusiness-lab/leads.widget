@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { db } from '@/lib/firebase';
@@ -112,6 +112,16 @@ interface AdminApiError extends Error {
   payload?: any;
 }
 
+interface WhatsAppCrmRemoteStatus {
+  email: string;
+  found: boolean;
+  userId?: string | null;
+  workspaceId?: string | null;
+  subscriptionStatus?: string | null;
+  currentPeriodEnd?: string | null;
+  canUseCrm?: boolean;
+}
+
 const PROTECTED_SUPERADMINS = new Set([
   'afiliadosprobusiness@gmail.com',
   'superadmin@leadwidget.pe',
@@ -150,6 +160,8 @@ export default function SuperAdmin() {
   const [showAllCrmClients, setShowAllCrmClients] = useState(false);
   const [updatingClient, setUpdatingClient] = useState<string | null>(null);
   const [verifyingPayment, setVerifyingPayment] = useState<string | null>(null);
+  const [crmRemoteStatusByEmail, setCrmRemoteStatusByEmail] = useState<Record<string, WhatsAppCrmRemoteStatus>>({});
+  const lastCrmStatusSyncKeyRef = useRef('');
 
   // New States for Management
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -719,31 +731,13 @@ export default function SuperAdmin() {
       const nowIso = new Date().toISOString();
       const currentClient = clients.find((client) => client.id === clientId);
       const syncEmail = String(currentClient?.email || '').trim().toLowerCase();
+      let syncMessage = 'Estado sincronizado con el backend de CRM WhatsApp.';
+      let remoteEnabled = enabled;
+      let remoteWorkspaceId = String(currentClient?.whatsapp_crm_workspace_id || '').trim();
 
-      await updateDoc(doc(db, 'profiles', clientId), {
-        whatsapp_crm_is_extension_client: true,
-        whatsapp_crm_enabled: enabled,
-        whatsapp_crm_status: enabled ? 'active' : 'inactive',
-        whatsapp_crm_monthly_price_pen:
-          Number(currentClient?.whatsapp_crm_monthly_price_pen || 0) > 0
-            ? Number(currentClient?.whatsapp_crm_monthly_price_pen)
-            : WHATSAPP_CRM_MONTHLY_PEN,
-        whatsapp_crm_activated_at: enabled
-          ? nowIso
-          : currentClient?.whatsapp_crm_activated_at || null,
-        whatsapp_crm_deactivated_at: enabled ? null : nowIso,
-        whatsapp_crm_updated_at: nowIso,
-        updated_at: nowIso,
-      });
-
-      let syncMessage =
-        'Estado sincronizado con el backend de CRM WhatsApp.';
-      if (!syncEmail) {
-        syncMessage =
-          'Guardado localmente, pero este cliente no tiene email para sincronizar CRM Extension.';
-      } else {
+      if (syncEmail) {
         try {
-          await adminApi('/api/admin/whatsapp-crm-sync', {
+          const syncPayload = await adminApi('/api/admin/whatsapp-crm-sync', {
             method: 'POST',
             body: JSON.stringify({
               email: syncEmail,
@@ -751,22 +745,57 @@ export default function SuperAdmin() {
               months: 1,
             }),
           });
+          remoteEnabled = Boolean(syncPayload?.sync?.subscription?.canUseCrm);
+          remoteWorkspaceId = String(syncPayload?.sync?.workspaceId || remoteWorkspaceId || '').trim();
         } catch (syncError: any) {
-          if (Number(syncError?.status || 0) === 404) {
-            syncMessage =
-              'Guardado localmente, pero ese email no existe aun en la base del CRM Extension.';
-          } else if (Number(syncError?.status || 0) === 503) {
-            syncMessage =
-              'Guardado localmente, pero falta configurar WHATSAPP_CRM_SYNC_KEY en el servidor.';
+          const syncStatus = Number(syncError?.status || 0);
+          if (!enabled && syncStatus === 404) {
+            remoteEnabled = false;
+            syncMessage = 'No se encontro ese correo en CRM Extension, se marco como inactivo localmente.';
+          } else if (syncStatus === 503) {
+            throw new Error('Falta configurar WHATSAPP_CRM_SYNC_KEY en el servidor.');
           } else {
-            syncMessage = `Guardado localmente, pero fallo la sincronizacion remota: ${String(syncError?.message || 'error inesperado')}`;
+            throw new Error(syncError?.message || 'No se pudo sincronizar el estado real de CRM Extension.');
           }
         }
+      } else if (enabled) {
+        throw new Error('El cliente no tiene email para activar CRM Extension.');
       }
 
+      await updateDoc(doc(db, 'profiles', clientId), {
+        whatsapp_crm_is_extension_client: true,
+        whatsapp_crm_enabled: remoteEnabled,
+        whatsapp_crm_status: remoteEnabled ? 'active' : 'inactive',
+        whatsapp_crm_workspace_id: remoteWorkspaceId || deleteField(),
+        whatsapp_crm_monthly_price_pen:
+          Number(currentClient?.whatsapp_crm_monthly_price_pen || 0) > 0
+            ? Number(currentClient?.whatsapp_crm_monthly_price_pen)
+            : WHATSAPP_CRM_MONTHLY_PEN,
+        whatsapp_crm_activated_at: remoteEnabled
+          ? (currentClient?.whatsapp_crm_activated_at || nowIso)
+          : (currentClient?.whatsapp_crm_activated_at || null),
+        whatsapp_crm_deactivated_at: remoteEnabled ? null : nowIso,
+        whatsapp_crm_updated_at: nowIso,
+        updated_at: nowIso,
+      });
+
+      setCrmRemoteStatusByEmail((previous) => {
+        if (!syncEmail) return previous;
+        return {
+          ...previous,
+          [syncEmail]: {
+            email: syncEmail,
+            found: Boolean(remoteWorkspaceId),
+            workspaceId: remoteWorkspaceId || null,
+            subscriptionStatus: remoteEnabled ? 'active' : 'past_due',
+            canUseCrm: remoteEnabled,
+          },
+        };
+      });
+
       toast({
-        title: enabled ? 'CRM WhatsApp activado' : 'CRM WhatsApp desactivado',
-        description: `${enabled
+        title: remoteEnabled ? 'CRM WhatsApp activado' : 'CRM WhatsApp desactivado',
+        description: `${remoteEnabled
           ? 'El cliente ya puede usar el modulo CRM WhatsApp.'
           : 'El acceso al modulo CRM WhatsApp fue bloqueado.'} ${syncMessage}`,
       });
@@ -782,6 +811,7 @@ export default function SuperAdmin() {
     try {
       const nowIso = new Date().toISOString();
       const currentClient = clients.find((client) => client.id === clientId);
+      const syncEmail = normalizeEmail(currentClient?.email);
       const payload: Record<string, any> = {
         whatsapp_crm_is_extension_client: linked,
         whatsapp_crm_updated_at: nowIso,
@@ -803,6 +833,15 @@ export default function SuperAdmin() {
           ? 'Ahora puedes activar/desactivar este producto de forma independiente.'
           : 'El cliente ya no aparece en la lista vinculada de CRM Extension.',
       });
+
+      if (!linked && syncEmail) {
+        setCrmRemoteStatusByEmail((previous) => {
+          if (!previous[syncEmail]) return previous;
+          const next = { ...previous };
+          delete next[syncEmail];
+          return next;
+        });
+      }
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } finally {
@@ -1004,6 +1043,16 @@ export default function SuperAdmin() {
     return Boolean(client.whatsapp_crm_is_extension_client) || Boolean(client.whatsapp_crm_workspace_id);
   };
 
+  const normalizeEmail = (value: unknown) => String(value || '').trim().toLowerCase();
+  const getRemoteCrmStatus = (client: Profile) => crmRemoteStatusByEmail[normalizeEmail(client.email)] || null;
+  const getEffectiveCrmEnabled = (client: Profile) => {
+    const remote = getRemoteCrmStatus(client);
+    if (remote?.found) {
+      return Boolean(remote.canUseCrm);
+    }
+    return Boolean(client.whatsapp_crm_enabled);
+  };
+
   const filteredClients = clients.filter(client =>
     client.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
     client.business_name?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -1016,7 +1065,7 @@ export default function SuperAdmin() {
     return showAllCrmClients ? true : isExtensionCrmClient(client);
   });
   const linkedCrmClients = clients.filter((client) => isExtensionCrmClient(client));
-  const whatsappCrmEnabledCount = linkedCrmClients.filter((client) => Boolean(client.whatsapp_crm_enabled)).length;
+  const whatsappCrmEnabledCount = linkedCrmClients.filter((client) => getEffectiveCrmEnabled(client)).length;
   const whatsappCrmInactiveCount = Math.max(0, linkedCrmClients.length - whatsappCrmEnabledCount);
   const potentialCommissionsPen = clients
     .filter((c) => c.referred_by && String(c.subscription_status || '').toLowerCase() === 'active')
@@ -1035,6 +1084,104 @@ export default function SuperAdmin() {
     if (normalized === 'crm') return 'CRM';
     return 'TRIAL';
   };
+
+  useEffect(() => {
+    if (!user || linkedCrmClients.length === 0) {
+      setCrmRemoteStatusByEmail({});
+      lastCrmStatusSyncKeyRef.current = '';
+      return;
+    }
+
+    const emails = Array.from(
+      new Set(
+        linkedCrmClients
+          .map((client) => normalizeEmail(client.email))
+          .filter(Boolean),
+      ),
+    ).sort();
+
+    if (emails.length === 0) {
+      setCrmRemoteStatusByEmail({});
+      lastCrmStatusSyncKeyRef.current = '';
+      return;
+    }
+
+    const syncKey = emails.join('|');
+    if (lastCrmStatusSyncKeyRef.current === syncKey) {
+      return;
+    }
+    lastCrmStatusSyncKeyRef.current = syncKey;
+
+    let cancelled = false;
+    const syncRemoteStatus = async () => {
+      try {
+        const payload = await adminApi('/api/admin/whatsapp-crm-status-batch', {
+          method: 'POST',
+          body: JSON.stringify({ emails }),
+        });
+
+        if (cancelled) return;
+        const rows = Array.isArray(payload?.results) ? payload.results : [];
+        const mapByEmail = rows.reduce((acc: Record<string, WhatsAppCrmRemoteStatus>, row: WhatsAppCrmRemoteStatus) => {
+          const email = normalizeEmail(row?.email);
+          if (email) acc[email] = row;
+          return acc;
+        }, {});
+        setCrmRemoteStatusByEmail(mapByEmail);
+
+        const nowIso = new Date().toISOString();
+        const patches = linkedCrmClients
+          .map((client) => {
+            const email = normalizeEmail(client.email);
+            const remote = mapByEmail[email];
+            if (!remote?.found) return null;
+
+            const remoteEnabled = Boolean(remote.canUseCrm);
+            const remoteStatus = remoteEnabled ? 'active' : 'inactive';
+            const patch: Record<string, any> = {};
+
+            if (Boolean(client.whatsapp_crm_enabled) !== remoteEnabled) {
+              patch.whatsapp_crm_enabled = remoteEnabled;
+            }
+            if (String(client.whatsapp_crm_status || '') !== remoteStatus) {
+              patch.whatsapp_crm_status = remoteStatus;
+            }
+            if (remote.workspaceId && String(client.whatsapp_crm_workspace_id || '') !== String(remote.workspaceId)) {
+              patch.whatsapp_crm_workspace_id = remote.workspaceId;
+            }
+            if (Object.keys(patch).length === 0) {
+              return null;
+            }
+
+            patch.whatsapp_crm_is_extension_client = true;
+            patch.whatsapp_crm_updated_at = nowIso;
+            patch.updated_at = nowIso;
+            if (remoteEnabled) {
+              patch.whatsapp_crm_activated_at = client.whatsapp_crm_activated_at || nowIso;
+              patch.whatsapp_crm_deactivated_at = null;
+            } else {
+              patch.whatsapp_crm_deactivated_at = nowIso;
+            }
+
+            return updateDoc(doc(db, 'profiles', client.id), patch);
+          })
+          .filter(Boolean) as Promise<void>[];
+
+        if (patches.length > 0) {
+          await Promise.allSettled(patches);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.warn('No se pudo reconciliar estado CRM WhatsApp:', error);
+        }
+      }
+    };
+
+    void syncRemoteStatus();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, linkedCrmClients, adminApi]);
 
 
 
@@ -1070,7 +1217,7 @@ export default function SuperAdmin() {
       );
     }
 
-    if (client.whatsapp_crm_enabled) {
+    if (getEffectiveCrmEnabled(client)) {
       return (
         <span className="px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 border border-emerald-200">
           Activo
@@ -1079,7 +1226,7 @@ export default function SuperAdmin() {
     }
 
     return (
-      <span className="px-2 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
+      <span className="px-2 py-1 rounded-full text-xs font-medium bg-rose-100 text-rose-800 border border-rose-200">
         Inactivo
       </span>
     );
@@ -1671,12 +1818,12 @@ export default function SuperAdmin() {
                           <td className="py-2 px-3">{getWhatsAppCrmBadge(client)}</td>
                           <td className="py-2 px-3">
                             <span className="font-mono text-xs text-muted-foreground">
-                              {client.whatsapp_crm_workspace_id || '-'}
+                              {getRemoteCrmStatus(client)?.workspaceId || client.whatsapp_crm_workspace_id || '-'}
                             </span>
                           </td>
                           <td className="py-2 px-3 text-xs text-muted-foreground">
                             {(() => {
-                              const dateRef = client.whatsapp_crm_enabled
+                              const dateRef = getEffectiveCrmEnabled(client)
                                 ? client.whatsapp_crm_activated_at
                                 : client.whatsapp_crm_deactivated_at;
                               return dateRef ? new Date(dateRef).toLocaleString('es-PE') : '-';
@@ -1698,7 +1845,7 @@ export default function SuperAdmin() {
                                 disabled={
                                   updatingClient === client.id ||
                                   !isExtensionCrmClient(client) ||
-                                  Boolean(client.whatsapp_crm_enabled)
+                                  getEffectiveCrmEnabled(client)
                                 }
                               >
                                 Activar
@@ -1710,7 +1857,7 @@ export default function SuperAdmin() {
                                 disabled={
                                   updatingClient === client.id ||
                                   !isExtensionCrmClient(client) ||
-                                  !client.whatsapp_crm_enabled
+                                  !getEffectiveCrmEnabled(client)
                                 }
                               >
                                 Desactivar

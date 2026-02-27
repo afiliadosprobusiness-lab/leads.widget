@@ -181,6 +181,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Eliminacion de usuario desde superadmin usa borrado completo (Firebase Auth + datos principales), no solo soft delete.
 - En Superadmin > Clientes, el CTA `Nuevo Cliente` abre modal de alta directa (nombre negocio, correo, contrasena) y usa endpoint local `POST /api/admin/create-client` para crear Firebase Auth + perfil `trial` sin pasar por enlace de invitacion.
 - En Superadmin > CRM WhatsApp, el endpoint local `POST /api/admin/whatsapp-crm-sync` valida superadmin y reenvia `email/enabled/months` al backend `whatsapp-crm-compliant` usando `WHATSAPP_CRM_SYNC_URL` + `WHATSAPP_CRM_SYNC_KEY`.
+- En Superadmin > CRM WhatsApp, existe endpoint local `POST /api/admin/whatsapp-crm-status-batch` para consultar estado real por lote de correos (usa `WHATSAPP_CRM_STATUS_URL` o fallback derivado de `WHATSAPP_CRM_SYNC_URL`).
 - En Superadmin/Agencias, la accion de payout es contextual: muestra `Aprobar payout` o `Marcar pagado` segun existan payouts pendientes.
 - Plan PRO (legacy `plus`): branding del widget admite `branding_text` y `branding_link` para personalizar texto y URL del footer (fallback seguro a `/crear-ahora?ref=<clientId>`).
 - En `experience_mode=lead_chat`, el dashboard prioriza compartir enlace publico del chat; no depende de instalar script en una web.
@@ -217,6 +218,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - En SuperAdmin se agrega tab `CRM WhatsApp` para activacion/desactivacion por cliente (toggle operativo), persistiendo en `profiles` los campos `whatsapp_crm_enabled`, `whatsapp_crm_status`, `whatsapp_crm_monthly_price_pen`, `whatsapp_crm_activated_at` y `whatsapp_crm_deactivated_at`.
 - En SuperAdmin, la gestion de productos queda separada: `Leads Widget` mantiene su estado comercial en `subscription_status/plan_type` (y campos auxiliares `leads_widget_enabled/leads_widget_status`) y `CRM Extension` se administra aparte con vinculacion explicita por cliente (`whatsapp_crm_is_extension_client`) para evitar mezcla de listas/estados.
 - En SuperAdmin > `CRM WhatsApp`, activar/desactivar sincroniza tambien la suscripcion real de la extension por email para reflejar estado real en el popup de WhatsApp CRM.
+- En SuperAdmin > `CRM WhatsApp`, la tabla reconcilia estado real remoto por email (`activo/inactivo`) y corrige desalineaciones en `profiles` para evitar casos donde extension y superadmin muestran estados distintos.
 - En SuperAdmin, existe configuracion global de precio base PRO en `system_settings/billing.plus_monthly_price_pen`; ese valor aplica a dashboard Billing cuando el usuario no tiene override personalizado.
 - `WHATSAPP_REDIRECT` se mantiene como opcion secundaria frente a `ICALLCLOSER_READY`; ya no se usa la guia manual de insercion, ahora el comando se agrega automaticamente segun el canal seleccionado.
 - Upload de bienvenida en dashboard (imagen/audio/video) usa Cloudinary cuando existen `VITE_CLOUDINARY_CLOUD_NAME` + `VITE_CLOUDINARY_UPLOAD_PRESET`; si no existen, usa fallback a Firebase Storage.

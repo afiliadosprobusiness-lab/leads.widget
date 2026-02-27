@@ -16,6 +16,10 @@
       "dest": "/api/debug?adminAction=whatsapp-crm-sync"
     },
     {
+      "src": "/api/admin/whatsapp-crm-status-batch",
+      "dest": "/api/debug?adminAction=whatsapp-crm-status-batch"
+    },
+    {
       "src": "/api/(.*)",
       "dest": "https://leads-widget-backend-319905500449.us-central1.run.app/api/$1"
     },

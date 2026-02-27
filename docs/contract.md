@@ -414,6 +414,7 @@ Codigo observado:
 - `POST|OPTIONS /api/generate-prompt` (generacion de bloque prompt contexto/sistema usando OpenAI del cliente autenticado)
 - `POST|OPTIONS /api/admin/create-client` (creacion de cuenta cliente desde superadmin; crea Firebase Auth + `profiles` trial + `user_roles`)
 - `POST|OPTIONS /api/admin/whatsapp-crm-sync` (sincroniza activacion/desactivacion de CRM Extension por email via server-to-server)
+- `POST|OPTIONS /api/admin/whatsapp-crm-status-batch` (consulta por lote el estado real de CRM Extension por email)
 - `GET|PUT|OPTIONS /api/meta-capi-config` (configuracion privada de credenciales Meta CAPI por cliente autenticado)
 - `POST|OPTIONS /api/meta-capi-dispatch` (dispatch autenticado de eventos Meta CAPI para cambios de etapa CRM)
 - `POST|OPTIONS /api/crm/contacts-merge` (upsert/merge idempotente de contactos con regla phone->email)
@@ -437,6 +438,7 @@ Asuncion:
 - `POST /api/generate-prompt` requiere `Authorization: Bearer <Firebase ID token>` del usuario dashboard; usa `profiles.ai_api_key` (o fallback `widget_configs.ai_api_key`) para generar texto de prompt via OpenAI y devuelve `creditsConsumed: true`.
 - `POST /api/admin/create-client` requiere `Authorization: Bearer <Firebase ID token>` de superadmin; crea usuario por email/password y persiste perfil `trial` inicial.
 - `POST /api/admin/whatsapp-crm-sync` requiere `Authorization: Bearer <Firebase ID token>` de superadmin; reenvia `email/enabled/months` al backend `whatsapp-crm-compliant` usando secreto server-side.
+- `POST /api/admin/whatsapp-crm-status-batch` requiere `Authorization: Bearer <Firebase ID token>` de superadmin; consulta `emails[]` contra `whatsapp-crm-compliant` para reconciliar estado real.
 - `GET|PUT /api/meta-capi-config` requiere `Authorization: Bearer <Firebase ID token>`; persiste IDs de Meta y token cifrado en `meta_capi_configs` (no en `widget_configs` publico).
 - `POST /api/meta-capi-dispatch` requiere `Authorization: Bearer <Firebase ID token>`; mapea etapa CRM -> evento Meta y envia via Conversions API usando credenciales cifradas del owner.
 - `POST /api/crm/contacts-merge`, `PATCH /api/crm/contacts` y `PATCH /api/crm/deals` ejecutan dispatch server-side a Meta CAPI cuando corresponde (`Lead`, `Appointment`, `QualifiedLead`, `Sale`).
@@ -502,6 +504,24 @@ Asuncion:
   - `404`: `{ error: "Usuario CRM Extension no encontrado para ese email", upstream?: object }`
   - `503`: `{ error: "WHATSAPP_CRM_SYNC_KEY is missing" }`
   - `500`: `{ error: "Failed to sync WhatsApp CRM subscription", details?: string }`
+
+#### `POST /api/admin/whatsapp-crm-status-batch`
+
+- Headers:
+  - `Authorization: Bearer <Firebase ID token>` (requerido, caller superadmin)
+- Body JSON:
+  - `emails` (requerido, array `1..100` de correos validos)
+- Comportamiento:
+  - Valida superadmin en Firebase Auth + `user_roles`.
+  - Consulta estado real en backend `whatsapp-crm-compliant` usando endpoint admin por lote.
+  - Usa `WHATSAPP_CRM_STATUS_URL` (si existe) o fallback derivado de `WHATSAPP_CRM_SYNC_URL`.
+- Respuestas:
+  - `200`: `{ success: true, results: [{ email, found, workspaceId, subscriptionStatus, canUseCrm, currentPeriodEnd }] }`
+  - `400`: `{ error: "emails must include at least one valid email" }`
+  - `401`: `{ error: "Unauthorized" }`
+  - `403`: `{ error: "Forbidden" }`
+  - `503`: `{ error: "WHATSAPP_CRM_SYNC_KEY is missing" }`
+  - `500`: `{ error: "Failed to fetch WhatsApp CRM status", details?: string }`
 
 #### `GET|PUT /api/meta-capi-config`
 
@@ -863,3 +883,7 @@ Cambios de comportamiento relevantes:
 - Cambio: nuevo endpoint local `POST /api/admin/whatsapp-crm-sync` para reflejar en CRM Extension el toggle de activacion/desactivacion desde Superadmin.
 - Tipo: non-breaking
 - Impacto: evita desalineacion entre estado en `profiles` (Leads Widget) y suscripcion real consultada por la extension.
+- Fecha: 2026-02-27
+- Cambio: nuevo endpoint local `POST /api/admin/whatsapp-crm-status-batch` para reconciliar en bloque el estado real de CRM Extension por email.
+- Tipo: non-breaking
+- Impacto: permite que Superadmin muestre/corrija estado activo-inactivo real sin depender solo del flag local en `profiles`.

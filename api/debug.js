@@ -9,6 +9,7 @@ const SUPERADMIN_EMAILS = new Set([
 
 const TRIAL_DAYS = 2;
 const DEFAULT_WHATSAPP_CRM_SYNC_URL = "https://whats-crm-compliant.vercel.app/api/v1/admin/sync-subscription";
+const DEFAULT_WHATSAPP_CRM_STATUS_URL = "https://whats-crm-compliant.vercel.app/api/v1/admin/subscriptions-by-email";
 
 function setCors(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -60,6 +61,14 @@ function sanitizeMonths(value) {
   const parsed = Number.parseInt(String(value), 10);
   if (!Number.isFinite(parsed) || parsed < 1 || parsed > 12) return 0;
   return parsed;
+}
+
+function sanitizeEmailList(value) {
+  if (!Array.isArray(value)) return [];
+  const normalized = value
+    .map((item) => sanitizeEmail(item))
+    .filter(Boolean);
+  return Array.from(new Set(normalized)).slice(0, 100);
 }
 
 function toTrialEndsAt(nowIso, days = TRIAL_DAYS) {
@@ -263,6 +272,72 @@ async function handleWhatsappCrmSync(req, res) {
   }
 }
 
+async function handleWhatsappCrmStatusBatch(req, res) {
+  if (req.method === "OPTIONS") return res.status(200).end();
+  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+
+  const bearerToken = getBearerToken(req);
+  if (!bearerToken) return res.status(401).json({ error: "Unauthorized" });
+
+  try {
+    const decoded = await getAuth().verifyIdToken(bearerToken);
+    if (!decoded?.uid) return res.status(401).json({ error: "Unauthorized" });
+
+    const callerIsSuperAdmin = await isSuperAdmin(decoded);
+    if (!callerIsSuperAdmin) return res.status(403).json({ error: "Forbidden" });
+
+    const body = parseJsonBody(req);
+    const emails = sanitizeEmailList(body.emails);
+    if (!emails.length) {
+      return res.status(400).json({ error: "emails must include at least one valid email" });
+    }
+
+    const syncKey = String(process.env.WHATSAPP_CRM_SYNC_KEY || "").trim();
+    if (!syncKey) {
+      return res.status(503).json({ error: "WHATSAPP_CRM_SYNC_KEY is missing" });
+    }
+
+    const statusUrl = String(
+      process.env.WHATSAPP_CRM_STATUS_URL ||
+      process.env.WHATSAPP_CRM_SYNC_URL ||
+      DEFAULT_WHATSAPP_CRM_STATUS_URL,
+    ).trim();
+    const normalizedStatusUrl = /sync-subscription\/?$/.test(statusUrl)
+      ? statusUrl.replace(/sync-subscription\/?$/, "subscriptions-by-email")
+      : statusUrl;
+
+    const upstreamRes = await fetch(normalizedStatusUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-admin-sync-key": syncKey,
+      },
+      body: JSON.stringify({ emails }),
+    });
+
+    const upstreamPayload = await upstreamRes.json().catch(() => ({}));
+    if (!upstreamRes.ok) {
+      const upstreamMessage =
+        String(upstreamPayload?.error?.message || upstreamPayload?.error || "").trim() ||
+        `Upstream status failed (${upstreamRes.status})`;
+      return res.status(upstreamRes.status).json({
+        error: upstreamMessage,
+        upstream: upstreamPayload,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      results: Array.isArray(upstreamPayload?.results) ? upstreamPayload.results : [],
+    });
+  } catch (error) {
+    return res.status(500).json({
+      error: "Failed to fetch WhatsApp CRM status",
+      details: String(error?.message || error),
+    });
+  }
+}
+
 export default async function handler(req, res) {
   setCors(res);
 
@@ -272,6 +347,9 @@ export default async function handler(req, res) {
   }
   if (adminAction === "whatsapp-crm-sync") {
     return handleWhatsappCrmSync(req, res);
+  }
+  if (adminAction === "whatsapp-crm-status-batch") {
+    return handleWhatsappCrmStatusBatch(req, res);
   }
 
   return handleDebug(req, res);
