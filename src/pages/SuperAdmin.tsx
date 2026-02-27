@@ -58,8 +58,11 @@ interface Profile {
   email: string;
   business_name: string;
   whatsapp_number?: string;
+  leads_widget_enabled?: boolean;
+  leads_widget_status?: 'active' | 'inactive';
   whatsapp_crm_enabled?: boolean;
   whatsapp_crm_status?: 'active' | 'inactive';
+  whatsapp_crm_is_extension_client?: boolean;
   whatsapp_crm_workspace_id?: string;
   whatsapp_crm_monthly_price_pen?: number | null;
   whatsapp_crm_activated_at?: string | null;
@@ -143,6 +146,8 @@ export default function SuperAdmin() {
   const [loading, setLoading] = useState(true);
   const [firestoreDenied, setFirestoreDenied] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [crmSearchQuery, setCrmSearchQuery] = useState('');
+  const [showAllCrmClients, setShowAllCrmClients] = useState(false);
   const [updatingClient, setUpdatingClient] = useState<string | null>(null);
   const [verifyingPayment, setVerifyingPayment] = useState<string | null>(null);
 
@@ -645,6 +650,8 @@ export default function SuperAdmin() {
       const nowIso = new Date().toISOString();
       const payload: Record<string, any> = {
         subscription_status: newStatus,
+        leads_widget_enabled: newStatus !== 'suspended',
+        leads_widget_status: newStatus === 'suspended' ? 'inactive' : 'active',
         next_renewal_at: newStatus === 'active'
           ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
           : null,
@@ -691,6 +698,8 @@ export default function SuperAdmin() {
     try {
       await updateDoc(doc(db, 'profiles', clientId), {
         subscription_status: 'active',
+        leads_widget_enabled: true,
+        leads_widget_status: 'active',
         plan_type: planType,
         next_renewal_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
         trial_ends_at: null,
@@ -711,6 +720,7 @@ export default function SuperAdmin() {
       const currentClient = clients.find((client) => client.id === clientId);
 
       await updateDoc(doc(db, 'profiles', clientId), {
+        whatsapp_crm_is_extension_client: true,
         whatsapp_crm_enabled: enabled,
         whatsapp_crm_status: enabled ? 'active' : 'inactive',
         whatsapp_crm_monthly_price_pen:
@@ -730,6 +740,39 @@ export default function SuperAdmin() {
         description: enabled
           ? 'El cliente ya puede usar el modulo CRM WhatsApp.'
           : 'El acceso al modulo CRM WhatsApp fue bloqueado.',
+      });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setUpdatingClient(null);
+    }
+  };
+
+  const updateWhatsAppCrmLink = async (clientId: string, linked: boolean) => {
+    setUpdatingClient(clientId);
+    try {
+      const nowIso = new Date().toISOString();
+      const currentClient = clients.find((client) => client.id === clientId);
+      const payload: Record<string, any> = {
+        whatsapp_crm_is_extension_client: linked,
+        whatsapp_crm_updated_at: nowIso,
+        updated_at: nowIso,
+      };
+
+      if (!linked) {
+        payload.whatsapp_crm_enabled = false;
+        payload.whatsapp_crm_status = 'inactive';
+        payload.whatsapp_crm_deactivated_at = nowIso;
+      } else if (!currentClient?.whatsapp_crm_status) {
+        payload.whatsapp_crm_status = 'inactive';
+      }
+
+      await updateDoc(doc(db, 'profiles', clientId), payload);
+      toast({
+        title: linked ? 'Cliente vinculado a CRM Extension' : 'Cliente desvinculado de CRM Extension',
+        description: linked
+          ? 'Ahora puedes activar/desactivar este producto de forma independiente.'
+          : 'El cliente ya no aparece en la lista vinculada de CRM Extension.',
       });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -928,12 +971,24 @@ export default function SuperAdmin() {
     }
   };
 
+  const isExtensionCrmClient = (client: Profile) => {
+    return Boolean(client.whatsapp_crm_is_extension_client) || Boolean(client.whatsapp_crm_workspace_id);
+  };
+
   const filteredClients = clients.filter(client =>
     client.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
     client.business_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
-  const whatsappCrmEnabledCount = clients.filter((client) => Boolean(client.whatsapp_crm_enabled)).length;
-  const whatsappCrmInactiveCount = Math.max(0, clients.length - whatsappCrmEnabledCount);
+  const filteredCrmClients = clients.filter((client) => {
+    const matchQuery =
+      client.email.toLowerCase().includes(crmSearchQuery.toLowerCase()) ||
+      client.business_name?.toLowerCase().includes(crmSearchQuery.toLowerCase());
+    if (!matchQuery) return false;
+    return showAllCrmClients ? true : isExtensionCrmClient(client);
+  });
+  const linkedCrmClients = clients.filter((client) => isExtensionCrmClient(client));
+  const whatsappCrmEnabledCount = linkedCrmClients.filter((client) => Boolean(client.whatsapp_crm_enabled)).length;
+  const whatsappCrmInactiveCount = Math.max(0, linkedCrmClients.length - whatsappCrmEnabledCount);
   const potentialCommissionsPen = clients
     .filter((c) => c.referred_by && String(c.subscription_status || '').toLowerCase() === 'active')
     .reduce((sum, client) => {
@@ -978,6 +1033,14 @@ export default function SuperAdmin() {
   };
 
   const getWhatsAppCrmBadge = (client: Profile) => {
+    if (!isExtensionCrmClient(client)) {
+      return (
+        <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
+          No vinculado
+        </span>
+      );
+    }
+
     if (client.whatsapp_crm_enabled) {
       return (
         <span className="px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 border border-emerald-200">
@@ -1499,21 +1562,32 @@ export default function SuperAdmin() {
                   <div>
                     <CardTitle>CRM WhatsApp por cliente</CardTitle>
                     <CardDescription>
-                      Activa o desactiva el modulo CRM WhatsApp sin tocar el plan principal del cliente.
+                      Gestion independiente del producto CRM Extension (separado del estado de Leads Widget).
                     </CardDescription>
                   </div>
-                  <div className="relative w-full md:w-72">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Buscar por email o empresa..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10"
-                    />
+                  <div className="flex w-full md:w-auto flex-col md:flex-row gap-3">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowAllCrmClients((prev) => !prev)}
+                    >
+                      {showAllCrmClients ? 'Mostrar solo vinculados' : 'Mostrar todos'}
+                    </Button>
+                    <div className="relative w-full md:w-72">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar por email o empresa..."
+                        value={crmSearchQuery}
+                        onChange={(e) => setCrmSearchQuery(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-6">
+                <p className="text-xs text-muted-foreground">
+                  Por defecto se muestran solo clientes vinculados a CRM Extension. Usa "Mostrar todos" para vincular nuevos clientes sin mezclar estados con Leads Widget.
+                </p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <Card className="bg-emerald-50 border-emerald-200">
                     <CardContent className="pt-4">
@@ -1523,14 +1597,14 @@ export default function SuperAdmin() {
                   </Card>
                   <Card className="bg-slate-50 border-slate-200">
                     <CardContent className="pt-4">
-                      <p className="text-sm text-slate-700 font-medium">CRM WhatsApp inactivos</p>
+                      <p className="text-sm text-slate-700 font-medium">CRM WhatsApp inactivos (vinculados)</p>
                       <p className="text-3xl font-bold text-slate-900">{whatsappCrmInactiveCount}</p>
                     </CardContent>
                   </Card>
                   <Card className="bg-cyan-50 border-cyan-200">
                     <CardContent className="pt-4">
-                      <p className="text-sm text-cyan-700 font-medium">Precio mensual sugerido</p>
-                      <p className="text-3xl font-bold text-cyan-900">S/ {WHATSAPP_CRM_MONTHLY_PEN}</p>
+                      <p className="text-sm text-cyan-700 font-medium">Clientes vinculados</p>
+                      <p className="text-3xl font-bold text-cyan-900">{linkedCrmClients.length}</p>
                     </CardContent>
                   </Card>
                 </div>
@@ -1540,6 +1614,7 @@ export default function SuperAdmin() {
                     <thead>
                       <tr className="border-b text-left">
                         <th className="py-2 px-3">Cliente</th>
+                        <th className="py-2 px-3">Vinculacion</th>
                         <th className="py-2 px-3">Estado CRM WhatsApp</th>
                         <th className="py-2 px-3">Workspace ID</th>
                         <th className="py-2 px-3">Ultimo cambio</th>
@@ -1547,11 +1622,22 @@ export default function SuperAdmin() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredClients.map((client) => (
+                      {filteredCrmClients.map((client) => (
                         <tr key={client.id} className="border-b">
                           <td className="py-2 px-3">
                             <p className="font-semibold">{client.business_name || 'Sin nombre'}</p>
                             <p className="text-xs text-muted-foreground">{client.email}</p>
+                          </td>
+                          <td className="py-2 px-3">
+                            {isExtensionCrmClient(client) ? (
+                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                                Vinculado
+                              </span>
+                            ) : (
+                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
+                                No vinculado
+                              </span>
+                            )}
                           </td>
                           <td className="py-2 px-3">{getWhatsAppCrmBadge(client)}</td>
                           <td className="py-2 px-3">
@@ -1571,8 +1657,20 @@ export default function SuperAdmin() {
                             <div className="flex flex-wrap gap-2">
                               <Button
                                 size="sm"
+                                variant={isExtensionCrmClient(client) ? 'outline' : 'default'}
+                                onClick={() => updateWhatsAppCrmLink(client.id, !isExtensionCrmClient(client))}
+                                disabled={updatingClient === client.id}
+                              >
+                                {isExtensionCrmClient(client) ? 'Desvincular' : 'Vincular'}
+                              </Button>
+                              <Button
+                                size="sm"
                                 onClick={() => updateWhatsAppCrmStatus(client.id, true)}
-                                disabled={updatingClient === client.id || Boolean(client.whatsapp_crm_enabled)}
+                                disabled={
+                                  updatingClient === client.id ||
+                                  !isExtensionCrmClient(client) ||
+                                  Boolean(client.whatsapp_crm_enabled)
+                                }
                               >
                                 Activar
                               </Button>
@@ -1580,7 +1678,11 @@ export default function SuperAdmin() {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => updateWhatsAppCrmStatus(client.id, false)}
-                                disabled={updatingClient === client.id || !client.whatsapp_crm_enabled}
+                                disabled={
+                                  updatingClient === client.id ||
+                                  !isExtensionCrmClient(client) ||
+                                  !client.whatsapp_crm_enabled
+                                }
                               >
                                 Desactivar
                               </Button>
@@ -1588,10 +1690,10 @@ export default function SuperAdmin() {
                           </td>
                         </tr>
                       ))}
-                      {filteredClients.length === 0 && (
+                      {filteredCrmClients.length === 0 && (
                         <tr>
-                          <td colSpan={5} className="py-8 px-3 text-center text-muted-foreground">
-                            No se encontraron clientes para gestionar CRM WhatsApp.
+                          <td colSpan={6} className="py-8 px-3 text-center text-muted-foreground">
+                            No se encontraron clientes para CRM Extension con el filtro actual.
                           </td>
                         </tr>
                       )}

@@ -26,9 +26,12 @@ Campos observados (pueden coexistir segun flujo):
 - `whatsapp_number: string`
 - `subscription_status: "trial" | "active" | "pro" | "verified" | "suspended" | string`
 - `plan_type: "trial" | "crm" | "pro" | string` (legacy `plus` puede existir)
+- `leads_widget_enabled: boolean` (opcional; flag operativo explicito para producto Leads Widget en superadmin)
+- `leads_widget_status: "active" | "inactive" | string` (opcional; estado operativo de producto Leads Widget independiente de otros modulos)
 - `plus_monthly_price_pen: number | null` (opcional, override de facturacion mensual por cliente para plan PRO; mantiene nombre legacy para compatibilidad)
 - `trial_ends_at: string | null` (ISO date)
 - `pending_plan_type: "crm" | "pro" | string | null` (opcional; cambio de plan diferido para siguiente renovacion)
+- `whatsapp_crm_is_extension_client: boolean` (opcional; indica si el cliente esta vinculado al roster del producto CRM Extension)
 - `crm_template: "general" | "real_estate" | string` (opcional; plantilla comercial del CRM para labels/pipeline en dashboard)
 - `ai_enabled: boolean`
 - `ai_provider: string`
@@ -827,3 +830,7 @@ Cambios de comportamiento relevantes:
 - Cambio: Superadmin reemplaza el flujo de invitacion por creacion directa de cliente via nuevo endpoint local `POST /api/admin/create-client` (email/password + perfil trial inicial).
 - Tipo: non-breaking
 - Impacto: mantiene contrato existente y agrega alta administrativa directa de cuentas cliente sin depender del enlace `/register`.
+- Fecha: 2026-02-27
+- Cambio: Superadmin separa gestion de productos `Leads Widget` y `CRM Extension` con vinculacion explicita de clientes extension (`whatsapp_crm_is_extension_client`) y campos operativos `leads_widget_enabled/leads_widget_status`.
+- Tipo: non-breaking
+- Impacto: evita mezcla visual/operativa entre clientes de productos distintos y mantiene activacion/desactivacion independiente por modulo sin romper endpoints.
