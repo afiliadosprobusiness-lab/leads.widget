@@ -29,6 +29,24 @@ type LandingTestimonial = {
   avatar: string;
 };
 
+type DemoStep = {
+  id: string;
+  title: string;
+  chatLine: string;
+  panelLine: string;
+  outcome: string;
+};
+
+type DemoModule = {
+  id: "crm_whatsapp" | "leads_widget" | "lead_chat";
+  label: string;
+  title: string;
+  subtitle: string;
+  chatTitle: string;
+  panelTitle: string;
+  steps: DemoStep[];
+};
+
 export default function Landing() {
   const { i18n } = useTranslation();
   const isEn = String(i18n.language || "").toLowerCase().startsWith("en");
@@ -49,8 +67,8 @@ export default function Landing() {
     heroSubtitle: isEn
       ? "Use WhatsApp Web as your CRM: stages, tags and follow-up in one panel. Start with CRM WhatsApp (S/50) or go PRO (S/99) with Leads Widget + Lead Chat."
       : "Usa WhatsApp Web como CRM: etapas, etiquetas y seguimiento en un solo panel. Empieza con CRM WhatsApp (S/50) o sube a PRO (S/99) con Leads Widget + Lead Chat.",
-    ctaPrimary: isEn ? "Start free" : "Empezar gratis",
-    ctaSecondary: isEn ? "See widget demo" : "Ver demo del widget",
+    ctaPrimary: isEn ? "Activate now" : "Activar ahora",
+    ctaSecondary: isEn ? "Activate via WhatsApp" : "Activar por WhatsApp",
     modesTitle: isEn ? "One product, two deployment modes" : "Un producto, dos modos de uso",
     capabilitiesTitle: isEn ? "What helps your team close better" : "Lo que ayuda a tu equipo a cerrar mejor",
     useCasesTitle: isEn ? "Built for real estate teams" : "Pensado para equipos inmobiliarios",
@@ -63,8 +81,8 @@ export default function Landing() {
       ? "Pre-qualify in chat, route only qualified leads to WhatsApp, and keep your pipeline ordered with CRM follow-up."
       : "Precalifica en chat, deriva solo leads calificados a WhatsApp y ordena tu seguimiento con CRM.",
     navLogin: isEn ? "Login" : "Iniciar sesion",
-    navRegister: isEn ? "Create account" : "Crear cuenta",
-    navTry: isEn ? "Try demo" : "Probar demo",
+    navRegister: isEn ? "Activate now" : "Activar ahora",
+    navTry: isEn ? "Activate now" : "Activar ahora",
     navTheme: isLandingDark ? (isEn ? "Light mode" : "Modo claro") : (isEn ? "Dark mode" : "Modo oscuro"),
     footerRights: isEn
       ? "2026 Lead Widget. All rights reserved."
@@ -73,9 +91,205 @@ export default function Landing() {
     exitSubtitle: isEn
       ? "Run the full flow and compare lead quality against your current process."
       : "Prueba el flujo completo y compara la calidad de leads frente a tu proceso actual.",
-    exitCta: isEn ? "Open demo now" : "Abrir demo ahora",
+    exitCta: isEn ? "Activate now" : "Activar ahora",
     exitDismiss: isEn ? "Keep browsing" : "Seguir navegando",
   };
+
+  const demoModules = useMemo<DemoModule[]>(
+    () =>
+      isEn
+        ? [
+            {
+              id: "crm_whatsapp",
+              label: "CRM WhatsApp",
+              title: "CRM WhatsApp simulation",
+              subtitle: "Lead arrives in WhatsApp Web and your team runs follow-up inside the CRM panel.",
+              chatTitle: "WhatsApp conversation",
+              panelTitle: "CRM panel output",
+              steps: [
+                {
+                  id: "crm-step-1",
+                  title: "1. Incoming lead in WhatsApp",
+                  chatLine: "Hi, I saw your apartment ad in Surco.",
+                  panelLine: "Lead auto-tagged: comprador, surco, urgente",
+                  outcome: "The team prioritizes high-intent chats first.",
+                },
+                {
+                  id: "crm-step-2",
+                  title: "2. Qualification and pipeline",
+                  chatLine: "Budget between S/350k and S/450k. Move in 30 days.",
+                  panelLine: "Stage updated to qualified + reminder 24h",
+                  outcome: "No lead is lost without next action.",
+                },
+                {
+                  id: "crm-step-3",
+                  title: "3. Handoff and close",
+                  chatLine: "Perfect, send me options and visit schedule.",
+                  panelLine: "Template inserted + follow-up task assigned",
+                  outcome: "Advisor replies faster with full context.",
+                },
+              ],
+            },
+            {
+              id: "leads_widget",
+              label: "Leads Widget",
+              title: "Leads Widget simulation",
+              subtitle: "A visitor interacts with your website widget and only qualified intent reaches your team.",
+              chatTitle: "Website widget chat",
+              panelTitle: "Qualified lead output",
+              steps: [
+                {
+                  id: "widget-step-1",
+                  title: "1. Visitor opens widget",
+                  chatLine: "Hi, I'm looking for a 3-bedroom apartment in Miraflores.",
+                  panelLine: "Lead source captured: widget_embed + campaign UTM",
+                  outcome: "You know exactly where each lead comes from.",
+                },
+                {
+                  id: "widget-step-2",
+                  title: "2. Auto pre-qualification",
+                  chatLine: "My budget is S/480k and I want to move in this quarter.",
+                  panelLine: "Qualified score: high intent + complete profile",
+                  outcome: "Low-quality chats are filtered before reaching sales.",
+                },
+                {
+                  id: "widget-step-3",
+                  title: "3. WhatsApp handoff",
+                  chatLine: "Great, connect me with an advisor now.",
+                  panelLine: "WhatsApp redirect triggered with preloaded context",
+                  outcome: "Advisors answer with context and close faster.",
+                },
+              ],
+            },
+            {
+              id: "lead_chat",
+              label: "Lead Chat",
+              title: "Lead Chat simulation",
+              subtitle: "You share one public link and collect qualified conversations even without a website.",
+              chatTitle: "Public Lead Chat flow",
+              panelTitle: "Conversation conversion output",
+              steps: [
+                {
+                  id: "chat-step-1",
+                  title: "1. Lead opens public link",
+                  chatLine: "Hello, I found your ad and want options near San Isidro.",
+                  panelLine: "Conversation started via lead_chat link",
+                  outcome: "You can capture leads from ads, bios or stories instantly.",
+                },
+                {
+                  id: "chat-step-2",
+                  title: "2. Guided qualification",
+                  chatLine: "I can invest around S/520k and I'm ready to visit this week.",
+                  panelLine: "Intent verified + stage moved to contacted",
+                  outcome: "The flow structures qualification without manual scripts.",
+                },
+                {
+                  id: "chat-step-3",
+                  title: "3. Action to advisor",
+                  chatLine: "Perfect, let's continue on WhatsApp.",
+                  panelLine: "Contact created in CRM + follow-up task generated",
+                  outcome: "Every qualified conversation lands in your pipeline.",
+                },
+              ],
+            },
+          ]
+        : [
+            {
+              id: "crm_whatsapp",
+              label: "CRM WhatsApp",
+              title: "Demo CRM WhatsApp",
+              subtitle: "El lead llega por WhatsApp Web y tu equipo ejecuta seguimiento desde el panel CRM.",
+              chatTitle: "Conversacion en WhatsApp",
+              panelTitle: "Resultado en panel CRM",
+              steps: [
+                {
+                  id: "crm-step-1",
+                  title: "1. Llega el lead por WhatsApp",
+                  chatLine: "Hola, vi tu anuncio de departamento en Surco.",
+                  panelLine: "Lead etiquetado: comprador, surco, urgente",
+                  outcome: "El equipo prioriza primero chats con intencion real.",
+                },
+                {
+                  id: "crm-step-2",
+                  title: "2. Calificacion y pipeline",
+                  chatLine: "Presupuesto entre S/350k y S/450k. Me mudo en 30 dias.",
+                  panelLine: "Etapa actualizada a qualified + recordatorio 24h",
+                  outcome: "Ningun lead se queda sin siguiente accion.",
+                },
+                {
+                  id: "crm-step-3",
+                  title: "3. Handoff y cierre",
+                  chatLine: "Perfecto, enviame opciones y agenda de visita.",
+                  panelLine: "Plantilla insertada + tarea de seguimiento asignada",
+                  outcome: "El asesor responde mas rapido con contexto completo.",
+                },
+              ],
+            },
+            {
+              id: "leads_widget",
+              label: "Leads Widget",
+              title: "Demo Leads Widget",
+              subtitle: "Un visitante conversa desde tu web y solo la intencion real llega al equipo comercial.",
+              chatTitle: "Chat del widget web",
+              panelTitle: "Resultado de lead calificado",
+              steps: [
+                {
+                  id: "widget-step-1",
+                  title: "1. Visitante abre widget",
+                  chatLine: "Hola, busco un departamento de 3 cuartos en Miraflores.",
+                  panelLine: "Origen de lead detectado: widget_embed + UTM campana",
+                  outcome: "Sabes exactamente de donde viene cada lead.",
+                },
+                {
+                  id: "widget-step-2",
+                  title: "2. Precalificacion automatica",
+                  chatLine: "Mi presupuesto es S/480k y quiero mudarme este trimestre.",
+                  panelLine: "Score de calificacion: alta intencion + perfil completo",
+                  outcome: "Los chats de baja calidad se filtran antes de ventas.",
+                },
+                {
+                  id: "widget-step-3",
+                  title: "3. Derivacion a WhatsApp",
+                  chatLine: "Perfecto, conectame ahora con un asesor.",
+                  panelLine: "Redireccion a WhatsApp ejecutada con contexto precargado",
+                  outcome: "El asesor responde con contexto y cierra mas rapido.",
+                },
+              ],
+            },
+            {
+              id: "lead_chat",
+              label: "Lead Chat",
+              title: "Demo Lead Chat",
+              subtitle: "Compartes un enlace publico y capturas conversaciones calificadas aunque no tengas web.",
+              chatTitle: "Flujo Lead Chat publico",
+              panelTitle: "Resultado de conversion de conversacion",
+              steps: [
+                {
+                  id: "chat-step-1",
+                  title: "1. Lead abre enlace publico",
+                  chatLine: "Hola, vengo del anuncio y quiero opciones cerca a San Isidro.",
+                  panelLine: "Conversacion iniciada desde enlace lead_chat",
+                  outcome: "Capturas leads desde anuncios, bio o historias en minutos.",
+                },
+                {
+                  id: "chat-step-2",
+                  title: "2. Calificacion guiada",
+                  chatLine: "Puedo invertir S/520k y estoy listo para visitar esta semana.",
+                  panelLine: "Intencion validada + etapa movida a contacted",
+                  outcome: "El flujo ordena la calificacion sin guiones manuales.",
+                },
+                {
+                  id: "chat-step-3",
+                  title: "3. Accion para asesor",
+                  chatLine: "Perfecto, seguimos por WhatsApp.",
+                  panelLine: "Contacto creado en CRM + tarea de seguimiento generada",
+                  outcome: "Toda conversacion calificada entra a tu pipeline.",
+                },
+              ],
+            },
+          ],
+    [isEn],
+  );
 
   const capabilities = isEn
     ? [
@@ -202,6 +416,8 @@ export default function Landing() {
 
   const [showExitPopup, setShowExitPopup] = useState(false);
   const [hasShownExit, setHasShownExit] = useState(false);
+  const [activeDemoModule, setActiveDemoModule] = useState<DemoModule["id"]>("crm_whatsapp");
+  const [activeDemoStep, setActiveDemoStep] = useState(0);
   const testimonialsRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -249,13 +465,10 @@ export default function Landing() {
     return () => window.cancelAnimationFrame(raf);
   }, [testimonials.length, loopedTestimonials.length]);
 
-  const openDemoWidget = () => {
-    window.dispatchEvent(new Event("open-lead-widget"));
-  };
-
-  const openWhatsAppDemo = () => {
-    const message = "Hola, estuve viendo tu landing y me gusto el sistema precalificador, puedes enviarme una demo rapida?";
-    const whatsappUrl = `https://wa.me/51924464410?text=${encodeURIComponent(message)}`;
+  const openWhatsAppCta = (message?: string) => {
+    const defaultMessage = "Hola Leads Widget, quiero activar mi CRM para WhatsApp.";
+    const finalMessage = message || defaultMessage;
+    const whatsappUrl = `https://wa.me/51924464410?text=${encodeURIComponent(finalMessage)}`;
     window.open(whatsappUrl, "_blank", "noopener,noreferrer");
   };
 
@@ -281,6 +494,11 @@ export default function Landing() {
     }
     container.scrollBy({ left: step, behavior: "smooth" });
   };
+
+  const currentDemoModule =
+    demoModules.find((module) => module.id === activeDemoModule) || demoModules[0];
+  const currentDemoStep =
+    currentDemoModule?.steps[activeDemoStep] || currentDemoModule?.steps[0];
 
   return (
     <main className={`min-h-screen overflow-x-hidden selection:bg-cyan-200/70 ${isLandingDark ? "bg-[#020817] text-slate-100" : "bg-[#f7f9fc] text-slate-900"}`}>
@@ -392,7 +610,13 @@ export default function Landing() {
             <LanguageSwitcher />
             <Link to="/partners" className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${isLandingDark ? "text-slate-300 hover:bg-slate-800 hover:text-slate-100" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"}`}>Partners</Link>
             <Link to="/login" className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${isLandingDark ? "text-slate-300 hover:bg-slate-800 hover:text-slate-100" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"}`}>{copy.navLogin}</Link>
-            <Link to="/register"><Button className="h-10 rounded-full px-5 font-semibold text-white">{copy.navRegister}</Button></Link>
+            <Button
+              type="button"
+              className="h-10 rounded-full px-5 font-semibold text-white"
+              onClick={() => openWhatsAppCta()}
+            >
+              {copy.navRegister}
+            </Button>
           </div>
 
           <div className="flex items-center gap-2 md:hidden">
@@ -415,7 +639,13 @@ export default function Landing() {
                 <div className="mt-10 grid gap-3">
                   <Link to="/partners"><Button variant="outline" className="w-full justify-start">Partners</Button></Link>
                   <Link to="/login"><Button variant="outline" className="w-full justify-start">{copy.navLogin}</Button></Link>
-                  <Link to="/register"><Button className="w-full justify-start">{copy.navRegister}</Button></Link>
+                  <Button
+                    type="button"
+                    className="w-full justify-start"
+                    onClick={() => openWhatsAppCta()}
+                  >
+                    {copy.navRegister}
+                  </Button>
                 </div>
               </SheetContent>
             </Sheet>
@@ -431,8 +661,15 @@ export default function Landing() {
             <p className={`max-w-2xl text-base leading-relaxed sm:text-lg ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>{copy.heroSubtitle}</p>
 
             <div className="flex flex-col gap-3 sm:flex-row">
-              <Link to="/register"><Button size="xl" className="w-full rounded-full px-8 text-white sm:w-auto">{copy.ctaPrimary}</Button></Link>
-              <Button size="xl" variant="outline" className={`w-full rounded-full px-8 sm:w-auto ${isLandingDark ? "border-slate-700 text-slate-100 hover:bg-slate-800" : "border-slate-300 text-slate-800 hover:bg-slate-100"}`} onClick={openWhatsAppDemo}>
+              <Button
+                type="button"
+                size="xl"
+                className="w-full rounded-full px-8 text-white sm:w-auto"
+                onClick={() => openWhatsAppCta()}
+              >
+                {copy.ctaPrimary}
+              </Button>
+              <Button size="xl" variant="outline" className={`w-full rounded-full px-8 sm:w-auto ${isLandingDark ? "border-slate-700 text-slate-100 hover:bg-slate-800" : "border-slate-300 text-slate-800 hover:bg-slate-100"}`} onClick={() => openWhatsAppCta()}>
                 <Play className="mr-2 h-4 w-4" />{copy.ctaSecondary}
               </Button>
             </div>
@@ -525,6 +762,105 @@ export default function Landing() {
                   </section>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className={`relative z-10 border-y px-4 py-14 sm:px-6 lg:py-16 ${isLandingDark ? "border-slate-800/70 bg-slate-900/60" : "border-slate-200/70 bg-white/75"}`}>
+        <div className="mx-auto grid w-full max-w-[1160px] gap-8 lg:grid-cols-[0.46fr_0.54fr]">
+          <div>
+            <p className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${isLandingDark ? "border-cyan-400/30 bg-cyan-400/10 text-cyan-200" : "border-cyan-200 bg-cyan-50 text-cyan-700"}`}>
+              {isEn ? "Simulated demos" : "Demos simuladas"}
+            </p>
+            <h2 className="mt-4 text-3xl font-semibold tracking-tight">
+              {isEn ? "Explore 3 real conversion scenarios" : "Explora 3 escenarios reales de conversion"}
+            </h2>
+            <p className={`mt-3 text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
+              {isEn
+                ? "Switch between CRM WhatsApp, Leads Widget and Lead Chat. Each simulation shows step-by-step how the workflow looks for your team."
+                : "Cambia entre CRM WhatsApp, Leads Widget y Lead Chat. Cada simulacion muestra paso a paso como se veria el flujo para tu equipo."}
+            </p>
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              {demoModules.map((module) => (
+                <button
+                  key={module.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveDemoModule(module.id);
+                    setActiveDemoStep(0);
+                  }}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${activeDemoModule === module.id
+                    ? isLandingDark
+                      ? "border-cyan-400/70 bg-cyan-500/15 text-cyan-100"
+                      : "border-cyan-300 bg-cyan-50 text-cyan-800"
+                    : isLandingDark
+                      ? "border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-500"
+                      : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"}`}
+                >
+                  {module.label}
+                </button>
+              ))}
+            </div>
+
+            <h3 className="mt-5 text-lg font-semibold">{currentDemoModule?.title}</h3>
+            <p className={`mt-2 text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
+              {currentDemoModule?.subtitle}
+            </p>
+
+            <div className="mt-4 grid gap-2">
+              {currentDemoModule?.steps.map((step, index) => (
+                <button
+                  key={step.id}
+                  type="button"
+                  onClick={() => setActiveDemoStep(index)}
+                  className={`rounded-2xl border p-3 text-left transition ${activeDemoStep === index
+                    ? isLandingDark
+                      ? "border-cyan-400/60 bg-cyan-400/10 text-cyan-100"
+                      : "border-cyan-300 bg-cyan-50 text-cyan-800"
+                    : isLandingDark
+                      ? "border-slate-700 bg-slate-900/70 text-slate-300 hover:border-slate-500"
+                      : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"}`}
+                >
+                  <p className="text-sm font-semibold">{step.title}</p>
+                </button>
+              ))}
+            </div>
+            <Button type="button" className="mt-6 rounded-full px-7 text-white" onClick={() => openWhatsAppCta()}>
+              {isEn ? "Activate this on my business" : "Quiero activar esto en mi negocio"}
+            </Button>
+          </div>
+
+          <div className={`rounded-[28px] border p-4 ${isLandingDark ? "border-slate-700 bg-slate-950/80" : "border-slate-200 bg-slate-50/85"}`}>
+            <div className={`rounded-2xl border p-3 ${isLandingDark ? "border-slate-700 bg-[#0b121a]" : "border-slate-200 bg-white"}`}>
+              <div className="flex items-center justify-between rounded-xl bg-gradient-to-r from-emerald-600 to-cyan-600 px-3 py-2 text-white">
+                <span className="text-xs font-semibold">{currentDemoModule?.chatTitle}</span>
+                <MessageCircle className="h-4 w-4" />
+              </div>
+              <div className="mt-3 space-y-2">
+                <div className={`max-w-[82%] rounded-2xl rounded-bl-md px-3 py-2 text-sm ${isLandingDark ? "bg-slate-800 text-slate-100" : "bg-slate-100 text-slate-700"}`}>
+                  {currentDemoStep?.chatLine}
+                </div>
+                <div className="ml-auto max-w-[82%] rounded-2xl rounded-br-md bg-emerald-600 px-3 py-2 text-sm text-white">
+                  {isEn ? "Done. Updating workflow..." : "Listo. Actualizando flujo..."}
+                </div>
+              </div>
+            </div>
+
+            <div className={`mt-3 rounded-2xl border p-3 ${isLandingDark ? "border-slate-700 bg-slate-900/80" : "border-slate-200 bg-white"}`}>
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold">{currentDemoModule?.panelTitle}</p>
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${isLandingDark ? "bg-cyan-500/15 text-cyan-200" : "bg-cyan-100 text-cyan-700"}`}>
+                  {isEn ? "Auto-updated" : "Auto-actualizado"}
+                </span>
+              </div>
+              <p className={`mt-2 rounded-lg px-2 py-1.5 text-sm ${isLandingDark ? "bg-slate-800 text-slate-200" : "bg-slate-100 text-slate-700"}`}>
+                {currentDemoStep?.panelLine}
+              </p>
+              <p className={`mt-2 text-xs ${isLandingDark ? "text-slate-400" : "text-slate-600"}`}>
+                {currentDemoStep?.outcome}
+              </p>
             </div>
           </div>
         </div>
@@ -670,7 +1006,9 @@ export default function Landing() {
           </div>
 
           <div className="mt-8 text-center">
-            <Link to="/register" className="inline-block"><Button size="xl" className="rounded-full px-9 text-white">{copy.navRegister}</Button></Link>
+            <Button type="button" size="xl" className="rounded-full px-9 text-white" onClick={() => openWhatsAppCta()}>
+              {copy.navRegister}
+            </Button>
           </div>
         </div>
       </section>
@@ -683,8 +1021,10 @@ export default function Landing() {
             {isEn ? "Current offer: CRM WhatsApp S/50 or PRO bundle S/99 monthly." : "Oferta actual: CRM WhatsApp S/50 o bundle PRO S/99 mensual."}
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link to="/register"><Button size="xl" className="rounded-full px-8 text-white">{copy.navRegister}</Button></Link>
-            <Button size="xl" variant="outline" className="rounded-full border-white/30 bg-white/10 px-8 text-white hover:bg-white/15" onClick={openWhatsAppDemo}>{copy.navTry}</Button>
+            <Button type="button" size="xl" className="rounded-full px-8 text-white" onClick={() => openWhatsAppCta()}>
+              {copy.navRegister}
+            </Button>
+            <Button type="button" size="xl" variant="outline" className="rounded-full border-white/30 bg-white/10 px-8 text-white hover:bg-white/15" onClick={() => openWhatsAppCta()}>{copy.navTry}</Button>
           </div>
         </div>
       </section>
@@ -708,7 +1048,7 @@ export default function Landing() {
               <h3 className="text-3xl font-semibold tracking-tight text-slate-900">{copy.exitTitle}</h3>
               <p className="mx-auto mt-3 max-w-md text-slate-600">{copy.exitSubtitle}</p>
               <div className="mt-6 grid gap-2 sm:grid-cols-2">
-                <Button type="button" onClick={() => { setShowExitPopup(false); openDemoWidget(); }}>{copy.exitCta}</Button>
+                <Button type="button" onClick={() => { setShowExitPopup(false); openWhatsAppCta(); }}>{copy.exitCta}</Button>
                 <Button type="button" variant="outline" onClick={() => setShowExitPopup(false)}>{copy.exitDismiss}</Button>
               </div>
             </div>
