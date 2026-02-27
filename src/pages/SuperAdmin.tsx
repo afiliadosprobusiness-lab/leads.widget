@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { db } from '@/lib/firebase';
@@ -197,7 +197,7 @@ export default function SuperAdmin() {
     mrr: 0,
   });
 
-  const adminApi = async (path: string, init?: RequestInit) => {
+  const adminApi = useCallback(async (path: string, init?: RequestInit) => {
     const idToken = await user?.getIdToken();
     const response = await fetch(path, {
       ...init,
@@ -216,7 +216,7 @@ export default function SuperAdmin() {
       throw error;
     }
     return payload;
-  };
+  }, [user]);
 
   const isRouteMissing = (error: unknown) => {
     const candidate = error as AdminApiError;
@@ -1110,7 +1110,6 @@ export default function SuperAdmin() {
     if (lastCrmStatusSyncKeyRef.current === syncKey) {
       return;
     }
-    lastCrmStatusSyncKeyRef.current = syncKey;
 
     let cancelled = false;
     const syncRemoteStatus = async () => {
@@ -1170,8 +1169,10 @@ export default function SuperAdmin() {
         if (patches.length > 0) {
           await Promise.allSettled(patches);
         }
+        lastCrmStatusSyncKeyRef.current = syncKey;
       } catch (error) {
         if (!cancelled) {
+          lastCrmStatusSyncKeyRef.current = '';
           console.warn('No se pudo reconciliar estado CRM WhatsApp:', error);
         }
       }
