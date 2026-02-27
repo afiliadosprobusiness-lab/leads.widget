@@ -64,6 +64,7 @@ interface Profile {
   whatsapp_crm_status?: 'active' | 'inactive';
   whatsapp_crm_is_extension_client?: boolean;
   whatsapp_crm_workspace_id?: string;
+  whatsapp_crm_current_period_end?: string | null;
   whatsapp_crm_monthly_price_pen?: number | null;
   whatsapp_crm_activated_at?: string | null;
   whatsapp_crm_deactivated_at?: string | null;
@@ -734,6 +735,7 @@ export default function SuperAdmin() {
       let syncMessage = 'Estado sincronizado con el backend de CRM WhatsApp.';
       let remoteEnabled = enabled;
       let remoteWorkspaceId = String(currentClient?.whatsapp_crm_workspace_id || '').trim();
+      let remoteCurrentPeriodEnd = String(currentClient?.whatsapp_crm_current_period_end || '').trim();
 
       if (syncEmail) {
         try {
@@ -747,6 +749,7 @@ export default function SuperAdmin() {
           });
           remoteEnabled = Boolean(syncPayload?.sync?.subscription?.canUseCrm);
           remoteWorkspaceId = String(syncPayload?.sync?.workspaceId || remoteWorkspaceId || '').trim();
+          remoteCurrentPeriodEnd = String(syncPayload?.sync?.subscription?.currentPeriodEnd || remoteCurrentPeriodEnd || '').trim();
         } catch (syncError: any) {
           const syncStatus = Number(syncError?.status || 0);
           if (!enabled && syncStatus === 404) {
@@ -767,6 +770,7 @@ export default function SuperAdmin() {
         whatsapp_crm_enabled: remoteEnabled,
         whatsapp_crm_status: remoteEnabled ? 'active' : 'inactive',
         whatsapp_crm_workspace_id: remoteWorkspaceId || deleteField(),
+        whatsapp_crm_current_period_end: remoteCurrentPeriodEnd || deleteField(),
         whatsapp_crm_monthly_price_pen:
           Number(currentClient?.whatsapp_crm_monthly_price_pen || 0) > 0
             ? Number(currentClient?.whatsapp_crm_monthly_price_pen)
@@ -789,6 +793,7 @@ export default function SuperAdmin() {
             workspaceId: remoteWorkspaceId || null,
             subscriptionStatus: remoteEnabled ? 'active' : 'past_due',
             canUseCrm: remoteEnabled,
+            currentPeriodEnd: remoteCurrentPeriodEnd || null,
           },
         };
       });
@@ -822,6 +827,7 @@ export default function SuperAdmin() {
         payload.whatsapp_crm_enabled = false;
         payload.whatsapp_crm_status = 'inactive';
         payload.whatsapp_crm_deactivated_at = nowIso;
+        payload.whatsapp_crm_current_period_end = deleteField();
       } else if (!currentClient?.whatsapp_crm_status) {
         payload.whatsapp_crm_status = 'inactive';
       }
@@ -1052,6 +1058,8 @@ export default function SuperAdmin() {
     }
     return Boolean(client.whatsapp_crm_enabled);
   };
+  const getCrmRenewalDateIso = (client: Profile) =>
+    String(getRemoteCrmStatus(client)?.currentPeriodEnd || client.whatsapp_crm_current_period_end || '').trim();
 
   const filteredClients = clients.filter(client =>
     client.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -1147,6 +1155,12 @@ export default function SuperAdmin() {
             }
             if (remote.workspaceId && String(client.whatsapp_crm_workspace_id || '') !== String(remote.workspaceId)) {
               patch.whatsapp_crm_workspace_id = remote.workspaceId;
+            }
+            const remotePeriodEnd = String(remote.currentPeriodEnd || '').trim();
+            if (remotePeriodEnd && String(client.whatsapp_crm_current_period_end || '') !== remotePeriodEnd) {
+              patch.whatsapp_crm_current_period_end = remotePeriodEnd;
+            } else if (!remotePeriodEnd && !remoteEnabled && client.whatsapp_crm_current_period_end) {
+              patch.whatsapp_crm_current_period_end = deleteField();
             }
             if (Object.keys(patch).length === 0) {
               return null;
@@ -1794,6 +1808,7 @@ export default function SuperAdmin() {
                         <th className="py-2 px-3">Vinculacion</th>
                         <th className="py-2 px-3">Estado CRM WhatsApp</th>
                         <th className="py-2 px-3">Workspace ID</th>
+                        <th className="py-2 px-3">Prox. renovacion</th>
                         <th className="py-2 px-3">Ultimo cambio</th>
                         <th className="py-2 px-3">Acciones</th>
                       </tr>
@@ -1821,6 +1836,12 @@ export default function SuperAdmin() {
                             <span className="font-mono text-xs text-muted-foreground">
                               {getRemoteCrmStatus(client)?.workspaceId || client.whatsapp_crm_workspace_id || '-'}
                             </span>
+                          </td>
+                          <td className="py-2 px-3 text-xs text-muted-foreground">
+                            {(() => {
+                              const renewalRef = getCrmRenewalDateIso(client);
+                              return renewalRef ? new Date(renewalRef).toLocaleDateString('es-PE') : '-';
+                            })()}
                           </td>
                           <td className="py-2 px-3 text-xs text-muted-foreground">
                             {(() => {
@@ -1869,7 +1890,7 @@ export default function SuperAdmin() {
                       ))}
                       {filteredCrmClients.length === 0 && (
                         <tr>
-                          <td colSpan={6} className="py-8 px-3 text-center text-muted-foreground">
+                          <td colSpan={7} className="py-8 px-3 text-center text-muted-foreground">
                             No se encontraron clientes para CRM Extension con el filtro actual.
                           </td>
                         </tr>

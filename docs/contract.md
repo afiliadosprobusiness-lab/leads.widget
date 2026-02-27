@@ -32,6 +32,7 @@ Campos observados (pueden coexistir segun flujo):
 - `trial_ends_at: string | null` (ISO date)
 - `pending_plan_type: "crm" | "pro" | string | null` (opcional; cambio de plan diferido para siguiente renovacion)
 - `whatsapp_crm_is_extension_client: boolean` (opcional; indica si el cliente esta vinculado al roster del producto CRM Extension)
+- `whatsapp_crm_current_period_end: string | null` (opcional; fecha de proxima renovacion del CRM Extension para cobranza en superadmin)
 - `crm_template: "general" | "real_estate" | string` (opcional; plantilla comercial del CRM para labels/pipeline en dashboard)
 - `ai_enabled: boolean`
 - `ai_provider: string`
@@ -887,3 +888,7 @@ Cambios de comportamiento relevantes:
 - Cambio: nuevo endpoint local `POST /api/admin/whatsapp-crm-status-batch` para reconciliar en bloque el estado real de CRM Extension por email.
 - Tipo: non-breaking
 - Impacto: permite que Superadmin muestre/corrija estado activo-inactivo real sin depender solo del flag local en `profiles`.
+- Fecha: 2026-02-27
+- Cambio: Superadmin CRM WhatsApp agrega visualizacion de `Prox. renovacion` y persiste `profiles.whatsapp_crm_current_period_end` con `currentPeriodEnd` remoto.
+- Tipo: non-breaking
+- Impacto: mejora operacion de cobranza mensual sin cambiar rutas ni shape de endpoints existentes.
