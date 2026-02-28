@@ -63,33 +63,33 @@ export default function Landing() {
   }, []);
 
   const copy = {
-    heroBadge: isEn ? "CRM for real estate teams" : "CRM para equipos inmobiliarios",
+    heroBadge: isEn ? "WhatsWidget CRM for sales teams" : "WhatsWidget CRM para equipos comerciales",
     heroTitle: isEn
-      ? "Run your real estate sales with CRM and add automation when ready"
-      : "Gestiona tu venta inmobiliaria con CRM y activa automatizacion cuando quieras",
+      ? "Operate sales inside WhatsApp with WhatsWidget, without complex systems"
+      : "Opera tus ventas en WhatsApp con WhatsWidget, sin sistemas complejos",
     heroSubtitle: isEn
-      ? "Use WhatsApp Web as your CRM: stages, tags and follow-up in one panel. Start with CRM WhatsApp (S/50) or go PRO (S/99) with Leads Widget + Lead Chat."
-      : "Usa WhatsApp Web como CRM: etapas, etiquetas y seguimiento en un solo panel. Empieza con CRM WhatsApp (S/50) o sube a PRO (S/99) con Leads Widget + Lead Chat.",
+      ? "Real Kanban, custom stages, notes by contact, reminders with local notifications, quick replies, and compliant campaigns to opted-in leads. Choose General or Real Estate workflow."
+      : "Kanban real, etapas personalizadas, notas por contacto, recordatorios con notificaciones locales, respuestas rapidas y campanas a leads opted_in con cumplimiento. Elige flujo General o Inmobiliaria.",
     ctaPrimary: isEn ? "Activate now" : "Activar ahora",
     ctaSecondary: isEn ? "Activate via WhatsApp" : "Activar por WhatsApp",
-    modesTitle: isEn ? "One product, three usage modes" : "Un producto, tres modos de uso",
-    capabilitiesTitle: isEn ? "What helps your team close better" : "Lo que ayuda a tu equipo a cerrar mejor",
-    useCasesTitle: isEn ? "Built for real estate teams" : "Pensado para equipos inmobiliarios",
+    modesTitle: isEn ? "WhatsWidget in three usage modes" : "WhatsWidget en tres modos de uso",
+    capabilitiesTitle: isEn ? "New WhatsWidget functions that impact revenue" : "Nuevas funciones de WhatsWidget que impactan ventas",
+    useCasesTitle: isEn ? "Teams getting the most value with WhatsWidget" : "Equipos que mas valor obtienen con WhatsWidget",
     testimonialsTitle: isEn ? "Results from active clients" : "Resultados de clientes activos",
     pricingTitle: isEn ? "Choose your plan" : "Elige tu plan",
     finalTitle: isEn
-      ? "Stop losing time with low-intent conversations"
-      : "Deja de perder tiempo en conversaciones sin intencion real",
+      ? "Stop losing leads between chats and follow-up"
+      : "Deja de perder leads entre chat y seguimiento",
     finalSubtitle: isEn
-      ? "Pre-qualify in chat, route only qualified leads to WhatsApp, and keep your pipeline ordered with CRM follow-up."
-      : "Precalifica en chat, deriva solo leads calificados a WhatsApp y ordena tu seguimiento con CRM.",
+      ? "WhatsWidget keeps your operation clean: no auto-send, manual confirmation for compliance, and full CRM traceability per contact."
+      : "WhatsWidget mantiene tu operacion ordenada: sin auto-envio, confirmacion manual para cumplimiento y trazabilidad CRM por contacto.",
     navLogin: isEn ? "Login" : "Iniciar sesion",
     navRegister: isEn ? "Activate now" : "Activar ahora",
     navTry: isEn ? "Activate now" : "Activar ahora",
     navTheme: isLandingDark ? (isEn ? "Light mode" : "Modo claro") : (isEn ? "Dark mode" : "Modo oscuro"),
     footerRights: isEn
-      ? "2026 Lead Widget. All rights reserved."
-      : "2026 Lead Widget. Todos los derechos reservados.",
+      ? "2026 WhatsWidget. All rights reserved."
+      : "2026 WhatsWidget. Todos los derechos reservados.",
     exitTitle: isEn ? "Before you leave" : "Antes de salir",
     exitSubtitle: isEn
       ? "Run the full flow and compare lead quality against your current process."
@@ -315,62 +315,94 @@ export default function Landing() {
   const capabilities = isEn
     ? [
         {
-          title: "Pre-qualification before handoff",
-          body: "Before assigning a human advisor, the flow validates budget, area, property type and decision timeline.",
+          title: "Real Kanban in popup and embedded CRM tab",
+          body: "Move opportunities visually between stages from WhatsApp and keep the same view in CRM without switching tools.",
         },
         {
-          title: "Property catalog with media",
-          body: "Show photos and short videos inside chat so the lead compares options faster and arrives with clear intent.",
+          title: "Custom stages and smart stage filters",
+          body: "Use default stages or create your own and filter chats by stage to focus your team on the right contacts first.",
         },
         {
-          title: "Automatic WhatsApp handoff",
-          body: "When a lead qualifies, WhatsApp opens with context already summarized to speed up first response quality.",
+          title: "Mass campaigns only to opted-in leads",
+          body: "Run outbound campaigns to consented contacts and keep compliant communication policies from day one.",
         },
         {
-          title: "CRM follow-up ready",
-          body: "Each conversation is saved with stage, tags and next task so your team follows up with discipline.",
+          title: "Notes and quick replies by contact",
+          body: "Each chat keeps notes, context and reusable templates so advisors answer faster and with better consistency.",
+        },
+        {
+          title: "Reminders with local notifications",
+          body: "Schedule follow-ups and get browser notifications to avoid missing opportunities in daily operations.",
+        },
+        {
+          title: "Custom segments in popup",
+          body: "Create focused views by tags, source, urgency or agent and prioritize your highest-intent portfolio in one click.",
+        },
+        {
+          title: "Manual chat open for unsaved numbers",
+          body: "Open chats to non-saved numbers with manual send confirmation to keep WhatsApp compliance intact.",
+        },
+        {
+          title: "CSV import and blur mode for demos",
+          body: "Import your own CRM contacts via CSV and enable blur mode to present workflows without exposing private data.",
         },
       ]
     : [
         {
-          title: "Precalificacion antes del handoff",
-          body: "Antes de pasar al asesor, valida presupuesto, zona, tipo de propiedad y plazo de compra.",
+          title: "Kanban real en popup y tab CRM embebido",
+          body: "Mueve oportunidades por etapas desde WhatsApp y manten la misma vista en CRM sin cambiar de herramienta.",
         },
         {
-          title: "Catalogo de propiedades con multimedia",
-          body: "Muestra fotos y videos dentro del chat para que el lead compare opciones rapido y llegue con intencion clara.",
+          title: "Etapas personalizadas y filtros por etapa",
+          body: "Usa etapas predeterminadas o crea las tuyas y filtra chats por etapa para enfocar al equipo en lo prioritario.",
         },
         {
-          title: "Handoff automatico a WhatsApp",
-          body: "Cuando el lead califica, abre WhatsApp con resumen del caso para mejorar velocidad y calidad de respuesta.",
+          title: "Campanas masivas solo a leads opted_in",
+          body: "Ejecuta campanas a contactos con consentimiento y mantiene cumplimiento comercial desde el primer dia.",
         },
         {
-          title: "Seguimiento con CRM",
-          body: "Cada conversacion queda en CRM con etapa, etiquetas y proxima tarea para no perder oportunidades.",
+          title: "Notas por contacto y respuestas rapidas",
+          body: "Cada chat guarda notas, contexto y plantillas reutilizables para responder con rapidez y consistencia comercial.",
+        },
+        {
+          title: "Recordatorios con notificaciones locales",
+          body: "Programa seguimientos y recibe alertas del navegador para no dejar oportunidades sin contacto.",
+        },
+        {
+          title: "Segmentos personalizados en popup",
+          body: "Crea vistas por tags, fuente, urgencia o agente y prioriza cartera caliente en un clic.",
+        },
+        {
+          title: "Chat manual a numeros no guardados",
+          body: "Abre conversaciones a numeros no guardados con confirmacion manual de envio para cumplir politicas de WhatsApp.",
+        },
+        {
+          title: "Importacion CSV y modo blur para demos",
+          body: "Importa contactos a tu CRM con CSV y activa blur para mostrar tu flujo sin exponer conversaciones reales.",
         },
       ];
 
   const useCases = isEn
     ? [
-        "Real estate brokers with paid traffic",
-        "Agencies selling projects in multiple districts",
-        "Teams that need to filter by real budget",
-        "Businesses that need qualification before WhatsApp",
-        "Sales teams that need CRM follow-up discipline",
-        "Operations without website using public Lead Chat",
+        "Sales teams managing WhatsApp as their main channel",
+        "Real estate and non-real-estate operations with different workflows",
+        "Businesses that need manual compliance (no auto-send)",
+        "Teams that need segmented views by tags, source and urgency",
+        "Companies importing existing contacts by CSV into CRM",
+        "Operations that need to open chats with unsaved numbers safely",
       ]
     : [
-        "Brokers inmobiliarios con trafico pago",
-        "Agencias que venden proyectos en varios distritos",
-        "Equipos que necesitan filtrar por presupuesto real",
-        "Negocios que requieren precalificacion antes de WhatsApp",
-        "Equipos comerciales que necesitan disciplina de seguimiento CRM",
-        "Operaciones sin web usando Lead Chat publico",
+        "Equipos comerciales que operan WhatsApp como canal principal",
+        "Operaciones inmobiliarias y no inmobiliarias con flujos distintos",
+        "Negocios que necesitan cumplimiento manual (sin auto-envio)",
+        "Equipos que requieren segmentacion por tags, fuente y urgencia",
+        "Empresas que importan su base actual por CSV al CRM",
+        "Operaciones que necesitan abrir chat a numeros no guardados con seguridad",
       ];
 
   const conversionBullets = isEn
-    ? ["CRM WhatsApp from S/50", "Only qualified leads go to WhatsApp", "Launch in under 5 minutes"]
-    : ["CRM WhatsApp desde S/50", "Solo leads calificados pasan a WhatsApp", "Activa en menos de 5 minutos"];
+    ? ["WhatsWidget CRM from S/50", "No auto-send: manual compliance", "General + Real Estate templates"]
+    : ["WhatsWidget CRM desde S/50", "Sin auto-envio: cumplimiento manual", "Plantillas General + Inmobiliaria"];
 
   const testimonials = useMemo<LandingTestimonial[]>(
     () =>
@@ -615,7 +647,7 @@ export default function Landing() {
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-500 text-white shadow-md">
               <MessageCircle className="h-5 w-5" />
             </span>
-            <span className="text-sm font-semibold tracking-tight sm:text-base">Lead Widget</span>
+            <span className="text-sm font-semibold tracking-tight sm:text-base">WhatsWidget</span>
           </Link>
 
           <div className="hidden items-center gap-3 md:flex">
@@ -980,8 +1012,8 @@ export default function Landing() {
             <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">{copy.pricingTitle}</h2>
             <p className={`mt-3 text-sm ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
               {isEn
-                ? "Simple monthly pricing: CRM WhatsApp or full PRO bundle."
-                : "Precios mensuales simples: CRM WhatsApp o bundle PRO completo."}
+                ? "Simple monthly pricing for WhatsWidget: CRM WhatsApp or full PRO bundle."
+                : "Precios mensuales simples de WhatsWidget: CRM WhatsApp o bundle PRO completo."}
             </p>
           </div>
 
@@ -992,19 +1024,21 @@ export default function Landing() {
               </span>
               <h3 className="mt-4 text-2xl font-semibold">{isEn ? "CRM WhatsApp plan" : "Plan CRM WhatsApp"}</h3>
               <p className={`mt-3 text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
-                {isEn ? "Run your sales directly on WhatsApp Web with CRM panel and lead order." : "Gestiona tu venta directo en WhatsApp Web con panel CRM y orden de leads."}
+                {isEn ? "Use WhatsWidget on WhatsApp Web with real Kanban, contact notes and disciplined follow-up." : "Usa WhatsWidget en WhatsApp Web con Kanban real, notas por contacto y seguimiento disciplinado."}
               </p>
               <ul className={`mt-4 space-y-2 text-sm ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
                 {(isEn
                   ? [
-                      "Pipeline by stages",
-                      "Tags, shortcuts and reminders",
-                      "Real estate lead profile",
+                      "Kanban + pipeline with custom stages and filters",
+                      "Notes by contact + reminders with local notifications",
+                      "Quick templates + manual send only (compliance)",
+                      "General and Real Estate operational templates",
                     ]
                   : [
-                      "Pipeline por etapas",
-                      "Etiquetas, atajos y recordatorios",
-                      "Ficha de lead inmobiliario",
+                      "Kanban + pipeline con etapas personalizadas y filtros",
+                      "Notas por contacto + recordatorios con notificacion local",
+                      "Plantillas rapidas + envio manual (cumplimiento)",
+                      "Plantillas operativas General e Inmobiliaria",
                     ]).map((item) => (
                   <li key={item} className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-cyan-500" />
@@ -1022,19 +1056,21 @@ export default function Landing() {
               </span>
               <h3 className="mt-4 text-2xl font-semibold">{isEn ? "PRO bundle plan" : "Plan bundle PRO"}</h3>
               <p className={`mt-3 text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
-                {isEn ? "CRM WhatsApp + Leads Widget + Lead Chat in one package." : "CRM WhatsApp + Leads Widget + Lead Chat en un solo paquete."}
+                {isEn ? "Full WhatsWidget stack in one package for acquisition, qualification and follow-up." : "Stack completo de WhatsWidget en un paquete para captacion, calificacion y seguimiento."}
               </p>
               <ul className={`mt-4 space-y-2 text-sm ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
                 {(isEn
                   ? [
                       "Everything in CRM WhatsApp",
-                      "Leads Widget enabled",
-                      "Lead Chat enabled",
+                      "Leads Widget + public Lead Chat enabled",
+                      "Custom segments and campaigns to opted-in leads",
+                      "CSV import to CRM + blur mode for demos",
                     ]
                   : [
                       "Todo lo del CRM WhatsApp",
-                      "Leads Widget activado",
-                      "Lead Chat activado",
+                      "Leads Widget + Lead Chat publico activados",
+                      "Segmentos personalizados y campanas a opted_in",
+                      "Importacion CSV al CRM + modo blur para demos",
                     ]).map((item) => (
                   <li key={item} className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-500" />
@@ -1060,7 +1096,7 @@ export default function Landing() {
           <h2 className="text-3xl font-semibold tracking-tight sm:text-5xl">{copy.finalTitle}</h2>
           <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-slate-300 sm:text-base">{copy.finalSubtitle}</p>
           <p className="mx-auto mt-2 max-w-2xl text-sm font-medium text-cyan-200">
-            {isEn ? "Current offer: CRM WhatsApp S/50 or PRO bundle S/99 monthly." : "Oferta actual: CRM WhatsApp S/50 o bundle PRO S/99 mensual."}
+            {isEn ? "Current offer in WhatsWidget: CRM WhatsApp S/50 or PRO bundle S/99 monthly." : "Oferta actual en WhatsWidget: CRM WhatsApp S/50 o bundle PRO S/99 mensual."}
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Button type="button" size="xl" className="rounded-full px-8 text-white" onClick={() => openWhatsAppCta()}>
@@ -1073,7 +1109,7 @@ export default function Landing() {
 
       <footer className={`relative z-10 border-t px-4 py-12 backdrop-blur sm:px-6 ${isLandingDark ? "border-slate-800/80 bg-slate-950/85" : "border-slate-200/80 bg-white/80"}`}>
         <div className="mx-auto flex w-full max-w-[1160px] flex-col items-center justify-between gap-4 text-center sm:flex-row sm:text-left">
-          <div><p className="text-sm font-semibold">Lead Widget</p><p className={`text-sm ${isLandingDark ? "text-slate-400" : "text-slate-600"}`}>{isEn ? "Pre-qualification system for real leads and fast WhatsApp handoff." : "Sistema de precalificacion para leads reales y handoff rapido a WhatsApp."}</p></div>
+          <div><p className="text-sm font-semibold">WhatsWidget</p><p className={`text-sm ${isLandingDark ? "text-slate-400" : "text-slate-600"}`}>{isEn ? "WhatsApp CRM system with Kanban, reminders, campaigns and manual-compliant handoff." : "Sistema CRM para WhatsApp con Kanban, recordatorios, campanas y handoff manual con cumplimiento."}</p></div>
           <div className={`flex gap-4 text-sm ${isLandingDark ? "text-slate-400" : "text-slate-600"}`}><Link to="/legal/privacy" className={isLandingDark ? "hover:text-slate-100" : "hover:text-slate-900"}>Privacy</Link><Link to="/legal/terms" className={isLandingDark ? "hover:text-slate-100" : "hover:text-slate-900"}>Terms</Link><Link to="/legal/claims" className={isLandingDark ? "hover:text-slate-100" : "hover:text-slate-900"}>Claims</Link></div>
         </div>
         <div className={`mx-auto mt-6 w-full max-w-[1160px] border-t pt-5 text-xs ${isLandingDark ? "border-slate-800 text-slate-500" : "border-slate-200 text-slate-500"}`}>{copy.footerRights}</div>
