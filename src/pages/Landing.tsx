@@ -50,6 +50,26 @@ type DemoModule = {
   steps: DemoStep[];
 };
 
+type DemoInsight = {
+  kpis: Array<{
+    label: string;
+    before: string;
+    after: string;
+  }>;
+  onboarding: string[];
+  compliance: string;
+  roi: string;
+  pipelineStages: string[];
+  pipelineGoal: string;
+};
+
+type DemoRoiInput = {
+  leads: number;
+  closeRate: number;
+  lift: number;
+  ticket: number;
+};
+
 export default function Landing() {
   const { i18n } = useTranslation();
   const isEn = String(i18n.language || "").toLowerCase().startsWith("en");
@@ -312,6 +332,118 @@ export default function Landing() {
     [isEn],
   );
 
+  const demoInsights: Record<DemoModule["id"], DemoInsight> = useMemo(
+    () =>
+      isEn
+        ? {
+            crm_whatsapp: {
+              kpis: [
+                { label: "Avg first response", before: "18 min", after: "4 min" },
+                { label: "Leads without follow-up", before: "35%", after: "8%" },
+                { label: "Pipeline visibility", before: "Low", after: "Full" },
+              ],
+              onboarding: [
+                "Install extension and login in WhatsWidget.",
+                "Import CSV or create contacts manually.",
+                "Move leads by stage and schedule reminders.",
+              ],
+              compliance:
+                "No auto-send. Every outbound action is manually confirmed and campaigns are sent only to opted-in leads.",
+              roi: "If one extra deal closes per month, the CRM plan usually pays itself.",
+              pipelineStages: ["New", "Contacted", "Visit", "Offer", "Close"],
+              pipelineGoal: "Daily goal: all active leads must have stage + next task.",
+            },
+            leads_widget: {
+              kpis: [
+                { label: "Unqualified chat noise", before: "52%", after: "19%" },
+                { label: "Lead profile completeness", before: "41%", after: "86%" },
+                { label: "Advisor productivity", before: "Base", after: "+32%" },
+              ],
+              onboarding: [
+                "Paste widget script on your website.",
+                "Enable quick replies and pre-qualification fields.",
+                "Sync qualified leads directly into CRM pipeline.",
+              ],
+              compliance:
+                "The widget captures consent and routes to WhatsApp with manual send confirmation by your team.",
+              roi: "Same ad budget, fewer junk chats, more qualified conversations for sales.",
+              pipelineStages: ["Visitor", "Qualified", "WhatsApp", "Follow-up", "Closed"],
+              pipelineGoal: "Daily goal: prioritize only high-intent handoffs in sales queue.",
+            },
+            lead_chat: {
+              kpis: [
+                { label: "Setup time without website", before: "Days", after: "< 10 min" },
+                { label: "Recoverable interested leads", before: "Low", after: "+44%" },
+                { label: "Team handoff context", before: "Partial", after: "Structured" },
+              ],
+              onboarding: [
+                "Create your public Lead Chat link.",
+                "Share it in ads, bio, and social campaigns.",
+                "Convert conversations into CRM contacts and tasks.",
+              ],
+              compliance:
+                "Lead Chat keeps a compliant flow: no auto-send and explicit user action before final handoff.",
+              roi: "For teams without website, it opens a conversion channel from day one.",
+              pipelineStages: ["Open link", "Qualified", "Assigned", "Follow-up", "Won/Lost"],
+              pipelineGoal: "Daily goal: every qualified chat must be assigned to an advisor.",
+            },
+          }
+        : {
+            crm_whatsapp: {
+              kpis: [
+                { label: "Primera respuesta promedio", before: "18 min", after: "4 min" },
+                { label: "Leads sin seguimiento", before: "35%", after: "8%" },
+                { label: "Visibilidad del pipeline", before: "Baja", after: "Total" },
+              ],
+              onboarding: [
+                "Instala la extension e inicia sesion en WhatsWidget.",
+                "Importa CSV o crea contactos manualmente.",
+                "Mueve leads por etapa y programa recordatorios.",
+              ],
+              compliance:
+                "Sin auto-envio. Cada salida se confirma manualmente y las campanas se envian solo a leads opted_in.",
+              roi: "Si cierras una venta extra al mes, el plan CRM normalmente se paga solo.",
+              pipelineStages: ["Nuevo", "Contactado", "Visita", "Oferta", "Cierre"],
+              pipelineGoal: "Meta diaria: todo lead activo debe tener etapa + siguiente tarea.",
+            },
+            leads_widget: {
+              kpis: [
+                { label: "Ruido de chats no calificados", before: "52%", after: "19%" },
+                { label: "Perfil completo del lead", before: "41%", after: "86%" },
+                { label: "Productividad del asesor", before: "Base", after: "+32%" },
+              ],
+              onboarding: [
+                "Pega el script del widget en tu web.",
+                "Activa respuestas rapidas y campos de precalificacion.",
+                "Sincroniza leads calificados directo al pipeline CRM.",
+              ],
+              compliance:
+                "El widget captura consentimiento y deriva a WhatsApp con confirmacion manual de envio por tu equipo.",
+              roi: "Con el mismo presupuesto en ads, filtras ruido y elevas conversaciones realmente vendibles.",
+              pipelineStages: ["Visitante", "Calificado", "WhatsApp", "Seguimiento", "Cerrado"],
+              pipelineGoal: "Meta diaria: priorizar solo handoffs de alta intencion en ventas.",
+            },
+            lead_chat: {
+              kpis: [
+                { label: "Tiempo de salida sin web", before: "Dias", after: "< 10 min" },
+                { label: "Leads interesados recuperables", before: "Bajo", after: "+44%" },
+                { label: "Contexto para handoff", before: "Parcial", after: "Estructurado" },
+              ],
+              onboarding: [
+                "Crea tu enlace publico de Lead Chat.",
+                "Compartelo en anuncios, bio y campañas en redes.",
+                "Convierte conversaciones en contactos y tareas CRM.",
+              ],
+              compliance:
+                "Lead Chat mantiene un flujo de cumplimiento: sin auto-envio y accion explicita del usuario antes del handoff final.",
+              roi: "Para equipos sin web, abre un canal de conversion desde el primer dia.",
+              pipelineStages: ["Abre enlace", "Calificado", "Asignado", "Seguimiento", "Ganado/Perdido"],
+              pipelineGoal: "Meta diaria: toda conversacion calificada debe quedar asignada a un asesor.",
+            },
+          },
+    [isEn],
+  );
+
   const capabilities = isEn
     ? [
         {
@@ -471,6 +603,12 @@ export default function Landing() {
   const [hasShownExit, setHasShownExit] = useState(false);
   const [activeDemoModule, setActiveDemoModule] = useState<DemoModule["id"]>("crm_whatsapp");
   const [activeDemoStep, setActiveDemoStep] = useState(0);
+  const [demoPipelineStageIndex, setDemoPipelineStageIndex] = useState(0);
+  const [demoRoiInputs, setDemoRoiInputs] = useState<Record<DemoModule["id"], DemoRoiInput>>({
+    crm_whatsapp: { leads: 120, closeRate: 8, lift: 4, ticket: 3500 },
+    leads_widget: { leads: 220, closeRate: 6, lift: 3, ticket: 2800 },
+    lead_chat: { leads: 160, closeRate: 5, lift: 3, ticket: 2400 },
+  });
   const testimonialsRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -518,6 +656,10 @@ export default function Landing() {
     return () => window.cancelAnimationFrame(raf);
   }, [testimonials.length, loopedTestimonials.length]);
 
+  useEffect(() => {
+    setDemoPipelineStageIndex(0);
+  }, [activeDemoModule]);
+
   const openWhatsAppCta = (message?: string) => {
     const defaultMessage = "Hola Leads Widget, quiero activar mi CRM para WhatsApp.";
     const finalMessage = message || defaultMessage;
@@ -552,6 +694,39 @@ export default function Landing() {
     demoModules.find((module) => module.id === activeDemoModule) || demoModules[0];
   const currentDemoStep =
     currentDemoModule?.steps[activeDemoStep] || currentDemoModule?.steps[0];
+  const currentDemoInsight = demoInsights[currentDemoModule?.id || "crm_whatsapp"];
+  const currentDemoRoiInput = demoRoiInputs[currentDemoModule?.id || "crm_whatsapp"];
+  const currentDemoPlanPrice = currentDemoModule?.id === "crm_whatsapp" ? 50 : 99;
+  const currentDemoImprovedRate = Math.min(100, Math.max(0, currentDemoRoiInput.closeRate + currentDemoRoiInput.lift));
+  const currentDemoBaselineDeals = currentDemoRoiInput.leads * (Math.max(0, currentDemoRoiInput.closeRate) / 100);
+  const currentDemoImprovedDeals = currentDemoRoiInput.leads * (currentDemoImprovedRate / 100);
+  const currentDemoExtraDeals = Math.max(0, currentDemoImprovedDeals - currentDemoBaselineDeals);
+  const currentDemoExtraRevenue = currentDemoExtraDeals * Math.max(0, currentDemoRoiInput.ticket);
+  const currentDemoNetGain = currentDemoExtraRevenue - currentDemoPlanPrice;
+  const penFormatter = new Intl.NumberFormat(isEn ? "en-US" : "es-PE", {
+    style: "currency",
+    currency: "PEN",
+    maximumFractionDigits: 0,
+  });
+
+  const updateDemoRoiField = (field: keyof DemoRoiInput, value: number) => {
+    const moduleId = currentDemoModule?.id || "crm_whatsapp";
+    const safe = Number.isFinite(value) ? value : 0;
+    setDemoRoiInputs((prev) => {
+      const base = prev[moduleId] || { leads: 100, closeRate: 5, lift: 2, ticket: 2000 };
+      const nextValue =
+        field === "closeRate" || field === "lift"
+          ? Math.min(100, Math.max(0, safe))
+          : Math.max(0, safe);
+      return {
+        ...prev,
+        [moduleId]: {
+          ...base,
+          [field]: nextValue,
+        },
+      };
+    });
+  };
 
   return (
     <main className={`min-h-screen overflow-x-hidden selection:bg-cyan-200/70 ${isLandingDark ? "bg-[#020817] text-slate-100" : "bg-[#f7f9fc] text-slate-900"}`}>
@@ -824,15 +999,15 @@ export default function Landing() {
         <div className="mx-auto grid w-full max-w-[1160px] gap-8 lg:grid-cols-[0.46fr_0.54fr]">
           <div>
             <p className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${isLandingDark ? "border-cyan-400/30 bg-cyan-400/10 text-cyan-200" : "border-cyan-200 bg-cyan-50 text-cyan-700"}`}>
-              {isEn ? "Simulated demos" : "Demos simuladas"}
+              {isEn ? "Interactive conversion sandbox" : "Sandbox interactivo de conversion"}
             </p>
             <h2 className="mt-4 text-3xl font-semibold tracking-tight">
-              {isEn ? "Explore 3 real conversion scenarios" : "Explora 3 escenarios reales de conversion"}
+              {isEn ? "Evaluate results before buying" : "Evalua resultados antes de comprar"}
             </h2>
             <p className={`mt-3 text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
               {isEn
-                ? "Switch between CRM WhatsApp, Leads Widget and Lead Chat. Each simulation shows step-by-step how the workflow looks for your team."
-                : "Cambia entre CRM WhatsApp, Leads Widget y Lead Chat. Cada simulacion muestra paso a paso como se veria el flujo para tu equipo."}
+                ? "Switch between CRM WhatsApp, Leads Widget and Lead Chat. Each view simulates before/after metrics, full flow, compliance and onboarding."
+                : "Cambia entre CRM WhatsApp, Leads Widget y Lead Chat. Cada vista simula metricas antes/despues, flujo completo, cumplimiento y onboarding."}
             </p>
 
             <div className="mt-5 flex flex-wrap gap-2">
@@ -861,6 +1036,29 @@ export default function Landing() {
             <p className={`mt-2 text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
               {currentDemoModule?.subtitle}
             </p>
+
+            <div className="mt-4 grid gap-2 sm:grid-cols-3">
+              {currentDemoInsight.kpis.map((kpi) => (
+                <article
+                  key={`${currentDemoModule?.id}-${kpi.label}`}
+                  className={`rounded-2xl border p-3 ${isLandingDark ? "border-slate-700 bg-slate-900/80" : "border-slate-200 bg-white"}`}
+                >
+                  <p className={`text-[11px] font-semibold uppercase tracking-[0.12em] ${isLandingDark ? "text-slate-400" : "text-slate-500"}`}>
+                    {kpi.label}
+                  </p>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <span className={`rounded-md px-2 py-0.5 text-xs ${isLandingDark ? "bg-rose-500/15 text-rose-200" : "bg-rose-50 text-rose-700"}`}>
+                      {isEn ? "Before" : "Antes"} {kpi.before}
+                    </span>
+                    <ArrowRight className={`h-3.5 w-3.5 ${isLandingDark ? "text-slate-500" : "text-slate-400"}`} />
+                    <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${isLandingDark ? "bg-emerald-500/15 text-emerald-200" : "bg-emerald-50 text-emerald-700"}`}>
+                      {isEn ? "After" : "Despues"} {kpi.after}
+                    </span>
+                  </div>
+                </article>
+              ))}
+            </div>
+
             <div className={`mt-4 rounded-2xl border p-4 ${isLandingDark ? "border-slate-700 bg-slate-900/80" : "border-slate-200 bg-white"}`}>
               <div className="grid gap-2 text-sm">
                 <p className={isLandingDark ? "text-slate-200" : "text-slate-800"}>
@@ -877,6 +1075,130 @@ export default function Landing() {
                 </p>
               </div>
             </div>
+
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              <article className={`rounded-2xl border p-4 ${isLandingDark ? "border-slate-700 bg-slate-900/75" : "border-slate-200 bg-white"}`}>
+                <p className="text-sm font-semibold">{isEn ? "Onboarding in minutes" : "Onboarding en minutos"}</p>
+                <div className="mt-3 grid gap-2 text-xs">
+                  {currentDemoInsight.onboarding.map((item) => (
+                    <p key={`${currentDemoModule?.id}-${item}`} className={`flex items-start gap-2 ${isLandingDark ? "text-slate-300" : "text-slate-700"}`}>
+                      <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                      <span>{item}</span>
+                    </p>
+                  ))}
+                </div>
+              </article>
+              <article className={`rounded-2xl border p-4 ${isLandingDark ? "border-slate-700 bg-slate-900/75" : "border-slate-200 bg-white"}`}>
+                <p className="text-sm font-semibold">{isEn ? "Compliance + ROI" : "Cumplimiento + ROI"}</p>
+                <p className={`mt-3 text-xs leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-700"}`}>
+                  {currentDemoInsight.compliance}
+                </p>
+                <p className={`mt-2 rounded-lg px-2 py-1.5 text-xs font-medium ${isLandingDark ? "bg-cyan-500/10 text-cyan-200" : "bg-cyan-50 text-cyan-800"}`}>
+                  {currentDemoInsight.roi}
+                </p>
+              </article>
+            </div>
+
+            <article className={`mt-4 rounded-2xl border p-4 ${isLandingDark ? "border-slate-700 bg-slate-900/80" : "border-slate-200 bg-white"}`}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold">{isEn ? "Mini ROI calculator" : "Mini calculadora ROI"}</p>
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${isLandingDark ? "bg-emerald-500/15 text-emerald-200" : "bg-emerald-100 text-emerald-700"}`}>
+                  {isEn ? `Plan used: S/${currentDemoPlanPrice}` : `Plan usado: S/${currentDemoPlanPrice}`}
+                </span>
+              </div>
+
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label
+                    htmlFor={`demo-roi-leads-${currentDemoModule?.id}`}
+                    className={`text-xs font-medium ${isLandingDark ? "text-slate-300" : "text-slate-700"}`}
+                  >
+                    {isEn ? "Monthly leads" : "Leads mensuales"}
+                  </label>
+                  <input
+                    id={`demo-roi-leads-${currentDemoModule?.id}`}
+                    type="number"
+                    min={0}
+                    value={Math.round(currentDemoRoiInput.leads)}
+                    onChange={(event) => updateDemoRoiField("leads", Number(event.target.value || 0))}
+                    className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-cyan-400 ${isLandingDark ? "border-slate-700 bg-slate-950 text-slate-100" : "border-slate-300 bg-white text-slate-900"}`}
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor={`demo-roi-close-${currentDemoModule?.id}`}
+                    className={`text-xs font-medium ${isLandingDark ? "text-slate-300" : "text-slate-700"}`}
+                  >
+                    {isEn ? "Current close rate (%)" : "Tasa de cierre actual (%)"}
+                  </label>
+                  <input
+                    id={`demo-roi-close-${currentDemoModule?.id}`}
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={Math.round(currentDemoRoiInput.closeRate)}
+                    onChange={(event) => updateDemoRoiField("closeRate", Number(event.target.value || 0))}
+                    className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-cyan-400 ${isLandingDark ? "border-slate-700 bg-slate-950 text-slate-100" : "border-slate-300 bg-white text-slate-900"}`}
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor={`demo-roi-lift-${currentDemoModule?.id}`}
+                    className={`text-xs font-medium ${isLandingDark ? "text-slate-300" : "text-slate-700"}`}
+                  >
+                    {isEn ? "Expected lift (pp)" : "Mejora esperada (pp)"}
+                  </label>
+                  <input
+                    id={`demo-roi-lift-${currentDemoModule?.id}`}
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={Math.round(currentDemoRoiInput.lift)}
+                    onChange={(event) => updateDemoRoiField("lift", Number(event.target.value || 0))}
+                    className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-cyan-400 ${isLandingDark ? "border-slate-700 bg-slate-950 text-slate-100" : "border-slate-300 bg-white text-slate-900"}`}
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor={`demo-roi-ticket-${currentDemoModule?.id}`}
+                    className={`text-xs font-medium ${isLandingDark ? "text-slate-300" : "text-slate-700"}`}
+                  >
+                    {isEn ? "Average ticket (S/)" : "Ticket promedio (S/)"}
+                  </label>
+                  <input
+                    id={`demo-roi-ticket-${currentDemoModule?.id}`}
+                    type="number"
+                    min={0}
+                    value={Math.round(currentDemoRoiInput.ticket)}
+                    onChange={(event) => updateDemoRoiField("ticket", Number(event.target.value || 0))}
+                    className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-cyan-400 ${isLandingDark ? "border-slate-700 bg-slate-950 text-slate-100" : "border-slate-300 bg-white text-slate-900"}`}
+                  />
+                </div>
+              </div>
+
+              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                <div className={`rounded-xl border px-3 py-2 ${isLandingDark ? "border-slate-700 bg-slate-950/80" : "border-slate-200 bg-slate-50"}`}>
+                  <p className={`text-[11px] uppercase tracking-[0.1em] ${isLandingDark ? "text-slate-400" : "text-slate-500"}`}>{isEn ? "Extra deals/mo" : "Cierres extra/mes"}</p>
+                  <p className="mt-1 text-base font-semibold">{currentDemoExtraDeals.toFixed(1)}</p>
+                </div>
+                <div className={`rounded-xl border px-3 py-2 ${isLandingDark ? "border-slate-700 bg-slate-950/80" : "border-slate-200 bg-slate-50"}`}>
+                  <p className={`text-[11px] uppercase tracking-[0.1em] ${isLandingDark ? "text-slate-400" : "text-slate-500"}`}>{isEn ? "Extra revenue/mo" : "Ingreso extra/mes"}</p>
+                  <p className="mt-1 text-base font-semibold">{penFormatter.format(currentDemoExtraRevenue)}</p>
+                </div>
+                <div className={`rounded-xl border px-3 py-2 ${isLandingDark ? "border-slate-700 bg-slate-950/80" : "border-slate-200 bg-slate-50"}`}>
+                  <p className={`text-[11px] uppercase tracking-[0.1em] ${isLandingDark ? "text-slate-400" : "text-slate-500"}`}>{isEn ? "Net after plan" : "Neto despues del plan"}</p>
+                  <p className={`mt-1 text-base font-semibold ${currentDemoNetGain >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+                    {penFormatter.format(currentDemoNetGain)}
+                  </p>
+                </div>
+              </div>
+
+              <p className={`mt-2 text-[11px] ${isLandingDark ? "text-slate-400" : "text-slate-500"}`}>
+                {isEn
+                  ? "Estimated simulation for decision support. Real results vary by sales process and traffic quality."
+                  : "Simulacion estimada para apoyar la decision. El resultado real depende de tu proceso comercial y calidad del trafico."}
+              </p>
+            </article>
 
             <div className="mt-4 grid gap-2">
               {currentDemoModule?.steps.map((step, index) => (
@@ -930,6 +1252,76 @@ export default function Landing() {
               <p className={`mt-2 text-xs ${isLandingDark ? "text-slate-400" : "text-slate-600"}`}>
                 {currentDemoStep?.outcome}
               </p>
+            </div>
+
+            <div className={`mt-3 rounded-2xl border p-3 ${isLandingDark ? "border-slate-700 bg-slate-900/80" : "border-slate-200 bg-white"}`}>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold">{isEn ? "Full flow in one view" : "Flujo completo en una vista"}</p>
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${isLandingDark ? "bg-emerald-500/15 text-emerald-200" : "bg-emerald-100 text-emerald-700"}`}>
+                  {isEn ? "Interactive" : "Interactivo"}
+                </span>
+              </div>
+
+              <div className="mt-3 grid gap-2 sm:grid-cols-5">
+                {currentDemoInsight.pipelineStages.map((stage, index) => (
+                  <button
+                    key={`${currentDemoModule?.id}-${stage}`}
+                    type="button"
+                    onClick={() => setDemoPipelineStageIndex(index)}
+                    className={`rounded-xl border px-2 py-2 text-[11px] font-semibold transition ${demoPipelineStageIndex === index
+                      ? isLandingDark
+                        ? "border-cyan-400/70 bg-cyan-500/15 text-cyan-100"
+                        : "border-cyan-300 bg-cyan-50 text-cyan-800"
+                      : isLandingDark
+                        ? "border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-500"
+                        : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"}`}
+                  >
+                    {stage}
+                  </button>
+                ))}
+              </div>
+
+              <div className={`mt-3 h-2 rounded-full ${isLandingDark ? "bg-slate-800" : "bg-slate-200"}`}>
+                <div
+                  className="h-2 rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 transition-all duration-300"
+                  style={{
+                    width: `${((demoPipelineStageIndex + 1) / currentDemoInsight.pipelineStages.length) * 100}%`,
+                  }}
+                />
+              </div>
+
+              <p className={`mt-2 text-xs ${isLandingDark ? "text-slate-300" : "text-slate-700"}`}>
+                {isEn ? "Current simulated stage:" : "Etapa simulada actual:"}{" "}
+                <span className="font-semibold">{currentDemoInsight.pipelineStages[demoPipelineStageIndex]}</span>
+              </p>
+              <p className={`mt-1 text-xs ${isLandingDark ? "text-slate-400" : "text-slate-600"}`}>
+                {currentDemoInsight.pipelineGoal}
+              </p>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  className="rounded-full px-4 text-white"
+                  onClick={() =>
+                    setDemoPipelineStageIndex((prev) =>
+                      Math.min(prev + 1, currentDemoInsight.pipelineStages.length - 1),
+                    )
+                  }
+                  disabled={demoPipelineStageIndex >= currentDemoInsight.pipelineStages.length - 1}
+                >
+                  {isEn ? "Move to next stage" : "Mover a la siguiente etapa"}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="rounded-full px-4"
+                  onClick={() => setDemoPipelineStageIndex(0)}
+                >
+                  {isEn ? "Reset flow" : "Reiniciar flujo"}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
