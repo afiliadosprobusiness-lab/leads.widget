@@ -13,8 +13,8 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 
 ## Arquitectura (decisiones clave)
 - Dashboard cliente (`/app`) se mantiene compatible; modulo de afiliados fue deprecado en UI (data historica se conserva en Firestore).
-- Dashboard cliente incorpora nuevo tab `CRM` para gestion comercial operativa: lista de contactos, pipeline por etapas y filtros.
-- Navegacion de dashboard prioriza `CRM` como hub comercial; la operacion diaria se concentra en `Listado de contactos` y pipeline dentro del mismo tab.
+- Dashboard cliente ya no muestra la pestana `CRM` (retiro UI desde 2026-02-28); la operacion CRM diaria se gestiona en WhatsWidget CRM.
+- Navegacion de dashboard cliente prioriza `Widget`, `IA`, `Analiticas`, `Seguridad`, `Pagos` y `Cuenta`.
 - Nuevo portal partner separado:
   - Landing: `/partners`
   - Login partner: `/login?portal=partner`
@@ -35,32 +35,11 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Billing cliente:
   - Verificacion PayPal ahora envia Authorization Bearer token al backend.
   - Pagos manuales Yape/Plin guardan `plan_type` y `partner_id` cuando aplica.
-- CRM cliente:
-  - Permite crear contactos manualmente (`crm_contacts`) desde dashboard.
-  - El tab CRM opera en modo simple con 3 vistas: `Contactos`, `Pipeline deals`, `Mis tareas`.
-  - En CRM se agrega CTA `Como usar CRM` (modal in-app) con guia no tecnica y rutina diaria para adopcion operativa, con layout responsive para mobile y desktop.
-  - Incluye `Contact detail` con tabs `Deals`, `Timeline`, `Tasks` para seguimiento sin cambiar de modulo.
-  - Accion `Abrir detalle` hace foco/scroll automatico al panel de detalle para feedback inmediato en listas largas.
-  - `Crear tarea` exige titulo y muestra feedback visible (error si falta titulo, confirmacion al crear) para evitar clics silenciosos.
-  - `Listado de contactos` incorpora exportacion CSV de toda la base CRM (contactos totales).
-  - Incluye boton `Descargar plantilla CSV` para estandarizar headers y minimizar incompatibilidades en importacion.
-  - Importacion CSV ahora usa vista previa obligatoria (filas listas/omitidas + motivo) y requiere confirmacion explicita antes de guardar en Firestore.
-  - Permite importar base de clientes por archivo CSV desde el tab CRM con mapeo flexible de columnas (`name/nombre`, `phone/telefono`, `email`, `interest/interes`, `stage/etapa`, `notes/notas`, `source/origen`).
-  - Sync/import/create de contactos usan merge idempotente server-side (`/api/crm/contacts-merge`) con regla unica de dedupe: `phone` principal, fallback `email`.
-  - El fallback de dedupe en `contacts-merge` amplia la ventana de escaneo legacy para reducir duplicados en cuentas con historico amplio.
-  - El merge conserva datos no vacios y, cuando aplica merge entre contactos, migra referencias de `deals`, `tasks` y `activity_events`.
-  - Pipeline CRM maneja etapas `new`, `contacted`, `qualified`, `won`, `lost` con actualizacion en tiempo real en Firestore.
-  - Cambio de etapa de contacto ahora se procesa por endpoint local `PATCH /api/crm/contacts` en modo transaccional (etapa + timeline), evitando desalineaciones.
-  - Deals se modelan como entidad separada (`deals`) con defaults inteligentes: titulo `Venta - {Nombre}`, etapa `new`, cierre estimado `+7 dias`.
-  - Tareas de follow-up se gestionan en `tasks` con estados `open/done/overdue`; el estado `overdue` se actualiza automaticamente desde API.
-  - Filtros `Hoy` y `Proximas` de tareas CRM usan la zona horaria del navegador del usuario para clasificacion diaria consistente.
-  - Timeline de actividad usa `activity_events` y registra al menos: creacion/merge de contacto, cambios de etapa, notas, eventos de tarea y eventos de deal.
-  - CRM incorpora selector de plantilla operativa (`general` y `bienes raices`) persistida en `profiles.crm_template`; ajusta labels de etapas, placeholders y snippets de notas sin tocar modelos core.
-  - CRM muestra panel `Prioridades de hoy` con metricas accionables (deals activos, valor pipeline, valor ponderado, tareas prioritarias y contactos prioritarios con CTA directo a WhatsApp).
-  - En `Listado de contactos`, CRM agrega filtros inteligentes de foco comercial (`Oportunidades calientes`, `Sin tarea activa`, `Inactivos +48h`) para priorizar cartera en 1 clic.
-  - Cada contacto incorpora CTA `Crear tarea sugerida` (1 clic) con playbook por etapa y plantilla activa (`general` o `bienes raices`), manteniendo opcion de tareas personalizadas.
-  - CRM agrega bloque `Pulso semanal de conversion` con KPIs de cohort 7 dias (contactados, calificados, cierres, valor ganado) y alertas de disciplina comercial (activos sin tarea e inactivos +48h).
-  - Dashboard incorpora onboarding guiado de primer ingreso (persistente por usuario) en modo asistente paso a paso (`Paso X de Y`, `Anterior`, `Siguiente`, `Omitir guia`) y guias contextuales por pestana; el recorrido se adapta al plan activo (en `crm` solo pasos de `CRM/Pagos/Cuenta`, en `pro` incluye el flujo completo).
+- CRM cliente (legacy en leads.widget):
+  - Desde 2026-02-28, la pestana CRM y su modal `Como usar CRM` quedaron fuera de la UI del dashboard cliente.
+  - La operacion CRM diaria ahora se ejecuta en WhatsWidget CRM.
+  - Endpoints/modelos CRM v2 locales (`/api/crm/*`, `crm_contacts`, `deals`, `tasks`, `activity_events`) se mantienen por compatibilidad operativa.
+- Dashboard incorpora onboarding guiado de primer ingreso (persistente por usuario) en modo asistente paso a paso (`Paso X de Y`, `Anterior`, `Siguiente`, `Omitir guia`) y guias contextuales por pestana; el recorrido se adapta al plan activo (en `crm` solo pasos de `Pagos/Cuenta`, en `pro` incluye el flujo completo).
 
 ## Objetivo activo Lead Chat + IACloser (2026-02-19)
 - Nuevo objetivo comercial del canal chat:
@@ -177,9 +156,9 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - El endpoint local de Meta CAPI requiere variable de entorno server-side `META_CAPI_ENCRYPTION_KEY` para cifrar tokens de acceso.
 - La validacion de identidad del comando `VALIDAR_DNI` usa estrategia configurable (`DNI_VALIDATION_PROVIDER=auto|api|eldni|capture`): prioriza API externa (`DNI_API_*`) cuando existe, usa ELDNI (`ELDNI_*`) como fallback y permite modo `capture` para solo recibir DNI sin validacion externa.
 - Lead Chat y widget embebido disparan Meta Pixel en navegador cuando existe `facebook_pixel_id`: `PageView` al cargar la experiencia y `Lead` al abrir WhatsApp/IACloser.
-- Guia operativa CRM disponible en `docs/CRM_V2_GUIDE.md`.
+- Guia de usuario CRM (migracion a WhatsWidget CRM) disponible en `docs/CRM_V2_GUIDE.md`.
 - Firestore rules ampliadas para colecciones partner, manteniendo mutacion directa restringida a superadmin en cliente web.
-- Firestore rules incluyen coleccion `crm_contacts` (lectura/escritura solo owner `client_id` o superadmin) para el nuevo tab CRM.
+- Firestore rules incluyen coleccion `crm_contacts` (lectura/escritura solo owner `client_id` o superadmin) para compatibilidad CRM v2 legacy.
 - Superadmin incorpora fallback de compatibilidad a Firestore para modulo de agencias cuando el backend aun no expone `/api/admin/partners*` en el entorno desplegado.
 - Eliminacion de usuario desde superadmin usa borrado completo (Firebase Auth + datos principales), no solo soft delete.
 - En Superadmin > Clientes, el CTA `Nuevo Cliente` abre modal de alta directa (nombre negocio, correo, contrasena) y usa endpoint local `POST /api/admin/create-client` para crear Firebase Auth + perfil `trial` sin pasar por enlace de invitacion.
@@ -215,7 +194,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - En IA > Prompt del Sistema, el dashboard mantiene boton de plantilla por `Industria / Nicho` (`general`, `inmobiliaria`, `clinica`, `taller`, `delivery`; en `personalizado` usa base general), con enfoque de conversion y soporte de bloque `IMAGE`.
 - En IA > Prompt del Sistema (plantillas por nicho), cuando el lead pregunta por precio/costo/inversion, el guion responde oferta dual: `CRM S/30 mensual` o `PRO S/99 mensual` (sin implementacion).
 - En Dashboard > Billing, el esquema comercial activo es: `trial` (2 dias gratis), `crm` (S/30 mensual) y `pro` (S/99 mensual), sin costo de implementacion.
-- En Dashboard, si el usuario activo tiene plan `crm`, solo quedan habilitadas las pestanas `CRM`, `Pagos` y `Cuenta`; las demas se mantienen visibles pero bloqueadas con candado. En `pro` se habilitan todas.
+- En Dashboard, si el usuario activo tiene plan `crm`, solo quedan habilitadas las pestanas `Pagos` y `Cuenta`; las demas se mantienen visibles pero bloqueadas con candado. En `pro` se habilitan todas.
 - En Dashboard > Billing, usuarios `crm` activos pueden usar CTA `Mejorar Plan` (selecciona PRO para cobro inmediato); usuarios `pro` activos pueden usar CTA `Bajar Plan`, que programa `pending_plan_type=crm` para aplicar el precio CRM en la siguiente renovacion.
 - En SuperAdmin > Clientes, se puede definir `plus_monthly_price_pen` por usuario (opcional, precio PRO legacy). Si existe, Billing del dashboard usa ese monto; si no existe, usa base global `S/ 99`.
 - En SuperAdmin se agrega tab `CRM WhatsApp` para activacion/desactivacion por cliente (toggle operativo), persistiendo en `profiles` los campos `whatsapp_crm_enabled`, `whatsapp_crm_status`, `whatsapp_crm_monthly_price_pen`, `whatsapp_crm_activated_at` y `whatsapp_crm_deactivated_at`.

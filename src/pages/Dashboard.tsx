@@ -975,7 +975,7 @@ const AI_DEFAULT_SECURITY_PROMPT = [
 ].join('\n');
 
 const SHOW_AFFILIATES_UI = false;
-const CRM_ALLOWED_DASHBOARD_TABS = new Set(['crm', 'billing', 'account']);
+const CRM_ALLOWED_DASHBOARD_TABS = new Set(['billing', 'account']);
 const DASHBOARD_GUIDE_STORAGE_PREFIX = 'leadwidget_dashboard_guide_v1';
 
 export default function Dashboard() {
@@ -1196,15 +1196,6 @@ export default function Dashboard() {
           ? ['Complete business context fields.', 'Pick close channel (WhatsApp or ICallCloser).', 'Save AI settings before leaving this tab.']
           : ['Completa el contexto del negocio.', 'Elige canal de cierre (WhatsApp o ICallCloser).', 'Guarda la configuracion de IA antes de salir de esta pestana.'],
       },
-      crm: {
-        title: dashboardIsEnglish ? 'Step 3: Work your pipeline daily' : 'Paso 3: Trabaja tu pipeline todos los dias',
-        description: dashboardIsEnglish
-          ? 'Focus on hot opportunities, create tasks, and move stages only with evidence.'
-          : 'Enfocate en oportunidades calientes, crea tareas y mueve etapas solo con evidencia.',
-        steps: dashboardIsEnglish
-          ? ['Use focus filters: Hot, No task, Inactive +48h.', 'Open contact and create suggested task in 1 click.', 'Update stage after each real interaction.']
-          : ['Usa filtros de foco: Calientes, Sin tarea, Inactivos +48h.', 'Abre contacto y crea tarea sugerida en 1 clic.', 'Actualiza etapa despues de cada interaccion real.'],
-      },
       analytics: {
         title: dashboardIsEnglish ? 'Read performance without complexity' : 'Lee resultados sin complejidad',
         description: dashboardIsEnglish
@@ -1260,9 +1251,9 @@ export default function Dashboard() {
   }, [activeTab, dashboardGuideByTab]);
   const activeGuideCard = activeGuideTab ? dashboardGuideByTab[activeGuideTab] : null;
   const activeGuideNextTab = useMemo<DashboardGuideTab | null>(() => {
-    if (activeGuideTab === 'config' || activeGuideTab === 'ai') return 'crm';
-    if (activeGuideTab === 'crm') return 'billing';
-    if (activeGuideTab === 'analytics') return 'ai';
+    if (activeGuideTab === 'config') return 'ai';
+    if (activeGuideTab === 'ai') return 'analytics';
+    if (activeGuideTab === 'analytics') return 'billing';
     if (activeGuideTab === 'billing') return 'account';
     return null;
   }, [activeGuideTab]);
@@ -1320,30 +1311,23 @@ export default function Dashboard() {
               checklist: ['Business context', 'Closing channel', 'Save AI settings'],
             },
             {
-              id: 'crm',
-              tab: 'crm',
-              title: 'Step 3: Work from CRM every day',
-              description: 'Create contacts, move stages, and schedule follow-up tasks.',
-              checklist: ['Create or sync contacts', 'Use focus filters', 'Move stage after each action'],
-            },
-            {
               id: 'analytics',
               tab: 'analytics',
-              title: 'Step 4: Read results quickly',
+              title: 'Step 3: Read results quickly',
               description: 'Review leads and conversations to detect where sales stop.',
               checklist: ['Check trend', 'Review not completed chats', 'Apply one prompt improvement'],
             },
             {
               id: 'billing',
               tab: 'billing',
-              title: 'Step 5: Keep your plan healthy',
+              title: 'Step 4: Keep your plan healthy',
               description: 'Control monthly billing and adjust plan when needed.',
               checklist: ['Verify current plan', 'Check next charge date', 'Use plan button only if needed'],
             },
             {
               id: 'account',
               tab: 'account',
-              title: 'Step 6: Keep account data updated',
+              title: 'Step 5: Keep account data updated',
               description: 'Update user profile and password to keep access secure.',
               checklist: ['Name and email', 'Password check', 'Use support if blocked'],
             },
@@ -1364,30 +1348,23 @@ export default function Dashboard() {
               checklist: ['Contexto del negocio', 'Canal de cierre', 'Guardar IA'],
             },
             {
-              id: 'crm',
-              tab: 'crm',
-              title: 'Paso 3: Trabaja en CRM todos los dias',
-              description: 'Crea contactos, mueve etapas y agenda seguimientos.',
-              checklist: ['Crear o sincronizar contactos', 'Usar filtros de foco', 'Mover etapa despues de cada accion'],
-            },
-            {
               id: 'analytics',
               tab: 'analytics',
-              title: 'Paso 4: Revisa resultados rapido',
+              title: 'Paso 3: Revisa resultados rapido',
               description: 'Mira leads y conversaciones para detectar donde se cae la venta.',
               checklist: ['Revisar tendencia', 'Ver chats no completados', 'Aplicar una mejora al prompt'],
             },
             {
               id: 'billing',
               tab: 'billing',
-              title: 'Paso 5: Controla tus pagos',
+              title: 'Paso 4: Controla tus pagos',
               description: 'Valida cobros mensuales y cambia plan solo cuando sea necesario.',
               checklist: ['Ver plan actual', 'Confirmar proximo cobro', 'Usar boton de plan con cuidado'],
             },
             {
               id: 'account',
               tab: 'account',
-              title: 'Paso 6: Mantener cuenta al dia',
+              title: 'Paso 5: Mantener cuenta al dia',
               description: 'Actualiza perfil y clave para no perder acceso.',
               checklist: ['Nombre y correo', 'Revision de clave', 'Usar soporte si hay bloqueo'],
             },
@@ -1412,7 +1389,7 @@ export default function Dashboard() {
           ? 'Upgrade to PRO to use this section.'
           : 'Sube a PRO para usar esta seccion.',
       });
-      setActiveTab('crm');
+      setActiveTab('billing');
       return;
     }
     setActiveTab(nextTab);
@@ -1517,8 +1494,12 @@ export default function Dashboard() {
     handleTabChange(dashboardWalkthroughCurrentStep.tab);
   }, [dashboardOnboardingOpen, dashboardWalkthroughCurrentStep, activeTab]);
   useEffect(() => {
+    if (activeTab === 'crm') {
+      setActiveTab('billing');
+      return;
+    }
     if (!isTabLockedForPlan(activeTab)) return;
-    setActiveTab('crm');
+    setActiveTab('billing');
   }, [activeTab, isCrmOnlyPlan]);
   useEffect(() => {
     if (profilePlanType === 'trial') return;
@@ -5744,7 +5725,7 @@ export default function Dashboard() {
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-8">
           {/* Mobile Navigation (Segmented Control) */}
-          <div className="sm:hidden grid grid-cols-5 gap-1 mb-6 bg-background/50 backdrop-blur-sm p-1 rounded-2xl sticky top-[73px] z-40 border border-border/50 shadow-sm">
+          <div className="sm:hidden grid grid-cols-4 gap-1 mb-6 bg-background/50 backdrop-blur-sm p-1 rounded-2xl sticky top-[73px] z-40 border border-border/50 shadow-sm">
             {/* 1. Widget */}
             <button
               type="button"
@@ -5769,17 +5750,7 @@ export default function Dashboard() {
               {isAiTabLocked && <Lock className="w-3 h-3 text-amber-500" />}
             </button>
 
-            {/* 3. CRM */}
-            <button
-              type="button"
-              onClick={() => handleTabChange('crm')}
-              className={`flex flex-col items-center justify-center gap-1 min-h-[56px] rounded-xl transition-all duration-300 active:scale-95 ${activeTab === 'crm' ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-muted-foreground hover:bg-muted/50'}`}
-            >
-              <Target className={`w-5 h-5 ${activeTab === 'crm' ? 'stroke-[2.5px]' : ''}`} />
-              <span className="text-[10px] leading-none">{t('dashboard.tabs.crm', { defaultValue: 'CRM' })}</span>
-            </button>
-
-            {/* 4. Data */}
+            {/* 3. Data */}
             <button
               type="button"
               disabled={isAnalyticsTabLocked}
@@ -5791,7 +5762,7 @@ export default function Dashboard() {
               {isAnalyticsTabLocked && <Lock className="w-3 h-3 text-amber-500" />}
             </button>
 
-            {/* 5. More (Dropdown) */}
+            {/* 4. More (Dropdown) */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -5845,10 +5816,6 @@ export default function Dashboard() {
                 <span>{t('dashboard.tabs.ai')}</span>
                 {isAiTabLocked && <Lock className="w-3 h-3 text-amber-500" />}
               </span>
-            </TabsTrigger>
-            <TabsTrigger value="crm" className="gap-2 flex-shrink-0 px-4">
-              <Target className="w-4 h-4" />
-              <span>{t('dashboard.tabs.crm', { defaultValue: 'CRM' })}</span>
             </TabsTrigger>
             <TabsTrigger value="analytics" disabled={isAnalyticsTabLocked} className={`gap-2 flex-shrink-0 px-4 ${isAnalyticsTabLocked ? 'opacity-55' : ''}`}>
               <BarChart3 className="w-4 h-4" />
