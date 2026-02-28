@@ -192,8 +192,8 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - En modales `Crear prompt` (contexto/sistema), existe accion `Generar con IA` que consume creditos de la API key OpenAI del cliente y muestra aviso explicito de costo; tambien se mantiene fallback `Generar rapido (sin IA)` local.
 - En `Prompt de contexto` generado con IA, el dashboard valida que no falten campos clave de negocio y anexa snapshot estructurado cuando detecta omisiones.
 - En IA > Prompt del Sistema, el dashboard mantiene boton de plantilla por `Industria / Nicho` (`general`, `inmobiliaria`, `clinica`, `taller`, `delivery`; en `personalizado` usa base general), con enfoque de conversion y soporte de bloque `IMAGE`.
-- En IA > Prompt del Sistema (plantillas por nicho), cuando el lead pregunta por precio/costo/inversion, el guion responde oferta dual: `CRM S/30 mensual` o `PRO S/99 mensual` (sin implementacion).
-- En Dashboard > Billing, el esquema comercial activo es: `trial` (2 dias gratis), `crm` (S/30 mensual) y `pro` (S/99 mensual), sin costo de implementacion.
+- En IA > Prompt del Sistema (plantillas por nicho), cuando el lead pregunta por precio/costo/inversion, el guion responde oferta dual: `CRM S/50 mensual` o `PRO S/99 mensual` (sin implementacion).
+- En Dashboard > Billing, el esquema comercial activo es: `trial` (2 dias gratis), `crm` (S/50 mensual) y `pro` (S/99 mensual), sin costo de implementacion.
 - En Dashboard, si el usuario activo tiene plan `crm`, solo quedan habilitadas las pestanas `Pagos` y `Cuenta`; las demas se mantienen visibles pero bloqueadas con candado. En `pro` se habilitan todas.
 - En Dashboard > Billing, usuarios `crm` activos pueden usar CTA `Mejorar Plan` (selecciona PRO para cobro inmediato); usuarios `pro` activos pueden usar CTA `Bajar Plan`, que programa `pending_plan_type=crm` para aplicar el precio CRM en la siguiente renovacion.
 - En SuperAdmin > Clientes, se puede definir `plus_monthly_price_pen` por usuario (opcional, precio PRO legacy). Si existe, Billing del dashboard usa ese monto; si no existe, usa base global `S/ 99`.

@@ -45,7 +45,7 @@ function buildTemplate({
     "6) When visual proof helps, send one image command.",
     `   ${imageHint}`,
     `   ${IMAGE_COMMAND_RULES[1]}`,
-    "7) If the user asks about pricing/cost/investment, answer with this exact offer: CRM S/ 30 monthly or PRO S/ 99 monthly.",
+    "7) If the user asks about pricing/cost/investment, answer with this exact offer: CRM S/ 50 monthly or PRO S/ 99 monthly.",
     "8) Keep moving toward action; avoid long explanations.",
     "9) Conversion commands:",
     ...ICALLCLOSER_RULES.map((item) => `   - ${item}`),

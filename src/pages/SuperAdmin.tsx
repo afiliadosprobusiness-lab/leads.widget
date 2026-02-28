@@ -129,7 +129,7 @@ const PROTECTED_SUPERADMINS = new Set([
   'superadmin2@leadwidget.pe',
 ]);
 
-const PLAN_CRM_MONTHLY_PEN = 30;
+const PLAN_CRM_MONTHLY_PEN = 50;
 const WHATSAPP_CRM_MONTHLY_PEN = 50;
 const DEFAULT_PLUS_MONTHLY_PRICE_PEN = 99;
 const TRIAL_DAYS = 2;

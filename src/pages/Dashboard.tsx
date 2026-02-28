@@ -668,7 +668,7 @@ const FIXED_IACLOSER_REDIRECT_URL = 'https://ai-call-closer.vercel.app/';
 const AI_MAX_TOKENS_DEFAULT = 500;
 const AI_MAX_TOKENS_MIN = 100;
 const AI_MAX_TOKENS_MAX = 4000;
-const PLAN_CRM_MONTHLY_PEN = 30;
+const PLAN_CRM_MONTHLY_PEN = 50;
 const PLAN_PLUS_MONTHLY_PEN = 99;
 const PEN_TO_USD_RATE = 3.75;
 const TRIAL_DAYS = 2;
@@ -5463,7 +5463,7 @@ export default function Dashboard() {
             </div>
             <CardTitle className="text-2xl font-black text-slate-900 dark:text-white">¡Tu prueba ha terminado!</CardTitle>
             <CardDescription className="text-base mt-2 text-slate-600 dark:text-slate-300">
-              Activa tu plan mensual: CRM (S/ 30) o PRO con Leads Widget + Lead Chat (S/ 99).
+              {`Activa tu plan mensual: CRM (S/ ${PLAN_CRM_MONTHLY_PEN}) o PRO con Leads Widget + Lead Chat (S/ ${plusMonthlyPricePen}).`}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 pt-6 animate-in fade-in slide-in-from-bottom-4">
@@ -5475,7 +5475,7 @@ export default function Dashboard() {
                 className="h-auto flex-col py-3"
               >
                 <span className="text-xs uppercase tracking-wide">CRM</span>
-                <span className="text-lg font-black">S/ 30</span>
+                <span className="text-lg font-black">S/ {PLAN_CRM_MONTHLY_PEN}</span>
               </Button>
               <Button
                 type="button"
@@ -5562,7 +5562,7 @@ export default function Dashboard() {
               <p className="text-[11px] text-muted-foreground mt-1">
                 {selectedBillingPlan === 'pro'
                   ? `Plan PRO (CRM + Leads Widget + Lead Chat): S/ ${plusMonthlyPricePen.toFixed(2)} / mes.`
-                  : 'Plan CRM: S/ 30.00 / mes.'}
+                  : `Plan CRM: S/ ${PLAN_CRM_MONTHLY_PEN.toFixed(2)} / mes.`}
               </p>
             </div>
 

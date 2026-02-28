@@ -892,3 +892,7 @@ Cambios de comportamiento relevantes:
 - Cambio: Superadmin CRM WhatsApp agrega visualizacion de `Prox. renovacion` y persiste `profiles.whatsapp_crm_current_period_end` con `currentPeriodEnd` remoto.
 - Tipo: non-breaking
 - Impacto: mejora operacion de cobranza mensual sin cambiar rutas ni shape de endpoints existentes.
+- Fecha: 2026-02-28
+- Cambio: precio mensual del plan `crm` actualizado de `S/30` a `S/50` en copy/UI de landing, dashboard cliente, superadmin y plantillas de prompt comercial.
+- Tipo: non-breaking
+- Impacto: no cambia rutas ni payloads; solo actualiza pricing mostrado y montos base de calculo comercial para plan `crm`.
