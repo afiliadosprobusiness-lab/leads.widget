@@ -163,6 +163,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Firestore rules ampliadas para colecciones partner, manteniendo mutacion directa restringida a superadmin en cliente web.
 - Firestore rules incluyen coleccion `crm_contacts` (lectura/escritura solo owner `client_id` o superadmin) para compatibilidad CRM v2 legacy.
 - Superadmin incorpora fallback de compatibilidad a Firestore para modulo de agencias cuando el backend aun no expone `/api/admin/partners*` en el entorno desplegado.
+- Endpoint local `api/debug` queda endurecido: solo responde si `ENABLE_DEBUG_ENDPOINT=true` y el caller autenticado es `superadmin`.
 - Eliminacion de usuario desde superadmin usa borrado completo (Firebase Auth + datos principales), no solo soft delete.
 - En Superadmin > Clientes, el CTA `Nuevo Cliente` abre modal de alta directa (nombre negocio, correo, contrasena) y usa endpoint local `POST /api/admin/create-client` para crear Firebase Auth + perfil `trial` sin pasar por enlace de invitacion.
 - En Superadmin > CRM WhatsApp, el endpoint local `POST /api/admin/whatsapp-crm-sync` valida superadmin y reenvia `email/enabled/months` al backend `whatsapp-crm-compliant` usando `WHATSAPP_CRM_SYNC_URL` + `WHATSAPP_CRM_SYNC_KEY`.

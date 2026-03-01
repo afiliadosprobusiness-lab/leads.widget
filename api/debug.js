@@ -10,6 +10,7 @@ const SUPERADMIN_EMAILS = new Set([
 const TRIAL_DAYS = 2;
 const DEFAULT_WHATSAPP_CRM_SYNC_URL = "https://whats-crm-compliant.vercel.app/api/v1/admin/sync-subscription";
 const DEFAULT_WHATSAPP_CRM_STATUS_URL = "https://whats-crm-compliant.vercel.app/api/v1/admin/subscriptions-by-email";
+const DEBUG_ENDPOINT_ENABLED = String(process.env.ENABLE_DEBUG_ENDPOINT || "").trim().toLowerCase() === "true";
 
 function setCors(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -185,7 +186,19 @@ async function handleDebug(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
 
+  if (!DEBUG_ENDPOINT_ENABLED) {
+    return res.status(404).json({ error: "Not found" });
+  }
+
+  const bearerToken = getBearerToken(req);
+  if (!bearerToken) return res.status(401).json({ error: "Unauthorized" });
+
   try {
+    const decoded = await getAuth().verifyIdToken(bearerToken);
+    if (!decoded?.uid) return res.status(401).json({ error: "Unauthorized" });
+    const callerIsSuperAdmin = await isSuperAdmin(decoded);
+    if (!callerIsSuperAdmin) return res.status(403).json({ error: "Forbidden" });
+
     const profilesSnap = await db.collection("profiles").limit(1).get();
     return res.status(200).json({
       status: "ok",
@@ -196,8 +209,8 @@ async function handleDebug(req, res) {
         serviceAccount: process.env.FIREBASE_SERVICE_ACCOUNT ? "set" : "missing",
       },
     });
-  } catch (error) {
-    return res.status(500).json({ error: error.message, stack: error.stack });
+  } catch (_error) {
+    return res.status(500).json({ error: "Debug health check failed" });
   }
 }
 
