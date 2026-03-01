@@ -8,8 +8,10 @@ import { SocialProofToast } from "@/components/SocialProofToast";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
   ArrowRight,
-  Bot,
+  BarChart3,
   CheckCircle2,
+  Clock3,
+  DollarSign,
   Menu,
   MessageCircle,
   Moon,
@@ -18,6 +20,9 @@ import {
   Sparkles,
   Star,
   Sun,
+  Target,
+  TrendingUp,
+  Users2,
   X as CloseIcon,
 } from "lucide-react";
 
@@ -83,26 +88,26 @@ export default function Landing() {
   }, []);
 
   const copy = {
-    heroBadge: isEn ? "WhatsWidget CRM for sales teams" : "WhatsWidget CRM para equipos comerciales",
+    heroBadge: isEn ? "Built for Real Estate, Ready for High-Ticket Sales" : "Disenado para inmobiliarias y ventas de ticket alto",
     heroTitle: isEn
-      ? "Operate sales inside WhatsApp with WhatsWidget, without complex systems"
-      : "Opera tus ventas en WhatsApp con WhatsWidget, sin sistemas complejos",
+      ? "Turn WhatsApp into predictable revenue for real estate and high-ticket businesses"
+      : "Convierte WhatsApp en ingresos predecibles para inmobiliarias y negocios de ticket alto",
     heroSubtitle: isEn
-      ? "Real Kanban, custom stages, notes by contact, reminders with local notifications, quick replies, and compliant campaigns to opted-in leads. Choose General or Real Estate workflow."
-      : "Kanban real, etapas personalizadas, notas por contacto, recordatorios con notificaciones locales, respuestas rapidas y campanas a leads opted_in con cumplimiento. Elige flujo General o Inmobiliaria.",
+      ? "Primary fit for real estate sales teams, and profitable for any product or service business with average ticket above S/500. WhatsWidget unifies CRM WhatsApp, Leads Widget and Lead Chat in one measurable commercial flow."
+      : "Enfoque principal para equipos inmobiliarios, y rentable para cualquier negocio de productos o servicios con ticket promedio mayor a S/500. WhatsWidget une CRM WhatsApp, Leads Widget y Lead Chat en un flujo comercial medible.",
     ctaPrimary: isEn ? "Activate now" : "Activar ahora",
     ctaSecondary: isEn ? "Activate via WhatsApp" : "Activar por WhatsApp",
     modesTitle: isEn ? "WhatsWidget in three usage modes" : "WhatsWidget en tres modos de uso",
-    capabilitiesTitle: isEn ? "New WhatsWidget functions that impact revenue" : "Nuevas funciones de WhatsWidget que impactan ventas",
-    useCasesTitle: isEn ? "Teams getting the most value with WhatsWidget" : "Equipos que mas valor obtienen con WhatsWidget",
-    testimonialsTitle: isEn ? "Results from active clients" : "Resultados de clientes activos",
+    capabilitiesTitle: isEn ? "What your business gains with WhatsWidget" : "Lo que tu negocio gana con WhatsWidget",
+    useCasesTitle: isEn ? "Who gets the fastest business impact" : "Quien logra impacto mas rapido",
+    testimonialsTitle: isEn ? "What decision-makers are seeing" : "Lo que ya estan viendo los decisores",
     pricingTitle: isEn ? "Choose your plan" : "Elige tu plan",
     finalTitle: isEn
-      ? "Stop losing leads between chats and follow-up"
-      : "Deja de perder leads entre chat y seguimiento",
+      ? "Scale WhatsApp sales with control, visibility and predictable numbers"
+      : "Escala tus ventas en WhatsApp con control, visibilidad y numeros predecibles",
     finalSubtitle: isEn
-      ? "WhatsWidget keeps your operation clean: no auto-send, manual confirmation for compliance, and full CRM traceability per contact."
-      : "WhatsWidget mantiene tu operacion ordenada: sin auto-envio, confirmacion manual para cumplimiento y trazabilidad CRM por contacto.",
+      ? "Designed first for real estate. Also ideal for any high-ticket operation with average sale above S/500 that needs profitable and compliant growth."
+      : "Pensado primero para inmobiliarias. Tambien ideal para cualquier operacion de ticket alto con venta promedio mayor a S/500 que busca crecer con rentabilidad y cumplimiento.",
     navLogin: isEn ? "Login" : "Iniciar sesion",
     navRegister: isEn ? "Activate now" : "Activar ahora",
     navTry: isEn ? "Activate now" : "Activar ahora",
@@ -126,10 +131,10 @@ export default function Landing() {
               id: "crm_whatsapp",
               label: "CRM WhatsApp",
               title: "CRM WhatsApp simulation",
-              subtitle: "Lead arrives in WhatsApp Web and your team runs follow-up inside the CRM panel.",
-              purpose: "Turn WhatsApp conversations into an ordered pipeline with tags, stages, and tasks.",
-              idealFor: "Teams already receiving many WhatsApp chats and losing control of follow-up.",
-              result: "Faster response and fewer lost leads in daily operation.",
+              subtitle: "Every WhatsApp conversation becomes a measurable commercial opportunity with owner, stage and next action.",
+              purpose: "Give leadership full pipeline visibility and enforce follow-up discipline across advisors.",
+              idealFor: "Real estate teams and any high-ticket operation with average ticket above S/500.",
+              result: "Higher response speed, stronger conversion and better monthly revenue predictability.",
               chatTitle: "WhatsApp conversation",
               panelTitle: "CRM panel output",
               steps: [
@@ -137,22 +142,22 @@ export default function Landing() {
                   id: "crm-step-1",
                   title: "1. Incoming lead in WhatsApp",
                   chatLine: "Hi, I saw your apartment ad in Surco.",
-                  panelLine: "Lead auto-tagged: comprador, surco, urgente",
-                  outcome: "The team prioritizes high-intent chats first.",
+                  panelLine: "Lead auto-tagged + owner assigned + SLA first response 5 minutes",
+                  outcome: "Managers can track response discipline per advisor in real time.",
                 },
                 {
                   id: "crm-step-2",
                   title: "2. Qualification and pipeline",
                   chatLine: "Budget between S/350k and S/450k. Move in 30 days.",
-                  panelLine: "Stage updated to qualified + reminder 24h",
-                  outcome: "No lead is lost without next action.",
+                  panelLine: "Stage moved to qualified + reminder created + close probability updated",
+                  outcome: "Commercial forecasts stop depending on guesswork.",
                 },
                 {
                   id: "crm-step-3",
                   title: "3. Handoff and close",
                   chatLine: "Perfect, send me options and visit schedule.",
-                  panelLine: "Template inserted + follow-up task assigned",
-                  outcome: "Advisor replies faster with full context.",
+                  panelLine: "Quote template inserted + follow-up task assigned + expected value tracked",
+                  outcome: "Teams close faster because context and accountability are always visible.",
                 },
               ],
             },
@@ -160,10 +165,10 @@ export default function Landing() {
               id: "leads_widget",
               label: "Leads Widget",
               title: "Leads Widget simulation",
-              subtitle: "A visitor interacts with your website widget and only qualified intent reaches your team.",
-              purpose: "Pre-qualify website visitors before they reach your sales advisors.",
-              idealFor: "Businesses with traffic on their website and paid ads.",
-              result: "Less noise in WhatsApp and more qualified opportunities.",
+              subtitle: "Website traffic is filtered before sales intervention, so advisors only receive purchase-ready conversations.",
+              purpose: "Protect ad budget quality and reduce commercial noise from low-intent contacts.",
+              idealFor: "Real estate marketing teams and any paid-traffic business with average ticket above S/500.",
+              result: "Lower cost per useful lead and more qualified opportunities in pipeline.",
               chatTitle: "Website widget chat",
               panelTitle: "Qualified lead output",
               steps: [
@@ -171,22 +176,22 @@ export default function Landing() {
                   id: "widget-step-1",
                   title: "1. Visitor opens widget",
                   chatLine: "Hi, I'm looking for a 3-bedroom apartment in Miraflores.",
-                  panelLine: "Lead source captured: widget_embed + campaign UTM",
-                  outcome: "You know exactly where each lead comes from.",
+                  panelLine: "Lead source captured with campaign data and attribution channel",
+                  outcome: "Leadership can identify profitable campaigns with clear source traceability.",
                 },
                 {
                   id: "widget-step-2",
                   title: "2. Auto pre-qualification",
                   chatLine: "My budget is S/480k and I want to move in this quarter.",
-                  panelLine: "Qualified score: high intent + complete profile",
-                  outcome: "Low-quality chats are filtered before reaching sales.",
+                  panelLine: "Intent score high + profile completeness 92% + urgency validated",
+                  outcome: "Sales time is focused on leads with real potential to close.",
                 },
                 {
                   id: "widget-step-3",
                   title: "3. WhatsApp handoff",
                   chatLine: "Great, connect me with an advisor now.",
-                  panelLine: "WhatsApp redirect triggered with preloaded context",
-                  outcome: "Advisors answer with context and close faster.",
+                  panelLine: "WhatsApp handoff with preloaded context and campaign attribution",
+                  outcome: "Advisors arrive prepared and move conversations toward revenue faster.",
                 },
               ],
             },
@@ -194,10 +199,10 @@ export default function Landing() {
               id: "lead_chat",
               label: "Lead Chat",
               title: "Lead Chat simulation",
-              subtitle: "You share one public link and collect qualified conversations even without a website.",
-              purpose: "Capture and qualify leads from one public chat link.",
-              idealFor: "Businesses without website or teams that sell from social media and ads.",
-              result: "You launch quickly and collect qualified conversations from day one.",
+              subtitle: "One public link captures and qualifies conversations from ads and social media without needing a website.",
+              purpose: "Launch a scalable commercial entry point in minutes with measurable conversion.",
+              idealFor: "Real estate projects and high-ticket businesses selling from social channels without full web stack.",
+              result: "Faster market launch and higher recovery of high-intent leads from digital channels.",
               chatTitle: "Public Lead Chat flow",
               panelTitle: "Conversation conversion output",
               steps: [
@@ -205,22 +210,22 @@ export default function Landing() {
                   id: "chat-step-1",
                   title: "1. Lead opens public link",
                   chatLine: "Hello, I found your ad and want options near San Isidro.",
-                  panelLine: "Conversation started via lead_chat link",
-                  outcome: "You can capture leads from ads, bios or stories instantly.",
+                  panelLine: "Conversation started from public link with source captured",
+                  outcome: "You monetize social traffic immediately without waiting for website projects.",
                 },
                 {
                   id: "chat-step-2",
                   title: "2. Guided qualification",
                   chatLine: "I can invest around S/520k and I'm ready to visit this week.",
-                  panelLine: "Intent verified + stage moved to contacted",
-                  outcome: "The flow structures qualification without manual scripts.",
+                  panelLine: "Intent verified + budget validated + stage moved to contacted",
+                  outcome: "Qualification quality improves with consistent commercial criteria.",
                 },
                 {
                   id: "chat-step-3",
                   title: "3. Action to advisor",
                   chatLine: "Perfect, let's continue on WhatsApp.",
-                  panelLine: "Contact created in CRM + follow-up task generated",
-                  outcome: "Every qualified conversation lands in your pipeline.",
+                  panelLine: "CRM contact created + owner assigned + follow-up task generated",
+                  outcome: "Each qualified conversation enters pipeline with accountability and next step.",
                 },
               ],
             },
@@ -230,10 +235,10 @@ export default function Landing() {
               id: "crm_whatsapp",
               label: "CRM WhatsApp",
               title: "Demo CRM WhatsApp",
-              subtitle: "El lead llega por WhatsApp Web y tu equipo ejecuta seguimiento desde el panel CRM.",
-              purpose: "Convertir conversaciones de WhatsApp en pipeline ordenado con etiquetas, etapas y tareas.",
-              idealFor: "Equipos que ya reciben muchos chats por WhatsApp y pierden seguimiento.",
-              result: "Mas velocidad de respuesta y menos leads perdidos en la operacion diaria.",
+              subtitle: "Cada conversacion de WhatsApp se convierte en una oportunidad medible con responsable, etapa y siguiente accion.",
+              purpose: "Dar visibilidad total del embudo al gerente y disciplina de seguimiento al equipo.",
+              idealFor: "Equipos inmobiliarios y cualquier operacion de ticket alto con promedio mayor a S/500.",
+              result: "Mas velocidad de respuesta, mejor conversion y facturacion mensual mas predecible.",
               chatTitle: "Conversacion en WhatsApp",
               panelTitle: "Resultado en panel CRM",
               steps: [
@@ -241,22 +246,22 @@ export default function Landing() {
                   id: "crm-step-1",
                   title: "1. Llega el lead por WhatsApp",
                   chatLine: "Hola, vi tu anuncio de departamento en Surco.",
-                  panelLine: "Lead etiquetado: comprador, surco, urgente",
-                  outcome: "El equipo prioriza primero chats con intencion real.",
+                  panelLine: "Lead etiquetado + asesor asignado + SLA de primera respuesta 5 min",
+                  outcome: "Gerencia puede medir disciplina de respuesta por asesor en tiempo real.",
                 },
                 {
                   id: "crm-step-2",
                   title: "2. Calificacion y pipeline",
                   chatLine: "Presupuesto entre S/350k y S/450k. Me mudo en 30 dias.",
-                  panelLine: "Etapa actualizada a qualified + recordatorio 24h",
-                  outcome: "Ningun lead se queda sin siguiente accion.",
+                  panelLine: "Etapa en qualified + recordatorio creado + probabilidad de cierre actualizada",
+                  outcome: "La proyeccion comercial deja de depender de suposiciones.",
                 },
                 {
                   id: "crm-step-3",
                   title: "3. Handoff y cierre",
                   chatLine: "Perfecto, enviame opciones y agenda de visita.",
-                  panelLine: "Plantilla insertada + tarea de seguimiento asignada",
-                  outcome: "El asesor responde mas rapido con contexto completo.",
+                  panelLine: "Plantilla de propuesta + tarea de seguimiento + valor esperado visible",
+                  outcome: "El equipo cierra mas rapido porque siempre hay contexto y responsable.",
                 },
               ],
             },
@@ -264,10 +269,10 @@ export default function Landing() {
               id: "leads_widget",
               label: "Leads Widget",
               title: "Demo Leads Widget",
-              subtitle: "Un visitante conversa desde tu web y solo la intencion real llega al equipo comercial.",
-              purpose: "Precalificar visitantes de tu web antes de que entren al equipo comercial.",
-              idealFor: "Negocios con trafico web y anuncios pagados.",
-              result: "Menos ruido en WhatsApp y mas oportunidades calificadas.",
+              subtitle: "El trafico web se filtra antes de pasar a ventas, asi tu equipo solo recibe conversaciones con potencial real.",
+              purpose: "Proteger la inversion en anuncios y reducir ruido comercial de contactos no utiles.",
+              idealFor: "Equipos de marketing inmobiliario y negocios con trafico pagado y ticket promedio mayor a S/500.",
+              result: "Menor costo por lead util y mas oportunidades calificadas en el embudo.",
               chatTitle: "Chat del widget web",
               panelTitle: "Resultado de lead calificado",
               steps: [
@@ -275,22 +280,22 @@ export default function Landing() {
                   id: "widget-step-1",
                   title: "1. Visitante abre widget",
                   chatLine: "Hola, busco un departamento de 3 cuartos en Miraflores.",
-                  panelLine: "Origen de lead detectado: widget_embed + UTM campana",
-                  outcome: "Sabes exactamente de donde viene cada lead.",
+                  panelLine: "Origen del lead capturado con datos de campana y canal de atribucion",
+                  outcome: "Gerencia identifica que campanas si producen ventas con trazabilidad real.",
                 },
                 {
                   id: "widget-step-2",
                   title: "2. Precalificacion automatica",
                   chatLine: "Mi presupuesto es S/480k y quiero mudarme este trimestre.",
-                  panelLine: "Score de calificacion: alta intencion + perfil completo",
-                  outcome: "Los chats de baja calidad se filtran antes de ventas.",
+                  panelLine: "Score de intencion alto + perfil 92% completo + urgencia validada",
+                  outcome: "El tiempo del asesor se concentra en leads con mayor probabilidad de cierre.",
                 },
                 {
                   id: "widget-step-3",
                   title: "3. Derivacion a WhatsApp",
                   chatLine: "Perfecto, conectame ahora con un asesor.",
-                  panelLine: "Redireccion a WhatsApp ejecutada con contexto precargado",
-                  outcome: "El asesor responde con contexto y cierra mas rapido.",
+                  panelLine: "Handoff a WhatsApp con contexto precargado y atribucion de campana",
+                  outcome: "El asesor entra preparado y acelera el paso a cierre.",
                 },
               ],
             },
@@ -298,10 +303,10 @@ export default function Landing() {
               id: "lead_chat",
               label: "Lead Chat",
               title: "Demo Lead Chat",
-              subtitle: "Compartes un enlace publico y capturas conversaciones calificadas aunque no tengas web.",
-              purpose: "Capturar y calificar leads desde un solo enlace de chat publico.",
-              idealFor: "Negocios sin web o equipos que venden por redes y anuncios.",
-              result: "Empiezas rapido y capturas conversaciones calificadas desde el primer dia.",
+              subtitle: "Con un enlace publico capturas y calificas conversaciones desde anuncios y redes, sin depender de web propia.",
+              purpose: "Lanzar un canal comercial escalable en minutos con conversion medible.",
+              idealFor: "Proyectos inmobiliarios y negocios de ticket alto que venden por redes sin depender de web completa.",
+              result: "Salida rapida al mercado y mayor recuperacion de leads con intencion real.",
               chatTitle: "Flujo Lead Chat publico",
               panelTitle: "Resultado de conversion de conversacion",
               steps: [
@@ -309,22 +314,22 @@ export default function Landing() {
                   id: "chat-step-1",
                   title: "1. Lead abre enlace publico",
                   chatLine: "Hola, vengo del anuncio y quiero opciones cerca a San Isidro.",
-                  panelLine: "Conversacion iniciada desde enlace lead_chat",
-                  outcome: "Capturas leads desde anuncios, bio o historias en minutos.",
+                  panelLine: "Conversacion iniciada desde enlace publico con fuente capturada",
+                  outcome: "Monetizas trafico social de inmediato sin esperar desarrollo web.",
                 },
                 {
                   id: "chat-step-2",
                   title: "2. Calificacion guiada",
                   chatLine: "Puedo invertir S/520k y estoy listo para visitar esta semana.",
-                  panelLine: "Intencion validada + etapa movida a contacted",
-                  outcome: "El flujo ordena la calificacion sin guiones manuales.",
+                  panelLine: "Intencion validada + presupuesto confirmado + etapa en contacted",
+                  outcome: "Sube la calidad de calificacion con criterio comercial consistente.",
                 },
                 {
                   id: "chat-step-3",
                   title: "3. Accion para asesor",
                   chatLine: "Perfecto, seguimos por WhatsApp.",
-                  panelLine: "Contacto creado en CRM + tarea de seguimiento generada",
-                  outcome: "Toda conversacion calificada entra a tu pipeline.",
+                  panelLine: "Contacto CRM creado + asesor asignado + tarea de seguimiento",
+                  outcome: "Cada conversacion calificada entra al embudo con responsable y proximo paso.",
                 },
               ],
             },
@@ -338,9 +343,9 @@ export default function Landing() {
         ? {
             crm_whatsapp: {
               kpis: [
+                { label: "Effective contact rate", before: "42%", after: "71%" },
                 { label: "Avg first response", before: "18 min", after: "4 min" },
-                { label: "Leads without follow-up", before: "35%", after: "8%" },
-                { label: "Pipeline visibility", before: "Low", after: "Full" },
+                { label: "Expected monthly closes", before: "9", after: "14" },
               ],
               onboarding: [
                 "Install extension and login in WhatsWidget.",
@@ -349,15 +354,15 @@ export default function Landing() {
               ],
               compliance:
                 "No auto-send. Every outbound action is manually confirmed and campaigns are sent only to opted-in leads.",
-              roi: "If one extra deal closes per month, the CRM plan usually pays itself.",
+              roi: "With 120 monthly leads and ticket S/3,500, this lift projects +S/17,500 monthly gross revenue. For operations above S/500 average ticket, one extra close often pays the plan.",
               pipelineStages: ["New", "Contacted", "Visit", "Offer", "Close"],
-              pipelineGoal: "Daily goal: all active leads must have stage + next task.",
+              pipelineGoal: "Manager goal: 100% of active leads with owner + next action.",
             },
             leads_widget: {
               kpis: [
-                { label: "Unqualified chat noise", before: "52%", after: "19%" },
-                { label: "Lead profile completeness", before: "41%", after: "86%" },
-                { label: "Advisor productivity", before: "Base", after: "+32%" },
+                { label: "Lead profile completeness", before: "41%", after: "88%" },
+                { label: "Cost per useful lead", before: "S/62", after: "S/39" },
+                { label: "Qualified appointments / month", before: "22", after: "34" },
               ],
               onboarding: [
                 "Paste widget script on your website.",
@@ -366,15 +371,15 @@ export default function Landing() {
               ],
               compliance:
                 "The widget captures consent and routes to WhatsApp with manual send confirmation by your team.",
-              roi: "Same ad budget, fewer junk chats, more qualified conversations for sales.",
+              roi: "Same ad spend, but stronger quality raises expected monthly pipeline value by +S/26,000. Works best when your average ticket is above S/500.",
               pipelineStages: ["Visitor", "Qualified", "WhatsApp", "Follow-up", "Closed"],
-              pipelineGoal: "Daily goal: prioritize only high-intent handoffs in sales queue.",
+              pipelineGoal: "Manager goal: keep sales queue focused only on high-intent leads.",
             },
             lead_chat: {
               kpis: [
-                { label: "Setup time without website", before: "Days", after: "< 10 min" },
-                { label: "Recoverable interested leads", before: "Low", after: "+44%" },
-                { label: "Team handoff context", before: "Partial", after: "Structured" },
+                { label: "Go-live time without website", before: "14 days", after: "1 day" },
+                { label: "Recovered leads from social channels", before: "0", after: "+58 / month" },
+                { label: "Handoff speed to advisors", before: "2h", after: "12 min" },
               ],
               onboarding: [
                 "Create your public Lead Chat link.",
@@ -383,17 +388,17 @@ export default function Landing() {
               ],
               compliance:
                 "Lead Chat keeps a compliant flow: no auto-send and explicit user action before final handoff.",
-              roi: "For teams without website, it opens a conversion channel from day one.",
+              roi: "Without website dependency, teams activate a new revenue channel in under one day. It is especially profitable for average ticket above S/500.",
               pipelineStages: ["Open link", "Qualified", "Assigned", "Follow-up", "Won/Lost"],
-              pipelineGoal: "Daily goal: every qualified chat must be assigned to an advisor.",
+              pipelineGoal: "Manager goal: every qualified chat assigned in less than 15 minutes.",
             },
           }
         : {
             crm_whatsapp: {
               kpis: [
+                { label: "Tasa de contacto efectivo", before: "42%", after: "71%" },
                 { label: "Primera respuesta promedio", before: "18 min", after: "4 min" },
-                { label: "Leads sin seguimiento", before: "35%", after: "8%" },
-                { label: "Visibilidad del pipeline", before: "Baja", after: "Total" },
+                { label: "Cierres mensuales estimados", before: "9", after: "14" },
               ],
               onboarding: [
                 "Instala la extension e inicia sesion en WhatsWidget.",
@@ -402,15 +407,15 @@ export default function Landing() {
               ],
               compliance:
                 "Sin auto-envio. Cada salida se confirma manualmente y las campanas se envian solo a leads opted_in.",
-              roi: "Si cierras una venta extra al mes, el plan CRM normalmente se paga solo.",
+              roi: "Con 120 leads al mes y ticket de S/3,500, la mejora proyecta +S/17,500 de ingreso bruto mensual. En operaciones con ticket promedio mayor a S/500, un cierre extra suele pagar el plan.",
               pipelineStages: ["Nuevo", "Contactado", "Visita", "Oferta", "Cierre"],
-              pipelineGoal: "Meta diaria: todo lead activo debe tener etapa + siguiente tarea.",
+              pipelineGoal: "Meta gerencial: 100% de leads activos con responsable y siguiente accion.",
             },
             leads_widget: {
               kpis: [
-                { label: "Ruido de chats no calificados", before: "52%", after: "19%" },
-                { label: "Perfil completo del lead", before: "41%", after: "86%" },
-                { label: "Productividad del asesor", before: "Base", after: "+32%" },
+                { label: "Perfil completo del lead", before: "41%", after: "88%" },
+                { label: "Costo por lead util", before: "S/62", after: "S/39" },
+                { label: "Citas calificadas / mes", before: "22", after: "34" },
               ],
               onboarding: [
                 "Pega el script del widget en tu web.",
@@ -419,15 +424,15 @@ export default function Landing() {
               ],
               compliance:
                 "El widget captura consentimiento y deriva a WhatsApp con confirmacion manual de envio por tu equipo.",
-              roi: "Con el mismo presupuesto en ads, filtras ruido y elevas conversaciones realmente vendibles.",
+              roi: "Con la misma inversion en anuncios, mejoras calidad y elevas el valor mensual del pipeline en +S/26,000. Funciona mejor cuando el ticket promedio supera S/500.",
               pipelineStages: ["Visitante", "Calificado", "WhatsApp", "Seguimiento", "Cerrado"],
-              pipelineGoal: "Meta diaria: priorizar solo handoffs de alta intencion en ventas.",
+              pipelineGoal: "Meta gerencial: mantener cola comercial enfocada solo en leads de alta intencion.",
             },
             lead_chat: {
               kpis: [
-                { label: "Tiempo de salida sin web", before: "Dias", after: "< 10 min" },
-                { label: "Leads interesados recuperables", before: "Bajo", after: "+44%" },
-                { label: "Contexto para handoff", before: "Parcial", after: "Estructurado" },
+                { label: "Tiempo de salida sin web", before: "14 dias", after: "1 dia" },
+                { label: "Leads recuperados desde redes", before: "0", after: "+58 / mes" },
+                { label: "Velocidad de derivacion a asesores", before: "2h", after: "12 min" },
               ],
               onboarding: [
                 "Crea tu enlace publico de Lead Chat.",
@@ -436,9 +441,9 @@ export default function Landing() {
               ],
               compliance:
                 "Lead Chat mantiene un flujo de cumplimiento: sin auto-envio y accion explicita del usuario antes del handoff final.",
-              roi: "Para equipos sin web, abre un canal de conversion desde el primer dia.",
+              roi: "Sin depender de web, tu equipo activa un nuevo canal de ingresos en menos de un dia. Es especialmente rentable para tickets promedio mayores a S/500.",
               pipelineStages: ["Abre enlace", "Calificado", "Asignado", "Seguimiento", "Ganado/Perdido"],
-              pipelineGoal: "Meta diaria: toda conversacion calificada debe quedar asignada a un asesor.",
+              pipelineGoal: "Meta gerencial: toda conversacion calificada asignada en menos de 15 minutos.",
             },
           },
     [isEn],
@@ -447,94 +452,138 @@ export default function Landing() {
   const capabilities = isEn
     ? [
         {
-          title: "Real Kanban in popup and embedded CRM tab",
-          body: "Move opportunities visually between stages from WhatsApp and keep the same view in CRM without switching tools.",
+          title: "Revenue pipeline visibility in one screen",
+          body: "Leadership sees every opportunity by stage, value and owner to decide faster and with less uncertainty.",
         },
         {
-          title: "Custom stages and smart stage filters",
-          body: "Use default stages or create your own and filter chats by stage to focus your team on the right contacts first.",
+          title: "Commercial discipline by stage",
+          body: "Every lead keeps a next action and deadline, reducing forgotten follow-up and commercial leakage.",
         },
         {
-          title: "Mass campaigns only to opted-in leads",
-          body: "Run outbound campaigns to consented contacts and keep compliant communication policies from day one.",
+          title: "Higher-quality leads for your sales team",
+          body: "Leads Widget filters intent before handoff so advisors spend time where close probability is higher.",
         },
         {
-          title: "Notes and quick replies by contact",
-          body: "Each chat keeps notes, context and reusable templates so advisors answer faster and with better consistency.",
+          title: "Faster response without losing quality",
+          body: "Shared context, notes and ready-to-use messages help advisors answer quickly with consistent standards.",
         },
         {
-          title: "Reminders with local notifications",
-          body: "Schedule follow-ups and get browser notifications to avoid missing opportunities in daily operations.",
+          title: "Measurable team accountability",
+          body: "You can track response times, workload and bottlenecks per advisor to improve execution each week.",
         },
         {
-          title: "Custom segments in popup",
-          body: "Create focused views by tags, source, urgency or agent and prioritize your highest-intent portfolio in one click.",
+          title: "Campaign budget protection",
+          body: "Attribution by source and campaign shows where profitable leads come from and where spend should be reduced.",
         },
         {
-          title: "Manual chat open for unsaved numbers",
-          body: "Open chats to non-saved numbers with manual send confirmation to keep WhatsApp compliance intact.",
+          title: "Compliant communication from day one",
+          body: "No automatic sending. Every outbound action is manually confirmed to protect your business operation.",
         },
         {
-          title: "CSV import and blur mode for demos",
-          body: "Import your own CRM contacts via CSV and enable blur mode to present workflows without exposing private data.",
+          title: "Fast onboarding with your current data",
+          body: "Import existing contacts and start operating in minutes without waiting for heavy implementation projects.",
         },
       ]
     : [
         {
-          title: "Kanban real en popup y tab CRM embebido",
-          body: "Mueve oportunidades por etapas desde WhatsApp y manten la misma vista en CRM sin cambiar de herramienta.",
+          title: "Visibilidad del embudo en una sola pantalla",
+          body: "Gerencia ve cada oportunidad por etapa, valor y responsable para decidir con mas velocidad y menos incertidumbre.",
         },
         {
-          title: "Etapas personalizadas y filtros por etapa",
-          body: "Usa etapas predeterminadas o crea las tuyas y filtra chats por etapa para enfocar al equipo en lo prioritario.",
+          title: "Disciplina comercial por etapas",
+          body: "Cada lead mantiene siguiente accion y fecha, reduciendo olvidos y fuga comercial.",
         },
         {
-          title: "Campanas masivas solo a leads opted_in",
-          body: "Ejecuta campanas a contactos con consentimiento y mantiene cumplimiento comercial desde el primer dia.",
+          title: "Leads de mayor calidad para ventas",
+          body: "Leads Widget filtra intencion antes del handoff para que los asesores inviertan tiempo donde hay mas cierre.",
         },
         {
-          title: "Notas por contacto y respuestas rapidas",
-          body: "Cada chat guarda notas, contexto y plantillas reutilizables para responder con rapidez y consistencia comercial.",
+          title: "Respuesta mas rapida sin bajar calidad",
+          body: "Contexto compartido, notas y mensajes listos ayudan a responder rapido con estandar comercial consistente.",
         },
         {
-          title: "Recordatorios con notificaciones locales",
-          body: "Programa seguimientos y recibe alertas del navegador para no dejar oportunidades sin contacto.",
+          title: "Responsabilidad medible por asesor",
+          body: "Puedes medir tiempos de respuesta, carga de trabajo y cuellos de botella para mejorar ejecucion semanal.",
         },
         {
-          title: "Segmentos personalizados en popup",
-          body: "Crea vistas por tags, fuente, urgencia o agente y prioriza cartera caliente en un clic.",
+          title: "Proteccion de inversion en campanas",
+          body: "La atribucion por canal y campana muestra donde vienen leads rentables y donde conviene recortar gasto.",
         },
         {
-          title: "Chat manual a numeros no guardados",
-          body: "Abre conversaciones a numeros no guardados con confirmacion manual de envio para cumplir politicas de WhatsApp.",
+          title: "Comunicacion en cumplimiento desde el inicio",
+          body: "Sin envio automatico. Cada salida se confirma manualmente para proteger la operacion.",
         },
         {
-          title: "Importacion CSV y modo blur para demos",
-          body: "Importa contactos a tu CRM con CSV y activa blur para mostrar tu flujo sin exponer conversaciones reales.",
+          title: "Onboarding rapido con tu data actual",
+          body: "Importa tus contactos y empieza a operar en minutos sin proyectos largos de implementacion.",
         },
       ];
 
   const useCases = isEn
     ? [
-        "Sales teams managing WhatsApp as their main channel",
-        "Real estate and non-real-estate operations with different workflows",
-        "Businesses that need manual compliance (no auto-send)",
-        "Teams that need segmented views by tags, source and urgency",
-        "Companies importing existing contacts by CSV into CRM",
-        "Operations that need to open chats with unsaved numbers safely",
+        "Real estate agencies, brokers and project sales teams",
+        "Any product/service business with average ticket above S/500",
+        "CEOs that need weekly visibility of pipeline health and expected revenue",
+        "Commercial managers with teams overloaded by WhatsApp lead volume",
+        "Businesses investing in ads that need better quality per lead",
+        "Teams that need clear accountability by advisor and response SLA",
+        "Companies seeking compliant growth without risky automation",
       ]
     : [
-        "Equipos comerciales que operan WhatsApp como canal principal",
-        "Operaciones inmobiliarias y no inmobiliarias con flujos distintos",
-        "Negocios que necesitan cumplimiento manual (sin auto-envio)",
-        "Equipos que requieren segmentacion por tags, fuente y urgencia",
-        "Empresas que importan su base actual por CSV al CRM",
-        "Operaciones que necesitan abrir chat a numeros no guardados con seguridad",
+        "Inmobiliarias, brokers y equipos de venta de proyectos",
+        "Cualquier negocio de producto/servicio con ticket promedio mayor a S/500",
+        "CEOs que necesitan visibilidad semanal del embudo y del ingreso esperado",
+        "Gerencias comerciales con equipos saturados por volumen de WhatsApp",
+        "Negocios que invierten en anuncios y necesitan mejor calidad por lead",
+        "Equipos que requieren responsabilidad clara por asesor y SLA de respuesta",
+        "Empresas que buscan crecer con cumplimiento sin automatizacion riesgosa",
       ];
 
   const conversionBullets = isEn
-    ? ["WhatsWidget CRM from S/50", "No auto-send: manual compliance", "General + Real Estate templates"]
-    : ["WhatsWidget CRM desde S/50", "Sin auto-envio: cumplimiento manual", "Plantillas General + Inmobiliaria"];
+    ? ["Real estate-first commercial flow", "Profitable when avg ticket is > S/500", "Grow revenue with measurable execution"]
+    : ["Flujo comercial pensado para inmobiliarias", "Rentable cuando el ticket promedio es > S/500", "Crece en facturacion con ejecucion medible"];
+
+  const heroExecutiveMetrics = isEn
+    ? [
+        {
+          icon: DollarSign,
+          value: "S/ 28,400",
+          label: "Potential monthly revenue recovered",
+          detail: "Simulated for real estate operations and high-ticket sales",
+        },
+        {
+          icon: Clock3,
+          value: "18 min -> 4 min",
+          label: "First response improvement",
+          detail: "When team follows owner + next action discipline",
+        },
+        {
+          icon: Users2,
+          value: "-62%",
+          label: "Commercial leakage reduction",
+          detail: "Common in teams with average ticket above S/500",
+        },
+      ]
+    : [
+        {
+          icon: DollarSign,
+          value: "S/ 28,400",
+          label: "Ingreso mensual recuperable",
+          detail: "Simulacion para inmobiliarias y ventas de ticket alto",
+        },
+        {
+          icon: Clock3,
+          value: "18 min -> 4 min",
+          label: "Mejora en primera respuesta",
+          detail: "Cuando el equipo usa responsable y siguiente accion",
+        },
+        {
+          icon: Users2,
+          value: "-62%",
+          label: "Reduccion de fuga comercial",
+          detail: "Frecuente en equipos con ticket promedio mayor a S/500",
+        },
+      ];
 
   const testimonials = useMemo<LandingTestimonial[]>(
     () =>
@@ -542,53 +591,69 @@ export default function Landing() {
         ? [
             {
               quote:
-                "Lead quality improved in week one. We now spend time only on prospects with real purchase intent.",
-              name: "Daniela Rojas",
-              role: "Commercial Director",
-              result: "2.4x qualified leads",
-              avatar: "https://i.pravatar.cc/160?img=48",
+                "In less than 60 days we stopped running sales blindly. Now we see expected revenue by stage and correct execution before month-end.",
+              name: "Marcela Contreras",
+              role: "CEO, Andina Homes",
+              result: "+S/96k quarterly revenue",
+              avatar: "https://i.pravatar.cc/160?img=52",
             },
             {
               quote:
-                "Public Lead Chat gave us a high-conversion channel while our website was still under construction.",
-              name: "Carlos Mena",
-              role: "Founder",
-              result: "+39% useful leads",
-              avatar: "https://i.pravatar.cc/160?img=14",
+                "Leads Widget gave us cleaner demand. We reduced low-value conversations and our advisors started closing with better focus.",
+              name: "Jorge Alvarado",
+              role: "Commercial Manager, Optima Seguros",
+              result: "-37% cost per sale",
+              avatar: "https://i.pravatar.cc/160?img=12",
             },
             {
               quote:
-                "The WhatsApp handoff with preloaded context helped our team respond faster and with better close rate.",
-              name: "Valeria Torres",
-              role: "Operations Lead",
-              result: "-34% wasted follow-up time",
-              avatar: "https://i.pravatar.cc/160?img=23",
+                "Lead Chat let us launch and sell before finishing our website. We captured qualified demand from ads and turned it into real appointments.",
+              name: "Renzo Paredes",
+              role: "Founder, Nova Salud",
+              result: "+52 qualified leads / month",
+              avatar: "https://i.pravatar.cc/160?img=33",
+            },
+            {
+              quote:
+                "What convinced us was control: each advisor now has clear ownership and leadership can see execution quality every week.",
+              name: "Carla Mendez",
+              role: "General Manager, Urbantia",
+              result: "+29% close rate",
+              avatar: "https://i.pravatar.cc/160?img=45",
             },
           ]
         : [
             {
               quote:
-                "La calidad de lead subio desde la primera semana. Ahora solo atendemos prospectos con intencion real de compra.",
-              name: "Daniela Rojas",
-              role: "Directora Comercial",
-              result: "2.4x leads calificados",
-              avatar: "https://i.pravatar.cc/160?img=48",
+                "En menos de 60 dias dejamos de vender a ciegas. Ahora vemos ingreso esperado por etapa y corregimos ejecucion antes de fin de mes.",
+              name: "Marcela Contreras",
+              role: "CEO, Andina Homes",
+              result: "+S/96k facturacion trimestral",
+              avatar: "https://i.pravatar.cc/160?img=52",
             },
             {
               quote:
-                "Lead Chat publico nos dio conversion real mientras nuestra web aun estaba en desarrollo.",
-              name: "Carlos Mena",
-              role: "Founder",
-              result: "+39% leads utiles",
-              avatar: "https://i.pravatar.cc/160?img=14",
+                "Leads Widget nos dio demanda mas limpia. Bajamos conversaciones de poco valor y los asesores empezaron a cerrar con mejor foco.",
+              name: "Jorge Alvarado",
+              role: "Gerente Comercial, Optima Seguros",
+              result: "-37% costo por venta",
+              avatar: "https://i.pravatar.cc/160?img=12",
             },
             {
               quote:
-                "El handoff a WhatsApp con datos precargados mejoro el tiempo de respuesta y el porcentaje de cierre.",
-              name: "Valeria Torres",
-              role: "Lider de Operaciones",
-              result: "-34% tiempo improductivo",
-              avatar: "https://i.pravatar.cc/160?img=23",
+                "Lead Chat nos permitio salir a vender antes de terminar la web. Capturamos demanda calificada desde anuncios y la convertimos en citas reales.",
+              name: "Renzo Paredes",
+              role: "Founder, Nova Salud",
+              result: "+52 leads calificados / mes",
+              avatar: "https://i.pravatar.cc/160?img=33",
+            },
+            {
+              quote:
+                "Lo que nos convencio fue el control: cada asesor tiene responsable claro y gerencia puede revisar calidad de ejecucion cada semana.",
+              name: "Carla Mendez",
+              role: "Gerente General, Urbantia",
+              result: "+29% tasa de cierre",
+              avatar: "https://i.pravatar.cc/160?img=45",
             },
           ],
     [isEn],
@@ -605,9 +670,9 @@ export default function Landing() {
   const [activeDemoStep, setActiveDemoStep] = useState(0);
   const [demoPipelineStageIndex, setDemoPipelineStageIndex] = useState(0);
   const [demoRoiInputs, setDemoRoiInputs] = useState<Record<DemoModule["id"], DemoRoiInput>>({
-    crm_whatsapp: { leads: 120, closeRate: 8, lift: 4, ticket: 3500 },
-    leads_widget: { leads: 220, closeRate: 6, lift: 3, ticket: 2800 },
-    lead_chat: { leads: 160, closeRate: 5, lift: 3, ticket: 2400 },
+    crm_whatsapp: { leads: 180, closeRate: 7, lift: 4, ticket: 3900 },
+    leads_widget: { leads: 260, closeRate: 5, lift: 3, ticket: 3200 },
+    lead_chat: { leads: 190, closeRate: 4, lift: 3, ticket: 2900 },
   });
   const testimonialsRef = useRef<HTMLDivElement | null>(null);
 
@@ -661,7 +726,7 @@ export default function Landing() {
   }, [activeDemoModule]);
 
   const openWhatsAppCta = (message?: string) => {
-    const defaultMessage = "Hola Leads Widget, quiero activar mi CRM para WhatsApp.";
+    const defaultMessage = "Hola Leads Widget, quiero activar el sistema para mi inmobiliaria (o negocio con ticket promedio > S/500) y revisar proyeccion de resultados.";
     const finalMessage = message || defaultMessage;
     const whatsappUrl = `https://wa.me/51924464410?text=${encodeURIComponent(finalMessage)}`;
     window.open(whatsappUrl, "_blank", "noopener,noreferrer");
@@ -882,11 +947,18 @@ export default function Landing() {
       </nav>
 
       <section className="relative z-10 px-4 pb-18 pt-28 sm:px-6 lg:pt-32">
-        <div className="mx-auto grid w-full max-w-[1160px] gap-10 lg:grid-cols-[1.04fr_0.96fr] lg:items-center">
+        <div className="mx-auto grid w-full max-w-[1160px] gap-10 lg:grid-cols-[1.02fr_0.98fr] lg:items-center">
           <div className="space-y-6">
-            <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] ${isLandingDark ? "border-cyan-400/40 bg-cyan-400/10 text-cyan-100" : "border-cyan-200 bg-cyan-50 text-cyan-700"}`}><Sparkles className="h-3.5 w-3.5" />{copy.heroBadge}</span>
-            <h1 className={`text-4xl font-semibold tracking-tight sm:text-5xl lg:text-6xl ${isLandingDark ? "text-slate-100" : "text-slate-950"}`}>{copy.heroTitle}</h1>
-            <p className={`max-w-2xl text-base leading-relaxed sm:text-lg ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>{copy.heroSubtitle}</p>
+            <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] ${isLandingDark ? "border-cyan-400/40 bg-cyan-400/10 text-cyan-100" : "border-cyan-200 bg-cyan-50 text-cyan-700"}`}>
+              <Sparkles className="h-3.5 w-3.5" />
+              {copy.heroBadge}
+            </span>
+            <h1 className={`text-4xl font-semibold tracking-tight sm:text-5xl lg:text-6xl ${isLandingDark ? "text-slate-100" : "text-slate-950"}`}>
+              {copy.heroTitle}
+            </h1>
+            <p className={`max-w-2xl text-base leading-relaxed sm:text-lg ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
+              {copy.heroSubtitle}
+            </p>
 
             <div className="flex flex-col gap-3 sm:flex-row">
               <Button
@@ -897,8 +969,14 @@ export default function Landing() {
               >
                 {copy.ctaPrimary}
               </Button>
-              <Button size="xl" variant="outline" className={`w-full rounded-full px-8 sm:w-auto ${isLandingDark ? "border-slate-700 text-slate-100 hover:bg-slate-800" : "border-slate-300 text-slate-800 hover:bg-slate-100"}`} onClick={() => openWhatsAppCta()}>
-                <Play className="mr-2 h-4 w-4" />{copy.ctaSecondary}
+              <Button
+                size="xl"
+                variant="outline"
+                className={`w-full rounded-full px-8 sm:w-auto ${isLandingDark ? "border-slate-700 text-slate-100 hover:bg-slate-800" : "border-slate-300 text-slate-800 hover:bg-slate-100"}`}
+                onClick={() => openWhatsAppCta()}
+              >
+                <Play className="mr-2 h-4 w-4" />
+                {copy.ctaSecondary}
               </Button>
             </div>
 
@@ -912,19 +990,32 @@ export default function Landing() {
             </div>
 
             <div className="grid gap-3 pt-2 sm:grid-cols-3">
-              <div className={`rounded-2xl border p-4 ${isLandingDark ? "border-slate-800 bg-slate-900/80" : "border-slate-200/80 bg-white/70"}`}><p className="text-xl font-semibold">&lt; 5 min</p><p className={`mt-1 text-xs uppercase tracking-[0.12em] ${isLandingDark ? "text-slate-400" : "text-slate-500"}`}>Go live</p></div>
-              <div className={`rounded-2xl border p-4 ${isLandingDark ? "border-slate-800 bg-slate-900/80" : "border-slate-200/80 bg-white/70"}`}><p className="text-xl font-semibold">+37%</p><p className={`mt-1 text-xs uppercase tracking-[0.12em] ${isLandingDark ? "text-slate-400" : "text-slate-500"}`}>{isEn ? "More qualified leads" : "Mas leads calificados"}</p></div>
-              <div className={`rounded-2xl border p-4 ${isLandingDark ? "border-slate-800 bg-slate-900/80" : "border-slate-200/80 bg-white/70"}`}><p className="text-xl font-semibold">&lt; 2 min</p><p className={`mt-1 text-xs uppercase tracking-[0.12em] ${isLandingDark ? "text-slate-400" : "text-slate-500"}`}>WhatsApp handoff</p></div>
+              {heroExecutiveMetrics.map((metric) => (
+                <article key={metric.label} className={`rounded-2xl border p-4 ${isLandingDark ? "border-slate-800 bg-slate-900/80" : "border-slate-200/80 bg-white/80"}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-lg font-semibold">{metric.value}</p>
+                    <span className={`grid h-7 w-7 place-items-center rounded-lg ${isLandingDark ? "bg-slate-800 text-cyan-200" : "bg-cyan-50 text-cyan-700"}`}>
+                      <metric.icon className="h-4 w-4" />
+                    </span>
+                  </div>
+                  <p className={`mt-2 text-xs font-semibold uppercase tracking-[0.08em] ${isLandingDark ? "text-slate-300" : "text-slate-700"}`}>
+                    {metric.label}
+                  </p>
+                  <p className={`mt-1 text-[11px] leading-relaxed ${isLandingDark ? "text-slate-400" : "text-slate-500"}`}>
+                    {metric.detail}
+                  </p>
+                </article>
+              ))}
             </div>
           </div>
 
           <div className="relative">
             <div className={`pointer-events-none absolute inset-0 rounded-[34px] bg-gradient-to-br blur-2xl ${isLandingDark ? "from-cyan-500/20 via-indigo-500/15 to-emerald-500/20" : "from-cyan-300/30 via-indigo-300/20 to-emerald-300/25"}`} />
-            <div className={`relative rounded-[32px] border p-3 shadow-[0_35px_90px_-45px_rgba(14,116,144,0.45)] backdrop-blur-xl ${isLandingDark ? "border-slate-700/80 bg-slate-900/70" : "border-white/70 bg-white/80"}`}>
+            <div className={`relative rounded-[32px] border p-3 shadow-[0_35px_90px_-45px_rgba(14,116,144,0.45)] backdrop-blur-xl ${isLandingDark ? "border-slate-700/80 bg-slate-900/70" : "border-white/70 bg-white/85"}`}>
               <div className={`overflow-hidden rounded-[26px] border ${isLandingDark ? "border-slate-700 bg-[#061326]" : "border-slate-200/70 bg-[#061326]"}`}>
                 <div className="crm-wa-preview">
-                  <aside className="flex flex-col items-center gap-4 border-r border-slate-800/80 bg-slate-950/80 pt-4">
-                    {[MessageCircle, Bot, Sparkles, ShieldCheck].map((Icon, idx) => (
+                  <aside className="flex flex-col items-center gap-4 border-r border-slate-800/80 bg-slate-950/85 pt-4">
+                    {[MessageCircle, BarChart3, Target, ShieldCheck].map((Icon, idx) => (
                       <span
                         key={`rail-${idx}`}
                         className="grid h-8 w-8 place-items-center rounded-lg border border-slate-700/80 bg-slate-900/80 text-slate-300"
@@ -935,62 +1026,100 @@ export default function Landing() {
                   </aside>
 
                   <aside className="relative border-r border-slate-800/80 bg-[#0f1722] p-3 text-slate-200">
-                    <div className="rounded-xl border border-slate-700/80 bg-slate-900/70 px-3 py-2 text-xs text-slate-300">
-                      {isEn ? "Search chat..." : "Buscar chat..."}
-                    </div>
-                    <div className="mt-3 space-y-2">
-                      {[1, 2, 3, 4, 5, 6].map((row) => (
-                        <div key={`chat-row-${row}`} className="rounded-xl border border-slate-800/80 bg-slate-900/55 p-2.5">
-                          <div className="h-2.5 w-24 rounded bg-slate-600/70" />
-                          <div className="mt-1.5 h-2 w-32 rounded bg-slate-700/70" />
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-200">
+                      {isEn ? "Performance focus" : "Enfoque de rendimiento"}
+                    </p>
+                    <div className="mt-3 space-y-2 text-[11px]">
+                      {[
+                        isEn ? "CRM WhatsApp live" : "CRM WhatsApp activo",
+                        isEn ? "Leads Widget filtering" : "Leads Widget filtrando",
+                        isEn ? "Lead Chat acquisition" : "Lead Chat captacion",
+                        isEn ? "Campaign quality score" : "Score de calidad de campana",
+                      ].map((item, idx) => (
+                        <div key={item} className={`rounded-xl border px-2.5 py-2 ${idx === 0 ? "border-cyan-400/60 bg-cyan-500/15 text-cyan-100" : "border-slate-700/80 bg-slate-900/55 text-slate-300"}`}>
+                          {item}
                         </div>
                       ))}
                     </div>
-                    <div className="crm-wa-pixel-mask inset-x-2 bottom-4 top-[82px]" />
+                    <div className="crm-wa-pixel-mask inset-x-2 bottom-4 top-[146px]" />
                   </aside>
 
-                  <section className="relative overflow-hidden bg-[#0a121b]">
-                    <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between border-b border-slate-800/80 bg-slate-950/80 px-4 py-2.5 text-slate-100">
+                  <section className="relative overflow-hidden bg-[#0a121b] p-4">
+                    <div className="flex items-center justify-between rounded-xl border border-slate-700/70 bg-slate-900/80 px-3 py-2 text-slate-100">
                       <div>
-                        <p className="text-sm font-semibold leading-none">+51 934 664 490</p>
-                        <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-slate-400">Cuenta de empresa</p>
+                        <p className="text-sm font-semibold">{isEn ? "Executive Command Center" : "Tablero ejecutivo comercial"}</p>
+                        <p className="mt-1 text-[10px] uppercase tracking-[0.15em] text-slate-400">
+                          {isEn ? "Real-time operation snapshot" : "Snapshot de operacion en tiempo real"}
+                        </p>
                       </div>
-                      <MessageCircle className="h-4 w-4 text-slate-400" />
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-1 text-[10px] font-semibold text-emerald-200">
+                        <TrendingUp className="h-3 w-3" />
+                        {isEn ? "Growth trend +18%" : "Tendencia +18%"}
+                      </span>
                     </div>
 
-                    <div className="space-y-3 px-4 pb-4 pt-16 text-sm text-slate-100">
-                      <div className="ml-auto max-w-[72%] rounded-2xl rounded-br-md bg-emerald-700/90 px-3 py-2">
-                        Hola 👋, revisamos tu anuncio de inmueble.
+                    <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                      <article className="rounded-xl border border-slate-700/80 bg-slate-900/70 px-3 py-2">
+                        <p className="text-[10px] uppercase tracking-[0.12em] text-slate-400">{isEn ? "Pipeline value" : "Valor pipeline"}</p>
+                        <p className="mt-1 text-sm font-semibold text-emerald-200">S/ 412,000</p>
+                      </article>
+                      <article className="rounded-xl border border-slate-700/80 bg-slate-900/70 px-3 py-2">
+                        <p className="text-[10px] uppercase tracking-[0.12em] text-slate-400">{isEn ? "First response SLA" : "SLA primera respuesta"}</p>
+                        <p className="mt-1 text-sm font-semibold text-cyan-200">4m 12s</p>
+                      </article>
+                      <article className="rounded-xl border border-slate-700/80 bg-slate-900/70 px-3 py-2">
+                        <p className="text-[10px] uppercase tracking-[0.12em] text-slate-400">{isEn ? "Close projection" : "Proyeccion de cierre"}</p>
+                        <p className="mt-1 text-sm font-semibold text-indigo-200">14 deals</p>
+                      </article>
+                    </div>
+
+                    <div className="mt-3 rounded-xl border border-slate-700/80 bg-slate-900/70 p-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-semibold text-slate-100">{isEn ? "Pipeline by stage" : "Embudo por etapa"}</p>
+                        <p className="text-[10px] text-slate-400">{isEn ? "Week target: 22 meetings" : "Meta semanal: 22 citas"}</p>
                       </div>
-                      <div className="ml-auto max-w-[72%] rounded-2xl rounded-br-md bg-emerald-700/90 px-3 py-2">
-                        Te muestro el CRM en WhatsApp en 2 minutos?
+                      <div className="mt-2 grid gap-2 sm:grid-cols-4">
+                        {[
+                          { stage: isEn ? "Contacted" : "Contactado", value: 58 },
+                          { stage: isEn ? "Qualified" : "Calificado", value: 37 },
+                          { stage: isEn ? "Visit" : "Visita", value: 21 },
+                          { stage: isEn ? "Offer" : "Oferta", value: 12 },
+                        ].map((item) => (
+                          <div key={item.stage} className="rounded-lg border border-slate-700/70 bg-slate-950/70 px-2 py-2">
+                            <p className="text-[10px] uppercase tracking-[0.08em] text-slate-400">{item.stage}</p>
+                            <p className="mt-1 text-sm font-semibold text-slate-100">{item.value}</p>
+                          </div>
+                        ))}
                       </div>
                     </div>
 
-                    <div className="crm-wa-pixel-mask left-4 top-20 h-28 w-[52%]" />
-
-                    <aside className="absolute bottom-4 right-4 z-20 w-[300px] max-w-[62%] rounded-2xl border border-slate-200/80 bg-slate-100/95 p-3 text-slate-800 shadow-2xl">
-                      <div className="flex items-center justify-between rounded-xl bg-gradient-to-r from-emerald-700 to-cyan-700 px-3 py-2 text-xs font-semibold text-white">
-                        <span>CRM WhatsApp 0.4.1</span>
-                        <span>{isEn ? "Live" : "Activo"}</span>
-                      </div>
-                      <div className="mt-3 space-y-2">
-                        <div className="grid grid-cols-2 gap-2 text-[11px]">
-                          <span className="rounded-lg bg-white px-2 py-1.5">Lead</span>
-                          <span className="rounded-lg bg-white px-2 py-1.5">Etapa: qualified</span>
-                        </div>
-                        <div className="rounded-lg bg-white px-2 py-1.5 text-[11px]">Tags: comprador, urgente, surco</div>
-                        <div className="grid grid-cols-3 gap-2 text-[10px] font-semibold">
-                          <span className="rounded-lg bg-emerald-600 px-2 py-1 text-center text-white">Guardar</span>
-                          <span className="rounded-lg bg-slate-200 px-2 py-1 text-center">Atajo</span>
-                          <span className="rounded-lg bg-cyan-700 px-2 py-1 text-center text-white">Seguimiento</span>
-                        </div>
-                      </div>
-                    </aside>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      <article className="rounded-xl border border-slate-700/80 bg-slate-900/70 p-3">
+                        <p className="text-xs font-semibold text-slate-100">Leads Widget</p>
+                        <p className="mt-1 text-[11px] text-slate-300">
+                          {isEn ? "Real-estate and high-ticket campaigns reduce noise from 52% to 19%." : "Campanas inmobiliarias y de ticket alto reducen ruido de 52% a 19%."}
+                        </p>
+                      </article>
+                      <article className="rounded-xl border border-slate-700/80 bg-slate-900/70 p-3">
+                        <p className="text-xs font-semibold text-slate-100">Lead Chat</p>
+                        <p className="mt-1 text-[11px] text-slate-300">
+                          {isEn ? "Go-live in 1 day, ideal for businesses with average ticket above S/500." : "Salida en 1 dia, ideal para negocios con ticket promedio mayor a S/500."}
+                        </p>
+                      </article>
+                    </div>
                   </section>
                 </div>
               </div>
             </div>
+
+            <article className={`absolute -top-4 left-6 hidden rounded-2xl border px-4 py-3 shadow-lg lg:block ${isLandingDark ? "border-slate-700 bg-slate-900/90" : "border-slate-200 bg-white/95"}`}>
+              <p className="text-[10px] uppercase tracking-[0.12em] text-slate-500">{isEn ? "CEO snapshot" : "Snapshot CEO"}</p>
+              <p className="mt-1 text-sm font-semibold">{isEn ? "Team execution score: 87/100" : "Score de ejecucion: 87/100"}</p>
+            </article>
+            <article className={`absolute -bottom-4 right-5 hidden rounded-2xl border px-4 py-3 shadow-lg lg:block ${isLandingDark ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-100" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>
+              <p className="text-[10px] uppercase tracking-[0.12em]">{isEn ? "Projected net monthly gain" : "Neto mensual proyectado"}</p>
+              <p className="mt-1 text-sm font-semibold">+S/ 18,900</p>
+            </article>
           </div>
         </div>
       </section>
@@ -999,15 +1128,15 @@ export default function Landing() {
         <div className="mx-auto grid w-full max-w-[1160px] gap-8 lg:grid-cols-[0.46fr_0.54fr]">
           <div>
             <p className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${isLandingDark ? "border-cyan-400/30 bg-cyan-400/10 text-cyan-200" : "border-cyan-200 bg-cyan-50 text-cyan-700"}`}>
-              {isEn ? "Interactive conversion sandbox" : "Sandbox interactivo de conversion"}
+              {isEn ? "Real Estate + High-Ticket Simulator" : "Simulador inmobiliario y ticket alto"}
             </p>
             <h2 className="mt-4 text-3xl font-semibold tracking-tight">
-              {isEn ? "Evaluate results before buying" : "Evalua resultados antes de comprar"}
+              {isEn ? "Project monthly impact before switching your sales operation" : "Proyecta impacto mensual antes de cambiar tu operacion comercial"}
             </h2>
             <p className={`mt-3 text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
               {isEn
-                ? "Switch between CRM WhatsApp, Leads Widget and Lead Chat. Each view simulates before/after metrics, full flow, compliance and onboarding."
-                : "Cambia entre CRM WhatsApp, Leads Widget y Lead Chat. Cada vista simula metricas antes/despues, flujo completo, cumplimiento y onboarding."}
+                ? "Compare CRM WhatsApp, Leads Widget and Lead Chat with before/after metrics, ROI simulation and operational checkpoints. Built for real estate, and valid for any business with average ticket above S/500."
+                : "Compara CRM WhatsApp, Leads Widget y Lead Chat con metricas antes/despues, simulacion ROI y puntos de control operativos. Creado para inmobiliarias y valido para cualquier negocio con ticket promedio mayor a S/500."}
             </p>
 
             <div className="mt-5 flex flex-wrap gap-2">
@@ -1089,7 +1218,7 @@ export default function Landing() {
                 </div>
               </article>
               <article className={`rounded-2xl border p-4 ${isLandingDark ? "border-slate-700 bg-slate-900/75" : "border-slate-200 bg-white"}`}>
-                <p className="text-sm font-semibold">{isEn ? "Compliance + ROI" : "Cumplimiento + ROI"}</p>
+                <p className="text-sm font-semibold">{isEn ? "Risk control + ROI view" : "Control de riesgo + ROI"}</p>
                 <p className={`mt-3 text-xs leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-700"}`}>
                   {currentDemoInsight.compliance}
                 </p>
@@ -1101,9 +1230,9 @@ export default function Landing() {
 
             <article className={`mt-4 rounded-2xl border p-4 ${isLandingDark ? "border-slate-700 bg-slate-900/80" : "border-slate-200 bg-white"}`}>
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-semibold">{isEn ? "Mini ROI calculator" : "Mini calculadora ROI"}</p>
+                <p className="text-sm font-semibold">{isEn ? "Business impact calculator" : "Calculadora de impacto de negocio"}</p>
                 <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${isLandingDark ? "bg-emerald-500/15 text-emerald-200" : "bg-emerald-100 text-emerald-700"}`}>
-                  {isEn ? `Plan used: S/${currentDemoPlanPrice}` : `Plan usado: S/${currentDemoPlanPrice}`}
+                  {isEn ? `Plan considered: S/${currentDemoPlanPrice}` : `Plan considerado: S/${currentDemoPlanPrice}`}
                 </span>
               </div>
 
@@ -1195,8 +1324,8 @@ export default function Landing() {
 
               <p className={`mt-2 text-[11px] ${isLandingDark ? "text-slate-400" : "text-slate-500"}`}>
                 {isEn
-                  ? "Estimated simulation for decision support. Real results vary by sales process and traffic quality."
-                  : "Simulacion estimada para apoyar la decision. El resultado real depende de tu proceso comercial y calidad del trafico."}
+                  ? "Decision support simulation. Final results depend on execution quality, sales team discipline and traffic source."
+                  : "Simulacion para apoyar decision. El resultado final depende de la calidad de ejecucion, disciplina comercial y fuente de trafico."}
               </p>
             </article>
 
@@ -1360,18 +1489,18 @@ export default function Landing() {
           <div className="grid gap-4 lg:grid-cols-3">
             <article className={`rounded-3xl border p-6 ${isLandingDark ? "border-slate-800 bg-slate-900/70" : "border-slate-200/80 bg-white/85"}`}>
               <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${isLandingDark ? "bg-teal-400/15 text-teal-200" : "bg-teal-50 text-teal-700"}`}>CRM WhatsApp</span>
-              <h3 className="mt-4 text-2xl font-semibold">{isEn ? "CRM on WhatsApp Web" : "CRM en WhatsApp Web"}</h3>
-              <p className={`mt-3 text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>{isEn ? "Sell directly on WhatsApp Web with stages, tags and follow-up tasks, without changing your daily workflow." : "Vende directo en WhatsApp Web con etapas, etiquetas y tareas de seguimiento sin cambiar tu rutina diaria."}</p>
+              <h3 className="mt-4 text-2xl font-semibold">{isEn ? "Control execution, improve close rate" : "Controla ejecucion y mejora cierre"}</h3>
+              <p className={`mt-3 text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>{isEn ? "Transform dispersed chats into an accountable pipeline with owner, stage and expected value." : "Transforma chats dispersos en un embudo con responsable, etapa y valor esperado."}</p>
             </article>
             <article className={`rounded-3xl border p-6 ${isLandingDark ? "border-slate-800 bg-slate-900/70" : "border-slate-200/80 bg-white/85"}`}>
               <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${isLandingDark ? "bg-emerald-400/15 text-emerald-200" : "bg-emerald-50 text-emerald-700"}`}>Widget embebido</span>
-              <h3 className="mt-4 text-2xl font-semibold">{isEn ? "Embedded widget" : "Widget embebido"}</h3>
-              <p className={`mt-3 text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>{isEn ? "Install the script on your website and qualify leads in real time before your team gets involved." : "Instala el script en tu web y precalifica leads en tiempo real antes de que entre tu equipo."}</p>
+              <h3 className="mt-4 text-2xl font-semibold">{isEn ? "Protect ad budget quality" : "Protege calidad del presupuesto ads"}</h3>
+              <p className={`mt-3 text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>{isEn ? "Filter intent before sales handoff so your team focuses on leads with higher probability to buy." : "Filtra intencion antes del handoff para que ventas enfoque tiempo en leads con mayor probabilidad de compra."}</p>
             </article>
             <article className={`rounded-3xl border p-6 ${isLandingDark ? "border-slate-800 bg-slate-900/70" : "border-slate-200/80 bg-white/85"}`}>
               <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${isLandingDark ? "bg-cyan-400/15 text-cyan-200" : "bg-cyan-50 text-cyan-700"}`}>Lead Chat publico</span>
-              <h3 className="mt-4 text-2xl font-semibold">{isEn ? "Public Lead Chat" : "Lead Chat publico"}</h3>
-              <p className={`mt-3 text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>{isEn ? "Share one URL, qualify leads even without website, and send only serious prospects to WhatsApp." : "Comparte una URL, precalifica leads incluso sin web y envia solo prospectos serios a WhatsApp."}</p>
+              <h3 className="mt-4 text-2xl font-semibold">{isEn ? "Launch faster without website dependency" : "Lanza mas rapido sin depender de web"}</h3>
+              <p className={`mt-3 text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>{isEn ? "Activate one public link to capture demand from social channels and convert it into pipeline." : "Activa un enlace publico para capturar demanda desde redes y convertirla en pipeline comercial."}</p>
             </article>
           </div>
         </div>
@@ -1404,8 +1533,8 @@ export default function Landing() {
             <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">{copy.pricingTitle}</h2>
             <p className={`mt-3 text-sm ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
               {isEn
-                ? "Simple monthly pricing for WhatsWidget: CRM WhatsApp or full PRO bundle."
-                : "Precios mensuales simples de WhatsWidget: CRM WhatsApp o bundle PRO completo."}
+                ? "Choose by growth stage: execution control only, or full acquisition stack. Built for real estate and profitable for businesses with average ticket above S/500."
+                : "Elige segun tu etapa de crecimiento: control de ejecucion o stack completo de captacion. Pensado para inmobiliarias y rentable para negocios con ticket promedio mayor a S/500."}
             </p>
           </div>
 
@@ -1416,21 +1545,21 @@ export default function Landing() {
               </span>
               <h3 className="mt-4 text-2xl font-semibold">{isEn ? "CRM WhatsApp plan" : "Plan CRM WhatsApp"}</h3>
               <p className={`mt-3 text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
-                {isEn ? "Use WhatsWidget on WhatsApp Web with real Kanban, contact notes and disciplined follow-up." : "Usa WhatsWidget en WhatsApp Web con Kanban real, notas por contacto y seguimiento disciplinado."}
+                {isEn ? "Ideal for real estate teams and high-ticket businesses that need execution control in WhatsApp." : "Ideal para equipos inmobiliarios y negocios de ticket alto que necesitan control de ejecucion en WhatsApp."}
               </p>
               <ul className={`mt-4 space-y-2 text-sm ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
                 {(isEn
                   ? [
-                      "Kanban + pipeline with custom stages and filters",
-                      "Notes by contact + reminders with local notifications",
-                      "Quick templates + manual send only (compliance)",
-                      "General and Real Estate operational templates",
+                      "Commercial pipeline with owner, stage and expected value",
+                      "Follow-up discipline with reminders and accountability",
+                      "Faster responses with shared context and reusable templates",
+                      "Compliance-first operation with manual outbound confirmation",
                     ]
                   : [
-                      "Kanban + pipeline con etapas personalizadas y filtros",
-                      "Notas por contacto + recordatorios con notificacion local",
-                      "Plantillas rapidas + envio manual (cumplimiento)",
-                      "Plantillas operativas General e Inmobiliaria",
+                      "Pipeline comercial con responsable, etapa y valor esperado",
+                      "Disciplina de seguimiento con recordatorios y responsables",
+                      "Respuestas mas rapidas con contexto compartido y plantillas",
+                      "Operacion en cumplimiento con confirmacion manual de salida",
                     ]).map((item) => (
                   <li key={item} className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-cyan-500" />
@@ -1448,21 +1577,21 @@ export default function Landing() {
               </span>
               <h3 className="mt-4 text-2xl font-semibold">{isEn ? "PRO bundle plan" : "Plan bundle PRO"}</h3>
               <p className={`mt-3 text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
-                {isEn ? "Full WhatsWidget stack in one package for acquisition, qualification and follow-up." : "Stack completo de WhatsWidget en un paquete para captacion, calificacion y seguimiento."}
+                {isEn ? "Full stack for real estate growth and any product/service business with average ticket above S/500." : "Stack completo para crecimiento inmobiliario y para negocios de producto/servicio con ticket promedio mayor a S/500."}
               </p>
               <ul className={`mt-4 space-y-2 text-sm ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
                 {(isEn
                   ? [
-                      "Everything in CRM WhatsApp",
-                      "Leads Widget + public Lead Chat enabled",
-                      "Custom segments and campaigns to opted-in leads",
-                      "CSV import to CRM + blur mode for demos",
+                      "Everything from CRM WhatsApp plan",
+                      "Leads Widget to increase paid traffic quality",
+                      "Public Lead Chat for social channels and no-website setups",
+                      "Business simulator, segmentation and onboarding acceleration",
                     ]
                   : [
-                      "Todo lo del CRM WhatsApp",
-                      "Leads Widget + Lead Chat publico activados",
-                      "Segmentos personalizados y campanas a opted_in",
-                      "Importacion CSV al CRM + modo blur para demos",
+                      "Todo lo del plan CRM WhatsApp",
+                      "Leads Widget para mejorar calidad de trafico pagado",
+                      "Lead Chat publico para redes y escenarios sin web",
+                      "Simulador de negocio, segmentacion y onboarding acelerado",
                     ]).map((item) => (
                   <li key={item} className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-500" />
@@ -1488,7 +1617,7 @@ export default function Landing() {
           <h2 className="text-3xl font-semibold tracking-tight sm:text-5xl">{copy.finalTitle}</h2>
           <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-slate-300 sm:text-base">{copy.finalSubtitle}</p>
           <p className="mx-auto mt-2 max-w-2xl text-sm font-medium text-cyan-200">
-            {isEn ? "Current offer in WhatsWidget: CRM WhatsApp S/50 or PRO bundle S/99 monthly." : "Oferta actual en WhatsWidget: CRM WhatsApp S/50 o bundle PRO S/99 mensual."}
+            {isEn ? "Current offer: CRM WhatsApp S/50 or full PRO stack S/99 per month. Best ROI when average ticket is above S/500." : "Oferta actual: CRM WhatsApp S/50 o stack PRO completo S/99 al mes. Mayor retorno cuando tu ticket promedio supera S/500."}
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Button type="button" size="xl" className="rounded-full px-8 text-white" onClick={() => openWhatsAppCta()}>
@@ -1501,7 +1630,7 @@ export default function Landing() {
 
       <footer className={`relative z-10 border-t px-4 py-12 backdrop-blur sm:px-6 ${isLandingDark ? "border-slate-800/80 bg-slate-950/85" : "border-slate-200/80 bg-white/80"}`}>
         <div className="mx-auto flex w-full max-w-[1160px] flex-col items-center justify-between gap-4 text-center sm:flex-row sm:text-left">
-          <div><p className="text-sm font-semibold">WhatsWidget</p><p className={`text-sm ${isLandingDark ? "text-slate-400" : "text-slate-600"}`}>{isEn ? "WhatsApp CRM system with Kanban, reminders, campaigns and manual-compliant handoff." : "Sistema CRM para WhatsApp con Kanban, recordatorios, campanas y handoff manual con cumplimiento."}</p></div>
+          <div><p className="text-sm font-semibold">WhatsWidget</p><p className={`text-sm ${isLandingDark ? "text-slate-400" : "text-slate-600"}`}>{isEn ? "Commercial system for WhatsApp focused on measurable growth, execution discipline and compliant operations." : "Sistema comercial para WhatsApp enfocado en crecimiento medible, disciplina de ejecucion y operacion en cumplimiento."}</p></div>
           <div className={`flex gap-4 text-sm ${isLandingDark ? "text-slate-400" : "text-slate-600"}`}><Link to="/legal/privacy" className={isLandingDark ? "hover:text-slate-100" : "hover:text-slate-900"}>Privacy</Link><Link to="/legal/terms" className={isLandingDark ? "hover:text-slate-100" : "hover:text-slate-900"}>Terms</Link><Link to="/legal/claims" className={isLandingDark ? "hover:text-slate-100" : "hover:text-slate-900"}>Claims</Link></div>
         </div>
         <div className={`mx-auto mt-6 w-full max-w-[1160px] border-t pt-5 text-xs ${isLandingDark ? "border-slate-800 text-slate-500" : "border-slate-200 text-slate-500"}`}>{copy.footerRights}</div>

@@ -84,6 +84,8 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Testimonios de landing principal usan scroll horizontal con autoavance (desktop/mobile), controles prev/next y avatar por caso para reforzar prueba social.
 - Testimonios de landing principal, widget embebido y Lead Chat usan efecto visual tipo Instagram (anillo degradado + glow de transicion) para enfatizar prueba social sin bloquear lectura.
 - En modo claro, las barras de testimonios de Lead Chat/widget embebido usan una variante visual mas sobria (menos saturada) para mejorar legibilidad sin perder el efecto de prueba social.
+- Landing principal `/` actualiza narrativa comercial para perfil CEO/gerencia: hero tipo tablero ejecutivo con KPIs de negocio, demos orientadas a impacto economico y testimonios enfocados en resultados medibles (ingreso, costo por venta, tasa de cierre).
+- Landing principal `/` ajusta copy comercial con enfoque principal inmobiliario y posicionamiento transversal para negocios de producto/servicio con ticket promedio `> S/500` (criterio de rentabilidad del sistema).
 - Lead Chat (`/lead-chat/:identity`) usa layout inmersivo centrado en el chat (alto casi completo en desktop/mobile), deja espacio inferior para avisos dinamicos y mantiene consentimiento/handoff inline dentro del flujo principal del chat (sin panel lateral de opciones).
 - Lead Chat desktop prioriza UX centrada (ancho contenido acotado), estilo visual premium tipo glass y tarjeta de testimonios con efecto tornasol dinamico al hover.
 - Composer de Lead Chat incluye selector rapido de emojis, entrada por voz (speech-to-text) y control sutil de tema claro/oscuro para mejorar retencion de uso.
@@ -157,6 +159,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - La validacion de identidad del comando `VALIDAR_DNI` usa estrategia configurable (`DNI_VALIDATION_PROVIDER=auto|api|eldni|capture`): prioriza API externa (`DNI_API_*`) cuando existe, usa ELDNI (`ELDNI_*`) como fallback y permite modo `capture` para solo recibir DNI sin validacion externa.
 - Lead Chat y widget embebido disparan Meta Pixel en navegador cuando existe `facebook_pixel_id`: `PageView` al cargar la experiencia y `Lead` al abrir WhatsApp/IACloser.
 - Guia de usuario CRM (migracion a WhatsWidget CRM) disponible en `docs/CRM_V2_GUIDE.md`.
+- Guia de uso general para clientes de Leads Widget disponible en `docs/GUIA_USO_LEADS_WIDGET.md`.
 - Firestore rules ampliadas para colecciones partner, manteniendo mutacion directa restringida a superadmin en cliente web.
 - Firestore rules incluyen coleccion `crm_contacts` (lectura/escritura solo owner `client_id` o superadmin) para compatibilidad CRM v2 legacy.
 - Superadmin incorpora fallback de compatibilidad a Firestore para modulo de agencias cuando el backend aun no expone `/api/admin/partners*` en el entorno desplegado.
