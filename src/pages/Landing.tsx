@@ -40,6 +40,9 @@ type DemoStep = {
   chatLine: string;
   panelLine: string;
   outcome: string;
+  userAction: string;
+  systemAction: string;
+  moneyImpact: string;
 };
 
 type DemoModule = {
@@ -144,6 +147,9 @@ export default function Landing() {
                   chatLine: "Hi, I saw your apartment ad in Surco.",
                   panelLine: "Lead auto-tagged + owner assigned + SLA first response 5 minutes",
                   outcome: "Managers can track response discipline per advisor in real time.",
+                  userAction: "The lead writes from an ad and asks for a property option.",
+                  systemAction: "WhatsWidget creates the record, assigns owner and starts response SLA tracking.",
+                  moneyImpact: "Faster first response protects warm demand and reduces lost opportunities paid with ad budget.",
                 },
                 {
                   id: "crm-step-2",
@@ -151,6 +157,9 @@ export default function Landing() {
                   chatLine: "Budget between S/350k and S/450k. Move in 30 days.",
                   panelLine: "Stage moved to qualified + reminder created + close probability updated",
                   outcome: "Commercial forecasts stop depending on guesswork.",
+                  userAction: "Advisor asks budget, timeline and purchase intent in one guided sequence.",
+                  systemAction: "Pipeline stage, close probability and follow-up reminder update instantly.",
+                  moneyImpact: "Better qualification raises close-rate quality and improves expected monthly revenue visibility.",
                 },
                 {
                   id: "crm-step-3",
@@ -158,6 +167,9 @@ export default function Landing() {
                   chatLine: "Perfect, send me options and visit schedule.",
                   panelLine: "Quote template inserted + follow-up task assigned + expected value tracked",
                   outcome: "Teams close faster because context and accountability are always visible.",
+                  userAction: "Advisor sends proposal and next action without leaving the workflow.",
+                  systemAction: "CRM logs expected deal value and enforces follow-up ownership until close.",
+                  moneyImpact: "Execution discipline turns more qualified chats into signed deals and recurring monthly cash flow.",
                 },
               ],
             },
@@ -178,6 +190,9 @@ export default function Landing() {
                   chatLine: "Hi, I'm looking for a 3-bedroom apartment in Miraflores.",
                   panelLine: "Lead source captured with campaign data and attribution channel",
                   outcome: "Leadership can identify profitable campaigns with clear source traceability.",
+                  userAction: "A paid-traffic visitor opens chat directly on your website.",
+                  systemAction: "Widget stores source, campaign context and intent entry point.",
+                  moneyImpact: "Attribution clarity helps stop low-return campaigns and keep spend where margin is stronger.",
                 },
                 {
                   id: "widget-step-2",
@@ -185,6 +200,9 @@ export default function Landing() {
                   chatLine: "My budget is S/480k and I want to move in this quarter.",
                   panelLine: "Intent score high + profile completeness 92% + urgency validated",
                   outcome: "Sales time is focused on leads with real potential to close.",
+                  userAction: "Lead answers guided questions about budget, urgency and fit.",
+                  systemAction: "The flow calculates intent quality before handing over to sales.",
+                  moneyImpact: "Sales hours move from low-intent chats to high-probability opportunities with better ROI.",
                 },
                 {
                   id: "widget-step-3",
@@ -192,6 +210,9 @@ export default function Landing() {
                   chatLine: "Great, connect me with an advisor now.",
                   panelLine: "WhatsApp handoff with preloaded context and campaign attribution",
                   outcome: "Advisors arrive prepared and move conversations toward revenue faster.",
+                  userAction: "The lead requests immediate contact with an advisor.",
+                  systemAction: "WhatsWidget sends full context so sales starts with buying signals already mapped.",
+                  moneyImpact: "Higher quality at handoff lowers cost per useful lead and increases revenue per advisor hour.",
                 },
               ],
             },
@@ -212,6 +233,9 @@ export default function Landing() {
                   chatLine: "Hello, I found your ad and want options near San Isidro.",
                   panelLine: "Conversation started from public link with source captured",
                   outcome: "You monetize social traffic immediately without waiting for website projects.",
+                  userAction: "Prospect opens your public Lead Chat link from ad, bio or social campaign.",
+                  systemAction: "Session starts instantly with source and conversation traceability.",
+                  moneyImpact: "You start capturing demand today, avoiding revenue loss while waiting for a full website.",
                 },
                 {
                   id: "chat-step-2",
@@ -219,6 +243,9 @@ export default function Landing() {
                   chatLine: "I can invest around S/520k and I'm ready to visit this week.",
                   panelLine: "Intent verified + budget validated + stage moved to contacted",
                   outcome: "Qualification quality improves with consistent commercial criteria.",
+                  userAction: "Lead confirms budget, timing and purchase readiness in-chat.",
+                  systemAction: "Lead Chat qualifies and updates commercial stage with standardized criteria.",
+                  moneyImpact: "Consistent filtering improves conversion efficiency and reduces wasted sales follow-up cost.",
                 },
                 {
                   id: "chat-step-3",
@@ -226,6 +253,9 @@ export default function Landing() {
                   chatLine: "Perfect, let's continue on WhatsApp.",
                   panelLine: "CRM contact created + owner assigned + follow-up task generated",
                   outcome: "Each qualified conversation enters pipeline with accountability and next step.",
+                  userAction: "Prospect accepts continuation with sales team on WhatsApp.",
+                  systemAction: "Contact, owner and next task are created automatically in CRM flow.",
+                  moneyImpact: "More qualified social leads become trackable opportunities that feed monthly revenue targets.",
                 },
               ],
             },
@@ -248,6 +278,9 @@ export default function Landing() {
                   chatLine: "Hola, vi tu anuncio de departamento en Surco.",
                   panelLine: "Lead etiquetado + asesor asignado + SLA de primera respuesta 5 min",
                   outcome: "Gerencia puede medir disciplina de respuesta por asesor en tiempo real.",
+                  userAction: "El lead escribe desde anuncio y pide informacion de una propiedad.",
+                  systemAction: "WhatsWidget crea el registro, asigna responsable y activa control de SLA.",
+                  moneyImpact: "Responder mas rapido evita perder demanda caliente que ya costo dinero en anuncios.",
                 },
                 {
                   id: "crm-step-2",
@@ -255,6 +288,9 @@ export default function Landing() {
                   chatLine: "Presupuesto entre S/350k y S/450k. Me mudo en 30 dias.",
                   panelLine: "Etapa en qualified + recordatorio creado + probabilidad de cierre actualizada",
                   outcome: "La proyeccion comercial deja de depender de suposiciones.",
+                  userAction: "El asesor valida presupuesto, plazo e intencion en un flujo guiado.",
+                  systemAction: "Se actualizan etapa, probabilidad y recordatorio de seguimiento al instante.",
+                  moneyImpact: "Una mejor calificacion sube la calidad del embudo y la proyeccion de ingresos mensuales.",
                 },
                 {
                   id: "crm-step-3",
@@ -262,6 +298,9 @@ export default function Landing() {
                   chatLine: "Perfecto, enviame opciones y agenda de visita.",
                   panelLine: "Plantilla de propuesta + tarea de seguimiento + valor esperado visible",
                   outcome: "El equipo cierra mas rapido porque siempre hay contexto y responsable.",
+                  userAction: "El asesor envia propuesta y siguiente accion sin salir del flujo.",
+                  systemAction: "CRM deja visible el valor esperado y exige responsable hasta cierre.",
+                  moneyImpact: "La disciplina operativa convierte mas conversaciones calificadas en ventas reales y caja mensual.",
                 },
               ],
             },
@@ -282,6 +321,9 @@ export default function Landing() {
                   chatLine: "Hola, busco un departamento de 3 cuartos en Miraflores.",
                   panelLine: "Origen del lead capturado con datos de campana y canal de atribucion",
                   outcome: "Gerencia identifica que campanas si producen ventas con trazabilidad real.",
+                  userAction: "Un visitante de trafico pagado abre el chat en tu web.",
+                  systemAction: "El widget guarda fuente, campana y punto de entrada de intencion.",
+                  moneyImpact: "Con atribucion clara puedes cortar campanas de bajo retorno y proteger margen.",
                 },
                 {
                   id: "widget-step-2",
@@ -289,6 +331,9 @@ export default function Landing() {
                   chatLine: "Mi presupuesto es S/480k y quiero mudarme este trimestre.",
                   panelLine: "Score de intencion alto + perfil 92% completo + urgencia validada",
                   outcome: "El tiempo del asesor se concentra en leads con mayor probabilidad de cierre.",
+                  userAction: "El lead responde preguntas de presupuesto, urgencia y ajuste comercial.",
+                  systemAction: "El sistema puntua la calidad antes de pasar el lead a ventas.",
+                  moneyImpact: "El equipo comercial invierte horas en oportunidades reales y reduce costo de seguimiento improductivo.",
                 },
                 {
                   id: "widget-step-3",
@@ -296,6 +341,9 @@ export default function Landing() {
                   chatLine: "Perfecto, conectame ahora con un asesor.",
                   panelLine: "Handoff a WhatsApp con contexto precargado y atribucion de campana",
                   outcome: "El asesor entra preparado y acelera el paso a cierre.",
+                  userAction: "El lead pide hablar con asesor en tiempo real.",
+                  systemAction: "WhatsWidget entrega contexto completo para iniciar la conversacion con foco de cierre.",
+                  moneyImpact: "Mejora la calidad del handoff, baja el costo por lead util y sube ingreso por hora comercial.",
                 },
               ],
             },
@@ -316,6 +364,9 @@ export default function Landing() {
                   chatLine: "Hola, vengo del anuncio y quiero opciones cerca a San Isidro.",
                   panelLine: "Conversacion iniciada desde enlace publico con fuente capturada",
                   outcome: "Monetizas trafico social de inmediato sin esperar desarrollo web.",
+                  userAction: "El prospecto abre tu link publico desde anuncio, bio o red social.",
+                  systemAction: "La sesion inicia al instante con trazabilidad de origen y conversacion.",
+                  moneyImpact: "Capturas demanda hoy mismo y evitas fuga de ingresos por esperar una web completa.",
                 },
                 {
                   id: "chat-step-2",
@@ -323,6 +374,9 @@ export default function Landing() {
                   chatLine: "Puedo invertir S/520k y estoy listo para visitar esta semana.",
                   panelLine: "Intencion validada + presupuesto confirmado + etapa en contacted",
                   outcome: "Sube la calidad de calificacion con criterio comercial consistente.",
+                  userAction: "El lead confirma presupuesto, plazo e intencion dentro del chat.",
+                  systemAction: "Lead Chat califica y actualiza etapa comercial con criterios estandarizados.",
+                  moneyImpact: "Un filtro consistente mejora eficiencia de cierre y reduce costo de seguimiento sin potencial.",
                 },
                 {
                   id: "chat-step-3",
@@ -330,6 +384,9 @@ export default function Landing() {
                   chatLine: "Perfecto, seguimos por WhatsApp.",
                   panelLine: "Contacto CRM creado + asesor asignado + tarea de seguimiento",
                   outcome: "Cada conversacion calificada entra al embudo con responsable y proximo paso.",
+                  userAction: "El prospecto acepta continuar por WhatsApp con ventas.",
+                  systemAction: "Se crea contacto, responsable y siguiente tarea en el flujo CRM.",
+                  moneyImpact: "Mas leads calificados desde redes entran al embudo y empujan metas de facturacion mensual.",
                 },
               ],
             },
@@ -768,6 +825,22 @@ export default function Landing() {
   const currentDemoExtraDeals = Math.max(0, currentDemoImprovedDeals - currentDemoBaselineDeals);
   const currentDemoExtraRevenue = currentDemoExtraDeals * Math.max(0, currentDemoRoiInput.ticket);
   const currentDemoNetGain = currentDemoExtraRevenue - currentDemoPlanPrice;
+  const currentDemoStepProgressWeights = [0.35, 0.68, 1];
+  const currentDemoStepProgress =
+    currentDemoStepProgressWeights[
+      Math.min(activeDemoStep, currentDemoStepProgressWeights.length - 1)
+    ] || 1;
+  const currentDemoStepExtraDeals = currentDemoExtraDeals * currentDemoStepProgress;
+  const currentDemoStepRevenue = currentDemoExtraRevenue * currentDemoStepProgress;
+  const currentDemoStepNetGain = currentDemoStepRevenue - currentDemoPlanPrice;
+  const currentDemoStepDailyRevenue = currentDemoStepRevenue / 30;
+  const currentDemoStepAnnualNet = Math.max(0, currentDemoStepNetGain) * 12;
+  const currentDemoStepRoiPercent =
+    currentDemoPlanPrice > 0 ? (currentDemoStepNetGain / currentDemoPlanPrice) * 100 : 0;
+  const currentDemoStepPaybackDays =
+    currentDemoStepRevenue > 0
+      ? Math.max(1, Math.ceil((currentDemoPlanPrice / currentDemoStepRevenue) * 30))
+      : null;
   const penFormatter = new Intl.NumberFormat(isEn ? "en-US" : "es-PE", {
     style: "currency",
     currency: "PEN",
@@ -1128,15 +1201,15 @@ export default function Landing() {
         <div className="mx-auto grid w-full max-w-[1160px] gap-8 lg:grid-cols-[0.46fr_0.54fr]">
           <div>
             <p className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${isLandingDark ? "border-cyan-400/30 bg-cyan-400/10 text-cyan-200" : "border-cyan-200 bg-cyan-50 text-cyan-700"}`}>
-              {isEn ? "Real Estate + High-Ticket Simulator" : "Simulador inmobiliario y ticket alto"}
+              {isEn ? "Guided Mockup + Revenue Simulator" : "Mockup guiado + simulador de ingresos"}
             </p>
             <h2 className="mt-4 text-3xl font-semibold tracking-tight">
-              {isEn ? "Project monthly impact before switching your sales operation" : "Proyecta impacto mensual antes de cambiar tu operacion comercial"}
+              {isEn ? "Understand exactly how each tool works and how much money it can unlock" : "Entiende exactamente como se usa cada herramienta y cuanto dinero puede destrabar"}
             </h2>
             <p className={`mt-3 text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
               {isEn
-                ? "Compare CRM WhatsApp, Leads Widget and Lead Chat with before/after metrics, ROI simulation and operational checkpoints. Built for real estate, and valid for any business with average ticket above S/500."
-                : "Compara CRM WhatsApp, Leads Widget y Lead Chat con metricas antes/despues, simulacion ROI y puntos de control operativos. Creado para inmobiliarias y valido para cualquier negocio con ticket promedio mayor a S/500."}
+                ? "Run a guided mockup for CRM WhatsApp, Leads Widget and Lead Chat. See user flow, system reaction and monthly money impact with your own numbers."
+                : "Recorre un mockup guiado de CRM WhatsApp, Leads Widget y Lead Chat. Veras el flujo del usuario, la reaccion del sistema y el impacto mensual en dinero con tus propios numeros."}
             </p>
 
             <div className="mt-5 flex flex-wrap gap-2">
@@ -1330,23 +1403,71 @@ export default function Landing() {
             </article>
 
             <div className="mt-4 grid gap-2">
-              {currentDemoModule?.steps.map((step, index) => (
-                <button
-                  key={step.id}
-                  type="button"
-                  onClick={() => setActiveDemoStep(index)}
-                  className={`rounded-2xl border p-3 text-left transition ${activeDemoStep === index
-                    ? isLandingDark
-                      ? "border-cyan-400/60 bg-cyan-400/10 text-cyan-100"
-                      : "border-cyan-300 bg-cyan-50 text-cyan-800"
-                    : isLandingDark
-                      ? "border-slate-700 bg-slate-900/70 text-slate-300 hover:border-slate-500"
-                      : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"}`}
-                >
-                  <p className="text-sm font-semibold">{step.title}</p>
-                </button>
-              ))}
+              {currentDemoModule?.steps.map((step, index) => {
+                const stepProgressWeight =
+                  currentDemoStepProgressWeights[
+                    Math.min(index, currentDemoStepProgressWeights.length - 1)
+                  ] || 1;
+                const stepProjectedRevenue = currentDemoExtraRevenue * stepProgressWeight;
+                return (
+                  <button
+                    key={step.id}
+                    type="button"
+                    onClick={() => setActiveDemoStep(index)}
+                    className={`rounded-2xl border p-3 text-left transition ${activeDemoStep === index
+                      ? isLandingDark
+                        ? "border-cyan-400/60 bg-cyan-400/10 text-cyan-100"
+                        : "border-cyan-300 bg-cyan-50 text-cyan-800"
+                      : isLandingDark
+                        ? "border-slate-700 bg-slate-900/70 text-slate-300 hover:border-slate-500"
+                        : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"}`}
+                  >
+                    <p className="text-sm font-semibold">{step.title}</p>
+                    <p className={`mt-1 text-[11px] ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
+                      {isEn ? "Projected monthly value unlocked: " : "Valor mensual proyectado liberado: "}
+                      <span className="font-semibold">{penFormatter.format(stepProjectedRevenue)}</span>
+                    </p>
+                  </button>
+                );
+              })}
             </div>
+
+            <article className={`mt-4 rounded-2xl border p-4 ${isLandingDark ? "border-slate-700 bg-slate-900/80" : "border-slate-200 bg-white"}`}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold">{isEn ? "Guided mockup of this step" : "Mockup guiado de este paso"}</p>
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${isLandingDark ? "bg-cyan-500/15 text-cyan-200" : "bg-cyan-100 text-cyan-700"}`}>
+                  {isEn ? `Step ${activeDemoStep + 1} of ${currentDemoModule?.steps.length || 3}` : `Paso ${activeDemoStep + 1} de ${currentDemoModule?.steps.length || 3}`}
+                </span>
+              </div>
+              <div className="mt-3 grid gap-2 text-xs">
+                <div className={`rounded-xl border p-3 ${isLandingDark ? "border-slate-700 bg-slate-950/80" : "border-slate-200 bg-slate-50"}`}>
+                  <p className="flex items-center gap-2 font-semibold">
+                    <Target className="h-3.5 w-3.5 text-cyan-500" />
+                    {isEn ? "What the user does" : "Lo que hace el usuario"}
+                  </p>
+                  <p className={`mt-1 leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-700"}`}>{currentDemoStep?.userAction}</p>
+                </div>
+                <div className={`rounded-xl border p-3 ${isLandingDark ? "border-slate-700 bg-slate-950/80" : "border-slate-200 bg-slate-50"}`}>
+                  <p className="flex items-center gap-2 font-semibold">
+                    <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+                    {isEn ? "What the system updates" : "Lo que actualiza el sistema"}
+                  </p>
+                  <p className={`mt-1 leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-700"}`}>{currentDemoStep?.systemAction}</p>
+                </div>
+                <div className={`rounded-xl border p-3 ${isLandingDark ? "border-emerald-500/30 bg-emerald-500/10" : "border-emerald-200 bg-emerald-50/70"}`}>
+                  <p className="flex items-center gap-2 font-semibold text-emerald-700 dark:text-emerald-200">
+                    <DollarSign className="h-3.5 w-3.5" />
+                    {isEn ? "Why this moves money" : "Por que este paso mueve dinero"}
+                  </p>
+                  <p className={`mt-1 leading-relaxed ${isLandingDark ? "text-emerald-200/90" : "text-emerald-800"}`}>{currentDemoStep?.moneyImpact}</p>
+                </div>
+              </div>
+              <p className={`mt-3 text-[11px] ${isLandingDark ? "text-slate-400" : "text-slate-500"}`}>
+                {isEn
+                  ? "Economic values are simulated from your calculator inputs for this selected scenario."
+                  : "Los valores economicos se simulan con tus datos de la calculadora en este escenario seleccionado."}
+              </p>
+            </article>
             <Button type="button" className="mt-6 rounded-full px-7 text-white" onClick={() => openWhatsAppCta()}>
               {isEn ? "Activate this on my business" : "Quiero activar esto en mi negocio"}
             </Button>
@@ -1363,7 +1484,7 @@ export default function Landing() {
                   {currentDemoStep?.chatLine}
                 </div>
                 <div className="ml-auto max-w-[82%] rounded-2xl rounded-br-md bg-emerald-600 px-3 py-2 text-sm text-white">
-                  {isEn ? "Done. Updating workflow..." : "Listo. Actualizando flujo..."}
+                  {currentDemoStep?.systemAction}
                 </div>
               </div>
             </div>
@@ -1381,6 +1502,52 @@ export default function Landing() {
               <p className={`mt-2 text-xs ${isLandingDark ? "text-slate-400" : "text-slate-600"}`}>
                 {currentDemoStep?.outcome}
               </p>
+            </div>
+
+            <div className={`mt-3 rounded-2xl border p-3 ${isLandingDark ? "border-emerald-500/30 bg-emerald-500/10" : "border-emerald-200 bg-emerald-50/70"}`}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-200">
+                  {isEn ? "Money snapshot for this step" : "Snapshot economico de este paso"}
+                </p>
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${isLandingDark ? "bg-emerald-500/20 text-emerald-100" : "bg-emerald-100 text-emerald-700"}`}>
+                  {isEn ? "Live simulation" : "Simulacion en vivo"}
+                </span>
+              </div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <div className={`rounded-xl border px-3 py-2 ${isLandingDark ? "border-emerald-500/30 bg-slate-950/70" : "border-emerald-200 bg-white/80"}`}>
+                  <p className={`text-[11px] uppercase tracking-[0.08em] ${isLandingDark ? "text-emerald-200/80" : "text-emerald-700/80"}`}>{isEn ? "Extra deals (step)" : "Cierres extra (paso)"}</p>
+                  <p className="mt-1 text-base font-semibold">{currentDemoStepExtraDeals.toFixed(1)}</p>
+                </div>
+                <div className={`rounded-xl border px-3 py-2 ${isLandingDark ? "border-emerald-500/30 bg-slate-950/70" : "border-emerald-200 bg-white/80"}`}>
+                  <p className={`text-[11px] uppercase tracking-[0.08em] ${isLandingDark ? "text-emerald-200/80" : "text-emerald-700/80"}`}>{isEn ? "Revenue unlocked/mo" : "Ingreso desbloqueado/mes"}</p>
+                  <p className="mt-1 text-base font-semibold">{penFormatter.format(currentDemoStepRevenue)}</p>
+                </div>
+                <div className={`rounded-xl border px-3 py-2 ${isLandingDark ? "border-emerald-500/30 bg-slate-950/70" : "border-emerald-200 bg-white/80"}`}>
+                  <p className={`text-[11px] uppercase tracking-[0.08em] ${isLandingDark ? "text-emerald-200/80" : "text-emerald-700/80"}`}>{isEn ? "Net after plan" : "Neto despues del plan"}</p>
+                  <p className={`mt-1 text-base font-semibold ${currentDemoStepNetGain >= 0 ? "text-emerald-500" : "text-rose-500"}`}>{penFormatter.format(currentDemoStepNetGain)}</p>
+                </div>
+                <div className={`rounded-xl border px-3 py-2 ${isLandingDark ? "border-emerald-500/30 bg-slate-950/70" : "border-emerald-200 bg-white/80"}`}>
+                  <p className={`text-[11px] uppercase tracking-[0.08em] ${isLandingDark ? "text-emerald-200/80" : "text-emerald-700/80"}`}>{isEn ? "Payback + ROI" : "Recuperacion + ROI"}</p>
+                  <p className="mt-1 text-base font-semibold">
+                    {currentDemoStepPaybackDays
+                      ? `${currentDemoStepPaybackDays} ${isEn ? "days" : "dias"} | ${Math.round(currentDemoStepRoiPercent)}%`
+                      : isEn
+                        ? "N/A"
+                        : "N/D"}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                <p className={`rounded-lg px-2 py-1 text-[11px] ${isLandingDark ? "bg-slate-900/70 text-slate-300" : "bg-white/85 text-slate-700"}`}>
+                  {isEn ? "Avg daily revenue recovery: " : "Recuperacion diaria promedio: "}
+                  <span className="font-semibold">{penFormatter.format(currentDemoStepDailyRevenue)}</span>
+                </p>
+                <p className={`rounded-lg px-2 py-1 text-[11px] ${isLandingDark ? "bg-slate-900/70 text-slate-300" : "bg-white/85 text-slate-700"}`}>
+                  {isEn ? "Projected annual net gain: " : "Neto anual proyectado: "}
+                  <span className="font-semibold">{penFormatter.format(currentDemoStepAnnualNet)}</span>
+                </p>
+              </div>
+              <p className={`mt-2 text-[11px] ${isLandingDark ? "text-emerald-200/80" : "text-emerald-700/90"}`}>{currentDemoStep?.moneyImpact}</p>
             </div>
 
             <div className={`mt-3 rounded-2xl border p-3 ${isLandingDark ? "border-slate-700 bg-slate-900/80" : "border-slate-200 bg-white"}`}>
