@@ -270,16 +270,22 @@ function WhatsWidgetFlow({
       : [isEn ? "Closed" : "Cerrado"];
 
   return (
-    <div className="relative rounded-2xl border border-slate-700 bg-[#0b141a] p-3 text-slate-100">
-      <div className="flex items-center justify-between rounded-lg bg-[#202c33] px-3 py-2 text-xs">
+    <div className="relative rounded-2xl border border-slate-700 bg-[#0b141a] p-3 text-slate-100 sm:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[#202c33] px-3 py-2 text-xs">
         <span>WhatsApp Web</span>
         <span className={cn("rounded-full px-2 py-0.5 text-[10px] transition-all duration-300", stepIndex > 0 ? "bg-emerald-500/30 text-emerald-100" : "bg-emerald-500/15 text-emerald-200")}>
           {isEn ? "CRM extension active" : "Extension CRM activa"}
         </span>
       </div>
 
-      <div className="mt-3 grid gap-3 md:grid-cols-[0.34fr_0.46fr_0.2fr]">
-        <aside className="rounded-xl border border-slate-700 bg-[#111b21] p-2">
+      {stepIndex === 0 && (
+        <div className="mt-3 rounded-lg border border-amber-300/50 bg-amber-500/15 px-2.5 py-1.5 text-[10px] leading-relaxed text-amber-100 shadow-lg">
+          {isEn ? "New lead from ad. Team gets notified immediately." : "Nuevo lead desde anuncio. El equipo se entera al instante."}
+        </div>
+      )}
+
+      <div className="mt-3 grid gap-3 lg:grid-cols-2 xl:grid-cols-[minmax(150px,0.34fr)_minmax(220px,0.46fr)_minmax(120px,0.2fr)]">
+        <aside className="min-w-0 rounded-xl border border-slate-700 bg-[#111b21] p-2">
           {[
             { name: "Lead Surco", active: true },
             { name: "Lead Miraflores", active: false },
@@ -299,14 +305,14 @@ function WhatsWidgetFlow({
               )}
             >
               <div className="flex items-center justify-between gap-2">
-                <span>{item.name}</span>
+                <span className="min-w-0 truncate">{item.name}</span>
                 {index === 0 && stepIndex === 0 && (
-                  <span className="inline-flex h-4 min-w-4 animate-pulse items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white">
+                  <span className="inline-flex h-4 min-w-4 shrink-0 animate-pulse items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white">
                     1
                   </span>
                 )}
                 {index === 0 && stepIndex === 2 && (
-                  <span className="rounded-full bg-emerald-500 px-1.5 py-0.5 text-[9px] font-semibold text-white">
+                  <span className="shrink-0 rounded-full bg-emerald-500 px-1.5 py-0.5 text-[9px] font-semibold text-white">
                     {isEn ? "Won" : "Cerrado"}
                   </span>
                 )}
@@ -315,11 +321,11 @@ function WhatsWidgetFlow({
           ))}
         </aside>
 
-        <div className="rounded-xl border border-slate-700 bg-[#111b21] p-2">
-          <div className="mb-2 max-w-[78%] rounded-xl rounded-bl-md bg-slate-700 px-2 py-1.5 text-[11px]">
+        <div className="min-w-0 rounded-xl border border-slate-700 bg-[#111b21] p-2">
+          <div className="mb-2 max-w-full break-words rounded-xl rounded-bl-md bg-slate-700 px-2 py-1.5 text-[11px] sm:max-w-[78%]">
             {isEn ? "Hi, I saw your property ad." : "Hola, vi tu anuncio de propiedad."}
           </div>
-          <div className="ml-auto mb-2 max-w-[78%] rounded-xl rounded-br-md bg-emerald-600 px-2 py-1.5 text-[11px] text-white">
+          <div className="ml-auto mb-2 max-w-full break-words rounded-xl rounded-br-md bg-emerald-600 px-2 py-1.5 text-[11px] text-white sm:max-w-[78%]">
             {stepIndex < 2
               ? isEn
                 ? "Perfect. I will move this lead in the pipeline."
@@ -349,8 +355,10 @@ function WhatsWidgetFlow({
 
         <div
           className={cn(
-            "rounded-xl border border-slate-700 bg-[#111b21] p-2 text-[10px] transition-all duration-300",
-            stepIndex > 0 ? "translate-x-0 opacity-100" : "translate-x-3 opacity-0",
+            "min-w-0 overflow-hidden rounded-xl border bg-[#111b21] text-[10px] transition-all duration-300 lg:col-span-2 xl:col-span-1",
+            stepIndex > 0
+              ? "max-h-40 translate-x-0 border-slate-700 p-2 opacity-100"
+              : "max-h-0 translate-x-3 border-transparent p-0 opacity-0",
           )}
         >
           <p className="font-semibold text-slate-100">{isEn ? "CRM panel" : "Panel CRM"}</p>
@@ -361,12 +369,6 @@ function WhatsWidgetFlow({
           </div>
         </div>
       </div>
-
-      {stepIndex === 0 && (
-        <div className="pointer-events-none absolute left-5 top-16 rounded-lg border border-amber-300/50 bg-amber-500/15 px-2 py-1 text-[10px] text-amber-100 shadow-lg">
-          {isEn ? "New lead from ad. Team gets notified immediately." : "Nuevo lead desde anuncio. El equipo se entera al instante."}
-        </div>
-      )}
 
       {stepIndex === 2 && (
         <div className="mt-3 rounded-xl border border-emerald-400/40 bg-emerald-500/15 px-3 py-2 text-[11px] text-emerald-100">

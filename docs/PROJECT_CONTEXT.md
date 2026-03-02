@@ -77,6 +77,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - Landing principal `/` incluye bloque de `mockups guiados` compactos con 3 escenarios (`WhatsWidget`, `Leads Widget`, `Lead Chat`) para mostrar visualmente como se veria cada herramienta en uso real sin sobrecargar la pagina.
 - El bloque de `mockups guiados` ahora usa una `demo guiada` con micro-interacciones controladas: selector por herramienta, flujo local de 3 pasos, boton `Siguiente`, boton `Reiniciar demo` y transiciones suaves (`fade + slide`) sin backend ni logica real de negocio.
 - La demo de `WhatsWidget` replica visualmente `WhatsApp Web` y anima estados internos del mockup: llegada de lead, badge/tooltip, cambio de etapa (`Nuevo -> Contactado -> Calificado`), apertura del panel CRM y cierre simulado.
+- La demo guiada de `WhatsWidget` fue ajustada para evitar solapes visuales en desktop y mobile: tooltip inline, grilla responsiva y panel CRM en fila dedicada antes de pantallas extra anchas.
 - La demo de `Leads Widget` muestra la web con popup de salida + widget y simula apertura, precalificacion y handoff preparado a WhatsApp; `Lead Chat` simula la pagina publica con validacion y handoff al asesor.
 - En el bloque de `mockups guiados`, cada escenario conserva microcopy corto sobre beneficio numerico para reforzar impacto economico sin usar calculadoras ni paneles largos.
 - Landing principal `/` incluye toggle claro/oscuro visible en navbar (desktop/mobile) y copy reforzado a precalificacion de leads + handoff a WhatsApp (sin narrativa de llamadas outbound).
