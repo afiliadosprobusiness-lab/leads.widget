@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { DemoFlow } from "@/components/DemoFlow";
 import { Button } from "@/components/ui/button";
 import { SalesWidget } from "@/components/SalesWidget";
 import { SocialProofToast } from "@/components/SocialProofToast";
@@ -1005,15 +1006,15 @@ export default function Landing() {
       <section className={`relative z-10 border-y px-4 py-14 sm:px-6 lg:py-16 ${isLandingDark ? "border-slate-800/70 bg-slate-900/60" : "border-slate-200/70 bg-white/75"}`}>
         <div className="mx-auto w-full max-w-[1160px]">
           <p className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${isLandingDark ? "border-cyan-400/30 bg-cyan-400/10 text-cyan-200" : "border-cyan-200 bg-cyan-50 text-cyan-700"}`}>
-            {isEn ? "Guided Product Mockups" : "Mockups guiados del producto"}
+            {isEn ? "Guided Product Demo" : "Demo guiada del producto"}
           </p>
           <h2 className="mt-4 text-3xl font-semibold tracking-tight">
-            {isEn ? "Choose one tool and see exactly how it would look in real usage" : "Elige una herramienta y mira exactamente como se veria en uso real"}
+            {isEn ? "Choose one tool and see the commercial flow your team would operate" : "Elige una herramienta y mira el flujo comercial que operaria tu equipo"}
           </h2>
           <p className={`mt-3 max-w-3xl text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
             {isEn
-              ? "No long simulation. Just a clean visual guide so decision-makers understand the interface fast."
-              : "Sin simulacion larga. Solo una guia visual limpia para que gerencia entienda rapido la interfaz."}
+              ? "A short guided demo built for decision-makers: what the team sees, what changes in execution, and where the money impact comes from."
+              : "Una demo corta pensada para decisores: que ve el equipo, que cambia en la ejecucion y de donde sale el impacto en dinero."}
           </p>
 
           <div className="mt-5 flex flex-wrap gap-2">
@@ -1055,104 +1056,21 @@ export default function Landing() {
               </div>
               <p className={`mt-4 rounded-xl px-3 py-2 text-xs font-medium ${isLandingDark ? "bg-emerald-500/10 text-emerald-200" : "bg-emerald-50 text-emerald-800"}`}>
                 {currentDemoModule?.id === "crm_whatsapp"
-                  ? (isEn ? "Numeric benefit: lower lead leakage and more closes per advisor." : "Beneficio numerico: menos fuga de leads y mas cierres por asesor.")
+                  ? (isEn ? "Business impact: fewer lost leads, faster follow-up and more revenue per advisor." : "Impacto de negocio: menos leads perdidos, seguimiento mas rapido y mas ingreso por asesor.")
                   : currentDemoModule?.id === "leads_widget"
-                    ? (isEn ? "Numeric benefit: stronger ad quality and lower cost per useful lead." : "Beneficio numerico: mejor calidad de anuncios y menor costo por lead util.")
-                    : (isEn ? "Numeric benefit: monetize social traffic without waiting for a website." : "Beneficio numerico: monetizas trafico social sin esperar una web.")}
+                    ? (isEn ? "Business impact: stronger lead quality, lower wasted ad spend and better conversion focus." : "Impacto de negocio: mejor calidad de lead, menos gasto desperdiciado y mejor foco de conversion.")
+                    : (isEn ? "Business impact: launch a conversion channel fast and turn social traffic into measurable opportunities." : "Impacto de negocio: abres un canal de conversion rapido y conviertes trafico social en oportunidades medibles.")}
               </p>
               <Button type="button" className="mt-4 rounded-full px-6 text-white" onClick={() => openWhatsAppCta()}>
-                {isEn ? "Activate this setup" : "Activar esta configuracion"}
+                {isEn ? "Review this for my business" : "Quiero esto para mi negocio"}
               </Button>
             </article>
 
-            <div className={`relative overflow-hidden rounded-3xl border p-4 ${isLandingDark ? "border-slate-700 bg-slate-950/90" : "border-slate-200 bg-slate-50/90"}`}>
-              <p className={`mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] ${isLandingDark ? "text-slate-400" : "text-slate-500"}`}>
-                {isEn ? "Visual mockup (non interactive)" : "Mockup visual (no interactivo)"}
-              </p>
-
-              {currentDemoModule?.id === "crm_whatsapp" && (
-                <div className="relative rounded-2xl border border-slate-700 bg-[#0b141a] p-3 text-slate-100">
-                  <div className="flex items-center justify-between rounded-lg bg-[#202c33] px-3 py-2 text-xs">
-                    <span>WhatsApp Web</span>
-                    <span className="rounded-full bg-emerald-500/25 px-2 py-0.5 text-[10px]">Extension</span>
-                  </div>
-                  <div className="mt-3 grid gap-3 md:grid-cols-[0.36fr_0.64fr]">
-                    <aside className="rounded-xl border border-slate-700 bg-[#111b21] p-2">
-                      {["Lead Surco", "Lead Miraflores", "Lead San Isidro"].map((item) => (
-                        <div key={item} className="mb-1 rounded-lg bg-slate-800/80 px-2 py-1 text-[11px] last:mb-0">{item}</div>
-                      ))}
-                    </aside>
-                    <div className="rounded-xl border border-slate-700 bg-[#111b21] p-2">
-                      <div className="mb-2 max-w-[78%] rounded-xl rounded-bl-md bg-slate-700 px-2 py-1.5 text-[11px]">Hola, vi el anuncio del depa.</div>
-                      <div className="ml-auto mb-2 max-w-[78%] rounded-xl rounded-br-md bg-emerald-600 px-2 py-1.5 text-[11px]">Listo. Te asigno asesor y siguiente paso.</div>
-                      <div className="rounded-lg border border-cyan-400/30 bg-cyan-500/10 px-2 py-1 text-[10px] text-cyan-100">Pipeline: Contactado - Calificado</div>
-                    </div>
-                  </div>
-                  <div className="pointer-events-none absolute right-5 top-5 rounded-lg border border-cyan-300/50 bg-cyan-500/15 px-2 py-1 text-[10px] text-cyan-100">
-                    Panel extension
-                  </div>
-                  <div className="pointer-events-none absolute bottom-5 left-5 rounded-lg border border-amber-300/50 bg-amber-500/15 px-2 py-1 text-[10px] text-amber-100">
-                    Popup: lead sin responder
-                  </div>
-                </div>
-              )}
-
-              {currentDemoModule?.id === "leads_widget" && (
-                <div className={`relative rounded-2xl border p-3 ${isLandingDark ? "border-slate-700 bg-slate-900/80" : "border-slate-200 bg-white"}`}>
-                  <div className={`rounded-lg border px-3 py-2 text-xs ${isLandingDark ? "border-slate-700 bg-slate-900" : "border-slate-200 bg-slate-50"}`}>
-                    {isEn ? "Website page" : "Pagina web"}
-                  </div>
-                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                    {Array.from({ length: 6 }).map((_, idx) => (
-                      <div key={idx} className={`h-12 rounded-lg ${isLandingDark ? "bg-slate-800" : "bg-slate-100"}`} />
-                    ))}
-                  </div>
-                  <div className="pointer-events-none absolute right-4 top-4 rounded-lg border border-rose-300/50 bg-rose-500/10 px-2 py-1 text-[10px] text-rose-600 dark:text-rose-200">
-                    {isEn ? "Exit popup" : "Popup de salida"}
-                  </div>
-                  <div className={`pointer-events-none absolute bottom-4 right-4 w-[220px] rounded-xl border p-2 ${isLandingDark ? "border-slate-700 bg-[#0b121a]" : "border-slate-200 bg-white shadow-lg"}`}>
-                    <p className="text-[11px] font-semibold">Leads Widget</p>
-                    <div className={`mt-2 rounded-lg px-2 py-1 text-[10px] ${isLandingDark ? "bg-slate-800 text-slate-300" : "bg-slate-100 text-slate-700"}`}>
-                      {isEn ? "Pre-qualification questions" : "Preguntas de precalificacion"}
-                    </div>
-                    <div className="mt-2 rounded-md bg-emerald-600 px-2 py-1 text-[10px] text-white">
-                      {isEn ? "Send to WhatsApp" : "Enviar a WhatsApp"}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {currentDemoModule?.id === "lead_chat" && (
-                <div className={`rounded-2xl border p-3 ${isLandingDark ? "border-slate-700 bg-[#0b121a]" : "border-slate-200 bg-white"}`}>
-                  <div className={`flex items-center justify-between rounded-lg px-3 py-2 text-xs ${isLandingDark ? "bg-slate-900 text-slate-200" : "bg-slate-100 text-slate-700"}`}>
-                    <span>{isEn ? "Public Lead Chat page" : "Pagina publica Lead Chat"}</span>
-                    <span className="rounded-full bg-cyan-500/15 px-2 py-0.5 text-[10px] text-cyan-500">/lc/tu-negocio</span>
-                  </div>
-                  <div className="mt-3 space-y-2">
-                    <div className={`max-w-[82%] rounded-xl rounded-bl-md px-3 py-2 text-[11px] ${isLandingDark ? "bg-slate-800 text-slate-200" : "bg-slate-100 text-slate-700"}`}>
-                      {isEn ? "I can invest S/500k this month." : "Puedo invertir S/500k este mes."}
-                    </div>
-                    <div className="ml-auto max-w-[82%] rounded-xl rounded-br-md bg-emerald-600 px-3 py-2 text-[11px] text-white">
-                      {isEn ? "Perfect. Assigned to advisor and handoff ready." : "Perfecto. Asignado a asesor y handoff listo."}
-                    </div>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {[
-                      isEn ? "Budget validated" : "Presupuesto validado",
-                      isEn ? "Timeline confirmed" : "Plazo confirmado",
-                      isEn ? "Assigned in CRM" : "Asignado en CRM",
-                    ].map((chip) => (
-                      <span key={chip} className={`rounded-full px-2 py-1 text-[10px] ${isLandingDark ? "bg-emerald-500/15 text-emerald-200" : "bg-emerald-100 text-emerald-700"}`}>
-                        {chip}
-                      </span>
-                    ))}
-                  </div>
-                  <div className="mt-3 rounded-lg bg-emerald-600 px-3 py-2 text-center text-[11px] font-semibold text-white">
-                    {isEn ? "CTA: Continue on WhatsApp" : "CTA: Continuar por WhatsApp"}
-                  </div>
-                </div>
-              )}
-            </div>
+            <DemoFlow
+              moduleId={currentDemoModule?.id || "crm_whatsapp"}
+              isDark={isLandingDark}
+              isEn={isEn}
+            />
           </div>
         </div>
       </section>
