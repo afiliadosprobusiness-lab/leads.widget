@@ -58,26 +58,6 @@ type DemoModule = {
   steps: DemoStep[];
 };
 
-type DemoInsight = {
-  kpis: Array<{
-    label: string;
-    before: string;
-    after: string;
-  }>;
-  onboarding: string[];
-  compliance: string;
-  roi: string;
-  pipelineStages: string[];
-  pipelineGoal: string;
-};
-
-type DemoRoiInput = {
-  leads: number;
-  closeRate: number;
-  lift: number;
-  ticket: number;
-};
-
 export default function Landing() {
   const { i18n } = useTranslation();
   const isEn = String(i18n.language || "").toLowerCase().startsWith("en");
@@ -132,8 +112,8 @@ export default function Landing() {
         ? [
             {
               id: "crm_whatsapp",
-              label: "CRM WhatsApp",
-              title: "CRM WhatsApp simulation",
+              label: "WhatsWidget",
+              title: "WhatsWidget mockup",
               subtitle: "Every WhatsApp conversation becomes a measurable commercial opportunity with owner, stage and next action.",
               purpose: "Give leadership full pipeline visibility and enforce follow-up discipline across advisors.",
               idealFor: "Real estate teams and any high-ticket operation with average ticket above S/500.",
@@ -263,8 +243,8 @@ export default function Landing() {
         : [
             {
               id: "crm_whatsapp",
-              label: "CRM WhatsApp",
-              title: "Demo CRM WhatsApp",
+              label: "WhatsWidget",
+              title: "Mockup WhatsWidget",
               subtitle: "Cada conversacion de WhatsApp se convierte en una oportunidad medible con responsable, etapa y siguiente accion.",
               purpose: "Dar visibilidad total del embudo al gerente y disciplina de seguimiento al equipo.",
               idealFor: "Equipos inmobiliarios y cualquier operacion de ticket alto con promedio mayor a S/500.",
@@ -391,118 +371,6 @@ export default function Landing() {
               ],
             },
           ],
-    [isEn],
-  );
-
-  const demoInsights: Record<DemoModule["id"], DemoInsight> = useMemo(
-    () =>
-      isEn
-        ? {
-            crm_whatsapp: {
-              kpis: [
-                { label: "Effective contact rate", before: "42%", after: "71%" },
-                { label: "Avg first response", before: "18 min", after: "4 min" },
-                { label: "Expected monthly closes", before: "9", after: "14" },
-              ],
-              onboarding: [
-                "Install extension and login in WhatsWidget.",
-                "Import CSV or create contacts manually.",
-                "Move leads by stage and schedule reminders.",
-              ],
-              compliance:
-                "No auto-send. Every outbound action is manually confirmed and campaigns are sent only to opted-in leads.",
-              roi: "With 120 monthly leads and ticket S/3,500, this lift projects +S/17,500 monthly gross revenue. For operations above S/500 average ticket, one extra close often pays the plan.",
-              pipelineStages: ["New", "Contacted", "Visit", "Offer", "Close"],
-              pipelineGoal: "Manager goal: 100% of active leads with owner + next action.",
-            },
-            leads_widget: {
-              kpis: [
-                { label: "Lead profile completeness", before: "41%", after: "88%" },
-                { label: "Cost per useful lead", before: "S/62", after: "S/39" },
-                { label: "Qualified appointments / month", before: "22", after: "34" },
-              ],
-              onboarding: [
-                "Paste widget script on your website.",
-                "Enable quick replies and pre-qualification fields.",
-                "Sync qualified leads directly into CRM pipeline.",
-              ],
-              compliance:
-                "The widget captures consent and routes to WhatsApp with manual send confirmation by your team.",
-              roi: "Same ad spend, but stronger quality raises expected monthly pipeline value by +S/26,000. Works best when your average ticket is above S/500.",
-              pipelineStages: ["Visitor", "Qualified", "WhatsApp", "Follow-up", "Closed"],
-              pipelineGoal: "Manager goal: keep sales queue focused only on high-intent leads.",
-            },
-            lead_chat: {
-              kpis: [
-                { label: "Go-live time without website", before: "14 days", after: "1 day" },
-                { label: "Recovered leads from social channels", before: "0", after: "+58 / month" },
-                { label: "Handoff speed to advisors", before: "2h", after: "12 min" },
-              ],
-              onboarding: [
-                "Create your public Lead Chat link.",
-                "Share it in ads, bio, and social campaigns.",
-                "Convert conversations into CRM contacts and tasks.",
-              ],
-              compliance:
-                "Lead Chat keeps a compliant flow: no auto-send and explicit user action before final handoff.",
-              roi: "Without website dependency, teams activate a new revenue channel in under one day. It is especially profitable for average ticket above S/500.",
-              pipelineStages: ["Open link", "Qualified", "Assigned", "Follow-up", "Won/Lost"],
-              pipelineGoal: "Manager goal: every qualified chat assigned in less than 15 minutes.",
-            },
-          }
-        : {
-            crm_whatsapp: {
-              kpis: [
-                { label: "Tasa de contacto efectivo", before: "42%", after: "71%" },
-                { label: "Primera respuesta promedio", before: "18 min", after: "4 min" },
-                { label: "Cierres mensuales estimados", before: "9", after: "14" },
-              ],
-              onboarding: [
-                "Instala la extension e inicia sesion en WhatsWidget.",
-                "Importa CSV o crea contactos manualmente.",
-                "Mueve leads por etapa y programa recordatorios.",
-              ],
-              compliance:
-                "Sin auto-envio. Cada salida se confirma manualmente y las campanas se envian solo a leads opted_in.",
-              roi: "Con 120 leads al mes y ticket de S/3,500, la mejora proyecta +S/17,500 de ingreso bruto mensual. En operaciones con ticket promedio mayor a S/500, un cierre extra suele pagar el plan.",
-              pipelineStages: ["Nuevo", "Contactado", "Visita", "Oferta", "Cierre"],
-              pipelineGoal: "Meta gerencial: 100% de leads activos con responsable y siguiente accion.",
-            },
-            leads_widget: {
-              kpis: [
-                { label: "Perfil completo del lead", before: "41%", after: "88%" },
-                { label: "Costo por lead util", before: "S/62", after: "S/39" },
-                { label: "Citas calificadas / mes", before: "22", after: "34" },
-              ],
-              onboarding: [
-                "Pega el script del widget en tu web.",
-                "Activa respuestas rapidas y campos de precalificacion.",
-                "Sincroniza leads calificados directo al pipeline CRM.",
-              ],
-              compliance:
-                "El widget captura consentimiento y deriva a WhatsApp con confirmacion manual de envio por tu equipo.",
-              roi: "Con la misma inversion en anuncios, mejoras calidad y elevas el valor mensual del pipeline en +S/26,000. Funciona mejor cuando el ticket promedio supera S/500.",
-              pipelineStages: ["Visitante", "Calificado", "WhatsApp", "Seguimiento", "Cerrado"],
-              pipelineGoal: "Meta gerencial: mantener cola comercial enfocada solo en leads de alta intencion.",
-            },
-            lead_chat: {
-              kpis: [
-                { label: "Tiempo de salida sin web", before: "14 dias", after: "1 dia" },
-                { label: "Leads recuperados desde redes", before: "0", after: "+58 / mes" },
-                { label: "Velocidad de derivacion a asesores", before: "2h", after: "12 min" },
-              ],
-              onboarding: [
-                "Crea tu enlace publico de Lead Chat.",
-                "Compartelo en anuncios, bio y campañas en redes.",
-                "Convierte conversaciones en contactos y tareas CRM.",
-              ],
-              compliance:
-                "Lead Chat mantiene un flujo de cumplimiento: sin auto-envio y accion explicita del usuario antes del handoff final.",
-              roi: "Sin depender de web, tu equipo activa un nuevo canal de ingresos en menos de un dia. Es especialmente rentable para tickets promedio mayores a S/500.",
-              pipelineStages: ["Abre enlace", "Calificado", "Asignado", "Seguimiento", "Ganado/Perdido"],
-              pipelineGoal: "Meta gerencial: toda conversacion calificada asignada en menos de 15 minutos.",
-            },
-          },
     [isEn],
   );
 
@@ -724,13 +592,6 @@ export default function Landing() {
   const [showExitPopup, setShowExitPopup] = useState(false);
   const [hasShownExit, setHasShownExit] = useState(false);
   const [activeDemoModule, setActiveDemoModule] = useState<DemoModule["id"]>("crm_whatsapp");
-  const [activeDemoStep, setActiveDemoStep] = useState(0);
-  const [demoPipelineStageIndex, setDemoPipelineStageIndex] = useState(0);
-  const [demoRoiInputs, setDemoRoiInputs] = useState<Record<DemoModule["id"], DemoRoiInput>>({
-    crm_whatsapp: { leads: 180, closeRate: 7, lift: 4, ticket: 3900 },
-    leads_widget: { leads: 260, closeRate: 5, lift: 3, ticket: 3200 },
-    lead_chat: { leads: 190, closeRate: 4, lift: 3, ticket: 2900 },
-  });
   const testimonialsRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -778,10 +639,6 @@ export default function Landing() {
     return () => window.cancelAnimationFrame(raf);
   }, [testimonials.length, loopedTestimonials.length]);
 
-  useEffect(() => {
-    setDemoPipelineStageIndex(0);
-  }, [activeDemoModule]);
-
   const openWhatsAppCta = (message?: string) => {
     const defaultMessage = "Hola Leads Widget, quiero activar el sistema para mi inmobiliaria (o negocio con ticket promedio > S/500) y revisar proyeccion de resultados.";
     const finalMessage = message || defaultMessage;
@@ -814,58 +671,6 @@ export default function Landing() {
 
   const currentDemoModule =
     demoModules.find((module) => module.id === activeDemoModule) || demoModules[0];
-  const currentDemoStep =
-    currentDemoModule?.steps[activeDemoStep] || currentDemoModule?.steps[0];
-  const currentDemoInsight = demoInsights[currentDemoModule?.id || "crm_whatsapp"];
-  const currentDemoRoiInput = demoRoiInputs[currentDemoModule?.id || "crm_whatsapp"];
-  const currentDemoPlanPrice = currentDemoModule?.id === "crm_whatsapp" ? 50 : 99;
-  const currentDemoImprovedRate = Math.min(100, Math.max(0, currentDemoRoiInput.closeRate + currentDemoRoiInput.lift));
-  const currentDemoBaselineDeals = currentDemoRoiInput.leads * (Math.max(0, currentDemoRoiInput.closeRate) / 100);
-  const currentDemoImprovedDeals = currentDemoRoiInput.leads * (currentDemoImprovedRate / 100);
-  const currentDemoExtraDeals = Math.max(0, currentDemoImprovedDeals - currentDemoBaselineDeals);
-  const currentDemoExtraRevenue = currentDemoExtraDeals * Math.max(0, currentDemoRoiInput.ticket);
-  const currentDemoNetGain = currentDemoExtraRevenue - currentDemoPlanPrice;
-  const currentDemoStepProgressWeights = [0.35, 0.68, 1];
-  const currentDemoStepProgress =
-    currentDemoStepProgressWeights[
-      Math.min(activeDemoStep, currentDemoStepProgressWeights.length - 1)
-    ] || 1;
-  const currentDemoStepExtraDeals = currentDemoExtraDeals * currentDemoStepProgress;
-  const currentDemoStepRevenue = currentDemoExtraRevenue * currentDemoStepProgress;
-  const currentDemoStepNetGain = currentDemoStepRevenue - currentDemoPlanPrice;
-  const currentDemoStepDailyRevenue = currentDemoStepRevenue / 30;
-  const currentDemoStepAnnualNet = Math.max(0, currentDemoStepNetGain) * 12;
-  const currentDemoStepRoiPercent =
-    currentDemoPlanPrice > 0 ? (currentDemoStepNetGain / currentDemoPlanPrice) * 100 : 0;
-  const currentDemoStepPaybackDays =
-    currentDemoStepRevenue > 0
-      ? Math.max(1, Math.ceil((currentDemoPlanPrice / currentDemoStepRevenue) * 30))
-      : null;
-  const penFormatter = new Intl.NumberFormat(isEn ? "en-US" : "es-PE", {
-    style: "currency",
-    currency: "PEN",
-    maximumFractionDigits: 0,
-  });
-
-  const updateDemoRoiField = (field: keyof DemoRoiInput, value: number) => {
-    const moduleId = currentDemoModule?.id || "crm_whatsapp";
-    const safe = Number.isFinite(value) ? value : 0;
-    setDemoRoiInputs((prev) => {
-      const base = prev[moduleId] || { leads: 100, closeRate: 5, lift: 2, ticket: 2000 };
-      const nextValue =
-        field === "closeRate" || field === "lift"
-          ? Math.min(100, Math.max(0, safe))
-          : Math.max(0, safe);
-      return {
-        ...prev,
-        [moduleId]: {
-          ...base,
-          [field]: nextValue,
-        },
-      };
-    });
-  };
-
   return (
     <main className={`min-h-screen overflow-x-hidden selection:bg-cyan-200/70 ${isLandingDark ? "bg-[#020817] text-slate-100" : "bg-[#f7f9fc] text-slate-900"}`}>
       <style>{`
@@ -1198,426 +1003,155 @@ export default function Landing() {
       </section>
 
       <section className={`relative z-10 border-y px-4 py-14 sm:px-6 lg:py-16 ${isLandingDark ? "border-slate-800/70 bg-slate-900/60" : "border-slate-200/70 bg-white/75"}`}>
-        <div className="mx-auto grid w-full max-w-[1160px] gap-8 lg:grid-cols-[0.46fr_0.54fr]">
-          <div>
-            <p className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${isLandingDark ? "border-cyan-400/30 bg-cyan-400/10 text-cyan-200" : "border-cyan-200 bg-cyan-50 text-cyan-700"}`}>
-              {isEn ? "Guided Mockup + Revenue Simulator" : "Mockup guiado + simulador de ingresos"}
-            </p>
-            <h2 className="mt-4 text-3xl font-semibold tracking-tight">
-              {isEn ? "Understand exactly how each tool works and how much money it can unlock" : "Entiende exactamente como se usa cada herramienta y cuanto dinero puede destrabar"}
-            </h2>
-            <p className={`mt-3 text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
-              {isEn
-                ? "Run a guided mockup for CRM WhatsApp, Leads Widget and Lead Chat. See user flow, system reaction and monthly money impact with your own numbers."
-                : "Recorre un mockup guiado de CRM WhatsApp, Leads Widget y Lead Chat. Veras el flujo del usuario, la reaccion del sistema y el impacto mensual en dinero con tus propios numeros."}
-            </p>
+        <div className="mx-auto w-full max-w-[1160px]">
+          <p className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${isLandingDark ? "border-cyan-400/30 bg-cyan-400/10 text-cyan-200" : "border-cyan-200 bg-cyan-50 text-cyan-700"}`}>
+            {isEn ? "Guided Product Mockups" : "Mockups guiados del producto"}
+          </p>
+          <h2 className="mt-4 text-3xl font-semibold tracking-tight">
+            {isEn ? "Choose one tool and see exactly how it would look in real usage" : "Elige una herramienta y mira exactamente como se veria en uso real"}
+          </h2>
+          <p className={`mt-3 max-w-3xl text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
+            {isEn
+              ? "No long simulation. Just a clean visual guide so decision-makers understand the interface fast."
+              : "Sin simulacion larga. Solo una guia visual limpia para que gerencia entienda rapido la interfaz."}
+          </p>
 
-            <div className="mt-5 flex flex-wrap gap-2">
-              {demoModules.map((module) => (
-                <button
-                  key={module.id}
-                  type="button"
-                  onClick={() => {
-                    setActiveDemoModule(module.id);
-                    setActiveDemoStep(0);
-                  }}
-                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${activeDemoModule === module.id
-                    ? isLandingDark
-                      ? "border-cyan-400/70 bg-cyan-500/15 text-cyan-100"
-                      : "border-cyan-300 bg-cyan-50 text-cyan-800"
-                    : isLandingDark
-                      ? "border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-500"
-                      : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"}`}
-                >
-                  {module.label}
-                </button>
-              ))}
-            </div>
-
-            <h3 className="mt-5 text-lg font-semibold">{currentDemoModule?.title}</h3>
-            <p className={`mt-2 text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
-              {currentDemoModule?.subtitle}
-            </p>
-
-            <div className="mt-4 grid gap-2 sm:grid-cols-3">
-              {currentDemoInsight.kpis.map((kpi) => (
-                <article
-                  key={`${currentDemoModule?.id}-${kpi.label}`}
-                  className={`rounded-2xl border p-3 ${isLandingDark ? "border-slate-700 bg-slate-900/80" : "border-slate-200 bg-white"}`}
-                >
-                  <p className={`text-[11px] font-semibold uppercase tracking-[0.12em] ${isLandingDark ? "text-slate-400" : "text-slate-500"}`}>
-                    {kpi.label}
-                  </p>
-                  <div className="mt-2 flex items-center justify-between gap-2">
-                    <span className={`rounded-md px-2 py-0.5 text-xs ${isLandingDark ? "bg-rose-500/15 text-rose-200" : "bg-rose-50 text-rose-700"}`}>
-                      {isEn ? "Before" : "Antes"} {kpi.before}
-                    </span>
-                    <ArrowRight className={`h-3.5 w-3.5 ${isLandingDark ? "text-slate-500" : "text-slate-400"}`} />
-                    <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${isLandingDark ? "bg-emerald-500/15 text-emerald-200" : "bg-emerald-50 text-emerald-700"}`}>
-                      {isEn ? "After" : "Despues"} {kpi.after}
-                    </span>
-                  </div>
-                </article>
-              ))}
-            </div>
-
-            <div className={`mt-4 rounded-2xl border p-4 ${isLandingDark ? "border-slate-700 bg-slate-900/80" : "border-slate-200 bg-white"}`}>
-              <div className="grid gap-2 text-sm">
-                <p className={isLandingDark ? "text-slate-200" : "text-slate-800"}>
-                  <span className="font-semibold">{isEn ? "Serves for:" : "Sirve para:"}</span>{" "}
-                  {currentDemoModule?.purpose}
-                </p>
-                <p className={isLandingDark ? "text-slate-300" : "text-slate-700"}>
-                  <span className="font-semibold">{isEn ? "Ideal if:" : "Ideal si:"}</span>{" "}
-                  {currentDemoModule?.idealFor}
-                </p>
-                <p className={isLandingDark ? "text-cyan-200" : "text-cyan-800"}>
-                  <span className="font-semibold">{isEn ? "Result:" : "Resultado:"}</span>{" "}
-                  {currentDemoModule?.result}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-4 grid gap-2 sm:grid-cols-2">
-              <article className={`rounded-2xl border p-4 ${isLandingDark ? "border-slate-700 bg-slate-900/75" : "border-slate-200 bg-white"}`}>
-                <p className="text-sm font-semibold">{isEn ? "Onboarding in minutes" : "Onboarding en minutos"}</p>
-                <div className="mt-3 grid gap-2 text-xs">
-                  {currentDemoInsight.onboarding.map((item) => (
-                    <p key={`${currentDemoModule?.id}-${item}`} className={`flex items-start gap-2 ${isLandingDark ? "text-slate-300" : "text-slate-700"}`}>
-                      <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
-                      <span>{item}</span>
-                    </p>
-                  ))}
-                </div>
-              </article>
-              <article className={`rounded-2xl border p-4 ${isLandingDark ? "border-slate-700 bg-slate-900/75" : "border-slate-200 bg-white"}`}>
-                <p className="text-sm font-semibold">{isEn ? "Risk control + ROI view" : "Control de riesgo + ROI"}</p>
-                <p className={`mt-3 text-xs leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-700"}`}>
-                  {currentDemoInsight.compliance}
-                </p>
-                <p className={`mt-2 rounded-lg px-2 py-1.5 text-xs font-medium ${isLandingDark ? "bg-cyan-500/10 text-cyan-200" : "bg-cyan-50 text-cyan-800"}`}>
-                  {currentDemoInsight.roi}
-                </p>
-              </article>
-            </div>
-
-            <article className={`mt-4 rounded-2xl border p-4 ${isLandingDark ? "border-slate-700 bg-slate-900/80" : "border-slate-200 bg-white"}`}>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-semibold">{isEn ? "Business impact calculator" : "Calculadora de impacto de negocio"}</p>
-                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${isLandingDark ? "bg-emerald-500/15 text-emerald-200" : "bg-emerald-100 text-emerald-700"}`}>
-                  {isEn ? `Plan considered: S/${currentDemoPlanPrice}` : `Plan considerado: S/${currentDemoPlanPrice}`}
-                </span>
-              </div>
-
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <div>
-                  <label
-                    htmlFor={`demo-roi-leads-${currentDemoModule?.id}`}
-                    className={`text-xs font-medium ${isLandingDark ? "text-slate-300" : "text-slate-700"}`}
-                  >
-                    {isEn ? "Monthly leads" : "Leads mensuales"}
-                  </label>
-                  <input
-                    id={`demo-roi-leads-${currentDemoModule?.id}`}
-                    type="number"
-                    min={0}
-                    value={Math.round(currentDemoRoiInput.leads)}
-                    onChange={(event) => updateDemoRoiField("leads", Number(event.target.value || 0))}
-                    className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-cyan-400 ${isLandingDark ? "border-slate-700 bg-slate-950 text-slate-100" : "border-slate-300 bg-white text-slate-900"}`}
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor={`demo-roi-close-${currentDemoModule?.id}`}
-                    className={`text-xs font-medium ${isLandingDark ? "text-slate-300" : "text-slate-700"}`}
-                  >
-                    {isEn ? "Current close rate (%)" : "Tasa de cierre actual (%)"}
-                  </label>
-                  <input
-                    id={`demo-roi-close-${currentDemoModule?.id}`}
-                    type="number"
-                    min={0}
-                    max={100}
-                    value={Math.round(currentDemoRoiInput.closeRate)}
-                    onChange={(event) => updateDemoRoiField("closeRate", Number(event.target.value || 0))}
-                    className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-cyan-400 ${isLandingDark ? "border-slate-700 bg-slate-950 text-slate-100" : "border-slate-300 bg-white text-slate-900"}`}
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor={`demo-roi-lift-${currentDemoModule?.id}`}
-                    className={`text-xs font-medium ${isLandingDark ? "text-slate-300" : "text-slate-700"}`}
-                  >
-                    {isEn ? "Expected lift (pp)" : "Mejora esperada (pp)"}
-                  </label>
-                  <input
-                    id={`demo-roi-lift-${currentDemoModule?.id}`}
-                    type="number"
-                    min={0}
-                    max={100}
-                    value={Math.round(currentDemoRoiInput.lift)}
-                    onChange={(event) => updateDemoRoiField("lift", Number(event.target.value || 0))}
-                    className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-cyan-400 ${isLandingDark ? "border-slate-700 bg-slate-950 text-slate-100" : "border-slate-300 bg-white text-slate-900"}`}
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor={`demo-roi-ticket-${currentDemoModule?.id}`}
-                    className={`text-xs font-medium ${isLandingDark ? "text-slate-300" : "text-slate-700"}`}
-                  >
-                    {isEn ? "Average ticket (S/)" : "Ticket promedio (S/)"}
-                  </label>
-                  <input
-                    id={`demo-roi-ticket-${currentDemoModule?.id}`}
-                    type="number"
-                    min={0}
-                    value={Math.round(currentDemoRoiInput.ticket)}
-                    onChange={(event) => updateDemoRoiField("ticket", Number(event.target.value || 0))}
-                    className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-cyan-400 ${isLandingDark ? "border-slate-700 bg-slate-950 text-slate-100" : "border-slate-300 bg-white text-slate-900"}`}
-                  />
-                </div>
-              </div>
-
-              <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                <div className={`rounded-xl border px-3 py-2 ${isLandingDark ? "border-slate-700 bg-slate-950/80" : "border-slate-200 bg-slate-50"}`}>
-                  <p className={`text-[11px] uppercase tracking-[0.1em] ${isLandingDark ? "text-slate-400" : "text-slate-500"}`}>{isEn ? "Extra deals/mo" : "Cierres extra/mes"}</p>
-                  <p className="mt-1 text-base font-semibold">{currentDemoExtraDeals.toFixed(1)}</p>
-                </div>
-                <div className={`rounded-xl border px-3 py-2 ${isLandingDark ? "border-slate-700 bg-slate-950/80" : "border-slate-200 bg-slate-50"}`}>
-                  <p className={`text-[11px] uppercase tracking-[0.1em] ${isLandingDark ? "text-slate-400" : "text-slate-500"}`}>{isEn ? "Extra revenue/mo" : "Ingreso extra/mes"}</p>
-                  <p className="mt-1 text-base font-semibold">{penFormatter.format(currentDemoExtraRevenue)}</p>
-                </div>
-                <div className={`rounded-xl border px-3 py-2 ${isLandingDark ? "border-slate-700 bg-slate-950/80" : "border-slate-200 bg-slate-50"}`}>
-                  <p className={`text-[11px] uppercase tracking-[0.1em] ${isLandingDark ? "text-slate-400" : "text-slate-500"}`}>{isEn ? "Net after plan" : "Neto despues del plan"}</p>
-                  <p className={`mt-1 text-base font-semibold ${currentDemoNetGain >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
-                    {penFormatter.format(currentDemoNetGain)}
-                  </p>
-                </div>
-              </div>
-
-              <p className={`mt-2 text-[11px] ${isLandingDark ? "text-slate-400" : "text-slate-500"}`}>
-                {isEn
-                  ? "Decision support simulation. Final results depend on execution quality, sales team discipline and traffic source."
-                  : "Simulacion para apoyar decision. El resultado final depende de la calidad de ejecucion, disciplina comercial y fuente de trafico."}
-              </p>
-            </article>
-
-            <div className="mt-4 grid gap-2">
-              {currentDemoModule?.steps.map((step, index) => {
-                const stepProgressWeight =
-                  currentDemoStepProgressWeights[
-                    Math.min(index, currentDemoStepProgressWeights.length - 1)
-                  ] || 1;
-                const stepProjectedRevenue = currentDemoExtraRevenue * stepProgressWeight;
-                return (
-                  <button
-                    key={step.id}
-                    type="button"
-                    onClick={() => setActiveDemoStep(index)}
-                    className={`rounded-2xl border p-3 text-left transition ${activeDemoStep === index
-                      ? isLandingDark
-                        ? "border-cyan-400/60 bg-cyan-400/10 text-cyan-100"
-                        : "border-cyan-300 bg-cyan-50 text-cyan-800"
-                      : isLandingDark
-                        ? "border-slate-700 bg-slate-900/70 text-slate-300 hover:border-slate-500"
-                        : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"}`}
-                  >
-                    <p className="text-sm font-semibold">{step.title}</p>
-                    <p className={`mt-1 text-[11px] ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
-                      {isEn ? "Projected monthly value unlocked: " : "Valor mensual proyectado liberado: "}
-                      <span className="font-semibold">{penFormatter.format(stepProjectedRevenue)}</span>
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
-
-            <article className={`mt-4 rounded-2xl border p-4 ${isLandingDark ? "border-slate-700 bg-slate-900/80" : "border-slate-200 bg-white"}`}>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-semibold">{isEn ? "Guided mockup of this step" : "Mockup guiado de este paso"}</p>
-                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${isLandingDark ? "bg-cyan-500/15 text-cyan-200" : "bg-cyan-100 text-cyan-700"}`}>
-                  {isEn ? `Step ${activeDemoStep + 1} of ${currentDemoModule?.steps.length || 3}` : `Paso ${activeDemoStep + 1} de ${currentDemoModule?.steps.length || 3}`}
-                </span>
-              </div>
-              <div className="mt-3 grid gap-2 text-xs">
-                <div className={`rounded-xl border p-3 ${isLandingDark ? "border-slate-700 bg-slate-950/80" : "border-slate-200 bg-slate-50"}`}>
-                  <p className="flex items-center gap-2 font-semibold">
-                    <Target className="h-3.5 w-3.5 text-cyan-500" />
-                    {isEn ? "What the user does" : "Lo que hace el usuario"}
-                  </p>
-                  <p className={`mt-1 leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-700"}`}>{currentDemoStep?.userAction}</p>
-                </div>
-                <div className={`rounded-xl border p-3 ${isLandingDark ? "border-slate-700 bg-slate-950/80" : "border-slate-200 bg-slate-50"}`}>
-                  <p className="flex items-center gap-2 font-semibold">
-                    <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
-                    {isEn ? "What the system updates" : "Lo que actualiza el sistema"}
-                  </p>
-                  <p className={`mt-1 leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-700"}`}>{currentDemoStep?.systemAction}</p>
-                </div>
-                <div className={`rounded-xl border p-3 ${isLandingDark ? "border-emerald-500/30 bg-emerald-500/10" : "border-emerald-200 bg-emerald-50/70"}`}>
-                  <p className="flex items-center gap-2 font-semibold text-emerald-700 dark:text-emerald-200">
-                    <DollarSign className="h-3.5 w-3.5" />
-                    {isEn ? "Why this moves money" : "Por que este paso mueve dinero"}
-                  </p>
-                  <p className={`mt-1 leading-relaxed ${isLandingDark ? "text-emerald-200/90" : "text-emerald-800"}`}>{currentDemoStep?.moneyImpact}</p>
-                </div>
-              </div>
-              <p className={`mt-3 text-[11px] ${isLandingDark ? "text-slate-400" : "text-slate-500"}`}>
-                {isEn
-                  ? "Economic values are simulated from your calculator inputs for this selected scenario."
-                  : "Los valores economicos se simulan con tus datos de la calculadora en este escenario seleccionado."}
-              </p>
-            </article>
-            <Button type="button" className="mt-6 rounded-full px-7 text-white" onClick={() => openWhatsAppCta()}>
-              {isEn ? "Activate this on my business" : "Quiero activar esto en mi negocio"}
-            </Button>
+          <div className="mt-5 flex flex-wrap gap-2">
+            {demoModules.map((module) => (
+              <button
+                key={module.id}
+                type="button"
+                onClick={() => setActiveDemoModule(module.id)}
+                className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${activeDemoModule === module.id
+                  ? isLandingDark
+                    ? "border-cyan-400/70 bg-cyan-500/15 text-cyan-100"
+                    : "border-cyan-300 bg-cyan-50 text-cyan-800"
+                  : isLandingDark
+                    ? "border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-500"
+                    : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"}`}
+              >
+                {module.label}
+              </button>
+            ))}
           </div>
 
-          <div className={`rounded-[28px] border p-4 ${isLandingDark ? "border-slate-700 bg-slate-950/80" : "border-slate-200 bg-slate-50/85"}`}>
-            <div className={`rounded-2xl border p-3 ${isLandingDark ? "border-slate-700 bg-[#0b121a]" : "border-slate-200 bg-white"}`}>
-              <div className="flex items-center justify-between rounded-xl bg-gradient-to-r from-emerald-600 to-cyan-600 px-3 py-2 text-white">
-                <span className="text-xs font-semibold">{currentDemoModule?.chatTitle}</span>
-                <MessageCircle className="h-4 w-4" />
-              </div>
-              <div className="mt-3 space-y-2">
-                <div className={`max-w-[82%] rounded-2xl rounded-bl-md px-3 py-2 text-sm ${isLandingDark ? "bg-slate-800 text-slate-100" : "bg-slate-100 text-slate-700"}`}>
-                  {currentDemoStep?.chatLine}
-                </div>
-                <div className="ml-auto max-w-[82%] rounded-2xl rounded-br-md bg-emerald-600 px-3 py-2 text-sm text-white">
-                  {currentDemoStep?.systemAction}
-                </div>
-              </div>
-            </div>
-
-            <div className={`mt-3 rounded-2xl border p-3 ${isLandingDark ? "border-slate-700 bg-slate-900/80" : "border-slate-200 bg-white"}`}>
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold">{currentDemoModule?.panelTitle}</p>
-                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${isLandingDark ? "bg-cyan-500/15 text-cyan-200" : "bg-cyan-100 text-cyan-700"}`}>
-                  {isEn ? "Auto-updated" : "Auto-actualizado"}
-                </span>
-              </div>
-              <p className={`mt-2 rounded-lg px-2 py-1.5 text-sm ${isLandingDark ? "bg-slate-800 text-slate-200" : "bg-slate-100 text-slate-700"}`}>
-                {currentDemoStep?.panelLine}
+          <div className="mt-6 grid gap-6 lg:grid-cols-[0.38fr_0.62fr]">
+            <article className={`rounded-3xl border p-5 ${isLandingDark ? "border-slate-700 bg-slate-950/80" : "border-slate-200 bg-white"}`}>
+              <h3 className="text-lg font-semibold">{currentDemoModule?.title}</h3>
+              <p className={`mt-2 text-sm leading-relaxed ${isLandingDark ? "text-slate-300" : "text-slate-600"}`}>
+                {currentDemoModule?.subtitle}
               </p>
-              <p className={`mt-2 text-xs ${isLandingDark ? "text-slate-400" : "text-slate-600"}`}>
-                {currentDemoStep?.outcome}
-              </p>
-            </div>
-
-            <div className={`mt-3 rounded-2xl border p-3 ${isLandingDark ? "border-emerald-500/30 bg-emerald-500/10" : "border-emerald-200 bg-emerald-50/70"}`}>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-200">
-                  {isEn ? "Money snapshot for this step" : "Snapshot economico de este paso"}
-                </p>
-                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${isLandingDark ? "bg-emerald-500/20 text-emerald-100" : "bg-emerald-100 text-emerald-700"}`}>
-                  {isEn ? "Live simulation" : "Simulacion en vivo"}
-                </span>
-              </div>
-              <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                <div className={`rounded-xl border px-3 py-2 ${isLandingDark ? "border-emerald-500/30 bg-slate-950/70" : "border-emerald-200 bg-white/80"}`}>
-                  <p className={`text-[11px] uppercase tracking-[0.08em] ${isLandingDark ? "text-emerald-200/80" : "text-emerald-700/80"}`}>{isEn ? "Extra deals (step)" : "Cierres extra (paso)"}</p>
-                  <p className="mt-1 text-base font-semibold">{currentDemoStepExtraDeals.toFixed(1)}</p>
-                </div>
-                <div className={`rounded-xl border px-3 py-2 ${isLandingDark ? "border-emerald-500/30 bg-slate-950/70" : "border-emerald-200 bg-white/80"}`}>
-                  <p className={`text-[11px] uppercase tracking-[0.08em] ${isLandingDark ? "text-emerald-200/80" : "text-emerald-700/80"}`}>{isEn ? "Revenue unlocked/mo" : "Ingreso desbloqueado/mes"}</p>
-                  <p className="mt-1 text-base font-semibold">{penFormatter.format(currentDemoStepRevenue)}</p>
-                </div>
-                <div className={`rounded-xl border px-3 py-2 ${isLandingDark ? "border-emerald-500/30 bg-slate-950/70" : "border-emerald-200 bg-white/80"}`}>
-                  <p className={`text-[11px] uppercase tracking-[0.08em] ${isLandingDark ? "text-emerald-200/80" : "text-emerald-700/80"}`}>{isEn ? "Net after plan" : "Neto despues del plan"}</p>
-                  <p className={`mt-1 text-base font-semibold ${currentDemoStepNetGain >= 0 ? "text-emerald-500" : "text-rose-500"}`}>{penFormatter.format(currentDemoStepNetGain)}</p>
-                </div>
-                <div className={`rounded-xl border px-3 py-2 ${isLandingDark ? "border-emerald-500/30 bg-slate-950/70" : "border-emerald-200 bg-white/80"}`}>
-                  <p className={`text-[11px] uppercase tracking-[0.08em] ${isLandingDark ? "text-emerald-200/80" : "text-emerald-700/80"}`}>{isEn ? "Payback + ROI" : "Recuperacion + ROI"}</p>
-                  <p className="mt-1 text-base font-semibold">
-                    {currentDemoStepPaybackDays
-                      ? `${currentDemoStepPaybackDays} ${isEn ? "days" : "dias"} | ${Math.round(currentDemoStepRoiPercent)}%`
-                      : isEn
-                        ? "N/A"
-                        : "N/D"}
-                  </p>
-                </div>
-              </div>
-              <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                <p className={`rounded-lg px-2 py-1 text-[11px] ${isLandingDark ? "bg-slate-900/70 text-slate-300" : "bg-white/85 text-slate-700"}`}>
-                  {isEn ? "Avg daily revenue recovery: " : "Recuperacion diaria promedio: "}
-                  <span className="font-semibold">{penFormatter.format(currentDemoStepDailyRevenue)}</span>
-                </p>
-                <p className={`rounded-lg px-2 py-1 text-[11px] ${isLandingDark ? "bg-slate-900/70 text-slate-300" : "bg-white/85 text-slate-700"}`}>
-                  {isEn ? "Projected annual net gain: " : "Neto anual proyectado: "}
-                  <span className="font-semibold">{penFormatter.format(currentDemoStepAnnualNet)}</span>
-                </p>
-              </div>
-              <p className={`mt-2 text-[11px] ${isLandingDark ? "text-emerald-200/80" : "text-emerald-700/90"}`}>{currentDemoStep?.moneyImpact}</p>
-            </div>
-
-            <div className={`mt-3 rounded-2xl border p-3 ${isLandingDark ? "border-slate-700 bg-slate-900/80" : "border-slate-200 bg-white"}`}>
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-semibold">{isEn ? "Full flow in one view" : "Flujo completo en una vista"}</p>
-                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${isLandingDark ? "bg-emerald-500/15 text-emerald-200" : "bg-emerald-100 text-emerald-700"}`}>
-                  {isEn ? "Interactive" : "Interactivo"}
-                </span>
-              </div>
-
-              <div className="mt-3 grid gap-2 sm:grid-cols-5">
-                {currentDemoInsight.pipelineStages.map((stage, index) => (
-                  <button
-                    key={`${currentDemoModule?.id}-${stage}`}
-                    type="button"
-                    onClick={() => setDemoPipelineStageIndex(index)}
-                    className={`rounded-xl border px-2 py-2 text-[11px] font-semibold transition ${demoPipelineStageIndex === index
-                      ? isLandingDark
-                        ? "border-cyan-400/70 bg-cyan-500/15 text-cyan-100"
-                        : "border-cyan-300 bg-cyan-50 text-cyan-800"
-                      : isLandingDark
-                        ? "border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-500"
-                        : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"}`}
+              <div className="mt-4 space-y-2">
+                {(currentDemoModule?.steps || []).slice(0, 3).map((step, index) => (
+                  <div
+                    key={step.id}
+                    className={`rounded-xl border px-3 py-2 ${isLandingDark ? "border-slate-700 bg-slate-900/70" : "border-slate-200 bg-slate-50"}`}
                   >
-                    {stage}
-                  </button>
+                    <p className="text-xs font-semibold">
+                      {index + 1}. {step.title}
+                    </p>
+                  </div>
                 ))}
               </div>
-
-              <div className={`mt-3 h-2 rounded-full ${isLandingDark ? "bg-slate-800" : "bg-slate-200"}`}>
-                <div
-                  className="h-2 rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 transition-all duration-300"
-                  style={{
-                    width: `${((demoPipelineStageIndex + 1) / currentDemoInsight.pipelineStages.length) * 100}%`,
-                  }}
-                />
-              </div>
-
-              <p className={`mt-2 text-xs ${isLandingDark ? "text-slate-300" : "text-slate-700"}`}>
-                {isEn ? "Current simulated stage:" : "Etapa simulada actual:"}{" "}
-                <span className="font-semibold">{currentDemoInsight.pipelineStages[demoPipelineStageIndex]}</span>
+              <p className={`mt-4 rounded-xl px-3 py-2 text-xs font-medium ${isLandingDark ? "bg-emerald-500/10 text-emerald-200" : "bg-emerald-50 text-emerald-800"}`}>
+                {currentDemoModule?.id === "crm_whatsapp"
+                  ? (isEn ? "Numeric benefit: lower lead leakage and more closes per advisor." : "Beneficio numerico: menos fuga de leads y mas cierres por asesor.")
+                  : currentDemoModule?.id === "leads_widget"
+                    ? (isEn ? "Numeric benefit: stronger ad quality and lower cost per useful lead." : "Beneficio numerico: mejor calidad de anuncios y menor costo por lead util.")
+                    : (isEn ? "Numeric benefit: monetize social traffic without waiting for a website." : "Beneficio numerico: monetizas trafico social sin esperar una web.")}
               </p>
-              <p className={`mt-1 text-xs ${isLandingDark ? "text-slate-400" : "text-slate-600"}`}>
-                {currentDemoInsight.pipelineGoal}
+              <Button type="button" className="mt-4 rounded-full px-6 text-white" onClick={() => openWhatsAppCta()}>
+                {isEn ? "Activate this setup" : "Activar esta configuracion"}
+              </Button>
+            </article>
+
+            <div className={`relative overflow-hidden rounded-3xl border p-4 ${isLandingDark ? "border-slate-700 bg-slate-950/90" : "border-slate-200 bg-slate-50/90"}`}>
+              <p className={`mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] ${isLandingDark ? "text-slate-400" : "text-slate-500"}`}>
+                {isEn ? "Visual mockup (non interactive)" : "Mockup visual (no interactivo)"}
               </p>
 
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  className="rounded-full px-4 text-white"
-                  onClick={() =>
-                    setDemoPipelineStageIndex((prev) =>
-                      Math.min(prev + 1, currentDemoInsight.pipelineStages.length - 1),
-                    )
-                  }
-                  disabled={demoPipelineStageIndex >= currentDemoInsight.pipelineStages.length - 1}
-                >
-                  {isEn ? "Move to next stage" : "Mover a la siguiente etapa"}
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="rounded-full px-4"
-                  onClick={() => setDemoPipelineStageIndex(0)}
-                >
-                  {isEn ? "Reset flow" : "Reiniciar flujo"}
-                </Button>
-              </div>
+              {currentDemoModule?.id === "crm_whatsapp" && (
+                <div className="relative rounded-2xl border border-slate-700 bg-[#0b141a] p-3 text-slate-100">
+                  <div className="flex items-center justify-between rounded-lg bg-[#202c33] px-3 py-2 text-xs">
+                    <span>WhatsApp Web</span>
+                    <span className="rounded-full bg-emerald-500/25 px-2 py-0.5 text-[10px]">Extension</span>
+                  </div>
+                  <div className="mt-3 grid gap-3 md:grid-cols-[0.36fr_0.64fr]">
+                    <aside className="rounded-xl border border-slate-700 bg-[#111b21] p-2">
+                      {["Lead Surco", "Lead Miraflores", "Lead San Isidro"].map((item) => (
+                        <div key={item} className="mb-1 rounded-lg bg-slate-800/80 px-2 py-1 text-[11px] last:mb-0">{item}</div>
+                      ))}
+                    </aside>
+                    <div className="rounded-xl border border-slate-700 bg-[#111b21] p-2">
+                      <div className="mb-2 max-w-[78%] rounded-xl rounded-bl-md bg-slate-700 px-2 py-1.5 text-[11px]">Hola, vi el anuncio del depa.</div>
+                      <div className="ml-auto mb-2 max-w-[78%] rounded-xl rounded-br-md bg-emerald-600 px-2 py-1.5 text-[11px]">Listo. Te asigno asesor y siguiente paso.</div>
+                      <div className="rounded-lg border border-cyan-400/30 bg-cyan-500/10 px-2 py-1 text-[10px] text-cyan-100">Pipeline: Contactado - Calificado</div>
+                    </div>
+                  </div>
+                  <div className="pointer-events-none absolute right-5 top-5 rounded-lg border border-cyan-300/50 bg-cyan-500/15 px-2 py-1 text-[10px] text-cyan-100">
+                    Panel extension
+                  </div>
+                  <div className="pointer-events-none absolute bottom-5 left-5 rounded-lg border border-amber-300/50 bg-amber-500/15 px-2 py-1 text-[10px] text-amber-100">
+                    Popup: lead sin responder
+                  </div>
+                </div>
+              )}
+
+              {currentDemoModule?.id === "leads_widget" && (
+                <div className={`relative rounded-2xl border p-3 ${isLandingDark ? "border-slate-700 bg-slate-900/80" : "border-slate-200 bg-white"}`}>
+                  <div className={`rounded-lg border px-3 py-2 text-xs ${isLandingDark ? "border-slate-700 bg-slate-900" : "border-slate-200 bg-slate-50"}`}>
+                    {isEn ? "Website page" : "Pagina web"}
+                  </div>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                    {Array.from({ length: 6 }).map((_, idx) => (
+                      <div key={idx} className={`h-12 rounded-lg ${isLandingDark ? "bg-slate-800" : "bg-slate-100"}`} />
+                    ))}
+                  </div>
+                  <div className="pointer-events-none absolute right-4 top-4 rounded-lg border border-rose-300/50 bg-rose-500/10 px-2 py-1 text-[10px] text-rose-600 dark:text-rose-200">
+                    {isEn ? "Exit popup" : "Popup de salida"}
+                  </div>
+                  <div className={`pointer-events-none absolute bottom-4 right-4 w-[220px] rounded-xl border p-2 ${isLandingDark ? "border-slate-700 bg-[#0b121a]" : "border-slate-200 bg-white shadow-lg"}`}>
+                    <p className="text-[11px] font-semibold">Leads Widget</p>
+                    <div className={`mt-2 rounded-lg px-2 py-1 text-[10px] ${isLandingDark ? "bg-slate-800 text-slate-300" : "bg-slate-100 text-slate-700"}`}>
+                      {isEn ? "Pre-qualification questions" : "Preguntas de precalificacion"}
+                    </div>
+                    <div className="mt-2 rounded-md bg-emerald-600 px-2 py-1 text-[10px] text-white">
+                      {isEn ? "Send to WhatsApp" : "Enviar a WhatsApp"}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {currentDemoModule?.id === "lead_chat" && (
+                <div className={`rounded-2xl border p-3 ${isLandingDark ? "border-slate-700 bg-[#0b121a]" : "border-slate-200 bg-white"}`}>
+                  <div className={`flex items-center justify-between rounded-lg px-3 py-2 text-xs ${isLandingDark ? "bg-slate-900 text-slate-200" : "bg-slate-100 text-slate-700"}`}>
+                    <span>{isEn ? "Public Lead Chat page" : "Pagina publica Lead Chat"}</span>
+                    <span className="rounded-full bg-cyan-500/15 px-2 py-0.5 text-[10px] text-cyan-500">/lc/tu-negocio</span>
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    <div className={`max-w-[82%] rounded-xl rounded-bl-md px-3 py-2 text-[11px] ${isLandingDark ? "bg-slate-800 text-slate-200" : "bg-slate-100 text-slate-700"}`}>
+                      {isEn ? "I can invest S/500k this month." : "Puedo invertir S/500k este mes."}
+                    </div>
+                    <div className="ml-auto max-w-[82%] rounded-xl rounded-br-md bg-emerald-600 px-3 py-2 text-[11px] text-white">
+                      {isEn ? "Perfect. Assigned to advisor and handoff ready." : "Perfecto. Asignado a asesor y handoff listo."}
+                    </div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {[
+                      isEn ? "Budget validated" : "Presupuesto validado",
+                      isEn ? "Timeline confirmed" : "Plazo confirmado",
+                      isEn ? "Assigned in CRM" : "Asignado en CRM",
+                    ].map((chip) => (
+                      <span key={chip} className={`rounded-full px-2 py-1 text-[10px] ${isLandingDark ? "bg-emerald-500/15 text-emerald-200" : "bg-emerald-100 text-emerald-700"}`}>
+                        {chip}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="mt-3 rounded-lg bg-emerald-600 px-3 py-2 text-center text-[11px] font-semibold text-white">
+                    {isEn ? "CTA: Continue on WhatsApp" : "CTA: Continuar por WhatsApp"}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1824,3 +1358,6 @@ export default function Landing() {
     </main>
   );
 }
+
+
+
