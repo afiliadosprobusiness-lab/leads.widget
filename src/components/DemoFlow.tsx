@@ -161,17 +161,15 @@ export function DemoFlow({ moduleId, isDark, isEn }: DemoFlowProps) {
   useEffect(() => {
     if (stepIndex === renderedStepIndex) return;
 
-    let frame = 0;
     setIsVisible(false);
 
     const timeout = window.setTimeout(() => {
       setRenderedStepIndex(stepIndex);
-      frame = window.requestAnimationFrame(() => setIsVisible(true));
+      setIsVisible(true);
     }, 180);
 
     return () => {
       window.clearTimeout(timeout);
-      window.cancelAnimationFrame(frame);
     };
   }, [stepIndex, renderedStepIndex]);
 
