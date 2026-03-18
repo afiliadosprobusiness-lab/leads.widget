@@ -75,6 +75,15 @@ import { useToast } from '@/hooks/use-toast';
 import { normalizeTrackingPixels, validateTrackingPixels } from '@/lib/trackingPixels';
 import { normalizeMetaCapiConfig, validateMetaCapiConfig } from '@/lib/metaCapi';
 import { getNichePromptTemplate } from '@/lib/nichePromptTemplates';
+import {
+  buildAcquisitionCrmDraft,
+  filterAcquisitionProspects,
+  getAcquisitionMetrics,
+  searchAcquisitionMockData,
+  type AcquisitionProspect,
+  type AcquisitionProspectStatus,
+  type AcquisitionProspectStatusFilter,
+} from '@/lib/acquisition';
 
 interface Lead {
   id: string;
@@ -975,7 +984,7 @@ const AI_DEFAULT_SECURITY_PROMPT = [
 ].join('\n');
 
 const SHOW_AFFILIATES_UI = false;
-const CRM_ALLOWED_DASHBOARD_TABS = new Set(['billing', 'account']);
+const CRM_ALLOWED_DASHBOARD_TABS = new Set(['crm', 'billing', 'account']);
 const DASHBOARD_GUIDE_STORAGE_PREFIX = 'leadwidget_dashboard_guide_v1';
 
 export default function Dashboard() {
@@ -994,6 +1003,17 @@ export default function Dashboard() {
   const [dashboardWalkthroughStepIndex, setDashboardWalkthroughStepIndex] = useState(0);
   const [dismissedGuidesByTab, setDismissedGuidesByTab] = useState<Record<string, boolean>>({});
   const [leads, setLeads] = useState<any[]>([]);
+  const [acquisitionProspects, setAcquisitionProspects] = useState<AcquisitionProspect[]>([]);
+  const [acquisitionLoading, setAcquisitionLoading] = useState(false);
+  const [acquisitionHasSearched, setAcquisitionHasSearched] = useState(false);
+  const [acquisitionActionId, setAcquisitionActionId] = useState('');
+  const [acquisitionStatusFilter, setAcquisitionStatusFilter] = useState<AcquisitionProspectStatusFilter>('all');
+  const [acquisitionFilters, setAcquisitionFilters] = useState({
+    category: '',
+    city: '',
+    country: 'Peru',
+    minScore: '70',
+  });
   const [crmContacts, setCrmContacts] = useState<CrmContact[]>([]);
   const [crmSearch, setCrmSearch] = useState('');
   const [crmStageFilter, setCrmStageFilter] = useState<CrmStageFilter>('all');
@@ -1494,10 +1514,6 @@ export default function Dashboard() {
     handleTabChange(dashboardWalkthroughCurrentStep.tab);
   }, [dashboardOnboardingOpen, dashboardWalkthroughCurrentStep, activeTab]);
   useEffect(() => {
-    if (activeTab === 'crm') {
-      setActiveTab('billing');
-      return;
-    }
     if (!isTabLockedForPlan(activeTab)) return;
     setActiveTab('billing');
   }, [activeTab, isCrmOnlyPlan]);
@@ -1886,6 +1902,23 @@ export default function Dashboard() {
       .sort((left, right) => right.score - left.score)
       .slice(0, 4);
   }, [crmContacts, crmDeals, crmTasks]);
+  const acquisitionMinimumScore = useMemo(() => {
+    const parsed = Number.parseInt(acquisitionFilters.minScore, 10);
+    if (!Number.isFinite(parsed)) return 0;
+    return Math.min(100, Math.max(0, parsed));
+  }, [acquisitionFilters.minScore]);
+  const acquisitionMetrics = useMemo(
+    () => getAcquisitionMetrics(acquisitionProspects),
+    [acquisitionProspects],
+  );
+  const filteredAcquisitionProspects = useMemo(
+    () =>
+      filterAcquisitionProspects(acquisitionProspects, {
+        minScore: acquisitionMinimumScore,
+        status: acquisitionStatusFilter,
+      }),
+    [acquisitionProspects, acquisitionMinimumScore, acquisitionStatusFilter],
+  );
   const filteredAiChatLogs = useMemo(() => {
     if (aiChatStatusFilter === 'all') return aiChatLogs;
     return aiChatLogs.filter((item) => item.status === aiChatStatusFilter);
@@ -4400,6 +4433,27 @@ export default function Dashboard() {
     return new Date(ms).toLocaleString(dashboardLocale);
   };
 
+  const isAcquisitionCrmSource = (source: string) => String(source || '').trim().toLowerCase() === 'acquisition_google_places';
+
+  const getCrmSourceLabel = (source: string) => {
+    if (isAcquisitionCrmSource(source)) {
+      return dashboardIsEnglish ? 'Acquisition' : 'Adquisición';
+    }
+    return source || '-';
+  };
+
+  const getAcquisitionStatusLabel = (status: AcquisitionProspectStatus) => {
+    if (status === 'approved') return dashboardIsEnglish ? 'Approved' : 'Aprobado';
+    if (status === 'discarded') return dashboardIsEnglish ? 'Discarded' : 'Descartado';
+    return dashboardIsEnglish ? 'Pending review' : 'Pendiente';
+  };
+
+  const getAcquisitionStatusClass = (status: AcquisitionProspectStatus) => {
+    if (status === 'approved') return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-900/30 dark:text-emerald-300';
+    if (status === 'discarded') return 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/30 dark:text-rose-300';
+    return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-900/30 dark:text-amber-300';
+  };
+
   const getCrmStageClass = (stage: CrmStage) => {
     if (stage === 'won') return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-900/30 dark:text-emerald-300';
     if (stage === 'lost') return 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/30 dark:text-rose-300';
@@ -4799,6 +4853,110 @@ export default function Dashboard() {
     if (!crmSelectedContactId || activeTab !== 'crm' || crmDetailTab !== 'timeline') return;
     fetchCrmTimeline(crmSelectedContactId, crmTimelineFilter).catch(() => {});
   }, [crmSelectedContactId, crmTimelineFilter, crmDetailTab, activeTab]);
+
+  const handleRunAcquisitionSearch = async () => {
+    setAcquisitionLoading(true);
+    setAcquisitionHasSearched(true);
+    try {
+      await new Promise((resolve) => window.setTimeout(resolve, 700));
+      setAcquisitionProspects(
+        searchAcquisitionMockData({
+          category: acquisitionFilters.category,
+          city: acquisitionFilters.city,
+          country: acquisitionFilters.country,
+        }),
+      );
+    } finally {
+      setAcquisitionLoading(false);
+    }
+  };
+
+  const handleApproveAcquisitionProspect = (prospectId: string) => {
+    if (!user?.uid) return;
+    const currentProspect = acquisitionProspects.find((prospect) => prospect.id === prospectId);
+    if (!currentProspect) return;
+    if (currentProspect.status === 'approved') {
+      toast({
+        title: dashboardIsEnglish ? 'Already in CRM' : 'Ya esta en CRM',
+        description: dashboardIsEnglish
+          ? 'This prospect was already approved and added visually to CRM.'
+          : 'Este prospect ya fue aprobado y agregado visualmente al CRM.',
+      });
+      return;
+    }
+
+    const approvedProspect: AcquisitionProspect = {
+      ...currentProspect,
+      status: 'approved',
+    };
+
+    setAcquisitionActionId(prospectId);
+    setAcquisitionProspects((prev) =>
+      prev.map((prospect) => (prospect.id === prospectId ? approvedProspect : prospect)),
+    );
+
+    const crmDraft = buildAcquisitionCrmDraft(approvedProspect, user.uid);
+    const localContactId = `acquisition-${prospectId}`;
+    let inserted = false;
+
+    setCrmContacts((prev) => {
+      const exists = prev.some(
+        (contact) =>
+          String(contact.source_lead_id || '').trim() === prospectId || String(contact.id || '').trim() === localContactId,
+      );
+      if (exists) return prev;
+      inserted = true;
+      return sortCrmContacts([
+        {
+          id: localContactId,
+          ...crmDraft,
+        },
+        ...prev,
+      ]);
+    });
+
+    setAcquisitionActionId('');
+    toast({
+      title: dashboardIsEnglish ? 'Prospect approved' : 'Prospect aprobado',
+      description: inserted
+        ? (dashboardIsEnglish ? 'It now appears in the CRM visual list.' : 'Ahora aparece en la lista visual del CRM.')
+        : (dashboardIsEnglish ? 'The CRM contact already existed, so no duplicate was created.' : 'El contacto ya existia en CRM, asi que no se duplico.'),
+    });
+  };
+
+  const handleDiscardAcquisitionProspect = (prospectId: string) => {
+    const currentProspect = acquisitionProspects.find((prospect) => prospect.id === prospectId);
+    if (!currentProspect) return;
+    if (currentProspect.status === 'approved') {
+      toast({
+        title: dashboardIsEnglish ? 'Already approved' : 'Ya fue aprobado',
+        description: dashboardIsEnglish
+          ? 'This prospect already entered CRM. Keep following it there.'
+          : 'Este prospect ya entro al CRM. Dale seguimiento desde ahi.',
+      });
+      return;
+    }
+    if (currentProspect.status === 'discarded') return;
+
+    setAcquisitionActionId(prospectId);
+    setAcquisitionProspects((prev) =>
+      prev.map((prospect) =>
+        prospect.id === prospectId
+          ? {
+              ...prospect,
+              status: 'discarded',
+            }
+          : prospect,
+      ),
+    );
+    setAcquisitionActionId('');
+    toast({
+      title: dashboardIsEnglish ? 'Prospect discarded' : 'Prospect descartado',
+      description: dashboardIsEnglish
+        ? 'It stays out of CRM and only changes local visual state.'
+        : 'Se mantiene fuera del CRM y solo cambia el estado visual local.',
+    });
+  };
 
   const handleCreateCrmContact = async () => {
     if (!user?.uid) return;
@@ -5447,6 +5605,7 @@ export default function Dashboard() {
   // Superadmins should never be blocked by the trial paywall.
   const isTrialExpired = !isSuperAdmin && getTrialDaysLeft() <= 0 && profile?.subscription_status !== 'active';
   const isConfigTabLocked = isTabLockedForPlan('config');
+  const isAcquisitionTabLocked = isTabLockedForPlan('acquisition');
   const isAiTabLocked = isTabLockedForPlan('ai');
   const isAnalyticsTabLocked = isTabLockedForPlan('analytics');
   const isSecurityTabLocked = isTabLockedForPlan('security');
@@ -5725,7 +5884,7 @@ export default function Dashboard() {
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-8">
           {/* Mobile Navigation (Segmented Control) */}
-          <div className="sm:hidden grid grid-cols-4 gap-1 mb-6 bg-background/50 backdrop-blur-sm p-1 rounded-2xl sticky top-[73px] z-40 border border-border/50 shadow-sm">
+          <div className="sm:hidden grid grid-cols-5 gap-1 mb-6 bg-background/50 backdrop-blur-sm p-1 rounded-2xl sticky top-[73px] z-40 border border-border/50 shadow-sm">
             {/* 1. Widget */}
             <button
               type="button"
@@ -5738,7 +5897,19 @@ export default function Dashboard() {
               {isConfigTabLocked && <Lock className="w-3 h-3 text-amber-500" />}
             </button>
 
-            {/* 2. IA */}
+            {/* 2. Acquisition */}
+            <button
+              type="button"
+              disabled={isAcquisitionTabLocked}
+              onClick={() => handleTabChange('acquisition')}
+              className={`flex flex-col items-center justify-center gap-1 min-h-[56px] rounded-xl transition-all duration-300 active:scale-95 ${activeTab === 'acquisition' ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-muted-foreground hover:bg-muted/50'} ${isAcquisitionTabLocked ? 'opacity-55 cursor-not-allowed hover:bg-transparent' : ''}`}
+            >
+              <Target className={`w-5 h-5 ${activeTab === 'acquisition' ? 'stroke-[2.5px]' : ''}`} />
+              <span className="text-[10px] leading-none">{dashboardIsEnglish ? 'Acquire' : 'Adquisicion'}</span>
+              {isAcquisitionTabLocked && <Lock className="w-3 h-3 text-amber-500" />}
+            </button>
+
+            {/* 3. IA */}
             <button
               type="button"
               disabled={isAiTabLocked}
@@ -5750,29 +5921,35 @@ export default function Dashboard() {
               {isAiTabLocked && <Lock className="w-3 h-3 text-amber-500" />}
             </button>
 
-            {/* 3. Data */}
+            {/* 4. CRM */}
             <button
               type="button"
-              disabled={isAnalyticsTabLocked}
-              onClick={() => handleTabChange('analytics')}
-              className={`flex flex-col items-center justify-center gap-1 min-h-[56px] rounded-xl transition-all duration-300 active:scale-95 ${activeTab === 'analytics' ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-muted-foreground hover:bg-muted/50'} ${isAnalyticsTabLocked ? 'opacity-55 cursor-not-allowed hover:bg-transparent' : ''}`}
+              onClick={() => handleTabChange('crm')}
+              className={`flex flex-col items-center justify-center gap-1 min-h-[56px] rounded-xl transition-all duration-300 active:scale-95 ${activeTab === 'crm' ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-muted-foreground hover:bg-muted/50'}`}
             >
-              <BarChart3 className={`w-5 h-5 ${activeTab === 'analytics' ? 'stroke-[2.5px]' : ''}`} />
-              <span className="text-[10px] leading-none">{t('dashboard.tabs.data')}</span>
-              {isAnalyticsTabLocked && <Lock className="w-3 h-3 text-amber-500" />}
+              <Users className={`w-5 h-5 ${activeTab === 'crm' ? 'stroke-[2.5px]' : ''}`} />
+              <span className="text-[10px] leading-none">CRM</span>
             </button>
 
-            {/* 4. More (Dropdown) */}
+            {/* 5. More (Dropdown) */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className={`flex flex-col items-center justify-center gap-1 min-h-[56px] rounded-xl transition-all duration-300 active:scale-95 ${['security', 'billing', 'account', ...(SHOW_AFFILIATES_UI ? ['affiliates'] : [])].includes(activeTab) ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-muted-foreground hover:bg-muted/50'}`}
+                  className={`flex flex-col items-center justify-center gap-1 min-h-[56px] rounded-xl transition-all duration-300 active:scale-95 ${['analytics', 'security', 'billing', 'account', ...(SHOW_AFFILIATES_UI ? ['affiliates'] : [])].includes(activeTab) ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-muted-foreground hover:bg-muted/50'}`}
                 >
                   <MoreHorizontal className="w-5 h-5" />
                   <span className="text-[10px] leading-none">{t('dashboard.tabs.more')}</span>
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48 rounded-xl">
+                <DropdownMenuItem
+                  disabled={isAnalyticsTabLocked}
+                  onClick={() => handleTabChange('analytics')}
+                  className={`gap-2 h-10 ${isAnalyticsTabLocked ? 'opacity-55 cursor-not-allowed' : 'cursor-pointer'}`}
+                >
+                  <BarChart3 className="w-4 h-4" /> {t('dashboard.tabs.data')}
+                  {isAnalyticsTabLocked && <Lock className="w-3 h-3 text-amber-500 ml-auto" />}
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   disabled={isSecurityTabLocked}
                   onClick={() => handleTabChange('security')}
@@ -5810,12 +5987,23 @@ export default function Dashboard() {
                 {isConfigTabLocked && <Lock className="w-3 h-3 text-amber-500" />}
               </span>
             </TabsTrigger>
+            <TabsTrigger value="acquisition" disabled={isAcquisitionTabLocked} className={`gap-2 flex-shrink-0 px-4 ${isAcquisitionTabLocked ? 'opacity-55' : ''}`}>
+              <Target className="w-4 h-4" />
+              <span className="flex flex-col items-center leading-tight">
+                <span>{dashboardIsEnglish ? 'Acquisition' : 'Adquisición'}</span>
+                {isAcquisitionTabLocked && <Lock className="w-3 h-3 text-amber-500" />}
+              </span>
+            </TabsTrigger>
             <TabsTrigger value="ai" disabled={isAiTabLocked} className={`gap-2 flex-shrink-0 px-4 ${isAiTabLocked ? 'opacity-55' : ''}`}>
               <Bot className="w-4 h-4" />
               <span className="flex flex-col items-center leading-tight">
                 <span>{t('dashboard.tabs.ai')}</span>
                 {isAiTabLocked && <Lock className="w-3 h-3 text-amber-500" />}
               </span>
+            </TabsTrigger>
+            <TabsTrigger value="crm" className="gap-2 flex-shrink-0 px-4">
+              <Users className="w-4 h-4" />
+              <span>CRM</span>
             </TabsTrigger>
             <TabsTrigger value="analytics" disabled={isAnalyticsTabLocked} className={`gap-2 flex-shrink-0 px-4 ${isAnalyticsTabLocked ? 'opacity-55' : ''}`}>
               <BarChart3 className="w-4 h-4" />
@@ -7763,6 +7951,290 @@ export default function Dashboard() {
             </Card>
           </TabsContent>
 
+          {/* Acquisition Tab */}
+          <TabsContent value="acquisition" className="space-y-6">
+            <Card className="overflow-hidden border-primary/20">
+              <CardHeader className="border-b border-border/70 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="space-y-2">
+                    <CardTitle className="flex items-center gap-2">
+                      <Target className="h-5 w-5 text-primary" />
+                      {dashboardIsEnglish ? 'Client acquisition' : 'Adquisición de clientes'}
+                    </CardTitle>
+                    <CardDescription>
+                      {dashboardIsEnglish
+                        ? 'Visual-only pre-inbox to review Google Places style prospects before sending them to CRM.'
+                        : 'Pre-bandeja visual para revisar prospects estilo Google Places antes de enviarlos al CRM.'}
+                    </CardDescription>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" variant="outline" onClick={() => handleTabChange('crm')}>
+                      <Users className="mr-2 h-4 w-4" />
+                      {dashboardIsEnglish ? 'Open CRM' : 'Abrir CRM'}
+                    </Button>
+                    <Button type="button" onClick={() => void handleRunAcquisitionSearch()} disabled={acquisitionLoading}>
+                      {acquisitionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Target className="mr-2 h-4 w-4" />}
+                      {dashboardIsEnglish ? 'Search prospects' : 'Buscar prospects'}
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4 p-4">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="acquisition-category">{dashboardIsEnglish ? 'Category' : 'Rubro'}</Label>
+                    <Input
+                      id="acquisition-category"
+                      value={acquisitionFilters.category}
+                      onChange={(event) => setAcquisitionFilters((prev) => ({ ...prev, category: event.target.value }))}
+                      placeholder={dashboardIsEnglish ? 'Dental clinic, real estate...' : 'Clinica dental, inmobiliaria...'}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="acquisition-city">{dashboardIsEnglish ? 'City' : 'Ciudad'}</Label>
+                    <Input
+                      id="acquisition-city"
+                      value={acquisitionFilters.city}
+                      onChange={(event) => setAcquisitionFilters((prev) => ({ ...prev, city: event.target.value }))}
+                      placeholder={dashboardIsEnglish ? 'Lima, Santiago...' : 'Lima, Santiago...'}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="acquisition-country">{dashboardIsEnglish ? 'Country' : 'País'}</Label>
+                    <Select
+                      value={acquisitionFilters.country}
+                      onValueChange={(value) => setAcquisitionFilters((prev) => ({ ...prev, country: value }))}
+                    >
+                      <SelectTrigger id="acquisition-country">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Peru">Peru</SelectItem>
+                        <SelectItem value="Chile">Chile</SelectItem>
+                        <SelectItem value="Mexico">Mexico</SelectItem>
+                        <SelectItem value="all">{dashboardIsEnglish ? 'All countries' : 'Todos los paises'}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="acquisition-score">{dashboardIsEnglish ? 'Minimum score' : 'Score mínimo'}</Label>
+                    <Input
+                      id="acquisition-score"
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={acquisitionFilters.minScore}
+                      onChange={(event) => setAcquisitionFilters((prev) => ({ ...prev, minScore: event.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex flex-wrap gap-2">
+                    {([
+                      ['all', dashboardIsEnglish ? 'All' : 'Todos', acquisitionMetrics.found],
+                      ['pending', dashboardIsEnglish ? 'Pending' : 'Pendientes', acquisitionMetrics.pending],
+                      ['approved', dashboardIsEnglish ? 'Approved' : 'Aprobados', acquisitionMetrics.approved],
+                      ['discarded', dashboardIsEnglish ? 'Discarded' : 'Descartados', acquisitionMetrics.discarded],
+                    ] as Array<[AcquisitionProspectStatusFilter, string, number]>).map(([value, label, count]) => (
+                      <Button
+                        key={value}
+                        type="button"
+                        size="sm"
+                        variant={acquisitionStatusFilter === value ? 'default' : 'outline'}
+                        className="rounded-full"
+                        onClick={() => setAcquisitionStatusFilter(value)}
+                      >
+                        {label} ({count})
+                      </Button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {dashboardIsEnglish
+                      ? `Client-side filter active: score >= ${acquisitionMinimumScore}.`
+                      : `Filtro client-side activo: score >= ${acquisitionMinimumScore}.`}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-xl border border-slate-200/80 bg-white/80 p-4 dark:border-slate-800 dark:bg-slate-900/60">
+                <p className="text-xs font-medium text-muted-foreground">{dashboardIsEnglish ? 'Found' : 'Encontrados'}</p>
+                <p className="mt-1 text-2xl font-black">{acquisitionMetrics.found}</p>
+              </div>
+              <div className="rounded-xl border border-amber-200/80 bg-amber-50/80 p-4 dark:border-amber-900/60 dark:bg-amber-900/20">
+                <p className="text-xs font-medium text-amber-700 dark:text-amber-200">{dashboardIsEnglish ? 'Pending' : 'Pendientes'}</p>
+                <p className="mt-1 text-2xl font-black text-amber-700 dark:text-amber-200">{acquisitionMetrics.pending}</p>
+              </div>
+              <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/80 p-4 dark:border-emerald-900/60 dark:bg-emerald-900/20">
+                <p className="text-xs font-medium text-emerald-700 dark:text-emerald-200">{dashboardIsEnglish ? 'Approved' : 'Aprobados'}</p>
+                <p className="mt-1 text-2xl font-black text-emerald-700 dark:text-emerald-200">{acquisitionMetrics.approved}</p>
+              </div>
+              <div className="rounded-xl border border-rose-200/80 bg-rose-50/80 p-4 dark:border-rose-900/60 dark:bg-rose-900/20">
+                <p className="text-xs font-medium text-rose-700 dark:text-rose-200">{dashboardIsEnglish ? 'Discarded' : 'Descartados'}</p>
+                <p className="mt-1 text-2xl font-black text-rose-700 dark:text-rose-200">{acquisitionMetrics.discarded}</p>
+              </div>
+            </div>
+
+            <Card>
+              <CardHeader className="space-y-2">
+                <CardTitle>{dashboardIsEnglish ? 'Prospect queue' : 'Pre-bandeja de prospects'}</CardTitle>
+                <CardDescription>
+                  {dashboardIsEnglish
+                    ? 'Approve only the businesses you want to move into the CRM visual flow.'
+                    : 'Aprueba solo los negocios que quieres mover al flujo visual del CRM.'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {acquisitionLoading ? (
+                  <div className="rounded-2xl border border-dashed border-border p-10 text-center text-muted-foreground">
+                    <Loader2 className="mx-auto mb-3 h-10 w-10 animate-spin opacity-70" />
+                    <p className="font-medium">{dashboardIsEnglish ? 'Searching prospects...' : 'Buscando prospects...'}</p>
+                    <p className="mt-1 text-sm">
+                      {dashboardIsEnglish
+                        ? 'Loading mock dataset with local filters.'
+                        : 'Cargando dataset mock con filtros locales.'}
+                    </p>
+                  </div>
+                ) : !acquisitionHasSearched ? (
+                  <div className="rounded-2xl border-2 border-dashed border-border p-10 text-center text-muted-foreground">
+                    <Target className="mx-auto mb-3 h-10 w-10 opacity-30" />
+                    <p className="font-medium">
+                      {dashboardIsEnglish ? 'Search to generate the mock pre-inbox' : 'Busca para generar la pre-bandeja mock'}
+                    </p>
+                    <p className="mt-1 text-sm">
+                      {dashboardIsEnglish
+                        ? 'This phase is 100% visual: no scraping, no APIs and no persistence.'
+                        : 'Esta fase es 100% visual: sin scraping, sin APIs y sin persistencia.'}
+                    </p>
+                  </div>
+                ) : acquisitionProspects.length === 0 ? (
+                  <div className="rounded-2xl border-2 border-dashed border-border p-10 text-center text-muted-foreground">
+                    <Globe className="mx-auto mb-3 h-10 w-10 opacity-30" />
+                    <p className="font-medium">
+                      {dashboardIsEnglish ? 'No prospects in this mock search' : 'No hay prospects en esta busqueda mock'}
+                    </p>
+                    <p className="mt-1 text-sm">
+                      {dashboardIsEnglish
+                        ? 'Try another category, city or country.'
+                        : 'Prueba otro rubro, ciudad o pais.'}
+                    </p>
+                  </div>
+                ) : filteredAcquisitionProspects.length === 0 ? (
+                  <div className="rounded-2xl border-2 border-dashed border-border p-10 text-center text-muted-foreground">
+                    <AlertCircle className="mx-auto mb-3 h-10 w-10 opacity-30" />
+                    <p className="font-medium">
+                      {dashboardIsEnglish ? 'No prospects match the active filters' : 'No hay coincidencias con los filtros activos'}
+                    </p>
+                    <p className="mt-1 text-sm">
+                      {dashboardIsEnglish
+                        ? 'Lower the minimum score or change the status filter.'
+                        : 'Baja el score minimo o cambia el filtro de estado.'}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {filteredAcquisitionProspects.map((prospect) => (
+                      <article
+                        key={prospect.id}
+                        className="rounded-xl border border-border/70 bg-white/70 p-4 transition-colors hover:bg-muted/30 dark:bg-slate-900/40"
+                      >
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                          <div className="min-w-0 space-y-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="truncate text-sm font-semibold sm:text-base">{prospect.businessName}</p>
+                              <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${getAcquisitionStatusClass(prospect.status)}`}>
+                                {getAcquisitionStatusLabel(prospect.status)}
+                              </span>
+                              <span className="rounded-full border border-sky-300/60 bg-sky-500/10 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:text-sky-300">
+                                Google Places
+                              </span>
+                            </div>
+                            <div className="grid gap-1 text-xs text-muted-foreground sm:text-sm">
+                              <p className="break-words">
+                                <span className="font-medium text-foreground">{dashboardIsEnglish ? 'Category:' : 'Rubro:'}</span>{' '}
+                                {prospect.category}
+                              </p>
+                              <p className="break-words">
+                                <span className="font-medium text-foreground">{dashboardIsEnglish ? 'Location:' : 'Ubicacion:'}</span>{' '}
+                                {prospect.city}, {prospect.country}
+                              </p>
+                              <p className="break-words">
+                                <span className="font-medium text-foreground">{dashboardIsEnglish ? 'Address:' : 'Direccion:'}</span>{' '}
+                                {prospect.address}
+                              </p>
+                              <p className="break-words">
+                                <span className="font-medium text-foreground">{dashboardIsEnglish ? 'Phone:' : 'Telefono:'}</span>{' '}
+                                {prospect.phone || '-'}
+                              </p>
+                              <p className="break-words">
+                                <span className="font-medium text-foreground">Website:</span>{' '}
+                                {prospect.website ? (
+                                  <a href={prospect.website} target="_blank" rel="noreferrer" className="underline underline-offset-2">
+                                    {prospect.website}
+                                  </a>
+                                ) : '-'}
+                              </p>
+                              <div className="flex flex-wrap gap-2 pt-1 text-[11px]">
+                                <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 dark:border-slate-700 dark:bg-slate-900/60">
+                                  Rating {prospect.rating}/5
+                                </span>
+                                <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 dark:border-slate-700 dark:bg-slate-900/60">
+                                  {dashboardIsEnglish ? 'Reviews' : 'Reseñas'} {prospect.reviewsCount}
+                                </span>
+                                <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 font-semibold text-primary">
+                                  {dashboardIsEnglish ? 'Score' : 'Score'} {prospect.commercialScore}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="w-full max-w-full lg:w-56">
+                            <div className="grid gap-2">
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => handleApproveAcquisitionProspect(prospect.id)}
+                                disabled={acquisitionActionId === prospect.id || prospect.status === 'approved'}
+                              >
+                                {acquisitionActionId === prospect.id && prospect.status !== 'approved'
+                                  ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                                  : <Check className="mr-2 h-3.5 w-3.5" />}
+                                {prospect.status === 'approved'
+                                  ? (dashboardIsEnglish ? 'Approved in CRM' : 'Aprobado en CRM')
+                                  : (dashboardIsEnglish ? 'Approve' : 'Aprobar')}
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleDiscardAcquisitionProspect(prospect.id)}
+                                disabled={acquisitionActionId === prospect.id || prospect.status === 'approved' || prospect.status === 'discarded'}
+                              >
+                                <X className="mr-2 h-3.5 w-3.5" />
+                                {prospect.status === 'discarded'
+                                  ? (dashboardIsEnglish ? 'Discarded' : 'Descartado')
+                                  : (dashboardIsEnglish ? 'Discard' : 'Descartar')}
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => window.open(prospect.mapsUrl, '_blank', 'noopener,noreferrer')}
+                              >
+                                <ExternalLink className="mr-2 h-3.5 w-3.5" />
+                                {dashboardIsEnglish ? 'Open Maps' : 'Abrir Maps'}
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* CRM Tab */}
           <TabsContent value="crm" className="space-y-6">
             {isCrmOnlyPlan ? (
@@ -8450,7 +8922,13 @@ export default function Dashboard() {
                                 </p>
                                 <p className="break-words">
                                   <span className="font-medium text-foreground">{dashboardIsEnglish ? 'Source:' : 'Origen:'}</span>{' '}
-                                  {contact.source || '-'}
+                                  {isAcquisitionCrmSource(contact.source) ? (
+                                    <span className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                                      {dashboardIsEnglish ? 'Acquisition' : 'Adquisición'}
+                                    </span>
+                                  ) : (
+                                    getCrmSourceLabel(contact.source)
+                                  )}
                                 </p>
                                 {contact.notes ? (
                                   <p className="break-words">
@@ -8569,6 +9047,46 @@ export default function Dashboard() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <div className="grid gap-2 rounded-xl border border-border/70 bg-muted/20 p-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                        {dashboardIsEnglish ? 'Phone' : 'Telefono'}
+                      </p>
+                      <p className="mt-1 break-words text-sm">{crmSelectedContact.phone || '-'}</p>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Email</p>
+                      <p className="mt-1 break-words text-sm">{crmSelectedContact.email || '-'}</p>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                        {dashboardIsEnglish ? 'Interest' : 'Interes'}
+                      </p>
+                      <p className="mt-1 break-words text-sm">{crmSelectedContact.interest || '-'}</p>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                        {dashboardIsEnglish ? 'Source' : 'Origen'}
+                      </p>
+                      <div className="mt-1">
+                        {isAcquisitionCrmSource(crmSelectedContact.source) ? (
+                          <span className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                            {dashboardIsEnglish ? 'Acquisition' : 'Adquisición'}
+                          </span>
+                        ) : (
+                          <span className="text-sm">{getCrmSourceLabel(crmSelectedContact.source)}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  {crmSelectedContact.notes ? (
+                    <div className="rounded-xl border border-border/70 bg-white/70 p-3 text-sm dark:bg-slate-900/40">
+                      <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                        {dashboardIsEnglish ? 'Notes' : 'Notas'}
+                      </p>
+                      <p className="whitespace-pre-wrap break-words text-muted-foreground">{crmSelectedContact.notes}</p>
+                    </div>
+                  ) : null}
                   <Tabs value={crmDetailTab} onValueChange={(value) => setCrmDetailTab(value as 'deals' | 'timeline' | 'tasks')}>
                     <TabsList className="grid w-full grid-cols-3">
                       <TabsTrigger value="deals">{dashboardIsEnglish ? 'Deals' : 'Deals'}</TabsTrigger>

@@ -39,6 +39,8 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
   - Desde 2026-02-28, la pestana CRM y su modal `Como usar CRM` quedaron fuera de la UI del dashboard cliente.
   - La operacion CRM diaria ahora se ejecuta en WhatsWidget CRM.
   - Endpoints/modelos CRM v2 locales (`/api/crm/*`, `crm_contacts`, `deals`, `tasks`, `activity_events`) se mantienen por compatibilidad operativa.
+  - Desde 2026-03-18, el dashboard cliente reactiva visualmente la pestana top-level `CRM` y suma la pestana `Adquisicion` como capa frontend-only: busqueda mock local, filtros visuales y aprobacion/descartes en memoria sin nuevas APIs ni persistencia en esta fase.
+  - Los prospects aprobados en `Adquisicion` se insertan solo en el estado local de `crmContacts` con `source = acquisition_google_places`; no se crean deals/tasks automaticos desde frontend.
 - Dashboard incorpora onboarding guiado de primer ingreso (persistente por usuario) en modo asistente paso a paso (`Paso X de Y`, `Anterior`, `Siguiente`, `Omitir guia`) y guias contextuales por pestana; el recorrido se adapta al plan activo (en `crm` solo pasos de `Pagos/Cuenta`, en `pro` incluye el flujo completo).
 
 ## Objetivo activo Lead Chat + IACloser (2026-02-19)
@@ -201,6 +203,7 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - En IA > Prompt del Sistema (plantillas por nicho), cuando el lead pregunta por precio/costo/inversion, el guion responde oferta dual: `CRM S/50 mensual` o `PRO S/99 mensual` (sin implementacion).
 - En Dashboard > Billing, el esquema comercial activo es: `trial` (2 dias gratis), `crm` (S/50 mensual) y `pro` (S/99 mensual), sin costo de implementacion.
 - En Dashboard, si el usuario activo tiene plan `crm`, solo quedan habilitadas las pestanas `Pagos` y `Cuenta`; las demas se mantienen visibles pero bloqueadas con candado. En `pro` se habilitan todas.
+- En Dashboard, la UI actualizada vuelve a permitir `CRM` como pestana operativa para plan `crm`; `Adquisicion` mantiene la regla de pestana avanzada bloqueada para ese plan y solo queda disponible visualmente en `pro`.
 - En Dashboard > Billing, usuarios `crm` activos pueden usar CTA `Mejorar Plan` (selecciona PRO para cobro inmediato); usuarios `pro` activos pueden usar CTA `Bajar Plan`, que programa `pending_plan_type=crm` para aplicar el precio CRM en la siguiente renovacion.
 - En SuperAdmin > Clientes, se puede definir `plus_monthly_price_pen` por usuario (opcional, precio PRO legacy). Si existe, Billing del dashboard usa ese monto; si no existe, usa base global `S/ 99`.
 - En SuperAdmin se agrega tab `CRM WhatsApp` para activacion/desactivacion por cliente (toggle operativo), persistiendo en `profiles` los campos `whatsapp_crm_enabled`, `whatsapp_crm_status`, `whatsapp_crm_monthly_price_pen`, `whatsapp_crm_activated_at` y `whatsapp_crm_deactivated_at`.
