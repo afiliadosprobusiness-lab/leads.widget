@@ -1,90 +1,57 @@
-# Lead Widget - Contexto Arquitectonico
+# Contexto Arquitectonico - leads.widget
 
-Documento primario derivado del codigo observable en `src/`, `api/`, `public/`, `vercel.json` y `docs/contract.md`.
+Snapshot derivado del codigo real del repo al 2026-03-18.
 
-## Proposito del producto
-
-Lead Widget es un frontend SaaS para captacion y operacion comercial. Combina:
-
-- widget embebible para capturar leads
-- experiencia publica `Lead Chat`
-- dashboard cliente para configuracion, analitica, seguridad, billing y CRM legacy
-- portal partner separado
-
-## Stack confirmado
+## Stack real
 
 - React 18 + TypeScript + Vite
-- TailwindCSS + shadcn/ui (Radix)
-- react-router-dom para rutas
-- Firebase Web SDK para Auth, Firestore y Storage
-- Vercel como capa de hosting/serverless
+- TailwindCSS + shadcn/ui + Radix
+- Firebase Web SDK (Auth + Firestore)
+- Vercel con `routes` y fallback `/api/*` a backend externo
 
-## Estructura principal del frontend
+## Estructura observada
 
-- `src/pages/`: pantallas principales. `Dashboard.tsx` concentra el dashboard cliente.
-- `src/components/`: componentes reutilizables de UI y negocio.
-- `src/components/ui/`: primitives shadcn/ui.
-- `src/lib/`: helpers y normalizadores puros.
-- `public/widget-embed.js`: widget publico embebible.
-- `api/`: funciones serverless locales para rutas `/api/*`.
+- `src/pages/Dashboard.tsx`: dashboard cliente principal, CRM legacy reactivado en UI y pestana `Adquisicion`
+- `src/pages/PartnerDashboard.tsx`: portal partner
+- `src/lib/*`: utilidades de chat, auth, tracking y helpers de dominio
+- `api/*.js`: funciones serverless locales para rutas que no deben caer al backend externo (`chat`, `crm`, `meta-capi`, `debug`, etc.)
+- `server/crm/*`: logica server-side del CRM local (`contacts-merge`, `deals`, `tasks`, `timeline`)
 
-## Rutas principales detectadas
+## Rutas y modulos funcionales
 
-- `/`: landing principal
-- `/app`: dashboard cliente
-- `/partners`: landing partner
-- `/partner`: dashboard partner
-- `/lead-chat/:identity` y `/lc/:identity`: experiencia publica Lead Chat
+- Dashboard cliente: `/app`
+- Lead Chat publico: `/lead-chat/:identity`
+- Portal partner: `/partner`
+- Auth/local API:
+  - `/api/chat`
+  - `/api/chat-event`
+  - `/api/analyze-conversation`
+  - `/api/generate-prompt`
+  - `/api/crm/*`
+  - `/api/meta-capi-*`
 
-## Modulos funcionales observados
+## Integraciones observadas
 
-- Configuracion del widget y branding
-- Configuracion IA y prompts
-- CRM legacy operativo en el dashboard cliente
-- Analiticas y consola de conversaciones IA
-- Seguridad y bloqueos
-- Billing y cambio de plan
-- Portal partner
-
-## Estado y manejo de datos
-
-- `Dashboard.tsx` usa `useState`, `useMemo` y `useEffect` para la mayor parte del estado local.
-- Firestore se consulta directamente desde cliente para perfiles, configs y varias vistas legacy.
-- CRM v2 usa endpoints locales `/api/crm*` para merge/contactos/deals/tasks/timeline.
-- Desde marzo 2026 existe una capa visual local-only de `Adquisicion` en `/app`:
-  - vive en memoria del dashboard
-  - usa dataset mock local
-  - no persiste en Firestore
-  - no crea nuevos endpoints frontend en esta fase
-  - al aprobar, inserta contactos solo en el estado local de `crmContacts` con `source = acquisition_google_places`
-
-## Integraciones externas reales detectadas
-
-- Firebase Auth / Firestore / Storage
+- Backend externo `leads.widget.backend` via rewrite `/api/(.*)`
+- Firebase Auth para tokens Bearer y estado de sesion
+- Firestore para datos cliente/CRM
 - PayPal
-- Cloudinary (cuando hay env vars configuradas)
-- backend HTTP externo via rewrites `/api/*`
-- funciones locales Vercel para CRM, Meta CAPI, debug y utilidades administrativas
+- OpenAI
+- Google Places API via backend externo en modulo `Adquisicion`
 
-## Variables y configuracion relevante
+## Acquisition UI (2026-03-18)
 
-- `vercel.json` prioriza funciones locales `api/*.js` antes del fallback al backend externo.
-- El dashboard cliente distingue planes `trial`, `crm` y `pro` (con compatibilidad legacy `plus`).
-- El plan `crm` mantiene bloqueo visual sobre tabs avanzados; en la UI actual quedan accesibles `CRM`, `Pagos` y `Cuenta`.
+- La pestana `Adquisicion` existe dentro de `Dashboard.tsx`.
+- Mantiene el contrato visual de `AcquisitionProspect` en camelCase.
+- El frontend consume:
+  - `POST /api/acquisition/search`
+  - `GET /api/acquisition/prospects`
+  - `PATCH /api/acquisition/prospects`
+- Todas las llamadas usan Bearer Firebase ID token del usuario autenticado.
+- Al aprobar un prospect, el backend crea o mergea `crm_contacts`; el frontend solo sincroniza el contacto resultante para reflejo visual inmediato.
 
-## Decisiones arquitectonicas observables
+## Restricciones observadas
 
-- Se privilegia evolucion sobre reemplazo: `Dashboard.tsx` concentra mucha logica pero reutiliza primitives consistentes.
-- El CRM cliente sigue vivo por compatibilidad operativa aunque parte del negocio diario migro a WhatsWidget CRM.
-- La nueva experiencia de adquisicion se implementa como extension visual del dashboard existente, no como modulo separado.
-
-## Restricciones confirmadas
-
-- No introducir dependencias nuevas sin justificacion fuerte.
-- Mantener consistencia con patrones actuales del dashboard.
-- Evitar romper contratos actuales de `/api/*`.
-
-## Pendientes de validacion
-
-- No confirmado en el repositorio si la futura persistencia de adquisicion vivira en el backend externo o en funciones locales Vercel.
-- Pendiente de validacion la estrategia final de scoring server-side para adquisicion; en frontend actual solo existe mock visual.
+- El frontend no debe duplicar la logica de scoring, dedupe o merge de Acquisition; eso vive en backend.
+- Las funciones locales `api/*.js` se resuelven antes del fallback global; si una ruta no existe localmente, Vercel la envia al backend externo.
+- El dashboard sigue leyendo `crm_contacts` desde Firestore para renderizado del workspace CRM.
