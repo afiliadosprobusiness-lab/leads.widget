@@ -79,7 +79,6 @@ import {
   buildAcquisitionCrmDraft,
   filterAcquisitionProspects,
   getAcquisitionMetrics,
-  searchAcquisitionMockData,
   type AcquisitionProspect,
   type AcquisitionProspectStatus,
   type AcquisitionProspectStatusFilter,
@@ -198,6 +197,18 @@ interface CrmTimelineEvent {
   payload_json: Record<string, any>;
   created_at: string;
   created_by: string | null;
+}
+
+interface AcquisitionProspectsPayload {
+  prospects?: unknown[];
+}
+
+interface AcquisitionProspectPatchPayload {
+  success?: boolean;
+  prospect?: unknown;
+  crmContactId?: string | null;
+  crm_contact_id?: string | null;
+  action?: string;
 }
 
 interface WidgetConfig {
@@ -1007,6 +1018,7 @@ export default function Dashboard() {
   const [acquisitionLoading, setAcquisitionLoading] = useState(false);
   const [acquisitionHasSearched, setAcquisitionHasSearched] = useState(false);
   const [acquisitionActionId, setAcquisitionActionId] = useState('');
+  const [acquisitionError, setAcquisitionError] = useState('');
   const [acquisitionStatusFilter, setAcquisitionStatusFilter] = useState<AcquisitionProspectStatusFilter>('all');
   const [acquisitionFilters, setAcquisitionFilters] = useState({
     category: '',
@@ -4559,6 +4571,104 @@ export default function Dashboard() {
     };
   };
 
+  const callAcquisitionApi = async <T,>(url: string, init: RequestInit = {}): Promise<T> => {
+    const headers = await getCrmAuthHeaders();
+    const response = await fetch(url, {
+      ...init,
+      headers: {
+        ...headers,
+        ...(init.headers || {}),
+      },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(String(payload?.error || payload?.details || `HTTP ${response.status}`));
+    }
+    return payload as T;
+  };
+
+  const normalizeAcquisitionProspectFromApi = (value: any): AcquisitionProspect => ({
+    id: String(value?.id || '').trim(),
+    businessName: String(value?.businessName || '').trim(),
+    category: String(value?.category || '').trim(),
+    city: String(value?.city || '').trim(),
+    country: String(value?.country || '').trim(),
+    address: String(value?.address || '').trim(),
+    phone: String(value?.phone || '').trim(),
+    website: String(value?.website || '').trim(),
+    rating: Number.isFinite(Number(value?.rating)) ? Number(value.rating) : 0,
+    reviewsCount: Number.isFinite(Number(value?.reviewsCount)) ? Number(value.reviewsCount) : 0,
+    commercialScore: Number.isFinite(Number(value?.commercialScore)) ? Number(value.commercialScore) : 0,
+    mapsUrl: String(value?.mapsUrl || '').trim(),
+    status: (['pending', 'approved', 'discarded'].includes(String(value?.status || '').trim())
+      ? String(value?.status || '').trim()
+      : 'pending') as AcquisitionProspectStatus,
+    source: String(value?.source || 'google_places').trim() || 'google_places',
+  });
+
+  const mapFirestoreCrmContact = (contactId: string, data: any): CrmContact => {
+    const rawStage = String(data?.stage || '').trim().toLowerCase();
+    const stage: CrmStage = CRM_STAGES.includes(rawStage as CrmStage) ? (rawStage as CrmStage) : 'new';
+    return {
+      id: contactId,
+      client_id: String(data?.client_id || user?.uid || '').trim(),
+      name: String(data?.name || '').trim() || 'Sin nombre',
+      phone: String(data?.phone || '').trim(),
+      email: String(data?.email || '').trim(),
+      interest: String(data?.interest || '').trim(),
+      stage,
+      source: String(data?.source || 'manual').trim() || 'manual',
+      source_lead_id: String(data?.source_lead_id || '').trim(),
+      notes: String(data?.notes || '').trim(),
+      created_at: toIsoDateOrNow(data?.created_at),
+      updated_at: toIsoDateOrNow(data?.updated_at || data?.created_at),
+      last_activity_at: toIsoDateOrNow(data?.last_activity_at || data?.updated_at || data?.created_at),
+    };
+  };
+
+  const syncAcquisitionCrmContactState = async (
+    prospect: AcquisitionProspect,
+    crmContactId: string | null,
+  ) => {
+    if (!user?.uid) return false;
+
+    const alreadyExists = crmContacts.some(
+      (contact) =>
+        String(contact.id || '').trim() === String(crmContactId || '').trim()
+        || String(contact.source_lead_id || '').trim() === prospect.id,
+    );
+
+    if (!crmContactId) {
+      const fallbackDraft = buildAcquisitionCrmDraft(prospect, user.uid);
+      mergeContactsInState([
+        {
+          id: `acquisition-${prospect.id}`,
+          ...fallbackDraft,
+        },
+      ]);
+      return !alreadyExists;
+    }
+
+    try {
+      const contactSnap = await getDoc(doc(db, 'crm_contacts', crmContactId));
+      if (contactSnap.exists()) {
+        mergeContactsInState([mapFirestoreCrmContact(contactSnap.id, contactSnap.data() || {})]);
+        return !alreadyExists;
+      }
+    } catch (error) {
+      console.error('Non-critical: Error syncing acquisition CRM contact:', error);
+    }
+
+    const fallbackDraft = buildAcquisitionCrmDraft(prospect, user.uid);
+    mergeContactsInState([
+      {
+        id: crmContactId,
+        ...fallbackDraft,
+      },
+    ]);
+    return !alreadyExists;
+  };
+
   const fetchCrmDeals = async (contactId = '') => {
     if (!user?.uid) return;
     setCrmDealsLoading(true);
@@ -4854,24 +4964,93 @@ export default function Dashboard() {
     fetchCrmTimeline(crmSelectedContactId, crmTimelineFilter).catch(() => {});
   }, [crmSelectedContactId, crmTimelineFilter, crmDetailTab, activeTab]);
 
+  useEffect(() => {
+    if (activeTab !== 'acquisition' || !user?.uid || acquisitionHasSearched) return;
+
+    let cancelled = false;
+    setAcquisitionLoading(true);
+    void (async () => {
+      const token = await user.getIdToken();
+      const response = await fetch('/api/acquisition/prospects', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(String(payload?.error || `HTTP ${response.status}`));
+      }
+      const prospects = Array.isArray((payload as AcquisitionProspectsPayload)?.prospects)
+        ? (payload as AcquisitionProspectsPayload).prospects!.map((prospect) => normalizeAcquisitionProspectFromApi(prospect))
+        : [];
+      if (cancelled) return;
+      setAcquisitionProspects(prospects);
+      setAcquisitionHasSearched(true);
+      setAcquisitionError('');
+    })()
+      .catch((error: any) => {
+        if (cancelled) return;
+        const message = String(error?.message || 'No se pudieron cargar prospects guardados.');
+        setAcquisitionError(message);
+        toast({
+          title: 'Error',
+          description: message,
+          variant: 'destructive',
+        });
+      })
+      .finally(() => {
+        if (!cancelled) setAcquisitionLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, acquisitionHasSearched, toast, user]);
+
   const handleRunAcquisitionSearch = async () => {
+    if (!user?.uid) return;
     setAcquisitionLoading(true);
     setAcquisitionHasSearched(true);
+    setAcquisitionError('');
     try {
-      await new Promise((resolve) => window.setTimeout(resolve, 700));
-      setAcquisitionProspects(
-        searchAcquisitionMockData({
+      const payload = await callAcquisitionApi<AcquisitionProspectsPayload>('/api/acquisition/search', {
+        method: 'POST',
+        body: JSON.stringify({
           category: acquisitionFilters.category,
           city: acquisitionFilters.city,
           country: acquisitionFilters.country,
+          minScore: acquisitionMinimumScore,
         }),
-      );
+      });
+      const prospects = Array.isArray(payload?.prospects)
+        ? payload.prospects.map((prospect) => normalizeAcquisitionProspectFromApi(prospect))
+        : [];
+      setAcquisitionProspects(prospects);
+      setAcquisitionError('');
+      if (prospects.length === 0) {
+        toast({
+          title: dashboardIsEnglish ? 'No prospects found' : 'No se encontraron prospects',
+          description: dashboardIsEnglish
+            ? 'Try another category, city, or score threshold.'
+            : 'Prueba otro rubro, ciudad o score mínimo.',
+        });
+      }
+    } catch (error: any) {
+      const message = String(error?.message || 'No se pudieron buscar prospects.');
+      setAcquisitionError(message);
+      toast({
+        title: 'Error',
+        description: message,
+        variant: 'destructive',
+      });
     } finally {
       setAcquisitionLoading(false);
     }
   };
 
-  const handleApproveAcquisitionProspect = (prospectId: string) => {
+  const handleApproveAcquisitionProspect = async (prospectId: string) => {
     if (!user?.uid) return;
     const currentProspect = acquisitionProspects.find((prospect) => prospect.id === prospectId);
     if (!currentProspect) return;
@@ -4885,46 +5064,50 @@ export default function Dashboard() {
       return;
     }
 
-    const approvedProspect: AcquisitionProspect = {
-      ...currentProspect,
-      status: 'approved',
-    };
-
     setAcquisitionActionId(prospectId);
-    setAcquisitionProspects((prev) =>
-      prev.map((prospect) => (prospect.id === prospectId ? approvedProspect : prospect)),
-    );
+    setAcquisitionError('');
+    try {
+      const payload = await callAcquisitionApi<AcquisitionProspectPatchPayload>('/api/acquisition/prospects', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          id: prospectId,
+          status: 'approved',
+        }),
+      });
 
-    const crmDraft = buildAcquisitionCrmDraft(approvedProspect, user.uid);
-    const localContactId = `acquisition-${prospectId}`;
-    let inserted = false;
+      const approvedProspect = payload?.prospect
+        ? normalizeAcquisitionProspectFromApi(payload.prospect)
+        : { ...currentProspect, status: 'approved' as const };
 
-    setCrmContacts((prev) => {
-      const exists = prev.some(
-        (contact) =>
-          String(contact.source_lead_id || '').trim() === prospectId || String(contact.id || '').trim() === localContactId,
+      setAcquisitionProspects((prev) =>
+        prev.map((prospect) => (prospect.id === prospectId ? approvedProspect : prospect)),
       );
-      if (exists) return prev;
-      inserted = true;
-      return sortCrmContacts([
-        {
-          id: localContactId,
-          ...crmDraft,
-        },
-        ...prev,
-      ]);
-    });
 
-    setAcquisitionActionId('');
-    toast({
-      title: dashboardIsEnglish ? 'Prospect approved' : 'Prospect aprobado',
-      description: inserted
-        ? (dashboardIsEnglish ? 'It now appears in the CRM visual list.' : 'Ahora aparece en la lista visual del CRM.')
-        : (dashboardIsEnglish ? 'The CRM contact already existed, so no duplicate was created.' : 'El contacto ya existia en CRM, asi que no se duplico.'),
-    });
+      const inserted = await syncAcquisitionCrmContactState(
+        approvedProspect,
+        String(payload?.crmContactId || payload?.crm_contact_id || '').trim() || null,
+      );
+
+      toast({
+        title: dashboardIsEnglish ? 'Prospect approved' : 'Prospect aprobado',
+        description: inserted
+          ? (dashboardIsEnglish ? 'It now appears in the CRM visual list.' : 'Ahora aparece en la lista visual del CRM.')
+          : (dashboardIsEnglish ? 'The CRM contact already existed, so no duplicate was created.' : 'El contacto ya existia en CRM, asi que no se duplico.'),
+      });
+    } catch (error: any) {
+      const message = String(error?.message || 'No se pudo aprobar el prospect.');
+      setAcquisitionError(message);
+      toast({
+        title: 'Error',
+        description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      setAcquisitionActionId('');
+    }
   };
 
-  const handleDiscardAcquisitionProspect = (prospectId: string) => {
+  const handleDiscardAcquisitionProspect = async (prospectId: string) => {
     const currentProspect = acquisitionProspects.find((prospect) => prospect.id === prospectId);
     if (!currentProspect) return;
     if (currentProspect.status === 'approved') {
@@ -4939,23 +5122,43 @@ export default function Dashboard() {
     if (currentProspect.status === 'discarded') return;
 
     setAcquisitionActionId(prospectId);
-    setAcquisitionProspects((prev) =>
-      prev.map((prospect) =>
-        prospect.id === prospectId
-          ? {
-              ...prospect,
-              status: 'discarded',
-            }
-          : prospect,
-      ),
-    );
-    setAcquisitionActionId('');
-    toast({
-      title: dashboardIsEnglish ? 'Prospect discarded' : 'Prospect descartado',
-      description: dashboardIsEnglish
-        ? 'It stays out of CRM and only changes local visual state.'
-        : 'Se mantiene fuera del CRM y solo cambia el estado visual local.',
-    });
+    setAcquisitionError('');
+    try {
+      const payload = await callAcquisitionApi<AcquisitionProspectPatchPayload>('/api/acquisition/prospects', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          id: prospectId,
+          status: 'discarded',
+        }),
+      });
+
+      const discardedProspect = payload?.prospect
+        ? normalizeAcquisitionProspectFromApi(payload.prospect)
+        : { ...currentProspect, status: 'discarded' as const };
+
+      setAcquisitionProspects((prev) =>
+        prev.map((prospect) =>
+          prospect.id === prospectId ? discardedProspect : prospect,
+        ),
+      );
+
+      toast({
+        title: dashboardIsEnglish ? 'Prospect discarded' : 'Prospect descartado',
+        description: dashboardIsEnglish
+          ? 'It stays out of CRM and is now persisted server-side.'
+          : 'Se mantiene fuera del CRM y ahora queda persistido en backend.',
+      });
+    } catch (error: any) {
+      const message = String(error?.message || 'No se pudo descartar el prospect.');
+      setAcquisitionError(message);
+      toast({
+        title: 'Error',
+        description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      setAcquisitionActionId('');
+    }
   };
 
   const handleCreateCrmContact = async () => {
@@ -7963,8 +8166,8 @@ export default function Dashboard() {
                     </CardTitle>
                     <CardDescription>
                       {dashboardIsEnglish
-                        ? 'Visual-only pre-inbox to review Google Places style prospects before sending them to CRM.'
-                        : 'Pre-bandeja visual para revisar prospects estilo Google Places antes de enviarlos al CRM.'}
+                        ? 'Search Google Places prospects, persist them server-side, and approve only the businesses that should enter CRM.'
+                        : 'Busca prospects en Google Places, persístelos en backend y aprueba solo los negocios que deban entrar al CRM.'}
                     </CardDescription>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -8086,33 +8289,38 @@ export default function Dashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
+                {acquisitionError ? (
+                  <div className="mb-4 rounded-2xl border border-rose-300/50 bg-rose-500/10 px-3 py-2 text-sm text-rose-800 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-200">
+                    {acquisitionError}
+                  </div>
+                ) : null}
                 {acquisitionLoading ? (
                   <div className="rounded-2xl border border-dashed border-border p-10 text-center text-muted-foreground">
                     <Loader2 className="mx-auto mb-3 h-10 w-10 animate-spin opacity-70" />
                     <p className="font-medium">{dashboardIsEnglish ? 'Searching prospects...' : 'Buscando prospects...'}</p>
                     <p className="mt-1 text-sm">
                       {dashboardIsEnglish
-                        ? 'Loading mock dataset with local filters.'
-                        : 'Cargando dataset mock con filtros locales.'}
+                        ? 'Loading persisted prospects and Google Places results.'
+                        : 'Cargando prospects persistidos y resultados de Google Places.'}
                     </p>
                   </div>
                 ) : !acquisitionHasSearched ? (
                   <div className="rounded-2xl border-2 border-dashed border-border p-10 text-center text-muted-foreground">
                     <Target className="mx-auto mb-3 h-10 w-10 opacity-30" />
                     <p className="font-medium">
-                      {dashboardIsEnglish ? 'Search to generate the mock pre-inbox' : 'Busca para generar la pre-bandeja mock'}
+                      {dashboardIsEnglish ? 'Search to generate the acquisition pre-inbox' : 'Busca para generar la pre-bandeja de adquisición'}
                     </p>
                     <p className="mt-1 text-sm">
                       {dashboardIsEnglish
-                        ? 'This phase is 100% visual: no scraping, no APIs and no persistence.'
-                        : 'Esta fase es 100% visual: sin scraping, sin APIs y sin persistencia.'}
+                        ? 'Results are searched server-side, persisted by client, and can be approved into CRM.'
+                        : 'Los resultados se buscan server-side, se persisten por cliente y pueden aprobarse al CRM.'}
                     </p>
                   </div>
                 ) : acquisitionProspects.length === 0 ? (
                   <div className="rounded-2xl border-2 border-dashed border-border p-10 text-center text-muted-foreground">
                     <Globe className="mx-auto mb-3 h-10 w-10 opacity-30" />
                     <p className="font-medium">
-                      {dashboardIsEnglish ? 'No prospects in this mock search' : 'No hay prospects en esta busqueda mock'}
+                      {dashboardIsEnglish ? 'No prospects found for this search' : 'No se encontraron prospects para esta búsqueda'}
                     </p>
                     <p className="mt-1 text-sm">
                       {dashboardIsEnglish

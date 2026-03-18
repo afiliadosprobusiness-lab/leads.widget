@@ -171,6 +171,47 @@ Se escriben desde dos flujos (schema heterogeneo):
 - Flujo widget embebido via Firestore REST:
   - `client_id`, `name`, `phone`, `interest`, `source`, `status`, `created_at` (timestamp)
 
+### `acquisition_prospects`
+
+Coleccion nueva consumida indirectamente por la pestana `Adquisicion` via backend externo:
+
+- `id`
+- `client_id`
+- `external_id`
+- `business_name`
+- `category`
+- `city`
+- `country`
+- `address`
+- `phone`
+- `website`
+- `rating`
+- `reviews_count`
+- `commercial_score`
+- `maps_url`
+- `status` (`pending|approved|discarded`)
+- `source` (`google_places`)
+- `crm_contact_id`
+- `created_at`, `updated_at`
+
+Contrato visible al frontend:
+
+- la UI no consume el schema persistido directamente; recibe shape camelCase:
+  - `id`
+  - `businessName`
+  - `category`
+  - `city`
+  - `country`
+  - `address`
+  - `phone`
+  - `website`
+  - `rating`
+  - `reviewsCount`
+  - `commercialScore`
+  - `mapsUrl`
+  - `status`
+  - `source`
+
 ### `crm_contacts`
 
 - `client_id`
@@ -363,6 +404,61 @@ Base detectada:
   - `401`: `{ error: "Unauthorized. Missing valid Firebase token." }`
   - `500`: `{ error: "<paypal/backend error>" }`
 
+#### `POST /api/acquisition/search`
+
+- Headers:
+  - `Authorization: Bearer <Firebase ID token>` (requerido)
+- Body JSON:
+  - `category`
+  - `city`
+  - `country`
+  - `minScore`
+- Respuesta `200`:
+  - `{ prospects: AcquisitionProspectResponse[] }`
+- Errores:
+  - `400`: validacion de campos (`category`, `city`, `minScore`)
+  - `401`: `{ error: "Unauthorized" }`
+  - `500|502`: errores de configuracion/proveedor abstraidos por backend
+
+#### `GET /api/acquisition/prospects`
+
+- Headers:
+  - `Authorization: Bearer <Firebase ID token>` (requerido)
+- Respuesta `200`:
+  - `{ prospects: AcquisitionProspectResponse[] }`
+- Query params opcionales:
+  - `status`, `city`, `country`, `category`, `minScore`
+
+#### `PATCH /api/acquisition/prospects`
+
+- Headers:
+  - `Authorization: Bearer <Firebase ID token>` (requerido)
+- Body JSON:
+  - `id`
+  - `status` (`approved|discarded`)
+- Comportamiento:
+  - `approved`: backend crea o mergea `crm_contacts` con `source = acquisition_google_places`
+  - `discarded`: backend solo actualiza estado
+- Respuesta `200`:
+  - `{ success: true, prospect: AcquisitionProspectResponse, crmContactId?: string | null, crm_contact_id?: string | null, action: "created" | "merged" | "noop" }`
+
+`AcquisitionProspectResponse`:
+
+- `id`
+- `businessName`
+- `category`
+- `city`
+- `country`
+- `address`
+- `phone`
+- `website`
+- `rating`
+- `reviewsCount`
+- `commercialScore`
+- `mapsUrl`
+- `status`
+- `source`
+
 #### `GET /api/widget-config/:identity`
 
 - Path param:
@@ -401,7 +497,7 @@ Base detectada:
 
 ### CORS y preflight (backend externo)
 
-- `Access-Control-Allow-Methods: GET,POST,OPTIONS`
+- `Access-Control-Allow-Methods: GET,POST,PATCH,PUT,OPTIONS`
 - `Access-Control-Allow-Headers: Content-Type,Authorization`
 - `OPTIONS` responde `200` y corta flujo.
 
@@ -418,6 +514,7 @@ Codigo observado:
 - `POST|OPTIONS /api/admin/whatsapp-crm-status-batch` (consulta por lote el estado real de CRM Extension por email)
 - `GET|PUT|OPTIONS /api/meta-capi-config` (configuracion privada de credenciales Meta CAPI por cliente autenticado)
 - `POST|OPTIONS /api/meta-capi-dispatch` (dispatch autenticado de eventos Meta CAPI para cambios de etapa CRM)
+- `POST|GET|PATCH /api/acquisition/*` (fallback al backend externo para Adquisicion autenticada)
 - `POST|OPTIONS /api/crm/contacts-merge` (upsert/merge idempotente de contactos con regla phone->email)
 - `PATCH|OPTIONS /api/crm/contacts` (actualizacion atomica de etapa de contacto + evento timeline + dispatch Meta CAPI por etapa)
 - `GET|POST|PATCH|OPTIONS /api/crm/deals` (CRUD operativo de deals + pipeline por etapa)
@@ -704,6 +801,10 @@ Cambios de comportamiento relevantes:
 - `PUT /api/partners/branding` acepta `branding_text` y `branding_link` (manteniendo compatibilidad con `agency_name`/`cta_url`).
 
 ### Changelog del Contrato
+- Fecha: 2026-03-18
+- Cambio: la pestana `Adquisicion` del dashboard deja de usar dataset mock como flujo principal y consume `POST /api/acquisition/search`, `GET /api/acquisition/prospects` y `PATCH /api/acquisition/prospects`
+- Tipo: non-breaking
+- Impacto: mantiene el mismo shape visual de prospects pero la operacion ya usa backend persistido y aprobacion server-side al CRM
 - Fecha: 2026-02-16
 - Cambio: agregado modulo Partner Program, endpoints partner/admin y reglas de comision/branding server-side
 - Tipo: non-breaking
