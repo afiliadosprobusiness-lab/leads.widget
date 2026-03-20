@@ -1,4 +1,4 @@
-const BACKEND_URL = (process.env.BACKEND_URL || "https://leads-widget-backend-319905500449.us-central1.run.app").replace(/\/$/, "");
+import { getBackendUrl } from "../_backend.js";
 
 export default async function handler(req, res) {
   const { widgetId } = req.query || {};
@@ -8,7 +8,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const upstream = await fetch(`${BACKEND_URL}/api/w/${encodeURIComponent(String(widgetId))}.js`);
+    const upstream = await fetch(`${getBackendUrl()}/api/w/${encodeURIComponent(String(widgetId))}.js`);
     const script = await upstream.text();
 
     res.status(upstream.status);

@@ -1,13 +1,13 @@
 # Contexto Arquitectonico - leads.widget
 
-Snapshot derivado del codigo real del repo al 2026-03-18.
+Snapshot derivado del codigo real del repo al 2026-03-20.
 
 ## Stack real
 
 - React 18 + TypeScript + Vite
 - TailwindCSS + shadcn/ui + Radix
 - Firebase Web SDK (Auth + Firestore)
-- Vercel con `routes` y fallback `/api/*` a backend externo
+- Vercel con `routes`, funciones locales `api/*.js` y fallback `/api/*` a backend externo configurable por `BACKEND_URL`
 
 ## Estructura observada
 
@@ -15,6 +15,7 @@ Snapshot derivado del codigo real del repo al 2026-03-18.
 - `src/pages/PartnerDashboard.tsx`: portal partner
 - `src/lib/*`: utilidades de chat, auth, tracking y helpers de dominio
 - `api/*.js`: funciones serverless locales para rutas que no deben caer al backend externo (`chat`, `crm`, `meta-capi`, `debug`, etc.)
+- `api/external/[...path].js`: proxy generico al backend externo usando `BACKEND_URL`
 - `server/crm/*`: logica server-side del CRM local (`contacts-merge`, `deals`, `tasks`, `timeline`)
 
 ## Rutas y modulos funcionales
@@ -33,7 +34,7 @@ Snapshot derivado del codigo real del repo al 2026-03-18.
 
 ## Integraciones observadas
 
-- Backend externo `leads.widget.backend` via rewrite `/api/(.*)`
+- Backend externo `leads.widget.backend` via proxy local y `BACKEND_URL`
 - Firebase Auth para tokens Bearer y estado de sesion
 - Firestore para datos cliente/CRM
 - PayPal
@@ -62,5 +63,5 @@ Snapshot derivado del codigo real del repo al 2026-03-18.
 ## Restricciones observadas
 
 - El frontend no debe duplicar la logica de scoring, dedupe o merge de Acquisition; eso vive en backend.
-- Las funciones locales `api/*.js` se resuelven antes del fallback global; si una ruta no existe localmente, Vercel la envia al backend externo.
-- `vercel.json` solo intercepta rutas CRM legacy (`contacts-merge`, `deals`, `tasks`, `timeline`); contactos cae al backend externo.
+- Las funciones locales `api/*.js` se resuelven antes del fallback global; si una ruta no existe localmente, Vercel la envia a `api/external/[...path].js`.
+- `vercel.json` solo intercepta rutas CRM legacy (`contacts-merge`, `deals`, `tasks`, `timeline`); el resto del fallback usa `BACKEND_URL` sin hardcodear hosting.

@@ -1,7 +1,7 @@
 ﻿# Backend Externo - Guia de Conexion
 
 ## Objetivo
-Mantener el frontend funcionando con rutas `/api/*` mientras el backend vive en Cloud Run.
+Mantener el frontend funcionando con rutas `/api/*` mientras el backend externo puede vivir en Cloud Run o Railway.
 
 ## Paso 1: Desplegar backend
 Despliega `leads.widget.backend` y copia la URL final de Cloud Run.
@@ -9,23 +9,14 @@ Despliega `leads.widget.backend` y copia la URL final de Cloud Run.
 Ejemplo:
 `https://leads-widget-backend-xxxx-uc.a.run.app`
 
-## Paso 2: Rewrite en Vercel (frontend)
-En Vercel, agrega este `vercel.json` (o reemplaza la regla `/api`):
+## Paso 2: Variable `BACKEND_URL` en Vercel (frontend)
+El frontend ya no debe hardcodear el host del backend en `vercel.json`.
 
-```json
-{
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "https://REEMPLAZAR_BACKEND_RUN_URL/api/$1"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ]
-}
-```
+Configura en Vercel:
+
+- `BACKEND_URL=https://REEMPLAZAR_BACKEND_URL`
+
+El fallback `/api/*` reescribe internamente a `api/external/[...path].js`, y esa funcion reenvia al backend usando `BACKEND_URL`.
 
 ## Paso 3: Variables recomendadas en backend
 - `FIREBASE_SERVICE_ACCOUNT`
@@ -44,4 +35,4 @@ En Vercel, agrega este `vercel.json` (o reemplaza la regla `/api`):
 5. Verificacion de pago
 
 ## Nota
-No cambies los fetch del frontend por ahora. La compatibilidad se mantiene por rewrites en `/api/*`.
+No cambies los fetch del frontend. La compatibilidad se mantiene por rutas relativas `/api/*`; solo cambia el upstream configurado en `BACKEND_URL`.

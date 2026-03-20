@@ -1,6 +1,5 @@
+import { getBackendUrl, setProxyCors } from "./_backend.js";
 import { db } from "./_firebase.js";
-
-const BACKEND_URL = (process.env.BACKEND_URL || "https://leads-widget-backend-319905500449.us-central1.run.app").replace(/\/$/, "");
 const OWNER_CACHE_TTL_MS = 10 * 60 * 1000;
 const widgetOwnerCache = new Map();
 const RENIEC_API_DEFAULT_URL = "https://api.apis.net.pe/v2/reniec/dni";
@@ -776,7 +775,7 @@ async function requestPromptDrivenDniContinuation({ body, locale, authHeader, va
   };
 
   try {
-    const upstream = await fetch(`${BACKEND_URL}/api/chat`, {
+    const upstream = await fetch(`${getBackendUrl()}/api/chat`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -963,9 +962,7 @@ async function persistChatLog({ req, body, upstreamStatus, payload, rawPayload, 
 }
 
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  setProxyCors(res, "POST, OPTIONS");
 
   if (req.method === "OPTIONS") {
     return res.status(200).end();
@@ -976,7 +973,7 @@ export default async function handler(req, res) {
 
   try {
     const startedAt = Date.now();
-    const upstream = await fetch(`${BACKEND_URL}/api/chat`, {
+    const upstream = await fetch(`${getBackendUrl()}/api/chat`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
