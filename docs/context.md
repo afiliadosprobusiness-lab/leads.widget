@@ -27,7 +27,8 @@ Snapshot derivado del codigo real del repo al 2026-03-18.
   - `/api/chat-event`
   - `/api/analyze-conversation`
   - `/api/generate-prompt`
-  - `/api/crm/*`
+  - `/api/crm/contacts` y `/api/crm/contacts/:contactId` (backend externo autenticado)
+  - `/api/crm/contacts-merge`, `/api/crm/deals`, `/api/crm/tasks`, `/api/crm/timeline` (funcion local)
   - `/api/meta-capi-*`
 
 ## Integraciones observadas
@@ -48,10 +49,18 @@ Snapshot derivado del codigo real del repo al 2026-03-18.
   - `GET /api/acquisition/prospects`
   - `PATCH /api/acquisition/prospects`
 - Todas las llamadas usan Bearer Firebase ID token del usuario autenticado.
-- Al aprobar un prospect, el backend crea o mergea `crm_contacts`; el frontend solo sincroniza el contacto resultante para reflejo visual inmediato.
+- Al aprobar un prospect, el backend crea o mergea `crm_contacts`; el frontend sincroniza el contacto resultante consultando `GET /api/crm/contacts/:contactId` o refrescando el listado CRM autenticado.
+
+## CRM UI (2026-03-20)
+
+- `Dashboard.tsx` lista contactos desde `GET /api/crm/contacts`.
+- El alta manual usa `POST /api/crm/contacts` y evita duplicados cuando la respuesta devuelve `action = merged`.
+- El detalle usa `GET /api/crm/contacts/:contactId`.
+- La edicion de contacto y los cambios de etapa usan `PATCH /api/crm/contacts/:contactId`.
+- El dashboard mantiene filtros client-side de busqueda/etapa/foco sobre el dataset real traido del backend.
 
 ## Restricciones observadas
 
 - El frontend no debe duplicar la logica de scoring, dedupe o merge de Acquisition; eso vive en backend.
 - Las funciones locales `api/*.js` se resuelven antes del fallback global; si una ruta no existe localmente, Vercel la envia al backend externo.
-- El dashboard sigue leyendo `crm_contacts` desde Firestore para renderizado del workspace CRM.
+- `vercel.json` solo intercepta rutas CRM legacy (`contacts-merge`, `deals`, `tasks`, `timeline`); contactos cae al backend externo.

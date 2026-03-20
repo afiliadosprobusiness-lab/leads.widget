@@ -38,10 +38,10 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 - CRM cliente (legacy en leads.widget):
   - Desde 2026-02-28, la pestana CRM y su modal `Como usar CRM` quedaron fuera de la UI del dashboard cliente.
   - La operacion CRM diaria ahora se ejecuta en WhatsWidget CRM.
-  - Endpoints/modelos CRM v2 locales (`/api/crm/*`, `crm_contacts`, `deals`, `tasks`, `activity_events`) se mantienen por compatibilidad operativa.
+  - El dashboard cliente mantiene workspace CRM local para `contacts-merge`, `deals`, `tasks` y `timeline`, pero desde 2026-03-20 el listado/alta/detalle/edicion de contactos se resuelve contra backend externo autenticado (`GET|POST /api/crm/contacts`, `GET|PATCH /api/crm/contacts/:contactId`).
   - Desde 2026-03-18, el dashboard cliente reactiva visualmente la pestana top-level `CRM` y suma la pestana `Adquisicion`.
   - `Adquisicion` ahora consume backend autenticado (`POST /api/acquisition/search`, `GET /api/acquisition/prospects`, `PATCH /api/acquisition/prospects`) y deja de depender del dataset mock para la operacion normal.
-  - Los prospects aprobados en `Adquisicion` se persisten server-side, crean o mergean contacto CRM en backend con `source = acquisition_google_places`, y el frontend solo sincroniza visualmente el contacto resultante en `crmContacts`.
+  - Los prospects aprobados en `Adquisicion` se persisten server-side, crean o mergean contacto CRM en backend con `source = acquisition_google_places`, y el frontend refresca/sincroniza el contacto resultante desde `GET /api/crm/contacts/:contactId` o desde el listado CRM del backend.
 - Dashboard incorpora onboarding guiado de primer ingreso (persistente por usuario) en modo asistente paso a paso (`Paso X de Y`, `Anterior`, `Siguiente`, `Omitir guia`) y guias contextuales por pestana; el recorrido se adapta al plan activo (en `crm` solo pasos de `Pagos/Cuenta`, en `pro` incluye el flujo completo).
 
 ## Objetivo activo Lead Chat + IACloser (2026-02-19)
@@ -153,8 +153,8 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 ## Configuracion relevante
 - Front usa rutas `/api/*` (rewrite a backend Cloud Run).
 - `vercel.json` prioriza `filesystem` para que funciones locales `api/*.js` (ej. `api/chat.js`) se ejecuten antes del fallback `/api/*` al backend externo.
-- `vercel.json` agrega rewrite interno `/api/crm/:resource` -> `/api/crm?resource=:resource` para concentrar CRM v2 en una sola Serverless Function y mantenerse dentro del limite Hobby de Vercel.
-- CRM v2 se atiende desde funcion local `api/crm.js` (dispatcher por `resource`) para `contacts-merge`, `deals`, `tasks` y `timeline`, manteniendo intacto el backend externo.
+- `vercel.json` reescribe solo `/api/crm/(contacts-merge|deals|tasks|timeline)` hacia `api/crm.js`; `/api/crm/contacts` y `/api/crm/contacts/:contactId` caen al backend externo por el fallback global.
+- CRM v2 se atiende de forma hibrida: contactos/listado/detalle/edicion en backend externo; `contacts-merge`, `deals`, `tasks` y `timeline` siguen en funcion local `api/crm.js`.
 - `Adquisicion` consume `/api/acquisition/*` con Bearer Firebase; esas rutas caen al backend externo por el fallback global de `vercel.json` (no existe funcion local dedicada en frontend).
 - Dashboard agrega bloque `Meta Conversions API (Precalificacion)` para capturar `Business Manager ID`, `Ad Account ID`, `Pixel/Dataset ID` y `Access Token` con guardado seguro.
 - En el bloque Meta CAPI del dashboard, el CTA `?` junto a `Guardar Meta CAPI` abre una guia in-app para ubicar cada dato dentro de Meta Business/Ads Manager/Events Manager y explica como crear conversiones de calidad (`Lead`, `QualifiedLead`, `Appointment`, `Sale`) para optimizacion en Ads Manager.

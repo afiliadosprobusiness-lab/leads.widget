@@ -515,8 +515,9 @@ Codigo observado:
 - `GET|PUT|OPTIONS /api/meta-capi-config` (configuracion privada de credenciales Meta CAPI por cliente autenticado)
 - `POST|OPTIONS /api/meta-capi-dispatch` (dispatch autenticado de eventos Meta CAPI para cambios de etapa CRM)
 - `POST|GET|PATCH /api/acquisition/*` (fallback al backend externo para Adquisicion autenticada)
+- `GET|POST /api/crm/contacts` (fallback al backend externo para listado/alta de contactos CRM)
+- `GET|PATCH /api/crm/contacts/:contactId` (fallback al backend externo para detalle/edicion de contacto CRM)
 - `POST|OPTIONS /api/crm/contacts-merge` (upsert/merge idempotente de contactos con regla phone->email)
-- `PATCH|OPTIONS /api/crm/contacts` (actualizacion atomica de etapa de contacto + evento timeline + dispatch Meta CAPI por etapa)
 - `GET|POST|PATCH|OPTIONS /api/crm/deals` (CRUD operativo de deals + pipeline por etapa)
 - `GET|POST|PATCH|OPTIONS /api/crm/tasks` (CRUD operativo de tareas + filtros Hoy/Vencidas/Proximas/Completadas)
 - `GET|POST|OPTIONS /api/crm/timeline` (eventos de actividad + notas manuales)
@@ -524,12 +525,12 @@ Codigo observado:
 - `POST|OPTIONS /api/verify-payment` (proxy a backend externo)
 - `GET /api/w/:widgetId.js` (proxy a backend externo)
 - `GET /api/debug` (verifica acceso Firebase Admin; retorna `status/env`, y en error incluye `stack`)
-- `vercel.json` usa `routes` con `handle: filesystem` primero; agrega rewrite interno `/api/crm/:resource` -> `/api/crm?resource=:resource`; y luego fallback `/api/(.*)` -> backend externo Cloud Run
+- `vercel.json` usa `routes` con `handle: filesystem` primero; reescribe solo `/api/crm/(contacts-merge|deals|tasks|timeline)` -> `/api/crm?resource=:resource`; y luego fallback `/api/(.*)` -> backend externo Cloud Run
 
 Asuncion:
 
 - En produccion, las funciones locales en `api/*.js` se resuelven primero; rutas `/api/*` sin archivo local caen al backend externo via fallback.
-- CRM v2 vive en funciones locales `api/crm/*` y no depende del backend externo para operaciones de contactos/deals/tasks/timeline/dedupe.
+- CRM opera en modo hibrido: contactos/listado/detalle/edicion caen al backend externo; `contacts-merge`, `deals`, `tasks` y `timeline` siguen en funciones locales `api/crm/*`.
 - El proxy local de `POST /api/chat` ademas persiste trazas resumidas de cada intercambio en `ai_chat_logs` para consola de debugging en Dashboard (sin cambiar el contrato de respuesta hacia el cliente).
 - El proxy local de `POST /api/chat` ejecuta resolucion de identidad para comando `VALIDAR_DNI` con estrategia configurable (`DNI_VALIDATION_PROVIDER=auto|api|eldni|capture`), soportando API externa (`DNI_API_*`), fallback por formulario publico ELDNI (`ELDNI_FORM_URL`, `ELDNI_TIMEOUT_MS`) y modo `capture` sin consulta externa.
 - `POST /api/analyze-conversation` requiere `Authorization: Bearer <Firebase ID token>` del usuario dashboard; usa `profiles.ai_api_key` (o fallback `widget_configs.ai_api_key` del mismo owner) para ejecutar analisis OpenAI. Si no hay key configurada, responde analisis heuristico (`provider: heuristic_no_client_key`).
@@ -539,7 +540,7 @@ Asuncion:
 - `POST /api/admin/whatsapp-crm-status-batch` requiere `Authorization: Bearer <Firebase ID token>` de superadmin; consulta `emails[]` contra `whatsapp-crm-compliant` para reconciliar estado real.
 - `GET|PUT /api/meta-capi-config` requiere `Authorization: Bearer <Firebase ID token>`; persiste IDs de Meta y token cifrado en `meta_capi_configs` (no en `widget_configs` publico).
 - `POST /api/meta-capi-dispatch` requiere `Authorization: Bearer <Firebase ID token>`; mapea etapa CRM -> evento Meta y envia via Conversions API usando credenciales cifradas del owner.
-- `POST /api/crm/contacts-merge`, `PATCH /api/crm/contacts` y `PATCH /api/crm/deals` ejecutan dispatch server-side a Meta CAPI cuando corresponde (`Lead`, `Appointment`, `QualifiedLead`, `Sale`).
+- `POST /api/crm/contacts`, `POST /api/crm/contacts-merge` y `PATCH /api/crm/deals` pueden devolver contactos/deals ya persistidos y listos para refrescar el listado CRM; `PATCH /api/crm/contacts/:contactId` actualiza contacto persistido en backend externo.
 
 #### `POST /api/generate-prompt`
 
@@ -675,18 +676,65 @@ Asuncion:
 - Respuestas:
   - `200`: `{ success: true, action: "created"|"merged"|"noop", contact, primary_contact_id, merged_contact_id }`
   - `400`: `{ error: "<validation>" }`
-  - `401`: `{ error: "Unauthorized" }`
-  - `500`: `{ error: "<runtime>" }`
+- `401`: `{ error: "Unauthorized" }`
+- `500`: `{ error: "<runtime>" }`
 
-#### `PATCH /api/crm/contacts`
+#### `GET /api/crm/contacts`
 
-- `PATCH`: actualiza etapa de contacto (`id`, `stage`) en una operacion transaccional.
-- Comportamiento:
-  - Guarda `crm_contacts.stage` + `updated_at/last_activity_at` y registra `activity_events.contact_stage_changed` en la misma transaccion.
-  - Si la etapa cambia a `contacted|qualified|won`, intenta dispatch Meta CAPI server-side con mapeo estandar.
+- Headers:
+  - `Authorization: Bearer <Firebase ID token>` (requerido)
+- Query opcional:
+  - `stage`
+  - `source`
+  - `q`
+  - `limit`
 - Respuestas:
-  - `200`: `{ success: true, stage_changed: boolean, contact }`
-  - `400|401|403|404|500`: `{ error: string }`
+  - `200`: `{ contacts: CrmContactResponse[], total }`
+  - `401|403|500`: `{ error: string }`
+
+#### `GET /api/crm/contacts/:contactId`
+
+- Headers:
+  - `Authorization: Bearer <Firebase ID token>` (requerido)
+- Respuestas:
+  - `200`: `{ contact: CrmContactResponse }`
+  - `401|403|404|500`: `{ error: string }`
+
+#### `POST /api/crm/contacts`
+
+- Headers:
+  - `Authorization: Bearer <Firebase ID token>` (requerido)
+- Body JSON:
+  - `name` (requerido)
+  - opcional `phone`, `email`, `interest`, `stage`, `notes`, `source`
+- Respuestas:
+  - `200`: `{ success: true, contact: CrmContactResponse, action: "created" | "merged" }`
+  - `400|401|403|409|500`: `{ error: string }`
+
+#### `PATCH /api/crm/contacts/:contactId`
+
+- Headers:
+  - `Authorization: Bearer <Firebase ID token>` (requerido)
+- Body JSON:
+  - cualquiera de `name`, `phone`, `email`, `interest`, `stage`, `notes`
+- Respuestas:
+  - `200`: `{ success: true, contact: CrmContactResponse }`
+  - `400|401|403|404|409|500`: `{ error: string }`
+
+`CrmContactResponse`:
+
+- `id`
+- `name`
+- `phone`
+- `email`
+- `interest`
+- `stage`
+- `source`
+- `sourceLeadId`
+- `notes`
+- `createdAt`
+- `updatedAt`
+- `lastActivityAt`
 
 #### `GET|POST|PATCH /api/crm/deals`
 
@@ -958,10 +1006,10 @@ Cambios de comportamiento relevantes:
 - Tipo: non-breaking
 - Impacto: conserva shape de datos existente y solo extiende `profiles` con campo opcional de configuracion UI.
 - Fecha: 2026-02-26
-- Cambio: CRM agrega `PATCH /api/crm/contacts` para actualizar etapa de contacto de forma transaccional (contacto + evento timeline) y centralizar dispatch Meta CAPI por etapa en backend.
+- Cambio: Dashboard CRM mueve listado/alta/detalle/edicion de contactos a backend externo autenticado (`GET|POST /api/crm/contacts`, `GET|PATCH /api/crm/contacts/:contactId`) y deja el rewrite local solo para `contacts-merge`, `deals`, `tasks` y `timeline`.
 - Tipo: non-breaking
-- Impacto: evita inconsistencias entre cambio de etapa y timeline en dashboard sin cambiar payloads existentes de contactos/deals/tasks.
-- Fecha: 2026-02-26
+- Impacto: elimina dependencia del listado Firestore en cliente y mantiene intactos los submodulos locales del workspace CRM.
+- Fecha: 2026-03-20
 - Cambio: `GET /api/crm/tasks` acepta `timeZone` opcional (IANA) y aplica esa zona para filtros `today/upcoming`; fallback `America/Lima`.
 - Tipo: non-breaking
 - Impacto: mejora precision de filtros de tareas por dia para usuarios fuera de UTC, manteniendo compatibilidad con consumidores actuales.

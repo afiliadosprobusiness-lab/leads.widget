@@ -4,7 +4,7 @@
       "handle": "filesystem"
     },
     {
-      "src": "/api/crm/([^/]+)",
+      "src": "/api/crm/(contacts-merge|deals|tasks|timeline)",
       "dest": "/api/crm?resource=$1"
     },
     {

@@ -16,7 +16,6 @@ import {
   orderBy,
   addDoc,
   onSnapshot,
-  writeBatch
 } from 'firebase/firestore';
 import {
   EmailAuthProvider,
@@ -209,6 +208,17 @@ interface AcquisitionProspectPatchPayload {
   crmContactId?: string | null;
   crm_contact_id?: string | null;
   action?: string;
+}
+
+interface CrmContactsListPayload {
+  contacts?: unknown[];
+  total?: number;
+}
+
+interface CrmContactPayload {
+  success?: boolean;
+  action?: string;
+  contact?: unknown;
 }
 
 interface WidgetConfig {
@@ -1027,10 +1037,13 @@ export default function Dashboard() {
     minScore: '70',
   });
   const [crmContacts, setCrmContacts] = useState<CrmContact[]>([]);
+  const [crmContactsLoading, setCrmContactsLoading] = useState(false);
+  const [crmContactsError, setCrmContactsError] = useState('');
   const [crmSearch, setCrmSearch] = useState('');
   const [crmStageFilter, setCrmStageFilter] = useState<CrmStageFilter>('all');
   const [crmFocusFilter, setCrmFocusFilter] = useState<CrmFocusFilter>('all');
   const [crmCreating, setCrmCreating] = useState(false);
+  const [crmEditing, setCrmEditing] = useState(false);
   const [crmSyncing, setCrmSyncing] = useState(false);
   const [crmImporting, setCrmImporting] = useState(false);
   const [crmImportApplying, setCrmImportApplying] = useState(false);
@@ -1063,8 +1076,18 @@ export default function Dashboard() {
     interest: '',
     notes: '',
   });
+  const [crmEditDialogOpen, setCrmEditDialogOpen] = useState(false);
+  const [crmEditDraft, setCrmEditDraft] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    interest: '',
+    stage: 'new' as CrmStage,
+    notes: '',
+  });
   const crmImportInputRef = useRef<HTMLInputElement | null>(null);
   const crmContactDetailRef = useRef<HTMLDivElement | null>(null);
+  const sessionExpiredHandledRef = useRef(false);
   const [analytics, setAnalytics] = useState({ views: 0, interactions: 0, viewsToday: 0 });
   const [payments, setPayments] = useState<any[]>([]);
   const [blockedIps, setBlockedIps] = useState<any[]>([]);
@@ -3839,47 +3862,9 @@ export default function Dashboard() {
       setLeads(leadsData);
 
       try {
-        const qCrmContacts = query(collection(db, 'crm_contacts'), where('client_id', '==', userId));
-        const crmSnap = await getDocs(qCrmContacts);
-        let crmData = crmSnap.docs.map((contactDoc) => {
-          const data: any = contactDoc.data() || {};
-          const rawStage = String(data.stage || '').trim().toLowerCase();
-          const stage: CrmStage = CRM_STAGES.includes(rawStage as CrmStage) ? (rawStage as CrmStage) : 'new';
-          return {
-            id: contactDoc.id,
-            client_id: String(data.client_id || userId),
-            name: String(data.name || '').trim() || 'Sin nombre',
-            phone: String(data.phone || '').trim(),
-            email: String(data.email || '').trim(),
-            interest: String(data.interest || '').trim(),
-            stage,
-            source: String(data.source || 'manual').trim() || 'manual',
-            source_lead_id: String(data.source_lead_id || '').trim(),
-            notes: String(data.notes || '').trim(),
-            created_at: toIsoDateOrNow(data.created_at),
-            updated_at: toIsoDateOrNow(data.updated_at || data.created_at),
-            last_activity_at: toIsoDateOrNow(data.last_activity_at || data.updated_at || data.created_at),
-          } as CrmContact;
-        });
-
-        // First-time bootstrap: copy existing leads into CRM for immediate usability.
-        if (crmData.length === 0 && leadsData.length > 0) {
-          const firstBatch = leadsData.slice(0, 200).map((lead) => mapLeadToCrmContact(lead, userId));
-          const batch = writeBatch(db);
-          const inserted: CrmContact[] = [];
-          firstBatch.forEach((contact) => {
-            const contactRef = doc(collection(db, 'crm_contacts'));
-            batch.set(contactRef, contact);
-            inserted.push({ id: contactRef.id, ...contact });
-          });
-          await batch.commit();
-          crmData = inserted;
-        }
-
-        setCrmContacts(sortCrmContacts(crmData));
+        await loadCrmContacts({ silent: true });
       } catch (crmError) {
         console.error('Non-critical: Error loading CRM contacts:', crmError);
-        setCrmContacts([]);
       }
 
       // Load payments (remove orderBy)
@@ -4474,13 +4459,30 @@ export default function Dashboard() {
     return 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-300';
   };
 
-  const buildCrmApiUrl = (resource: 'contacts-merge' | 'contacts' | 'deals' | 'tasks' | 'timeline', query?: Record<string, string | number | null | undefined>) => {
-    const params = new URLSearchParams({ resource });
+  const appendQueryParams = (basePath: string, query?: Record<string, string | number | null | undefined>) => {
+    const params = new URLSearchParams();
     Object.entries(query || {}).forEach(([key, value]) => {
       if (value === null || value === undefined || String(value).length === 0) return;
       params.set(key, String(value));
     });
-    return `/api/crm?${params.toString()}`;
+    const serialized = params.toString();
+    return serialized ? `${basePath}?${serialized}` : basePath;
+  };
+
+  const buildCrmApiUrl = (
+    resource: 'contacts-merge' | 'deals' | 'tasks' | 'timeline',
+    query?: Record<string, string | number | null | undefined>,
+  ) => appendQueryParams('/api/crm', { resource, ...(query || {}) });
+
+  const buildCrmContactsApiUrl = (
+    contactId = '',
+    query?: Record<string, string | number | null | undefined>,
+  ) => {
+    const safeContactId = String(contactId || '').trim();
+    const basePath = safeContactId
+      ? `/api/crm/contacts/${encodeURIComponent(safeContactId)}`
+      : '/api/crm/contacts';
+    return appendQueryParams(basePath, query);
   };
 
   const getCrmAuthHeaders = async () => {
@@ -4492,7 +4494,35 @@ export default function Dashboard() {
     };
   };
 
-  const callCrmApi = async (url: string, init: RequestInit = {}) => {
+  const getApiErrorMessage = (payload: any, status: number) => {
+    const candidate = [
+      payload?.error,
+      payload?.message,
+      payload?.details,
+      payload?.detail,
+    ].find((value) => typeof value === 'string' && String(value).trim().length > 0);
+    return String(candidate || `HTTP ${status}`);
+  };
+
+  const handleExpiredSession = async () => {
+    if (sessionExpiredHandledRef.current) return;
+    sessionExpiredHandledRef.current = true;
+    toast({
+      title: dashboardIsEnglish ? 'Session expired' : 'Sesion expirada',
+      description: dashboardIsEnglish
+        ? 'Log in again to continue using the dashboard.'
+        : 'Vuelve a iniciar sesion para seguir usando el dashboard.',
+      variant: 'destructive',
+    });
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Non-critical: Error signing out after 401:', error);
+    }
+    navigate('/login');
+  };
+
+  const callAuthenticatedApi = async <T = any,>(url: string, init: RequestInit = {}) => {
     const headers = await getCrmAuthHeaders();
     const response = await fetch(url, {
       ...init,
@@ -4502,11 +4532,21 @@ export default function Dashboard() {
       },
     });
     const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(String(payload?.error || payload?.details || `HTTP ${response.status}`));
+    if (response.status === 401) {
+      await handleExpiredSession();
+      throw new Error(getApiErrorMessage(payload, response.status));
     }
-    return payload;
+    if (!response.ok) {
+      throw new Error(getApiErrorMessage(payload, response.status));
+    }
+    return payload as T;
   };
+
+  const callCrmApi = async <T = any,>(url: string, init: RequestInit = {}) =>
+    callAuthenticatedApi<T>(url, init);
+
+  const callAcquisitionApi = async <T = any,>(url: string, init: RequestInit = {}) =>
+    callAuthenticatedApi<T>(url, init);
 
   const mergeContactsInState = (contacts: CrmContact[]) => {
     if (contacts.length === 0) return;
@@ -4521,6 +4561,33 @@ export default function Dashboard() {
       });
       return sortCrmContacts(Array.from(byId.values()));
     });
+  };
+
+  const normalizeCrmContactFromApi = (value: any): CrmContact => {
+    const rawStage = String(value?.stage || '').trim().toLowerCase();
+    const stage: CrmStage = CRM_STAGES.includes(rawStage as CrmStage) ? (rawStage as CrmStage) : 'new';
+    return {
+      id: String(value?.id || '').trim(),
+      client_id: String(value?.client_id || value?.clientId || user?.uid || '').trim(),
+      name: String(value?.name || '').trim() || 'Sin nombre',
+      phone: String(value?.phone || '').trim(),
+      email: String(value?.email || '').trim(),
+      interest: String(value?.interest || '').trim(),
+      stage,
+      source: String(value?.source || 'manual').trim() || 'manual',
+      source_lead_id: String(value?.source_lead_id || value?.sourceLeadId || '').trim(),
+      notes: String(value?.notes || '').trim(),
+      created_at: toIsoDateOrNow(value?.created_at || value?.createdAt),
+      updated_at: toIsoDateOrNow(value?.updated_at || value?.updatedAt || value?.created_at || value?.createdAt),
+      last_activity_at: toIsoDateOrNow(
+        value?.last_activity_at
+        || value?.lastActivityAt
+        || value?.updated_at
+        || value?.updatedAt
+        || value?.created_at
+        || value?.createdAt,
+      ),
+    };
   };
 
   const buildCrmMergeIdempotencyKey = (contact: Partial<CrmContact>, reason: string, seed = '') => {
@@ -4548,43 +4615,13 @@ export default function Dashboard() {
     });
 
     const contact = payload?.contact && payload.contact.id
-      ? {
-        id: String(payload.contact.id),
-        client_id: String(payload.contact.client_id || user?.uid || ''),
-        name: String(payload.contact.name || '').trim() || 'Sin nombre',
-        phone: String(payload.contact.phone || '').trim(),
-        email: String(payload.contact.email || '').trim(),
-        interest: String(payload.contact.interest || '').trim(),
-        stage: normalizeCrmStageFromText(String(payload.contact.stage || 'new')),
-        source: String(payload.contact.source || 'manual').trim() || 'manual',
-        source_lead_id: String(payload.contact.source_lead_id || '').trim(),
-        notes: String(payload.contact.notes || '').trim(),
-        created_at: toIsoDateOrNow(payload.contact.created_at),
-        updated_at: toIsoDateOrNow(payload.contact.updated_at || payload.contact.created_at),
-        last_activity_at: toIsoDateOrNow(payload.contact.last_activity_at || payload.contact.updated_at || payload.contact.created_at),
-      } as CrmContact
+      ? normalizeCrmContactFromApi(payload.contact)
       : null;
 
     return {
       action: String(payload?.action || 'noop'),
       contact,
     };
-  };
-
-  const callAcquisitionApi = async <T,>(url: string, init: RequestInit = {}): Promise<T> => {
-    const headers = await getCrmAuthHeaders();
-    const response = await fetch(url, {
-      ...init,
-      headers: {
-        ...headers,
-        ...(init.headers || {}),
-      },
-    });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(String(payload?.error || payload?.details || `HTTP ${response.status}`));
-    }
-    return payload as T;
   };
 
   const normalizeAcquisitionProspectFromApi = (value: any): AcquisitionProspect => ({
@@ -4606,24 +4643,63 @@ export default function Dashboard() {
     source: String(value?.source || 'google_places').trim() || 'google_places',
   });
 
-  const mapFirestoreCrmContact = (contactId: string, data: any): CrmContact => {
-    const rawStage = String(data?.stage || '').trim().toLowerCase();
-    const stage: CrmStage = CRM_STAGES.includes(rawStage as CrmStage) ? (rawStage as CrmStage) : 'new';
-    return {
-      id: contactId,
-      client_id: String(data?.client_id || user?.uid || '').trim(),
-      name: String(data?.name || '').trim() || 'Sin nombre',
-      phone: String(data?.phone || '').trim(),
-      email: String(data?.email || '').trim(),
-      interest: String(data?.interest || '').trim(),
-      stage,
-      source: String(data?.source || 'manual').trim() || 'manual',
-      source_lead_id: String(data?.source_lead_id || '').trim(),
-      notes: String(data?.notes || '').trim(),
-      created_at: toIsoDateOrNow(data?.created_at),
-      updated_at: toIsoDateOrNow(data?.updated_at || data?.created_at),
-      last_activity_at: toIsoDateOrNow(data?.last_activity_at || data?.updated_at || data?.created_at),
-    };
+  const loadCrmContacts = async (options?: { silent?: boolean; preserveStateOnError?: boolean }) => {
+    if (!user?.uid) return [] as CrmContact[];
+    setCrmContactsLoading(true);
+    setCrmContactsError('');
+    try {
+      const payload = await callCrmApi<CrmContactsListPayload>(buildCrmContactsApiUrl('', { limit: 1000 }), {
+        method: 'GET',
+      });
+      const contacts = Array.isArray(payload?.contacts)
+        ? payload.contacts.map((contact) => normalizeCrmContactFromApi(contact))
+        : [];
+      setCrmContacts(sortCrmContacts(contacts));
+      if (crmSelectedContactId && !contacts.some((contact) => contact.id === crmSelectedContactId)) {
+        setCrmSelectedContactId('');
+      }
+      return contacts;
+    } catch (error: any) {
+      const message = String(error?.message || 'No se pudo cargar contactos del CRM.');
+      setCrmContactsError(message);
+      if (!options?.preserveStateOnError) {
+        setCrmContacts([]);
+      }
+      if (!options?.silent) {
+        toast({
+          title: 'Error',
+          description: message,
+          variant: 'destructive',
+        });
+      }
+      throw error;
+    } finally {
+      setCrmContactsLoading(false);
+    }
+  };
+
+  const fetchCrmContactById = async (contactId: string, options?: { silent?: boolean }) => {
+    const safeContactId = String(contactId || '').trim();
+    if (!safeContactId) return null;
+    try {
+      const payload = await callCrmApi<CrmContactPayload>(buildCrmContactsApiUrl(safeContactId), {
+        method: 'GET',
+      });
+      const contact = payload?.contact ? normalizeCrmContactFromApi(payload.contact) : null;
+      if (contact) {
+        mergeContactsInState([contact]);
+      }
+      return contact;
+    } catch (error: any) {
+      if (!options?.silent) {
+        toast({
+          title: 'Error',
+          description: String(error?.message || 'No se pudo cargar el contacto.'),
+          variant: 'destructive',
+        });
+      }
+      throw error;
+    }
   };
 
   const syncAcquisitionCrmContactState = async (
@@ -4650,9 +4726,8 @@ export default function Dashboard() {
     }
 
     try {
-      const contactSnap = await getDoc(doc(db, 'crm_contacts', crmContactId));
-      if (contactSnap.exists()) {
-        mergeContactsInState([mapFirestoreCrmContact(contactSnap.id, contactSnap.data() || {})]);
+      const contact = await fetchCrmContactById(crmContactId, { silent: true });
+      if (contact) {
         return !alreadyExists;
       }
     } catch (error) {
@@ -4754,6 +4829,7 @@ export default function Dashboard() {
     setCrmContactDetailLoading(true);
     try {
       await Promise.all([
+        fetchCrmContactById(contactId, { silent: true }),
         fetchCrmDeals(contactId),
         fetchCrmTasks('all', { contactId, forContactDetail: true }),
         fetchCrmTimeline(contactId, crmTimelineFilter),
@@ -4970,20 +5046,11 @@ export default function Dashboard() {
     let cancelled = false;
     setAcquisitionLoading(true);
     void (async () => {
-      const token = await user.getIdToken();
-      const response = await fetch('/api/acquisition/prospects', {
+      const payload = await callAcquisitionApi<AcquisitionProspectsPayload>('/api/acquisition/prospects', {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
       });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(String(payload?.error || `HTTP ${response.status}`));
-      }
-      const prospects = Array.isArray((payload as AcquisitionProspectsPayload)?.prospects)
-        ? (payload as AcquisitionProspectsPayload).prospects!.map((prospect) => normalizeAcquisitionProspectFromApi(prospect))
+      const prospects = Array.isArray(payload?.prospects)
+        ? payload.prospects.map((prospect) => normalizeAcquisitionProspectFromApi(prospect))
         : [];
       if (cancelled) return;
       setAcquisitionProspects(prospects);
@@ -5087,6 +5154,7 @@ export default function Dashboard() {
         approvedProspect,
         String(payload?.crmContactId || payload?.crm_contact_id || '').trim() || null,
       );
+      await loadCrmContacts({ silent: true, preserveStateOnError: true });
 
       toast({
         title: dashboardIsEnglish ? 'Prospect approved' : 'Prospect aprobado',
@@ -5187,27 +5255,24 @@ export default function Dashboard() {
       return;
     }
 
-    const nowIso = new Date().toISOString();
-    const payload: Omit<CrmContact, 'id'> = {
-      client_id: user.uid,
-      name,
-      phone: phone || crmDraft.phone.trim(),
-      email,
-      interest,
-      stage: 'new',
-      source: 'manual',
-      source_lead_id: '',
-      notes,
-      created_at: nowIso,
-      updated_at: nowIso,
-      last_activity_at: nowIso,
-    };
-
     setCrmCreating(true);
     try {
-      const mergeResult = await upsertCrmContactViaMerge(payload, 'manual_create');
-      if (mergeResult.contact) {
-        mergeContactsInState([mergeResult.contact]);
+      const payload = await callCrmApi<CrmContactPayload>(buildCrmContactsApiUrl(), {
+        method: 'POST',
+        body: JSON.stringify({
+          name,
+          phone: phone || crmDraft.phone.trim(),
+          email: email || undefined,
+          interest: interest || undefined,
+          stage: 'new',
+          notes: notes || undefined,
+          source: 'manual',
+        }),
+      });
+      const contact = payload?.contact ? normalizeCrmContactFromApi(payload.contact) : null;
+      if (contact) {
+        mergeContactsInState([contact]);
+        await loadCrmContacts({ silent: true, preserveStateOnError: true });
       }
       setCrmDraft({
         name: '',
@@ -5217,10 +5282,10 @@ export default function Dashboard() {
         notes: '',
       });
       toast({
-        title: mergeResult.action === 'created'
+        title: payload?.action === 'created'
           ? (dashboardIsEnglish ? 'Contact created' : 'Contacto creado')
           : (dashboardIsEnglish ? 'Contact updated' : 'Contacto actualizado'),
-        description: mergeResult.action === 'created'
+        description: payload?.action === 'created'
           ? (dashboardIsEnglish ? 'Now visible in your CRM pipeline.' : 'Ya aparece en tu pipeline CRM.')
           : (dashboardIsEnglish ? 'Existing contact merged to avoid duplicates.' : 'Se fusiono con un contacto existente para evitar duplicados.'),
       });
@@ -5281,6 +5346,7 @@ export default function Dashboard() {
       }
 
       mergeContactsInState(touchedContacts);
+      await loadCrmContacts({ silent: true, preserveStateOnError: true });
 
       toast({
         title: dashboardIsEnglish ? 'CRM synced' : 'CRM sincronizado',
@@ -5519,6 +5585,7 @@ export default function Dashboard() {
         if (result.contact) touchedContacts.push(result.contact);
       }
       mergeContactsInState(touchedContacts);
+      await loadCrmContacts({ silent: true, preserveStateOnError: true });
       setCrmImportPreview(null);
       toast({
         title: dashboardIsEnglish ? 'Import complete' : 'Importacion completada',
@@ -5542,30 +5609,17 @@ export default function Dashboard() {
     if (previous && previous.stage === stage) return;
     setCrmUpdatingId(contactId);
     try {
-      const payload = await callCrmApi(buildCrmApiUrl('contacts'), {
+      const payload = await callCrmApi<CrmContactPayload>(buildCrmContactsApiUrl(contactId), {
         method: 'PATCH',
         body: JSON.stringify({
-          id: contactId,
           stage,
         }),
       });
-      const updatedContact = payload?.contact as Partial<CrmContact> | undefined;
-      const updatedAt = String(updatedContact?.updated_at || new Date().toISOString());
-      const lastActivityAt = String(updatedContact?.last_activity_at || updatedAt);
-      setCrmContacts((prev) =>
-        sortCrmContacts(
-          prev.map((contact) =>
-            contact.id === contactId
-              ? {
-                ...contact,
-                stage: normalizeCrmStageFromText(String(updatedContact?.stage || stage)),
-                updated_at: updatedAt,
-                last_activity_at: lastActivityAt,
-              }
-              : contact,
-          ),
-        ),
-      );
+      const updatedContact = payload?.contact ? normalizeCrmContactFromApi(payload.contact) : null;
+      if (updatedContact) {
+        mergeContactsInState([updatedContact]);
+        await loadCrmContacts({ silent: true, preserveStateOnError: true });
+      }
 
       if (crmSelectedContactId === contactId && crmDetailTab === 'timeline') {
         await fetchCrmTimeline(contactId, crmTimelineFilter);
@@ -5578,6 +5632,85 @@ export default function Dashboard() {
       });
     } finally {
       setCrmUpdatingId('');
+    }
+  };
+
+  const openCrmEditDialog = (contact: CrmContact) => {
+    setCrmEditDraft({
+      name: contact.name || '',
+      phone: contact.phone || '',
+      email: contact.email || '',
+      interest: contact.interest || '',
+      stage: contact.stage || 'new',
+      notes: contact.notes || '',
+    });
+    setCrmEditDialogOpen(true);
+  };
+
+  const handleSaveCrmContactEdit = async () => {
+    const selectedContact = crmSelectedContact;
+    if (!selectedContact?.id) return;
+
+    const name = crmEditDraft.name.trim();
+    const phone = normalizePhoneForCrm(crmEditDraft.phone) || crmEditDraft.phone.trim();
+    const email = crmEditDraft.email.trim().toLowerCase();
+    const interest = crmEditDraft.interest.trim();
+    const notes = crmEditDraft.notes.trim();
+
+    if (!name) {
+      toast({
+        title: dashboardIsEnglish ? 'Name required' : 'Nombre requerido',
+        description: dashboardIsEnglish ? 'Add a contact name first.' : 'Ingresa el nombre del contacto.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!phone && !email) {
+      toast({
+        title: dashboardIsEnglish ? 'Contact data required' : 'Dato de contacto requerido',
+        description: dashboardIsEnglish ? 'Use phone or email.' : 'Ingresa telefono o email.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setCrmEditing(true);
+    try {
+      const payload = await callCrmApi<CrmContactPayload>(buildCrmContactsApiUrl(selectedContact.id), {
+        method: 'PATCH',
+        body: JSON.stringify({
+          name,
+          phone,
+          email: email || null,
+          interest: interest || null,
+          stage: crmEditDraft.stage,
+          notes: notes || null,
+        }),
+      });
+      const updatedContact = payload?.contact ? normalizeCrmContactFromApi(payload.contact) : null;
+      if (updatedContact) {
+        mergeContactsInState([updatedContact]);
+        await loadCrmContacts({ silent: true, preserveStateOnError: true });
+        if (crmDetailTab === 'timeline' && updatedContact.id === crmSelectedContactId) {
+          await fetchCrmTimeline(updatedContact.id, crmTimelineFilter);
+        }
+      }
+      setCrmEditDialogOpen(false);
+      toast({
+        title: dashboardIsEnglish ? 'Contact updated' : 'Contacto actualizado',
+        description: dashboardIsEnglish
+          ? 'Changes were saved in the CRM backend.'
+          : 'Los cambios se guardaron en el backend del CRM.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: String(error?.message || 'No se pudo actualizar el contacto.'),
+        variant: 'destructive',
+      });
+    } finally {
+      setCrmEditing(false);
     }
   };
 
@@ -9069,7 +9202,37 @@ export default function Dashboard() {
                 </div>
               </CardHeader>
               <CardContent>
-                {filteredCrmContacts.length === 0 ? (
+                {crmContactsLoading ? (
+                  <div className="rounded-2xl border border-border/70 bg-muted/20 p-10 text-center text-muted-foreground">
+                    <Loader2 className="mx-auto mb-3 h-10 w-10 animate-spin opacity-70" />
+                    <p className="font-medium">
+                      {dashboardIsEnglish ? 'Loading contacts...' : 'Cargando contactos...'}
+                    </p>
+                    <p className="mt-1 text-sm">
+                      {dashboardIsEnglish
+                        ? 'Syncing the CRM list from the authenticated backend.'
+                        : 'Sincronizando el listado CRM desde el backend autenticado.'}
+                    </p>
+                  </div>
+                ) : crmContactsError ? (
+                  <div className="rounded-2xl border border-rose-200 bg-rose-50/70 p-6 text-center dark:border-rose-900/60 dark:bg-rose-950/20">
+                    <AlertCircle className="mx-auto mb-3 h-8 w-8 text-rose-600 dark:text-rose-300" />
+                    <p className="font-medium text-rose-700 dark:text-rose-300">
+                      {dashboardIsEnglish ? 'Could not load CRM contacts' : 'No se pudieron cargar los contactos CRM'}
+                    </p>
+                    <p className="mt-1 text-sm text-rose-700/80 dark:text-rose-300/80">{crmContactsError}</p>
+                    <div className="mt-4 flex justify-center">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => void loadCrmContacts()}
+                      >
+                        <History className="mr-2 h-4 w-4" />
+                        {dashboardIsEnglish ? 'Retry' : 'Reintentar'}
+                      </Button>
+                    </div>
+                  </div>
+                ) : filteredCrmContacts.length === 0 ? (
                   <div className="rounded-2xl border-2 border-dashed border-border p-10 text-center text-muted-foreground">
                     <Target className="mx-auto mb-3 h-10 w-10 opacity-30" />
                     <p className="font-medium">
@@ -9249,12 +9412,109 @@ export default function Dashboard() {
                           : 'Gestiona deals, timeline y tareas sin salir del CRM.'}
                       </CardDescription>
                     </div>
-                    <Button type="button" variant="outline" onClick={() => setCrmSelectedContactId('')}>
-                      {dashboardIsEnglish ? 'Close' : 'Cerrar'}
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button type="button" variant="outline" onClick={() => openCrmEditDialog(crmSelectedContact)}>
+                        <NotebookPen className="mr-2 h-4 w-4" />
+                        {dashboardIsEnglish ? 'Edit contact' : 'Editar contacto'}
+                      </Button>
+                      <Button type="button" variant="outline" onClick={() => setCrmSelectedContactId('')}>
+                        {dashboardIsEnglish ? 'Close' : 'Cerrar'}
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <Dialog open={crmEditDialogOpen} onOpenChange={setCrmEditDialogOpen}>
+                    <DialogContent className="sm:max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>{dashboardIsEnglish ? 'Edit contact' : 'Editar contacto'}</DialogTitle>
+                        <DialogDescription>
+                          {dashboardIsEnglish
+                            ? 'Update the core CRM fields without leaving the dashboard.'
+                            : 'Actualiza los campos principales del CRM sin salir del dashboard.'}
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="grid gap-4">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor="crm-edit-name">{dashboardIsEnglish ? 'Name' : 'Nombre'}</Label>
+                            <Input
+                              id="crm-edit-name"
+                              value={crmEditDraft.name}
+                              onChange={(event) => setCrmEditDraft((prev) => ({ ...prev, name: event.target.value }))}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="crm-edit-phone">{dashboardIsEnglish ? 'Phone' : 'Telefono'}</Label>
+                            <Input
+                              id="crm-edit-phone"
+                              value={crmEditDraft.phone}
+                              onChange={(event) => setCrmEditDraft((prev) => ({ ...prev, phone: event.target.value }))}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="crm-edit-email">Email</Label>
+                            <Input
+                              id="crm-edit-email"
+                              type="email"
+                              value={crmEditDraft.email}
+                              onChange={(event) => setCrmEditDraft((prev) => ({ ...prev, email: event.target.value }))}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="crm-edit-interest">{dashboardIsEnglish ? 'Interest' : 'Interes'}</Label>
+                            <Input
+                              id="crm-edit-interest"
+                              value={crmEditDraft.interest}
+                              onChange={(event) => setCrmEditDraft((prev) => ({ ...prev, interest: event.target.value }))}
+                            />
+                          </div>
+                          <div className="space-y-2 sm:col-span-2">
+                            <Label htmlFor="crm-edit-stage">{dashboardIsEnglish ? 'Stage' : 'Etapa'}</Label>
+                            <Select
+                              value={crmEditDraft.stage}
+                              onValueChange={(value) => setCrmEditDraft((prev) => ({ ...prev, stage: value as CrmStage }))}
+                            >
+                              <SelectTrigger id="crm-edit-stage">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {CRM_STAGES.map((stage) => (
+                                  <SelectItem key={stage} value={stage}>
+                                    {crmStageLabels[stage]}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="crm-edit-notes">{dashboardIsEnglish ? 'Notes' : 'Notas'}</Label>
+                          <textarea
+                            id="crm-edit-notes"
+                            value={crmEditDraft.notes}
+                            onChange={(event) => setCrmEditDraft((prev) => ({ ...prev, notes: event.target.value }))}
+                            rows={4}
+                            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setCrmEditDialogOpen(false)}
+                            disabled={crmEditing}
+                          >
+                            {dashboardIsEnglish ? 'Cancel' : 'Cancelar'}
+                          </Button>
+                          <Button type="button" onClick={() => void handleSaveCrmContactEdit()} disabled={crmEditing}>
+                            {crmEditing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
+                            {dashboardIsEnglish ? 'Save changes' : 'Guardar cambios'}
+                          </Button>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                   <div className="grid gap-2 rounded-xl border border-border/70 bg-muted/20 p-3 sm:grid-cols-2 xl:grid-cols-4">
                     <div className="min-w-0">
                       <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">

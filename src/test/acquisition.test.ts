@@ -1,36 +1,70 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  type AcquisitionProspect,
   buildAcquisitionCrmDraft,
   filterAcquisitionProspects,
   getAcquisitionMetrics,
-  searchAcquisitionMockData,
 } from "@/lib/acquisition";
 
+const sampleProspects: AcquisitionProspect[] = [
+  {
+    id: "prospect-1",
+    businessName: "Inmobiliaria Costa Norte",
+    category: "Inmobiliaria",
+    city: "Trujillo",
+    country: "Peru",
+    address: "Av. America Norte 1201, Trujillo",
+    phone: "+51 982 410 755",
+    website: "https://costanorteinmobiliaria.pe",
+    rating: 4.6,
+    reviewsCount: 132,
+    commercialScore: 88,
+    mapsUrl: "https://maps.example/1",
+    status: "pending",
+    source: "google_places",
+  },
+  {
+    id: "prospect-2",
+    businessName: "Centro Dental Miraflores",
+    category: "Clinica dental",
+    city: "Lima",
+    country: "Peru",
+    address: "Av. Jose Pardo 410, Miraflores",
+    phone: "+51 999 102 410",
+    website: "https://centrodentalmiraflores.pe",
+    rating: 4.8,
+    reviewsCount: 214,
+    commercialScore: 93,
+    mapsUrl: "https://maps.example/2",
+    status: "pending",
+    source: "google_places",
+  },
+  {
+    id: "prospect-3",
+    businessName: "Clinica Renovar Providencia",
+    category: "Clinica estetica",
+    city: "Santiago",
+    country: "Chile",
+    address: "Av. Providencia 2550, Santiago",
+    phone: "+56 9 6123 8841",
+    website: "https://clinicarenovar.cl",
+    rating: 4.7,
+    reviewsCount: 198,
+    commercialScore: 90,
+    mapsUrl: "https://maps.example/3",
+    status: "pending",
+    source: "google_places",
+  },
+];
+
 describe("acquisition utils", () => {
-  it("filters mock search results by category, city and country", () => {
-    const results = searchAcquisitionMockData({
-      category: "inmobiliaria",
-      city: "trujillo",
-      country: "peru",
-    });
-
-    expect(results).toHaveLength(1);
-    expect(results[0]?.businessName).toBe("Inmobiliaria Costa Norte");
-  });
-
   it("applies client-side score and status filters", () => {
-    const results = searchAcquisitionMockData({
-      category: "",
-      city: "lima",
-      country: "peru",
-    });
-
     const filtered = filterAcquisitionProspects(
       [
-        ...results,
+        ...sampleProspects,
         {
-          ...results[0],
+          ...sampleProspects[0],
           id: "approved-copy",
           status: "approved",
           commercialScore: 96,
@@ -48,16 +82,10 @@ describe("acquisition utils", () => {
   });
 
   it("summarizes prospect metrics and maps an approved prospect to CRM draft", () => {
-    const results = searchAcquisitionMockData({
-      category: "",
-      city: "",
-      country: "peru",
-    });
-
     const sample = [
-      { ...results[0], status: "approved" as const },
-      { ...results[1], status: "discarded" as const },
-      { ...results[2], status: "pending" as const },
+      { ...sampleProspects[0], status: "approved" as const },
+      { ...sampleProspects[1], status: "discarded" as const },
+      { ...sampleProspects[2], status: "pending" as const },
     ];
 
     expect(getAcquisitionMetrics(sample)).toEqual({
