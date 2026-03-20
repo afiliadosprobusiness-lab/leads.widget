@@ -525,11 +525,11 @@ Codigo observado:
 - `POST|OPTIONS /api/verify-payment` (proxy a backend externo)
 - `GET /api/w/:widgetId.js` (proxy a backend externo)
 - `GET /api/debug` (verifica acceso Firebase Admin; retorna `status/env`, y en error incluye `stack`)
-- `vercel.json` usa `routes` con `handle: filesystem` primero; reescribe solo `/api/crm/(contacts-merge|deals|tasks|timeline)` -> `/api/crm?resource=:resource`; y luego fallback `/api/(.*)` -> `/api/external/$1`
+- `vercel.json` usa `routes` con `handle: filesystem` primero; reescribe solo `/api/crm/(contacts-merge|deals|tasks|timeline)` -> `/api/crm?resource=:resource`; y luego fallback `/api/(.*)` -> `https://api-production-dced.up.railway.app/api/$1`
 
 Asuncion:
 
-- En produccion, las funciones locales en `api/*.js` se resuelven primero; rutas `/api/*` sin archivo local caen a `api/external/[...path].js`, que reenvia al backend externo usando `BACKEND_URL`.
+- En produccion, las funciones locales en `api/*.js` se resuelven primero; rutas `/api/*` sin archivo local caen por rewrite directo al backend externo en Railway.
 - CRM opera en modo hibrido: contactos/listado/detalle/edicion caen al backend externo; `contacts-merge`, `deals`, `tasks` y `timeline` siguen en funciones locales `api/crm/*`.
 - El proxy local de `POST /api/chat` ademas persiste trazas resumidas de cada intercambio en `ai_chat_logs` para consola de debugging en Dashboard (sin cambiar el contrato de respuesta hacia el cliente).
 - El proxy local de `POST /api/chat` ejecuta resolucion de identidad para comando `VALIDAR_DNI` con estrategia configurable (`DNI_VALIDATION_PROVIDER=auto|api|eldni|capture`), soportando API externa (`DNI_API_*`), fallback por formulario publico ELDNI (`ELDNI_FORM_URL`, `ELDNI_TIMEOUT_MS`) y modo `capture` sin consulta externa.
@@ -850,9 +850,9 @@ Cambios de comportamiento relevantes:
 
 ### Changelog del Contrato
 - Fecha: 2026-03-20
-- Cambio: el fallback global `/api/(.*)` deja de apuntar a una URL hardcodeada de Cloud Run y pasa a `api/external/[...path].js`, que reenvia al backend externo usando `BACKEND_URL`
+- Cambio: el fallback global `/api/(.*)` apunta directo a Railway y los helpers server-side salen de `api/` para mantener el frontend dentro del limite de 12 funciones del plan Hobby
 - Tipo: non-breaking
-- Impacto: permite mover el hosting del backend (ej. Cloud Run -> Railway) sin cambiar rutas cliente ni volver a editar `vercel.json` por cada cutover
+- Impacto: corrige `404` en `GET /api/crm/contacts` del deploy publico, preserva rutas cliente `/api/*` y permite desplegar sin subir de plan
 - Fecha: 2026-03-18
 - Cambio: la pestana `Adquisicion` del dashboard deja de usar dataset mock como flujo principal y consume `POST /api/acquisition/search`, `GET /api/acquisition/prospects` y `PATCH /api/acquisition/prospects`
 - Tipo: non-breaking

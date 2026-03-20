@@ -1,4 +1,4 @@
-import { getBackendUrl } from "../_backend.js";
+import { getBackendUrl } from "../../server/backend.js";
 
 export default async function handler(req, res) {
   const { widgetId } = req.query || {};

@@ -1,22 +1,27 @@
 ﻿# Backend Externo - Guia de Conexion
 
 ## Objetivo
-Mantener el frontend funcionando con rutas `/api/*` mientras el backend externo puede vivir en Cloud Run o Railway.
+Mantener el frontend funcionando con rutas `/api/*` mientras el backend externo opera desde Railway sin romper el contrato publico.
 
 ## Paso 1: Desplegar backend
-Despliega `leads.widget.backend` y copia la URL final de Cloud Run.
+Despliega `leads.widget.backend` y confirma la URL final de Railway.
 
 Ejemplo:
-`https://leads-widget-backend-xxxx-uc.a.run.app`
+`https://api-production-dced.up.railway.app`
 
-## Paso 2: Variable `BACKEND_URL` en Vercel (frontend)
-El frontend ya no debe hardcodear el host del backend en `vercel.json`.
+## Paso 2: Routing frontend en Vercel
+
+- `vercel.json` ya reescribe el fallback `/api/*` directo a Railway:
+  - `/api/crm/contacts`
+  - `/api/crm/contacts/:contactId`
+  - `/api/acquisition/*`
+  - y cualquier otra ruta sin funcion local dedicada
+
+La variable `BACKEND_URL` sigue existiendo para las funciones locales que proxyean manualmente (`api/chat.js`, `api/track.js`, `api/verify-payment.js`, `api/icloser/handoff.js`, `api/w/[widgetId].js`).
 
 Configura en Vercel:
 
-- `BACKEND_URL=https://REEMPLAZAR_BACKEND_URL`
-
-El fallback `/api/*` reescribe internamente a `api/external/[...path].js`, y esa funcion reenvia al backend usando `BACKEND_URL`.
+- `BACKEND_URL=https://api-production-dced.up.railway.app`
 
 ## Paso 3: Variables recomendadas en backend
 - `FIREBASE_SERVICE_ACCOUNT`
@@ -35,4 +40,4 @@ El fallback `/api/*` reescribe internamente a `api/external/[...path].js`, y esa
 5. Verificacion de pago
 
 ## Nota
-No cambies los fetch del frontend. La compatibilidad se mantiene por rutas relativas `/api/*`; solo cambia el upstream configurado en `BACKEND_URL`.
+No cambies los fetch del frontend. La compatibilidad se mantiene por rutas relativas `/api/*`; el cambio ocurre en la capa de routing/proxy de Vercel.

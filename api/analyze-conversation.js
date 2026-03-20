@@ -1,5 +1,5 @@
 import { getAuth } from "firebase-admin/auth";
-import { db } from "./_firebase.js";
+import { db } from "../server/firebase.js";
 
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 const DEFAULT_MODEL = process.env.OPENAI_ANALYSIS_MODEL || "gpt-4o-mini";

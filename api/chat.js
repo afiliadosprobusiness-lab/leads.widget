@@ -1,5 +1,5 @@
-import { getBackendUrl, setProxyCors } from "./_backend.js";
-import { db } from "./_firebase.js";
+import { getBackendUrl, setProxyCors } from "../server/backend.js";
+import { db } from "../server/firebase.js";
 const OWNER_CACHE_TTL_MS = 10 * 60 * 1000;
 const widgetOwnerCache = new Map();
 const RENIEC_API_DEFAULT_URL = "https://api.apis.net.pe/v2/reniec/dni";

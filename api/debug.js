@@ -1,5 +1,5 @@
 import { getAuth } from "firebase-admin/auth";
-import { db } from "./_firebase.js";
+import { db } from "../server/firebase.js";
 
 const SUPERADMIN_EMAILS = new Set([
   "afiliadosprobusiness@gmail.com",

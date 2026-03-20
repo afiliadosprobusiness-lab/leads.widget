@@ -152,10 +152,10 @@ Lead Widget convierte trafico en leads con widget embebible + dashboard cliente.
 
 ## Configuracion relevante
 - Front usa rutas `/api/*` y resuelve el backend externo via `BACKEND_URL`.
-- `vercel.json` prioriza `filesystem` para que funciones locales `api/*.js` (ej. `api/chat.js`) se ejecuten antes del fallback `/api/*` al proxy local `api/external/[...path].js`.
+- `vercel.json` prioriza `filesystem` para que funciones locales `api/*.js` (ej. `api/chat.js`) se ejecuten antes del fallback `/api/*` directo al backend Railway.
 - `vercel.json` reescribe solo `/api/crm/(contacts-merge|deals|tasks|timeline)` hacia `api/crm.js`; `/api/crm/contacts` y `/api/crm/contacts/:contactId` caen al backend externo por el fallback global.
 - CRM v2 se atiende de forma hibrida: contactos/listado/detalle/edicion en backend externo; `contacts-merge`, `deals`, `tasks` y `timeline` siguen en funcion local `api/crm.js`.
-- `Adquisicion` consume `/api/acquisition/*` con Bearer Firebase; esas rutas caen al backend externo por el fallback global hacia `api/external/[...path].js` usando `BACKEND_URL` (no existe funcion local dedicada en frontend).
+- `Adquisicion` consume `/api/acquisition/*` con Bearer Firebase; esas rutas caen al backend externo por el fallback global de `vercel.json` hacia Railway (no existe funcion local dedicada en frontend).
 - Dashboard agrega bloque `Meta Conversions API (Precalificacion)` para capturar `Business Manager ID`, `Ad Account ID`, `Pixel/Dataset ID` y `Access Token` con guardado seguro.
 - En el bloque Meta CAPI del dashboard, el CTA `?` junto a `Guardar Meta CAPI` abre una guia in-app para ubicar cada dato dentro de Meta Business/Ads Manager/Events Manager y explica como crear conversiones de calidad (`Lead`, `QualifiedLead`, `Appointment`, `Sale`) para optimizacion en Ads Manager.
 - La configuracion sensible de Meta CAPI se gestiona via endpoint local autenticado `GET|PUT /api/meta-capi-config` y se almacena en coleccion privada `meta_capi_configs` con token cifrado server-side (no en `widget_configs` publico).

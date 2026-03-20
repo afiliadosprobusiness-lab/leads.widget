@@ -1,4 +1,4 @@
-import { getBackendUrl, setProxyCors } from "./_backend.js";
+import { getBackendUrl, setProxyCors } from "../server/backend.js";
 
 export default async function handler(req, res) {
   setProxyCors(res, "POST, OPTIONS");

@@ -1,4 +1,4 @@
-const DEFAULT_BACKEND_URL = "https://leads-widget-backend-319905500449.us-central1.run.app";
+const DEFAULT_BACKEND_URL = "https://api-production-dced.up.railway.app";
 
 export function getBackendUrl() {
   return String(process.env.BACKEND_URL || DEFAULT_BACKEND_URL).trim().replace(/\/$/, "");

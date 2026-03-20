@@ -1,4 +1,4 @@
-import { db } from "./_firebase.js";
+import { db } from "../server/firebase.js";
 
 const OWNER_CACHE_TTL_MS = 10 * 60 * 1000;
 const widgetOwnerCache = new Map();
